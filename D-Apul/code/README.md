@@ -4,12 +4,14 @@ Code directory for _A.pulchra_.
 
 All file names should adhere to this format:
 
-00.00-<code_topic>.Rmd
+00.00-<species_designation><code_topic>.Rmd
 
 - `00.00`: Numbers to left of decimal should be inremented for each new type of analysis, which is unrelated to other existing analyses. Numbers to the right of the decimal should be incremented for analyses related to existing analyses.
 
 	- E.g. `01.00-exon-counts.Rmd`
 	- E.g. `01.01-exon-counts-per-gene.Rmd`
+	
+- `<species_designation>`: Should match top level of repo. E.g. `D-Apul`.
 
 - `<code_topic>`: Provide a bried description of code functionality. E.g. `exon_counts`.
 
@@ -20,4 +22,4 @@ All outputs from a script should be directed to a corresponding directory with t
 ---
 
 
-- [`00.00-raw-reads-FastQC-MultiQC.Rmd`](./00.00-raw-reads-FastQC-MultiQC.Rmd): Quality check of raw sequencing reads using FastQC and MultiQC.
+- [`00.00-D-Apul-raw-reads-FastQC-MultiQC.Rmd`](./00.00-raw-reads-FastQC-MultiQC.Rmd): Quality check of raw sequencing reads using FastQC and MultiQC.
