@@ -1,0 +1,59 @@
+---
+title: "01-0040029-geneID"
+output: html_document
+date: "2024-10-03"
+---
+
+![GO0040029](http://gannet.fish.washington.edu/seashell/snaps/Monosnap_QuickGOTerm_GO0040029_2024-10-03_16-29-35.png)
+
+# Apul
+
+```{bash}
+curl -o ../output/01-geneID/Apul-genes.fasta https://gannet.fish.washington.edu/seashell/bu-github/deep-dive-expression/D-Apul/output/07-Apul-Hisat/genes.fasta
+
+```
+
+
+```{bash}
+# Set the variable for the GO term
+GO_TERM="0040029"
+
+fasta="../output/01-geneID/Apul-genes.fasta"
+
+sp="Apul"
+
+
+# Use the variable in the curl command
+curl -H "Accept: text/plain" "https://rest.uniprot.org/uniprotkb/stream?format=fasta&query=%28%28go%3A${GO_TERM}%29%29+AND+%28reviewed%3Atrue%29" -o "../output/01-geneID/SwissProt-GO:${GO_TERM}.fa"
+
+
+
+head ../output/01-geneID/SwissProt-GO:${GO_TERM}.fa
+grep -c ">" ../output/01-geneID/SwissProt-GO:${GO_TERM}.fa
+
+
+
+/home/shared/ncbi-blast-2.15.0+/bin/makeblastdb \
+-in ../output/01-geneID/SwissProt-GO:${GO_TERM}.fa \
+-dbtype prot \
+-out ../output/01-geneID/SwissProt-GO:${GO_TERM}
+
+
+/home/shared/ncbi-blast-2.15.0+/bin/blastx \
+-query $fasta \
+-db ../output/01-geneID/SwissProt-GO:${GO_TERM} \
+-out ../output/01-geneID/${sp}_blastx-GO:${GO_TERM}_out.tab \
+-evalue 1E-05 \
+-num_threads 48 \
+-max_target_seqs 1 \
+-max_hsps 1 \
+-outfmt 6 \
+2>/dev/null
+
+head ../output/01-geneID/${sp}_blastx-GO:${GO_TERM}_out.tab
+wc -l ../output/01-geneID/${sp}_blastx-GO:${GO_TERM}_out.tab
+```
+
+
+
+
