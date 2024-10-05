@@ -22,4 +22,4 @@ All outputs from a script should be directed to a corresponding directory with t
 ---
 
 
-- [`00.00-D-Apul-raw-reads-FastQC-MultiQC.Rmd`](./00.00-raw-reads-FastQC-MultiQC.Rmd): Quality check of raw sequencing reads using FastQC and MultiQC.
+- [`00.00-D-Apul-RNAseq-reads-FastQC-MultiQC.Rmd`](./00.00-D-Apul-RNAseq-reads-FastQC-MultiQC.Rmd): Quality check of raw RNA-seq reads using FastQC and MultiQC.
