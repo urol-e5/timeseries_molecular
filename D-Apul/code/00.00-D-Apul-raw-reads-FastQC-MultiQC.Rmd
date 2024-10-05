@@ -3,9 +3,6 @@ title: "00.00-raw-reads-FastQC-MultiQC"
 author: "Sam White"
 date: "2024-10-04"
 output: 
-  github_document:
-    toc: true
-    number_sections: true
   bookdown::html_document2:
     theme: cosmo
     toc: true
@@ -13,6 +10,9 @@ output:
     number_sections: true
     code_folding: show
     code_download: true
+  github_document:
+    toc: true
+    number_sections: true
   html_document:
     theme: cosmo
     toc: true
@@ -94,7 +94,7 @@ cat .bashvars
 
 # Download _A.pulchra_ RNA-seq FastQs
 
-# Download raw sRNAseq reads
+## Download raw RNA-seq reads
 
 Reads are downloaded from 
 https://owl.fish.washington.edu/nightingales/E5-coral-time-series/30-1047560508/
