@@ -54,8 +54,8 @@ echo 'export timeseries_dir=/home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeser
 echo 'export output_dir_top=${timeseries_dir}/D-Apul/output/01.00-D-Apul-RNAseq-trimming-fastp-FastQC-MultiQC'
 echo 'export raw_reads_dir=${timeseries_dir}/D-Apul/data/raw-fastqs'
 echo 'export raw_reads_url="https://owl.fish.washington.edu/nightingales/E5-coral-time-series/30-1047560508/"'
-echo 'export trimmed_fastqs_dir=${timeseries_dir}/D-Apul/${output_dir_top}/trimmed-fastqs'
-echo 'export trimmed_fastqc_dir=${timeseries_dir}/D-Apul/${output_dir_top}/trimmed-fastqc'
+echo 'export trimmed_fastqs_dir=${output_dir_top}/trimmed-fastqs'
+echo 'export trimmed_fastqc_dir=${output_dir_top}/trimmed-fastqc'
 echo ""
 
 echo "# Paths to programs"
@@ -178,6 +178,9 @@ done
 # Load bash variables into memory
 source .bashvars
 
+# Make output directories, if it doesn't exist
+mkdir --parents "${trimmed_fastqs_dir}"
+
 # Change to raw reads directory
 cd "${raw_reads_dir}"
 
@@ -197,10 +200,12 @@ done
 
 # Create list of fastq files used in analysis
 # Create MD5 checksum for reference
+if [ ! -f "${output_dir_top}"/raw-fastq-checksums.md5 ]; then
 for fastq in *.gz
-do
-  md5sum ${fastq} >> "${output_dir_top}"/raw-fastq-checksums.md5
-done
+  do
+    md5sum ${fastq} >> "${output_dir_top}"/raw-fastq-checksums.md5
+  done
+fi
 
 # Run fastp on files
 # Adds JSON report output for downstream usage by MultiQC
@@ -215,11 +220,12 @@ do
   --thread ${threads} \
   --html "${trimmed_fastqs_dir}"/"${R1_sample_name}".fastp-trim.report.html \
   --json "${trimmed_fastqs_dir}"/"${R1_sample_name}".fastp-trim.report.json \
-  --out1 "${trimmed_fastqs_dir}"/"${R1_sample_name}".fastp-trim.fq.gz \
-  --out2 "${trimmed_fastqs_dir}"/"${R2_sample_name}".fastp-trim.fq.gz
+  --out1 "${trimmed_fastqs_dir}"/"${R1_sample_name}"_R1_001.fastp-trim.fq.gz \
+  --out2 "${trimmed_fastqs_dir}"/"${R2_sample_name}"_R2_001.fastp-trim.fq.gz \
+  2>> "${trimmed_fastqs_dir}"/fastp.stderr
 
   # Generate md5 checksums for newly trimmed files
-  md5sum "${R1_sample_name}".fastp-trim.fq.gz > "${R1_sample_name}".fastp-trim.fq.gz.md5
-  md5sum "${R2_sample_name}".fastp-trim.fq.gz > "${R2_sample_name}".fastp-trim.fq.gz.md5
+  md5sum "${R1_sample_name}"_R1_001.fastp-trim.fq.gz > "${R1_sample_name}"_R1_001.fastp-trim.fq.gz.md5
+  md5sum "${R2_sample_name}"_R2_001.fastp-trim.fq.gz > "${R2_sample_name}"_R2_001.fastp-trim.fq.gz.md5
 done
 ```
