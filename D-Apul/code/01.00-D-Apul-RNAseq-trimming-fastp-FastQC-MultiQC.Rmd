@@ -40,6 +40,10 @@ This Rmd file trims *A.pulchra* RNA-seq files using [fastp](https://github.com/O
 
 Expects input files formatted like so: `<number>--<sample_name>_R[12]_001.fastq.gz`
 
+All trimmed FastQs produced by this script are here:
+
+[01.00-D-Apul-RNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs/](https://gannet.fish.washington.edu/Atumefaciens/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/01.00-D-Apul-RNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs/)
+
 # Create a Bash variables file
 
 This allows usage of Bash variables across R Markdown chunks.
