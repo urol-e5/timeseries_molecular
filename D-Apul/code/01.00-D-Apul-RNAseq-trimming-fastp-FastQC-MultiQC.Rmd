@@ -33,5 +33,193 @@ knitr::opts_chunk$set(
   comment = ""         # Prevents appending '##' to beginning of lines in code output
 )
 ```
----
 
+------------------------------------------------------------------------
+
+This Rmd file trims *A.pulchra* RNA-seq files using [fastp](https://github.com/OpenGene/fastp) [@chen2023], followed by quality checks with [FastQC](https://github.com/s-andrews/FastQC) and [MultiQC](https://multiqc.info/)[@ewels2016].
+
+Expects input files formatted like so: `<number>--<sample_name>_R[12]_001.fastq.gz`
+
+# Create a Bash variables file
+
+This allows usage of Bash variables across R Markdown chunks.
+
+```{r save-bash-variables-to-rvars-file, engine='bash', eval=TRUE}
+{
+echo "#### Assign Variables ####"
+echo ""
+
+echo "# Data directories"
+echo 'export timeseries_dir=/home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular'
+echo 'export output_dir_top=${timeseries_dir}/D-Apul/output/01.00-D-Apul-RNAseq-trimming-fastp-FastQC-MultiQC'
+echo 'export raw_reads_dir=${timeseries_dir}/D-Apul/data/raw-fastqs'
+echo 'export raw_reads_url="https://owl.fish.washington.edu/nightingales/E5-coral-time-series/30-1047560508/"'
+echo 'export trimmed_fastqs_dir=${timeseries_dir}/D-Apul/${output_dir_top}/trimmed-fastqs'
+echo 'export trimmed_fastqc_dir=${timeseries_dir}/D-Apul/${output_dir_top}/trimmed-fastqc'
+echo ""
+
+echo "# Paths to programs"
+echo 'export programs_dir="/home/shared"'
+echo 'export fastp="${programs_dir}/fastp"'
+echo 'export fastqc=${programs_dir}/FastQC-0.12.1/fastqc'
+echo 'export multiqc=/home/sam/programs/mambaforge/bin/multiqc'
+echo ""
+
+echo "# Set FastQ filename patterns"
+echo "export fastq_pattern='*.fastq.gz'"
+echo "export R1_fastq_pattern='*_R1_*.fastq.gz'"
+echo "export R2_fastq_pattern='*_R2_*.fastq.gz'"
+echo ""
+
+echo "# Set number of CPUs to use"
+echo 'export threads=40'
+echo ""
+
+
+echo "## Inititalize arrays"
+echo 'export fastq_array_R1=()'
+echo 'export fastq_array_R2=()'
+echo 'export raw_fastqs_array=()'
+echo 'export R1_names_array=()'
+echo 'export R2_names_array=()'
+echo ""
+
+echo "# Programs associative array"
+echo "declare -A programs_array"
+echo "programs_array=("
+echo '[fastp]="${fastp}" \'
+echo '[fastqc]="${fastqc}" \'
+echo '[multiqc]="${multiqc}" \'
+echo ")"
+echo ""
+
+echo "# Print formatting"
+echo 'export line="--------------------------------------------------------"'
+echo ""
+} > .bashvars
+
+cat .bashvars
+```
+
+If needed, download raw RNA-seq.
+
+Change `eval=FALSE` to `eval=TRUE` to execute the next two chunks to download RNA-seq and then verify MD5 checksums.
+
+```{bash download-raw-reads, engine='bash', eval=FALSE}
+# Load bash variables into memory
+source .bashvars
+
+# Make output directory if it doesn't exist
+mkdir --parents ${raw_reads_dir}
+
+# Create list of only A.pulchra sample names
+sample_list=$(awk -F "," 'NR > 2 {print $5"\t"$6}' ${timeseries_dir}/data/rna_metadata.csv | awk -F"[\t-]" '$2 == "ACR" {print $1}')
+
+echo ""
+echo "${line}"
+echo ""
+echo "Sample list:"
+echo ""
+echo "${sample_list}"
+echo ""
+echo "${line}"
+echo ""
+
+
+# Use printf to format each item for use in wget
+formatted_list=$(printf "*%s*," ${sample_list})
+
+# Remove the trailing comma and append *.md5
+formatted_list="${formatted_list%,},*.md5"
+
+# Output the final wget command
+echo ""
+echo "${line}"
+echo ""
+echo "Formatted wget accept list:"
+echo ""
+echo "wget --accept=\"$formatted_list\""
+echo ""
+echo "${line}"
+echo ""
+
+# Run wget to retrieve FastQs and MD5 files
+wget \
+--directory-prefix ${raw_reads_dir} \
+--recursive \
+--no-check-certificate \
+--continue \
+--cut-dirs 3 \
+--no-host-directories \
+--no-parent \
+--quiet \
+--accept=\"$formatted_list\" ${raw_reads_url}
+
+ls -lh "${raw_reads_dir}"
+```
+
+Verify raw read checksums
+```{bash verify-raw-read-checksums, engine='bash', eval=FALSE}
+# Load bash variables into memory
+source .bashvars
+
+cd "${raw_reads_dir}"
+
+# Checksums file contains other files, so this just looks for the sRNAseq files.
+for file in *.md5
+do
+  md5sum --check "${file}"
+done
+```
+
+# Fastp Trimming
+
+```{bash fastp-trimming, engine='bash', eval=TRUE}
+# Load bash variables into memory
+source .bashvars
+
+# Change to raw reads directory
+cd "${raw_reads_dir}"
+
+# Create arrays of fastq R1 files and sample names
+for fastq in ${R1_fastq_pattern}
+do
+  fastq_array_R1+=("${fastq}")
+  R1_names_array+=("$(echo "${fastq}" | awk -F"_" '{print $1}')")
+done
+
+# Create array of fastq R2 files
+for fastq in ${R2_fastq_pattern}
+do
+  fastq_array_R2+=("${fastq}")
+  R2_names_array+=("$(echo "${fastq}" | awk -F"_" '{print $1}')")
+done
+
+# Create list of fastq files used in analysis
+# Create MD5 checksum for reference
+for fastq in *.gz
+do
+  md5sum ${fastq} >> "${output_dir_top}"/raw-fastq-checksums.md5
+done
+
+# Run fastp on files
+# Adds JSON report output for downstream usage by MultiQC
+for index in "${!fastq_array_R1[@]}"
+do
+  R1_sample_name=$(echo "${R1_names_array[index]}")
+  R2_sample_name=$(echo "${R2_names_array[index]}")
+  ${fastp} \
+  --in1 ${fastq_array_R1[index]} \
+  --in2 ${fastq_array_R2[index]} \
+  --detect_adapter_for_pe \
+  --thread ${threads} \
+  --html "${trimmed_fastqs_dir}"/"${R1_sample_name}".fastp-trim.report.html \
+  --json "${trimmed_fastqs_dir}"/"${R1_sample_name}".fastp-trim.report.json \
+  --out1 "${trimmed_fastqs_dir}"/"${R1_sample_name}".fastp-trim.fq.gz \
+  --out2 "${trimmed_fastqs_dir}"/"${R2_sample_name}".fastp-trim.fq.gz
+
+  # Generate md5 checksums for newly trimmed files
+  md5sum "${R1_sample_name}".fastp-trim.fq.gz > "${R1_sample_name}".fastp-trim.fq.gz.md5
+  md5sum "${R2_sample_name}".fastp-trim.fq.gz > "${R2_sample_name}".fastp-trim.fq.gz.md5
+done
+```
