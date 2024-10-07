@@ -69,6 +69,7 @@ echo "# Set FastQ filename patterns"
 echo "export fastq_pattern='*.fastq.gz'"
 echo "export R1_fastq_pattern='*_R1_*.fastq.gz'"
 echo "export R2_fastq_pattern='*_R2_*.fastq.gz'"
+echo "export trimmed_fastq_pattern='*fastp-trim.fq.gz'"
 echo ""
 
 echo "# Set number of CPUs to use"
@@ -174,7 +175,9 @@ done
 
 # Fastp Trimming
 
-```{bash fastp-trimming, engine='bash', eval=TRUE}
+[fastp](https://github.com/OpenGene/fastp) [@chen2023] is set to auto-detect Illumina adapters, as well as trim the first 20bp from each read, as past experience shows these first 20bp are more inconsistent than the remainder of the read length.
+
+```{bash fastp-trimming, engine='bash', eval=FALSE}
 # Load bash variables into memory
 source .bashvars
 
@@ -217,6 +220,8 @@ do
   --in1 ${fastq_array_R1[index]} \
   --in2 ${fastq_array_R2[index]} \
   --detect_adapter_for_pe \
+  --trim_front1 20 \
+  --trim_front2 20 \
   --thread ${threads} \
   --html "${trimmed_fastqs_dir}"/"${R1_sample_name}".fastp-trim.report.html \
   --json "${trimmed_fastqs_dir}"/"${R1_sample_name}".fastp-trim.report.json \
@@ -225,8 +230,10 @@ do
   2>> "${trimmed_fastqs_dir}"/fastp.stderr
 
   # Generate md5 checksums for newly trimmed files
+  cd "${trimmed_fastqs_dir}"
   md5sum "${R1_sample_name}"_R1_001.fastp-trim.fq.gz > "${R1_sample_name}"_R1_001.fastp-trim.fq.gz.md5
   md5sum "${R2_sample_name}"_R2_001.fastp-trim.fq.gz > "${R2_sample_name}"_R2_001.fastp-trim.fq.gz.md5
+  cd -
 done
 ```
 
@@ -242,45 +249,42 @@ mkdir --parents "${trimmed_fastqc_dir}"
 
 
 # Create array of trimmed FastQs
-raw_fastqs_array=(${raw_reads_dir}/${fastq_pattern})
+trimmed_fastqs_array=(${trimmed_fastqs_dir}/${trimmed_fastq_pattern})
 
 # Pass array contents to new variable as space-delimited list
-raw_fastqc_list=$(echo "${raw_fastqs_array[*]}")
+trimmed_fastqc_list=$(echo "${trimmed_fastqs_array[*]}")
 
-echo "Beginning FastQC on raw reads..."
+echo "Beginning FastQC on trimmed reads..."
 echo ""
 
 # Run FastQC
 ### NOTE: Do NOT quote raw_fastqc_list
 ${programs_array[fastqc]} \
 --threads ${threads} \
---outdir ${trimmed_fastqc_dir} \
+--outdir ${trimmed_fastqs_dir} \
 --quiet \
-${raw_fastqc_list}
+${trimmed_fastqc_list}
 
-echo "FastQC on raw reads complete!"
+echo "FastQC on trimmed reads complete!"
 echo ""
 
 ############ END FASTQC ############
 
 ############ RUN MULTIQC ############
-echo "Beginning MultiQC on raw FastQC..."
+echo "Beginning MultiQC on trimmed FastQC..."
 echo ""
 
-${programs_array[multiqc]} ${trimmed_fastqc_dir} -o ${trimmed_fastqc_dir}
+${programs_array[multiqc]} ${trimmed_fastqs_dir} -o ${trimmed_fastqs_dir}
 
 echo ""
-echo "MultiQC on raw FastQs complete."
+echo "MultiQC on trimmed FastQs complete."
 echo ""
 
 ############ END MULTIQC ############
 
 echo "Removing FastQC zip files."
 echo ""
-rm ${trimmed_fastqc_dir}/*.zip
+rm ${trimmed_fastqs_dir}/*.zip
 echo "FastQC zip files removed."
 echo ""
-
-# View directory contents
-ls -lh ${trimmed_fastqc_dir}
 ```
