@@ -48,10 +48,16 @@ echo ""
 echo "# Data directories"
 echo 'export timeseries_dir=/home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular'
 echo 'export genome_dir="${timeseries_dir}/D-Apul/data"'
-echo 'export output_dir_top=${timeseries_dir}/D-Apul/output/02.00-D-Apul-RNAseq-alignment-HiSat2'
+echo 'export genome_index_dir="${timeseries_dir}/D-Apul/output/02.10-D-Apul-RNAseq-genome-index-HiSat2"'
+echo 'export output_dir_top=${timeseries_dir}/D-Apul/output/02.20-D-Apul-RNAseq-alignment-HiSat2'
 echo 'export trimmed_fastqs_dir=${timeseries_dir}/D-Apul/output/01.00-D-Apul-RNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs'
 echo 'export trimmed_reads_url="https://gannet.fish.washington.edu/Atumefaciens/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/01.00-D-Apul-RNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs/"'
 echo ""
+
+echo "# Location of Hisat2 index files"
+echo "# Must keep variable name formatting, as it's used by HiSat2"
+echo 'export HISAT2_INDEXES="${genome_index_dir}"'
+
 
 echo "# Input/output files"
 echo 'export genome_index_name=Apulchra-genome"'
@@ -65,9 +71,7 @@ echo "# Paths to programs"
 echo 'export programs_dir="/home/shared"'
 echo 'export histat2_dir="${programs_dir}/hisat2-2.2.1"'
 
-echo 'export hisat2_build="${hisat2_dir}/hisat2-build"'
-echo 'export hisat2_exons="${hisat2_dir}/hisat2_extract_exons.py"'
-echo 'export hisat2_splice_sites="${hisat2_dir}/hisat2_extract_splice_sites.py"'
+echo 'export hisat2="${hisat2_dir}/hisat2"'
 
 echo 'export samtools="${programs_dir}/samtools-1.12'
 
@@ -99,7 +103,6 @@ echo "# Programs associative array"
 echo "declare -A programs_array"
 echo "programs_array=("
 echo '[hisat2]="${hisat2}" \'
-echo '[hisat2_build]="${hisat2_build}" \'
 echo '[samtools]="${samtools}" \'
 echo '[stringtie]="${stringtie}" \'
 echo ")"
