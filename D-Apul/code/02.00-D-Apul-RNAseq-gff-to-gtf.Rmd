@@ -3,6 +3,9 @@ title: "02.00-D-Apul-RNAseq-gff-to-gtf"
 author: "Sam White"
 date: "2024-10-08"
 output: 
+  github_document:
+    toc: true
+    number_sections: true
   bookdown::html_document2:
     theme: cosmo
     toc: true
@@ -10,9 +13,6 @@ output:
     number_sections: true
     code_folding: show
     code_download: true
-  github_document:
-    toc: true
-    number_sections: true
   html_document:
     theme: cosmo
     toc: true
@@ -141,7 +141,7 @@ Great! This looks like a valid GFF. Can proceed with GTF generation.
 
 # Generate GTF
 
-```{bash preview-genome-gff engine='bash', eval=TRUE}
+```{bash generate-genome-gtf engine='bash', eval=FALSE}
 # Load bash variables into memory
 source .bashvars
 
@@ -154,9 +154,7 @@ ${programs_array[gffread]} -E \
 
 # Inspect GTF
 
-# Generate GTF
-
-```{bash preview-genome-gff engine='bash', eval=TRUE}
+```{bash inspect-genome-gtf engine='bash', eval=TRUE}
 # Load bash variables into memory
 source .bashvars
 
@@ -169,7 +167,7 @@ head ${output_dir_top}/"${transcripts_gtf}"
 To help make this easier to locate, will copy to the `D-Apul/data` directory, which also contains
 the genome FastA, genome FastA index, and the genome GFF files.
 
-```{bash preview-genome-gff engine='bash', eval=TRUE}
+```{bash copy-genome-gtf engine='bash', eval=FALSE}
 # Load bash variables into memory
 source .bashvars
 
