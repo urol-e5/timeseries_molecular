@@ -83,7 +83,7 @@ cat .bashvars
 # Preview and Validate Genome GFF
 
 ## Inspect GFF
-```{bash preview-genome-gff engine='bash', eval=TRUE}
+```{r preview-genome-gff engine='bash', eval=TRUE}
 # Load bash variables into memory
 source .bashvars
 
@@ -99,7 +99,7 @@ This identifies if there are rows with >9 fields (which there shouldn't be in a 
 
 Additionally, it provides a preview of all rows lengths identified.
 
-```{bash validate-genome-gff engine='bash', eval=TRUE}
+```{r validate-genome-gff engine='bash', eval=TRUE}
 # Load bash variables into memory
 source .bashvars
 
@@ -141,7 +141,7 @@ Great! This looks like a valid GFF. Can proceed with GTF generation.
 
 # Generate GTF
 
-```{bash generate-genome-gtf engine='bash', eval=FALSE}
+```{r generate-genome-gtf engine='bash', eval=FALSE}
 # Load bash variables into memory
 source .bashvars
 
@@ -154,7 +154,7 @@ ${programs_array[gffread]} -E \
 
 # Inspect GTF
 
-```{bash inspect-genome-gtf engine='bash', eval=TRUE}
+```{r inspect-genome-gtf engine='bash', eval=TRUE}
 # Load bash variables into memory
 source .bashvars
 
@@ -167,7 +167,7 @@ head ${output_dir_top}/"${transcripts_gtf}"
 To help make this easier to locate, will copy to the `D-Apul/data` directory, which also contains
 the genome FastA, genome FastA index, and the genome GFF files.
 
-```{bash copy-genome-gtf engine='bash', eval=FALSE}
+```{r copy-genome-gtf engine='bash', eval=FALSE}
 # Load bash variables into memory
 source .bashvars
 
