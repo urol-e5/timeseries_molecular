@@ -2,7 +2,7 @@
 title: "02.10-D-Apul-RNAseq-genome-index-HiSat2"
 author: "Sam White"
 date: "2024-10-08"
-output: html_document
+output: 
   bookdown::html_document2:
     theme: cosmo
     toc: true
@@ -123,7 +123,7 @@ head "${splice_sites}"
 
 # Build HISAT2 genome index
 
-```{r build-hisat2-index, engine='bash', eval=TRUE}
+```{r build-hisat2-index, engine='bash', eval=FALSE}
 # Load bash variables into memory
 source .bashvars
 
@@ -137,7 +137,19 @@ cd "${output_dir_top}"
 --exon "${exons}" \
 --ss "${splice_sites}" \
 -p "${threads}" \
-2> "${output_dir_top}"/hisat2_build.err
+2> "${genome_index_name}"-hisat2_build.err
 
 ls -lh
 ```
+```{r list-hisat2-index-output, engine='bash', eval=TRUE}
+# Load bash variables into memory
+source .bashvars
+
+for index in "${output_dir_top}"/*.ht2
+do
+  cp ${index} ${genome_dir}
+done
+
+ls -lh "${output_dir_top}"
+```
+
