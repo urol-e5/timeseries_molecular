@@ -39,6 +39,7 @@ This Rmd file will download raw RNA-seq FastQs for *A.pulchra* and evaluate them
 # Create a Bash variables file
 
 This allows usage of Bash variables across R Markdown chunks.
+
 ```{r save-bash-variables-to-rvars-file, engine='bash', eval=TRUE}
 {
 echo "#### Assign Variables ####"
@@ -92,17 +93,15 @@ echo ""
 cat .bashvars
 ```
 
-# Download _A.pulchra_ RNA-seq FastQs
+# Download *A.pulchra* RNA-seq FastQs
 
 ## Download raw RNA-seq reads
 
-Reads are downloaded from 
-https://owl.fish.washington.edu/nightingales/E5-coral-time-series/30-1047560508/
+Reads are downloaded from <https://owl.fish.washington.edu/nightingales/E5-coral-time-series/30-1047560508/>
 
-Since sequencing included multiple species, the code will also parse only those that are _A.pulchra_.
+Since sequencing included multiple species, the code will also parse only those that are *A.pulchra*.
 
-The `--cut-dirs 3` command cuts the preceding directory structure (i.e. `nightingales/E5-coral-time-series/30-1047560508/`)
-so that we just end up with the reads.
+The `--cut-dirs 3` command cuts the preceding directory structure (i.e. `nightingales/E5-coral-time-series/30-1047560508/`) so that we just end up with the reads.
 
 ```{bash download-raw-reads, engine='bash', eval=TRUE}
 # Load bash variables into memory
@@ -158,6 +157,7 @@ ls -lh "${raw_reads_dir}"
 ```
 
 ## Verify raw read checksums
+
 ```{bash verify-raw-read-checksums, engine='bash', eval=TRUE}
 # Load bash variables into memory
 source .bashvars
@@ -172,6 +172,7 @@ done
 ```
 
 # FastQC/MultiQC on raw reads
+
 ```{bash raw-fastqc-multiqc, engine='bash', eval=TRUE}
 # Load bash variables into memory
 source .bashvars
