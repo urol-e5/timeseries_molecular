@@ -49,8 +49,8 @@ echo "# Data directories"
 echo 'export timeseries_dir=/home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular'
 echo 'export genome_dir="${timeseries_dir}/D-Apul/data"'
 echo 'export genome_index_dir="${timeseries_dir}/D-Apul/output/02.10-D-Apul-RNAseq-genome-index-HiSat2"'
-echo 'export output_dir_top=${timeseries_dir}/D-Apul/output/02.20-D-Apul-RNAseq-alignment-HiSat2'
-echo 'export trimmed_fastqs_dir=${timeseries_dir}/D-Apul/output/01.00-D-Apul-RNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs'
+echo 'export output_dir_top="${timeseries_dir}/D-Apul/output/02.20-D-Apul-RNAseq-alignment-HiSat2"'
+echo 'export trimmed_fastqs_dir="${timeseries_dir}/D-Apul/output/01.00-D-Apul-RNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs"'
 echo 'export trimmed_reads_url="https://gannet.fish.washington.edu/Atumefaciens/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/01.00-D-Apul-RNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs/"'
 echo ""
 
@@ -59,21 +59,26 @@ echo "# Must keep variable name formatting, as it's used by HiSat2"
 echo 'export HISAT2_INDEXES="${genome_index_dir}"'
 
 
-echo "# Input/output files"
-echo 'export genome_index_name=Apulchra-genome"'
-echo 'export exons="Apulchra-genome_hisat2_exons.tab"'
-echo 'export genome_gff="${genome_dir}/GApulchra-genome.gff"'
+echo "# Input files"
+echo 'export exons="${output_dir_top}/Apulchra-genome_hisat2_exons.tab"'
+echo 'export genome_index_name="Apulchra-genome"'
+echo 'export genome_gff="${genome_dir}/Apulchra-genome.gff"'
 echo 'export genome_fasta="${genome_dir}/Apulchra-genome.fa"'
-echo 'export splice_sites="Apulchra-genome_hisat2_splice_sites.tab"'
+echo 'export splice_sites="${output_dir_top}/Apulchra-genome_hisat2_splice_sites.tab"'
 echo 'export transcripts_gtf="${genome_dir}/Apulchra-genome.gtf"'
+
+echo "# Output files"
+echo 'export gtf_list="${output_dir_top}/gtf_list.txt"'
+echo 'export merged_bam="${output_dir_top}/sorted-bams-merged.bam"'
+echo ""
 
 echo "# Paths to programs"
 echo 'export programs_dir="/home/shared"'
-echo 'export histat2_dir="${programs_dir}/hisat2-2.2.1"'
+echo 'export hisat2_dir="${programs_dir}/hisat2-2.2.1"'
 
 echo 'export hisat2="${hisat2_dir}/hisat2"'
 
-echo 'export samtools="${programs_dir}/samtools-1.12'
+echo 'export samtools="${programs_dir}/samtools-1.12"'
 
 echo 'export prepDE="${programs_dir}/stringtie-2.2.1.Linux_x86_64/prepDE.py3"'
 echo 'export stringtie="${programs_dir}/stringtie-2.2.1.Linux_x86_64/stringtie"'
@@ -81,8 +86,8 @@ echo 'export stringtie="${programs_dir}/stringtie-2.2.1.Linux_x86_64/stringtie"'
 echo ""
 
 echo "# Set FastQ filename patterns"
-echo "export R1_fastq_pattern='*_R1_*.fastq.gz'"
-echo "export R2_fastq_pattern='*_R2_*.fastq.gz'"
+echo "export R1_fastq_pattern='*_R1_*.fq.gz'"
+echo "export R2_fastq_pattern='*_R2_*.fq.gz'"
 echo "export trimmed_fastq_pattern='*fastp-trim.fq.gz'"
 echo ""
 
@@ -91,7 +96,7 @@ echo 'export threads=40'
 echo ""
 
 
-echo "## Inititalize arrays"
+echo "## Initialize arrays"
 echo 'export fastq_array_R1=()'
 echo 'export fastq_array_R2=()'
 echo 'export R1_names_array=()'
@@ -114,4 +119,226 @@ echo ""
 } > .bashvars
 
 cat .bashvars
+```
+
+If needed, download raw RNA-seq.
+
+Change `eval=FALSE` to `eval=TRUE` to execute the next two chunks to download RNA-seq and then verify MD5 checksums.
+
+```{bash download-raw-reads, engine='bash', eval=FALSE}
+# Load bash variables into memory
+source .bashvars
+
+# Make output directory if it doesn't exist
+mkdir --parents ${trimmed_fastqs_dir}
+
+# Create list of only A.pulchra sample names
+sample_list=$(awk -F "," 'NR > 2 {print $5"\t"$6}' ../../M-multi-species/data/ | awk -F"[\t-]" '$2 == "ACR" {print $1}')
+
+echo ""
+echo "${line}"
+echo ""
+echo "Sample list:"
+echo ""
+echo "${sample_list}"
+echo ""
+echo "${line}"
+echo ""
+
+
+# Use printf to format each item for use in wget
+formatted_list=$(printf "*%s*," ${sample_list})
+
+# Remove the trailing comma and append *.md5
+formatted_list="${formatted_list%,},*.md5"
+
+# Output the final wget command
+echo ""
+echo "${line}"
+echo ""
+echo "Formatted wget accept list:"
+echo ""
+echo "wget --accept=\"$formatted_list\""
+echo ""
+echo "${line}"
+echo ""
+
+# Run wget to retrieve FastQs and MD5 files
+wget \
+--directory-prefix ${trimmed_fastqs_dir} \
+--recursive \
+--no-check-certificate \
+--continue \
+--cut-dirs 3 \
+--no-host-directories \
+--no-parent \
+--quiet \
+--accept=\"$formatted_list\" ${trimmed_reads_url}
+
+ls -lh "${trimmed_fastqs_dir}"
+```
+
+Verify raw read checksums
+
+```{bash verify-raw-read-checksums, engine='bash', eval=FALSE}
+# Load bash variables into memory
+source .bashvars
+
+cd "${trimmed_fastqs_dir}"
+
+# Verify checksums
+for file in *.md5
+do
+  md5sum --check "${file}"
+done
+```
+
+# Align reads using HISAT2
+
+```{bash hisat2-alignments, engine='bash', eval=FALSE}
+# Load bash variables into memory
+source .bashvars
+
+# Make output directories, if they don't exist
+mkdir --parents "${output_dir_top}"
+
+# Change to ouput directory
+cd "${output_dir_top}"
+
+# Create associative array with sample and timepoint
+metadata="../../../M-multi-species/data/rna_metadata.csv"
+
+# Declare the array
+declare -A sample_timepoint_map
+
+# Read the metadata file line by line
+while IFS=',' read -r sample_number sample_name plate well_number azenta_sample_name colony_id timepoint sample_type species_strain SampleBuffer; do
+    # Check if the species is "Acropora pulchra"
+    if [[ "${species_strain}" == "Acropora pulchra" ]]; then
+        # Add the Azenta sample name as the key and Timepoint as the value in the associative array
+        sample_timepoint_map["${azenta_sample_name}"]="${timepoint}"
+    fi
+done < <(tail -n +2 "${metadata}") # Skip the header
+
+# Print the associative array
+echo ""
+echo "${line}"
+echo ""
+
+echo "Contents of sample_timepoint_map array:"
+for sample in "${!sample_timepoint_map[@]}"
+do
+  echo "$sample: ${sample_timepoint_map[$sample]}"
+done
+
+echo ""
+echo "${line}"
+echo ""
+
+## Populate trimmed reads arrays
+fastq_array_R1=("${trimmed_fastqs_dir}"/${R1_fastq_pattern})
+fastq_array_R2=("${trimmed_fastqs_dir}"/${R2_fastq_pattern})
+
+############## BEGIN HISAT2 ALIGNMENTS ##############
+for sample in "${!sample_timepoint_map[@]}"
+do
+
+  # Create array of fastq R1 files
+  # and generated MD5 checksums file.
+  for fastq in "${fastq_array_R1[@]}"
+  do
+    # Parse sample name from FastQ filename
+    fastq_sample=$(echo "${fastq##*/}" | awk -F"[_-]" '{print $3}')
+    
+    # Process matching FastQ file, based on sample name
+    if [ "${fastq_sample}" == "${sample}" ]; then
+      
+      # Generate checksum/list of input files used
+      md5sum "${fastq}" >> input_fastqs_checksums.md5
+      
+      # Create comma-separated lists of FastQs for HISAT2
+      printf -v joined_R1 '%s,' "${fastq_array_R1[@]}"
+      fastq_list_R1=$(echo "${joined_R1%,}")
+    fi
+  done
+
+  # Create array of fastq R2 files
+  for fastq in "${fastq_array_R2[@]}"
+  do
+    # Parse sample name from FastQ filename
+    fastq_sample=$(echo "${fastq##*/}" | awk -F"[_-]" '{print $3}')
+    
+    # Process matching FastQ file, based on sample name
+    if [ "${fastq_sample}" == "${sample}" ]; then
+      
+      # Generate checksum/list of input files used
+      md5sum "${fastq}" >> input_fastqs_checksums.md5
+
+      # Create comma-separated lists of FastQs for HISAT2
+      printf -v joined_R2 '%s,' "${fastq_array_R2[@]}"
+      fastq_list_R2=$(echo "${joined_R2%,}")
+    fi
+  done
+
+
+
+  # Create and switch to dedicated sample directory
+  mkdir --parents "${sample}" && cd "$_"
+
+  # HISAT2 alignments
+  # Sets read group info (RG) using samples array
+  "${programs_array[hisat2]}" \
+  -x "${genome_index_name}" \
+  -1 "${fastq_list_R1}" \
+  -2 "${fastq_list_R2}" \
+  --threads "${threads}" \
+  -S "${sample}".sam \
+  --rg-id "${sample}" \
+  --rg "SM:""${sample_timepoint_map[$sample]}" \
+  2> "${sample}"_hisat2.stats
+
+  # Sort SAM file, convert to BAM, and index
+  ${programs_array[samtools_view]} \
+  -@ "${threads}" \
+  -Su "${sample}".sam \
+  | ${programs_array[samtools_sort]} - \
+  -@ "${threads}" \
+  -o "${sample}".sorted.bam
+  
+  # Index sorted BAM
+  ${programs_array[samtools_index]} "${sample}".sorted.bam
+
+
+  # Run stringtie on alignments
+  # Uses "-B" option to output tables intended for use in Ballgown
+  # Uses "-e" option; recommended when using "-B" option.
+  # Limits analysis to only reads alignments matching reference.
+  "${programs_array[stringtie]}" "${sample}".sorted.bam \
+  -p "${threads}" \
+  -o "${sample}".gtf \
+  -G "${genome_gff}" \
+  -C "${sample}.cov_refs.gtf" \
+  -B \
+  -e
+
+  # Add GTFs to list file, only if non-empty
+  # Identifies GTF files that only have header
+  gtf_lines=$(wc -l < "${sample}".gtf )
+  if [ "${gtf_lines}" -gt 2 ]; then
+    echo "$(pwd)/${sample}.gtf" >> ../"${gtf_list}"
+  fi
+
+  # Delete unneeded SAM files
+  rm ./*.sam
+
+  # Generate checksums
+  for file in ./*
+  do
+    md5sum "${file}" >> ${sample}_checksums.md5
+  done
+
+  # Move up to orig. working directory
+  cd ..
+
+done
 ```
