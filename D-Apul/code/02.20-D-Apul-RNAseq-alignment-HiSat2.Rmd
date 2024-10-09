@@ -78,7 +78,7 @@ echo 'export hisat2_dir="${programs_dir}/hisat2-2.2.1"'
 
 echo 'export hisat2="${hisat2_dir}/hisat2"'
 
-echo 'export samtools="${programs_dir}/samtools-1.12"'
+echo 'export samtools="${programs_dir}/samtools-1.12/samtools"'
 
 echo 'export prepDE="${programs_dir}/stringtie-2.2.1.Linux_x86_64/prepDE.py3"'
 echo 'export stringtie="${programs_dir}/stringtie-2.2.1.Linux_x86_64/stringtie"'
@@ -243,7 +243,7 @@ fastq_array_R2=("${trimmed_fastqs_dir}"/${R2_fastq_pattern})
 for sample in "${!sample_timepoint_map[@]}"
 do
 
-  # Create array of fastq R1 files
+  # Create HISAT2 list of fastq R1 files
   # and generated MD5 checksums file.
   for fastq in "${fastq_array_R1[@]}"
   do
@@ -262,7 +262,8 @@ do
     fi
   done
 
-  # Create array of fastq R2 files
+  # Create HISAT2 list of fastq R1 files
+  # and generated MD5 checksums file.
   for fastq in "${fastq_array_R2[@]}"
   do
     # Parse sample name from FastQ filename
@@ -285,6 +286,7 @@ do
   # Create and switch to dedicated sample directory
   mkdir --parents "${sample}" && cd "$_"
 
+
   # HISAT2 alignments
   # Sets read group info (RG) using samples array
   "${programs_array[hisat2]}" \
@@ -292,21 +294,13 @@ do
   -1 "${fastq_list_R1}" \
   -2 "${fastq_list_R2}" \
   --threads "${threads}" \
-  -S "${sample}".sam \
   --rg-id "${sample}" \
   --rg "SM:""${sample_timepoint_map[$sample]}" \
-  2> "${sample}"_hisat2.stats
-
-  # Sort SAM file, convert to BAM, and index
-  ${programs_array[samtools_view]} \
-  -@ "${threads}" \
-  -Su "${sample}".sam \
-  | ${programs_array[samtools_sort]} - \
-  -@ "${threads}" \
-  -o "${sample}".sorted.bam
-  
-  # Index sorted BAM
-  ${programs_array[samtools_index]} "${sample}".sorted.bam
+  2> "${sample}"_hisat2.stats \
+  | tee >(${programs_array[samtools]} flagstat - > hisat2_output.flagstat) \
+  | ${programs_array[samtools]} sort - -O BAM \
+  | tee "${sample}".sorted.bam \
+  | ${programs_array[samtools]} index - "${sample}".sorted.bam
 
 
   # Run stringtie on alignments
