@@ -220,21 +220,6 @@ while IFS=',' read -r sample_number sample_name plate well_number azenta_sample_
     fi
 done < <(tail -n +2 "${metadata}") # Skip the header
 
-# Print the associative array
-echo ""
-echo "${line}"
-echo ""
-
-echo "Contents of sample_timepoint_map array:"
-for sample in "${!sample_timepoint_map[@]}"
-do
-  echo "$sample: ${sample_timepoint_map[$sample]}"
-done
-
-echo ""
-echo "${line}"
-echo ""
-
 ## Populate trimmed reads arrays
 fastq_array_R1=("${trimmed_fastqs_dir}"/${R1_fastq_pattern})
 fastq_array_R2=("${trimmed_fastqs_dir}"/${R2_fastq_pattern})
@@ -242,6 +227,10 @@ fastq_array_R2=("${trimmed_fastqs_dir}"/${R2_fastq_pattern})
 ############## BEGIN HISAT2 ALIGNMENTS ##############
 for sample in "${!sample_timepoint_map[@]}"
 do
+
+
+  # Create and switch to dedicated sample directory
+  mkdir --parents "${sample}" && cd "$_"
 
   # Create HISAT2 list of fastq R1 files
   # and generated MD5 checksums file.
@@ -257,7 +246,7 @@ do
       md5sum "${fastq}" >> input_fastqs_checksums.md5
       
       # Create comma-separated lists of FastQs for HISAT2
-      printf -v joined_R1 '%s,' "${fastq_array_R1[@]}"
+      printf -v joined_R1 '%s,' "${fastq}"
       fastq_list_R1=$(echo "${joined_R1%,}")
     fi
   done
@@ -276,15 +265,11 @@ do
       md5sum "${fastq}" >> input_fastqs_checksums.md5
 
       # Create comma-separated lists of FastQs for HISAT2
-      printf -v joined_R2 '%s,' "${fastq_array_R2[@]}"
+      printf -v joined_R2 '%s,' "${fastq}"
       fastq_list_R2=$(echo "${joined_R2%,}")
     fi
   done
 
-
-
-  # Create and switch to dedicated sample directory
-  mkdir --parents "${sample}" && cd "$_"
 
 
   # HISAT2 alignments
@@ -298,11 +283,11 @@ do
   --rg "SM:""${sample_timepoint_map[$sample]}" \
   2> "${sample}"_hisat2.stats \
   | tee >(${programs_array[samtools]} flagstat - > hisat2_output.flagstat) \
-  | ${programs_array[samtools]} sort - -O BAM \
+  | ${programs_array[samtools]} sort - -@ "${threads}" -O BAM \
   | tee "${sample}".sorted.bam \
-  | ${programs_array[samtools]} index - "${sample}".sorted.bam
-
-
+  | ${programs_array[samtools]} index - "${sample}".sorted.bam.bai
+  
+  
   # Run stringtie on alignments
   # Uses "-B" option to output tables intended for use in Ballgown
   # Uses "-e" option; recommended when using "-B" option.
@@ -313,24 +298,18 @@ do
   -G "${genome_gff}" \
   -C "${sample}.cov_refs.gtf" \
   -B \
-  -e
-
+  -e 
+  
+  
   # Add GTFs to list file, only if non-empty
   # Identifies GTF files that only have header
   gtf_lines=$(wc -l < "${sample}".gtf )
   if [ "${gtf_lines}" -gt 2 ]; then
     echo "$(pwd)/${sample}.gtf" >> ../"${gtf_list}"
-  fi
-
-  # Delete unneeded SAM files
-  rm ./*.sam
+  fi 
 
   # Generate checksums
-  for file in ./*
-  do
-    md5sum "${file}" >> ${sample}_checksums.md5
-  done
-
+  find ./ -type f -not -name "*.md5" -exec md5sum {} \; > ${sample}_checksums.md5
   # Move up to orig. working directory
   cd ..
 
