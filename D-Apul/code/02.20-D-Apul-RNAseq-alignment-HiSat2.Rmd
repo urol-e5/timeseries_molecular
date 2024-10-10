@@ -356,4 +356,20 @@ ${programs_array[samtools]} index ${merged_bam}
 
 # Create combined GTF
 
+```{r combine-GTFs, engine='bash', eval=FALSE}
+# Load bash variables into memory
+source .bashvars
+
+# Change to ouput directory
+cd "${output_dir_top}"
+
+
+# Create singular transcript file, using GTF list file
+"${programs_array[stringtie]}" --merge \
+"${gtf_list}" \
+-p "${threads}" \
+-G "${genome_gff}" \
+-o "${genome_index_name}".stringtie.gtf
+```
+
 # Create DESeq2 Count Matrices
