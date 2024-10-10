@@ -285,7 +285,7 @@ do
   --rg-id "${sample}" \
   --rg "SM:""${sample_timepoint_map[$sample]}" \
   2> "${sample}"_hisat2.stats \
-  | tee >(${programs_array[samtools]} flagstat - > hisat2_output.flagstat) \
+  | tee >(${programs_array[samtools]} flagstat - > "${sample}"-hisat2_output.flagstat) \
   | ${programs_array[samtools]} sort - -@ "${threads}" -O BAM \
   | tee "${sample}".sorted.bam \
   | ${programs_array[samtools]} index - "${sample}".sorted.bam.bai
@@ -308,7 +308,7 @@ do
   # Identifies GTF files that only have header
   gtf_lines=$(wc -l < "${sample}".gtf )
   if [ "${gtf_lines}" -gt 2 ]; then
-    echo "$(pwd)/${sample}.gtf" >> ../"${gtf_list}"
+    echo "$(pwd)/${sample}.gtf" >> "${gtf_list}"
   fi 
 
   # Generate checksums
