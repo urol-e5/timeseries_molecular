@@ -332,6 +332,28 @@ tree --du -h
 
 # Merge sorted BAMs
 
+Merge all BAMs to singular BAM for use in transcriptome assembly later, if needed
+```{r merge-sorted-BAMS, engine='bash', eval=FALSE}
+# Load bash variables into memory
+source .bashvars
+
+# Change to ouput directory
+cd "${output_dir_top}"
+
+
+## Create list of sorted BAMs for merging
+find . -name "*sorted.bam" > sorted_bams.list
+
+## Merge sorted BAMs
+${programs_array[samtools]} merge \
+-b sorted_bams.list \
+${merged_bam} \
+--threads ${threads}
+
+## Index merged BAM
+${programs_array[samtools]} index ${merged_bam}
+```
+
 # Create combined GTF
 
 # Create DESeq2 Count Matrices
