@@ -78,6 +78,8 @@ echo 'export hisat2_dir="${programs_dir}/hisat2-2.2.1"'
 
 echo 'export hisat2="${hisat2_dir}/hisat2"'
 
+echo 'export multiqc=/home/sam/programs/mambaforge/bin/multiqc'
+
 echo 'export samtools="${programs_dir}/samtools-1.12/samtools"'
 
 echo 'export prepDE="${programs_dir}/stringtie-2.2.1.Linux_x86_64/prepDE.py3"'
@@ -108,6 +110,7 @@ echo "# Programs associative array"
 echo "declare -A programs_array"
 echo "programs_array=("
 echo '[hisat2]="${hisat2}" \'
+echo '[multiqc]="${multiqc}" \'
 echo '[samtools]="${samtools}" \'
 echo '[stringtie]="${stringtie}" \'
 echo ")"
@@ -328,6 +331,18 @@ cd "${output_dir_top}"
 # Display HISAT2 output directory structure
 # with directory (--du) and file sizes (-h)
 tree --du -h
+```
+
+## MultiQC alignment rates
+```{r multiqc-alignment-rates, engine='bash', eval=FALSE}
+# Load bash variables into memory
+source .bashvars
+
+# Change to ouput directory
+cd "${output_dir_top}"
+
+${programs_array[multiqc]} .
+
 ```
 
 # Merge sorted BAMs
