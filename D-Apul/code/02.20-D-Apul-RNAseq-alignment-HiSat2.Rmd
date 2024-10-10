@@ -315,3 +315,23 @@ do
 
 done
 ```
+
+## Review HISAT2 Output
+
+```{r tree-hisat2-output, engine='bash', eval=TRUE}
+# Load bash variables into memory
+source .bashvars
+
+# Change to ouput directory
+cd "${output_dir_top}"
+
+# Display HISAT2 output directory structure
+# with directory (--du) and file sizes (-h)
+tree --du -h
+```
+
+# Merge sorted BAMs
+
+# Create combined GTF
+
+# Create DESeq2 Count Matrices
