@@ -97,6 +97,10 @@ echo "# Set number of CPUs to use"
 echo 'export threads=40'
 echo ""
 
+echo "# Set average read length - for StringTie prepDE.py"
+echo 'export read_length=125'
+echo ""
+
 
 echo "## Initialize arrays"
 echo 'export fastq_array_R1=()'
@@ -111,6 +115,7 @@ echo "declare -A programs_array"
 echo "programs_array=("
 echo '[hisat2]="${hisat2}" \'
 echo '[multiqc]="${multiqc}" \'
+echo '[prepDE]="${prepDE}" \'
 echo '[samtools]="${samtools}" \'
 echo '[stringtie]="${stringtie}" \'
 echo ")"
@@ -334,6 +339,7 @@ tree --du -h
 ```
 
 ## MultiQC alignment rates
+
 ```{r multiqc-alignment-rates, engine='bash', eval=FALSE}
 # Load bash variables into memory
 source .bashvars
@@ -348,6 +354,7 @@ ${programs_array[multiqc]} .
 # Merge sorted BAMs
 
 Merge all BAMs to singular BAM for use in transcriptome assembly later, if needed
+
 ```{r merge-sorted-BAMS, engine='bash', eval=FALSE}
 # Load bash variables into memory
 source .bashvars
@@ -388,6 +395,7 @@ cd "${output_dir_top}"
 ```
 
 # Create DESeq2 Count Matrices
+
 ```{r DESeq2-matrices, engine='bash', eval=FALSE}
 # Load bash variables into memory
 source .bashvars
@@ -398,10 +406,16 @@ cd "${output_dir_top}"
 # Create file list for prepDE.py
 while read -r line
 do
-  echo ${line##*/} ${line}
+  sample_no_path=${line##*/}
+  sample=${sample_no_path%.*}
+  echo ${sample} ${line}
 done < gtf_list.txt >> prepDE-sample_list.txt
 
 # Create count matrices for genes and transcripts
 # Compatible with import to DESeq2
-python3 "${programs_array[prepDE]}" --input=prepDE-sample_list.txt
+python3 "${programs_array[prepDE]}" \
+--input=prepDE-sample_list.txt \
+-g apul-gene_count_matrix.csv \
+-t apul-transcript_count_matrix.csv \
+--length=${read_length}
 ```
