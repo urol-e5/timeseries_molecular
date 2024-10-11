@@ -206,6 +206,16 @@ done
 
 # Align reads using HISAT2
 
+This requires usage of the `rna_metadata.csv`
+
+This step has a lengthy, semi-complex workflow:
+
+1. Parse `rna_metadata.csv` for _A.pulchra_ sample names and time point. This info will be used for downstream file naming and to assing the time point to the read group (`SM:`) in the alignment file.
+2. Loop through all samples and perform individual alignments using HISAT2.
+3. HISAT2 output is piped to through multiple samtools tools: flagstat (stats aggregation), sort (creates/sorts BAM), index (creates BAM index). Piping saves time and disk space, by avoiding the generation of large SAM files.
+4. Loop continues and runs StringTie on sorted BAM file to produce individual GTF file.
+5. Loop continues and adds GTF path/filename to a list file, which will be used downstream.
+
 ```{bash hisat2-alignments, engine='bash', eval=FALSE}
 # Load bash variables into memory
 source .bashvars
