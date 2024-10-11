@@ -38,6 +38,10 @@ knitr::opts_chunk$set(
 
 This notebook will align trimmed *A.pulchra* RNA-seq data to the *A.pulchra* genome using [HISAT2](https://github.com/DaehwanKimLab/hisat2) [@kim2019]. Follwed by [StringTie](https://ccb.jhu.edu/software/stringtie/index.shtml?t=manual) [@pertea2015; @pertea2016] for transcript assembly/identification and count matrices for downstream expression analysis with [DESeq2](https://github.com/thelovelab/DESeq2) and/or [Ballgown](<https://github.com/alyssafrazee/ballgown>.
 
+Since the BAM files produced by this notebook are too large for GitHub, they can be accessed on our server here:
+
+[https://gannet.fish.washington.edu/Atumefaciens/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/02.20-D-Apul-RNAseq-alignment-HiSat2/](https://gannet.fish.washington.edu/Atumefaciens/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/02.20-D-Apul-RNAseq-alignment-HiSat2/)
+
 Input(s)
 
 -   Trimmed FastQ files, with format: `*fastp-trim.fq.gz`
@@ -46,7 +50,6 @@ Input(s)
 -   Sample metadata: `M-multi-species/data/rna_metadata.csv`
 
 Outputs:
-
 -   Primary:
     -   `checksums.md5`: MD5 checksum for all files in this directory. Excludes subdirectories.
     -   `apul-gene_count_matrix.csv`: Gene count matrix for use in [DESeq2](https://github.com/thelovelab/DESeq2).
@@ -339,6 +342,8 @@ done
 
 ## Review HISAT2 Output
 
+View the resulting directory structure of resulting from the HISAT2/StringTie process.
+
 ```{r tree-hisat2-output, engine='bash', eval=TRUE}
 # Load bash variables into memory
 source .bashvars
@@ -366,7 +371,7 @@ ${programs_array[multiqc]} .
 
 # Merge sorted BAMs
 
-Merge all BAMs to singular BAM for use in transcriptome assembly later, if needed
+Merge all BAMs to singular BAM for use in transcriptome assembly later, if needed.
 
 ```{r merge-sorted-BAMS, engine='bash', eval=FALSE}
 # Load bash variables into memory
