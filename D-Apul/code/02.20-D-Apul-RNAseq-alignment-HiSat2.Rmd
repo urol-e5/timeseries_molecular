@@ -419,3 +419,18 @@ python3 "${programs_array[prepDE]}" \
 -t apul-transcript_count_matrix.csv \
 --length=${read_length}
 ```
+
+# Generate checksums
+
+```{r generate-checksums, engine='bash', eval=FALSE}
+# Load bash variables into memory
+source .bashvars
+
+# Change to ouput directory
+cd "${output_dir_top}"
+
+# Uses find command to avoid passing
+# directory names to the md5sum command.
+find . -maxdepth 1 -type f -exec md5sum {} + \
+| tee --append checksums.md5
+```
