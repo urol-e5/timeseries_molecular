@@ -27,3 +27,5 @@ All outputs from a script should be directed to a corresponding directory with t
 [`01.00-D-Apul-RNAseq-trimming-fastp-FastQC-MultiQC.Rmd`](./01.00-D-Apul-RNAseq-trimming-fastp-FastQC-MultiQC.Rmd): Quality trimming and adapter removal of RNA-seq reads using [fastp](https://github.com/OpenGene/fastp), followed by quality checks with [FastQC](https://github.com/s-andrews/FastQC) and [MultiQC](https://github.com/MultiQC/MultiQC).
 
 [`02.00-D-Apul-RNAseq-gff-to-gtf.Rmd`](./02.00-D-Apul-RNAseq-gff-to-gtf.Rmd): Generate a GTF file from the _A.pulchra_ genome GFF, as the GTF is needed for downstream analyses.
+
+[`02.10-D-Apul-RNAseq-genome-index-HiSat2.Rmd`](./02.10-D-Apul-RNAseq-genome-index-HiSat2.Rmd): Generate a genome index file with exons and splice sites, using [HISAT2](https://daehwankimlab.github.io/hisat2/manual/) for subsequent RNA-seq reads alignments with [HISAT2](https://daehwankimlab.github.io/hisat2/manual/).
