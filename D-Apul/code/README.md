@@ -21,6 +21,9 @@ All outputs from a script should be directed to a corresponding directory with t
 
 ---
 
+- `*.md`: Knittd Markdown versions of the R Markdown code files.
+
+- `*.html`: Knitted HTML versions of the R Markdown code files.
 
 - [`00.00-D-Apul-RNAseq-reads-FastQC-MultiQC.Rmd`](./00.00-D-Apul-RNAseq-reads-FastQC-MultiQC.Rmd): Quality check of raw RNA-seq reads using FastQC and MultiQC.
 
