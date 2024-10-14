@@ -21,7 +21,7 @@ All outputs from a script should be directed to a corresponding directory with t
 
 ---
 
-- `*.md`: Knittd Markdown versions of the R Markdown code files.
+- `*.md`: Knitted Markdown versions of the R Markdown code files.
 
 - `*.html`: Knitted HTML versions of the R Markdown code files.
 
