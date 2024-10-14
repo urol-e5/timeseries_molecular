@@ -29,3 +29,5 @@ All outputs from a script should be directed to a corresponding directory with t
 [`02.00-D-Apul-RNAseq-gff-to-gtf.Rmd`](./02.00-D-Apul-RNAseq-gff-to-gtf.Rmd): Generate a GTF file from the _A.pulchra_ genome GFF, as the GTF is needed for downstream analyses.
 
 [`02.10-D-Apul-RNAseq-genome-index-HiSat2.Rmd`](./02.10-D-Apul-RNAseq-genome-index-HiSat2.Rmd): Generate a genome index file with exons and splice sites, using [HISAT2](https://daehwankimlab.github.io/hisat2/manual/) for subsequent RNA-seq reads alignments with [HISAT2](https://daehwankimlab.github.io/hisat2/manual/).
+
+[`02.20-D-Apul-RNAseq-alignment-HiSat2.Rmd`](./02.20-D-Apul-RNAseq-alignment-HiSat2.Rmd): Use [HISAT2](https://daehwankimlab.github.io/hisat2/manual/) and [StringTie](https://ccb.jhu.edu/software/stringtie/index.shtml?t=manual) to align RNA-seq reads to _A.pulchra_ genome, identify alternative isoforms, and produce DESeq2-formatted gene/transcript count matrices, as well as Ballgown input tables.
