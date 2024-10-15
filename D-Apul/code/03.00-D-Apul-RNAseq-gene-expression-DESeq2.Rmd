@@ -38,6 +38,7 @@ knitr::opts_chunk$set(
 )
 ```
 
+# Set Bash variables
 ```{r save-bash-variables-to-rvars-file, engine='bash', eval=TRUE}
 {
 echo "#### Assign Variables ####"
@@ -70,12 +71,14 @@ echo ""
 
 cat .bashvars
 ```
-
+# Set R variables
 ```{r set-variables}
 # Define the output directory path
 output_dir <- "../output/03.00-D-Apul-RNAseq-gene-expression-DESeq2/"
 ```
 
+
+# Create coldat file
 ```{r create-coldata-file, engine='bash', eval=FALSE}
 # Load bash variables into memory
 source .bashvars
@@ -120,6 +123,7 @@ echo ""
 wc -l "${coldata}"
 ```
 
+# Read in gene counts and coldata files
 ```{r read-gene-counts}
 cts <- as.matrix(read.csv(file = "../output/02.20-D-Apul-RNAseq-alignment-HiSat2/apul-gene_count_matrix.csv", row.names="gene_id", check.names = FALSE))
 
@@ -131,10 +135,12 @@ head(cts)
 head(coldata)
 ```
 
+## Verify rownames match
 ```{r check-rownames}
 all(rownames(coldata) == colnames(cts))
 ```
 
+# Create DESeq2 data set
 ```{r create-deseq2-data-set}
 dds <- DESeqDataSetFromMatrix(countData = cts,
                               colData = coldata,
@@ -143,6 +149,7 @@ dds
 
 ```
 
+## Add gene columun feature
 ```{r add-gene-feature}
 featureData <- data.frame(gene=rownames(cts))
 mcols(dds) <- DataFrame(mcols(dds), featureData)
@@ -153,11 +160,13 @@ mcols(dds)
 dds$condition <- factor(dds$condition, levels = c("TP1","TP2", "TP3", "TP4"))
 ```
 
+# DESeq analysis
 ```{r deseq}
 dds <- DESeq(dds)
 
 ```
 
+## Pairwise results tables
 ```{r deseq2-pairwise-results-tables}
 tp1.v.tp2.results <- results(dds, contrast=c("condition","TP1","TP2"))
 tp1.v.tp3.results <- results(dds, contrast=c("condition","TP1","TP3"))
@@ -183,20 +192,23 @@ results_list <- list(
 
 # Loop through the list and write each data frame to a CSV file in the specified directory
 for (df_name in names(results_list)) {
-  write.csv(results_list[[df_name]], file = paste0(output_dir, df_name, ".csv"), row.names = FALSE)
+  write.csv(results_list[[df_name]], file = paste0(output_dir, df_name, ".table.csv"), row.names = FALSE, quote = FALSE)
 }
 ```
 
+# Variance stabilizing transformations (VST)
 - Here we transform counts using a variance stabilizing transformation (VST), since we have many samples. 
-- Here we use `blind=FALSE` b/c we are interested in differences explained by experimental design, and may wish to use this transformed data in downstream analyses. 
-```{r}
+```{r VST}
 vsd <- varianceStabilizingTransformation(dds, blind=FALSE)
 ```
 
-## Visualize sample clustering via PCA (after transformation)
 
 NOTE: Hover over points to see the sample numbers
 
+# Plotting
+
+## PCA - All time points
+Visualize sample clustering via PCA (after transformation)
 ```{r}
 # PCA with points color coded by time point 
 plotPCA(vsd)
