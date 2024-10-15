@@ -24,10 +24,11 @@ bibliography: references.bib
 ---
 
 ```{r setup, include=FALSE}
-library(knitr)
 library(DESeq2)
-library(tidyverse)
 library(ggplot2)
+library(knitr)
+library(pheatmap)
+library(tidyverse)
 knitr::opts_chunk$set(
   echo = TRUE,         # Display code chunks
   eval = FALSE,        # Evaluate code chunks
@@ -70,6 +71,10 @@ echo ""
 cat .bashvars
 ```
 
+```{r set-variables}
+# Define the output directory path
+output_dir <- "../output/03.00-D-Apul-RNAseq-gene-expression-DESeq2/"
+```
 
 ```{r create-coldata-file, engine='bash', eval=FALSE}
 # Load bash variables into memory
@@ -154,14 +159,32 @@ dds <- DESeq(dds)
 ```
 
 ```{r deseq2-pairwise-results-tables}
-tp1.v.tp2.res <- results(dds, contrast=c("condition","TP1","TP2"))
-tp1.v.tp3.res <- results(dds, contrast=c("condition","TP1","TP3"))
-tp1.v.tp4.res <- results(dds, contrast=c("condition","TP1","TP4"))
-tp2.v.tp3.res <- results(dds, contrast=c("condition","TP2","TP3"))
-tp2.v.tp4.res <- results(dds, contrast=c("condition","TP2","TP4"))
-tp3.v.tp4.res <- results(dds, contrast=c("condition","TP3","TP4"))
+tp1.v.tp2.results <- results(dds, contrast=c("condition","TP1","TP2"))
+tp1.v.tp3.results <- results(dds, contrast=c("condition","TP1","TP3"))
+tp1.v.tp4.results <- results(dds, contrast=c("condition","TP1","TP4"))
+tp2.v.tp3.results <- results(dds, contrast=c("condition","TP2","TP3"))
+tp2.v.tp4.results <- results(dds, contrast=c("condition","TP2","TP4"))
+tp3.v.tp4.results <- results(dds, contrast=c("condition","TP3","TP4"))
 
-tp1.v.tp2.res
+tp1.v.tp2.results
+```
+
+# Write DDS results tables to CSVs
+```{r write-dds-results-csv}
+# Create a named list of the data frames
+results_list <- list(
+  tp1.v.tp2.results = tp1.v.tp2.results,
+  tp1.v.tp3.results = tp1.v.tp3.results,
+  tp1.v.tp4.results = tp1.v.tp4.results,
+  tp2.v.tp3.results = tp2.v.tp3.results,
+  tp2.v.tp4.results = tp2.v.tp4.results,
+  tp3.v.tp4.results = tp3.v.tp4.results
+)
+
+# Loop through the list and write each data frame to a CSV file in the specified directory
+for (df_name in names(results_list)) {
+  write.csv(results_list[[df_name]], file = paste0(output_dir, df_name, ".csv"), row.names = FALSE)
+}
 ```
 
 - Here we transform counts using a variance stabilizing transformation (VST), since we have many samples. 
