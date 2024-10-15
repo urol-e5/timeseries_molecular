@@ -231,14 +231,16 @@ lipid_quant_long$species<-as.factor(lipid_quant_long$species)
 
 View a basic plot for total lipids via a stacked bar plot. 
 ```{r}
-lipid_quant_long %>%
+plot1<-lipid_quant_long %>%
   
   ggplot(aes(x = paste(sample, species), y = nmol.g_plasma.mg_tissue, fill = lipid)) +
   geom_bar(stat = "identity") +
-  labs(x = "Sample", y = "Total Lipid (nmol per mg tissue)", title = "Lipid species concentration") +
+  labs(x = "Sample", y = "Total Lipid (nmol per mg tissue)", title = "Total lipid content") +
   theme_classic() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1), 
-        legend.position="none")  
+        legend.position="none");plot1
+
+ggsave(plot1, filename="M-multi-species/output/03-test-lipidomics/total_lipid_content.png", width=4, height=4)
 ```
 
 There is variation in total lipid concentration across samples. 
@@ -268,14 +270,16 @@ permanova
 
 ```{r}
 pca1<-ggplot2::autoplot(scaled.pca, data=lipid_quant_wide, loadings=FALSE,  colour="sample", loadings.label.colour="black", loadings.colour="black", loadings.label=FALSE, frame=FALSE, loadings.label.size=5, loadings.label.vjust=-1, size=5) + 
-  geom_text(aes(x = PC1, y = PC2, label = paste(species, sample)), vjust = -0.5)+
+  geom_text(aes(x = PC1, y = PC2, label = species), vjust = -0.5)+
   theme_classic()+
    theme(legend.text = element_text(size=18), 
-         legend.position="none",
+         legend.position="right",
         plot.background = element_blank(),
         legend.title = element_text(size=18, face="bold"), 
         axis.text = element_text(size=18), 
         axis.title = element_text(size=18,  face="bold"));pca1
+
+ggsave(pca1, filename="M-multi-species/output/03-test-lipidomics/lipid_species_quant_pca.png", width=6, height=4)
 ```
 
 ## Plot a heatmap of lipid concentration (scaled to z score)
@@ -355,12 +359,6 @@ extracted_lipids3
 
 TGs and PEs show up a lot on these clusters as differential lipids. 
 
-
-
-
-
-
-
 # 2. Lipid species percent composition 
 
 ## Calculations 
@@ -410,25 +408,147 @@ lipid_comp_long<-lipid_comp_long%>%
   filter(!class=="Cer")
 ```
 
-## Plot composition for each class 
+## Plot composition of free fatty acids 
 
 View a basic plot for total lipids via a stacked bar plot. 
 
-FAs
+FAs - polyunsaturated (":2" or more)
 ```{r}
-lipid_comp_long %>%
-  filter(class=="FA")%>%
-  
+fa_pufa<-lipid_comp_long %>%
+  filter(class=="FA")
+
+fa_pufa<-fa_pufa[grepl(":([2-9]|[1-9][0-9])$", fa_pufa$lipid), ]
+
+fa_plot1<-fa_pufa%>%
   ggplot(aes(x = paste(sample, species), y = percent_composition, colour = lipid, fill=lipid)) +
-  facet_wrap(~class)+
+  #facet_wrap(~class)+
   geom_bar(stat = "identity", colour="black") +
-  labs(x = "Sample", y = "Total Lipid (nmol per mg tissue)", title = "Lipid species concentration") +
+  labs(x = "Sample", y = "% total FFA composition", title = "Poly Unsaturated Fatty Acid composition") +
   theme_classic() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1), 
-        legend.position="right")  
+        legend.position="right");fa_plot1
+
+ggsave(fa_plot1, filename="M-multi-species/output/03-test-lipidomics/poly-unsaturated-free-fatty-acid_composition.png", width=6, height=6)
 ```
 
-There is variation in total lipid concentration across samples. 
+POC has more PUFA content than others. POR noteably has fewer of 20:4, which is arachidonic acid. This is a common coral FFA. 
+
+POC has more 22:6 (DHA), which has been proposed as a marker of Durusdinium. This matches with species composition of these corals. 
+
+FAs - monounsaturated (":1")
+```{r}
+fa_mufa<-lipid_comp_long %>%
+  filter(class=="FA")
+
+fa_mufa<-fa_mufa[grepl(":([1])$", fa_mufa$lipid), ]
+
+fa_plot2<-fa_mufa%>%
+  ggplot(aes(x = paste(sample, species), y = percent_composition, colour = lipid, fill=lipid)) +
+  #facet_wrap(~class)+
+  geom_bar(stat = "identity", colour="black") +
+  labs(x = "Sample", y = "% total FFA composition", title = "Mono Unsaturated Fatty Acid composition") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+        legend.position="right");fa_plot2
+
+ggsave(fa_plot2, filename="M-multi-species/output/03-test-lipidomics/mono-unsaturated-free-fatty-acid_composition.png", width=6, height=6)
+```
+
+POR has more MUFA and POC has much less MUFA content. POC has more FA 18:1 and 24:1 than other species. 
+
+FAs - saturated (":0")
+```{r}
+fa_sat<-lipid_comp_long %>%
+  filter(class=="FA")
+
+fa_sat<-fa_sat[grepl(":([0])$", fa_sat$lipid), ]
+
+fa_plot3<-fa_sat%>%
+  ggplot(aes(x = paste(sample, species), y = percent_composition, colour = lipid, fill=lipid)) +
+  #facet_wrap(~class)+
+  geom_bar(stat = "identity", colour="black") +
+  labs(x = "Sample", y = "% total FFA composition", title = "Saturated Fatty Acid composition") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+        legend.position="right");fa_plot3
+
+ggsave(fa_plot3, filename="M-multi-species/output/03-test-lipidomics/saturated-free-fatty-acid_composition.png", width=6, height=6)
+```
+
+POC has lower saturated FA compostion than the other species. 
+
+## Plot composition of TGs 
+
+TG's are categorized by saturated, monounsaturated, polyunsaturated TGs and by the saturation of their FA.  
+
+We have a few combinations to look at. Start by just looking at saturation of the TG lipid. 
+
+- Saturated FA in TG 
+- Monounsaturated FA in TG  
+- Polyunsaturated FA in TG 
+
+Saturated FA in TG
+```{r}
+tg_sat<-lipid_comp_long %>%
+  filter(class=="TG")
+
+tg_sat<-tg_sat[grepl(":[0-9]+-FA[0-9]+:0$", tg_sat$lipid), ]
+
+tg_plot1<-tg_sat%>%
+  
+  ggplot(aes(x = paste(sample, species), y = percent_composition, colour = lipid, fill=lipid)) +
+  geom_bar(stat = "identity", colour="black") +
+  labs(x = "Sample", y = "% total TG composition", title = "Saturated Fatty Acid TG") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+        legend.position="none"); tg_plot1 
+
+ggsave(tg_plot1, filename="M-multi-species/output/03-test-lipidomics/saturated-TG-fatty-acid_composition.png", width=6, height=6)
+```
+
+Lower saturated fatty acids in TGs in Porites. 
+
+Mono Unsaturated FA in TG
+```{r}
+tg_MUFA<-lipid_comp_long %>%
+  filter(class=="TG")
+
+tg_MUFA<-tg_MUFA[grepl(":[0-9]+-FA[0-9]+:1$", tg_MUFA$lipid), ]
+
+tg_plot2<-tg_MUFA%>%
+  
+  ggplot(aes(x = paste(sample, species), y = percent_composition, colour = lipid, fill=lipid)) +
+  geom_bar(stat = "identity", colour="black") +
+  labs(x = "Sample", y = "% total TG composition", title = "Mono Unsaturated Fatty Acid TG") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+        legend.position="none"); tg_plot2
+
+ggsave(tg_plot2, filename="M-multi-species/output/03-test-lipidomics/mono-unsaturated-TG-fatty-acid_composition.png", width=6, height=6)
+```
+
+More MUFA fatty acid TGs in Porites.  
+
+Poly Unsaturated FA in TG
+```{r}
+tg_PUFA<-lipid_comp_long %>%
+  filter(class=="TG")
+
+tg_PUFA<-tg_PUFA[grepl(":[0-9]+-FA[0-9]+:[2-9]$", tg_PUFA$lipid), ]
+
+tg_plot3<-tg_PUFA%>%
+  
+  ggplot(aes(x = paste(sample, species), y = percent_composition, colour = lipid, fill=lipid)) +
+  geom_bar(stat = "identity", colour="black") +
+  labs(x = "Sample", y = "% total TG composition", title = "Poly Unsaturated Fatty Acid TG") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+        legend.position="none"); tg_plot3
+
+ggsave(tg_plot3, filename="M-multi-species/output/03-test-lipidomics/poly-unsaturated-TG-fatty-acid_composition.png", width=6, height=6)
+```
+
+Less PUFA fatty acids in TGs in POC. 
 
 ## Plot PCA of samples 
 
@@ -456,17 +576,19 @@ permanova
 
 ```{r}
 pca2<-ggplot2::autoplot(scaled.pca, data=lipid_comp_wide, loadings=FALSE,  colour="sample", loadings.label.colour="black", loadings.colour="black", loadings.label=FALSE, frame=FALSE, loadings.label.size=5, loadings.label.vjust=-1, size=5) + 
-  geom_text(aes(x = PC1, y = PC2, label = paste(sample)), vjust = -0.5)+
+  geom_text(aes(x = PC1, y = PC2, label = paste(species)), vjust = -0.5)+
   theme_classic()+
    theme(legend.text = element_text(size=18), 
-         legend.position="none",
+         legend.position="right",
         plot.background = element_blank(),
         legend.title = element_text(size=18, face="bold"), 
         axis.text = element_text(size=18), 
         axis.title = element_text(size=18,  face="bold"));pca2
+
+ggsave(pca2, filename="M-multi-species/output/03-test-lipidomics/lipid_species_comp_pca.png", width=6, height=4)
 ```
 
-This is cool, the Acropora cluster together much more closely and POC and POR are separate. 
+ACR cluster closely with POR and POC farther away.  
 
 ## Plot a heatmap of lipid composition for each species (scaled to z score)
 
@@ -570,8 +692,6 @@ class_quant<-class_quant%>%
   select(!LacCER)%>%
   select(!HexCER)
 ```
-
-## BLANK CORRECTION - COME BACK TO THIS
 
 There are 18 classes we will analyze. 
 
@@ -735,14 +855,16 @@ permanova
 
 ```{r}
 pca3<-ggplot2::autoplot(scaled.pca, data=class_quant_wide, loadings=FALSE,  colour="sample", loadings.label.colour="black", loadings.colour="black", loadings.label=FALSE, frame=FALSE, loadings.label.size=5, loadings.label.vjust=-1, size=5) + 
-  geom_text(aes(x = PC1, y = PC2, label = paste(species, sample)), vjust = -0.5)+
+  geom_text(aes(x = PC1, y = PC2, label = paste(species)), vjust = -0.5)+
   theme_classic()+
    theme(legend.text = element_text(size=18), 
-         legend.position="none",
+         legend.position="right",
         plot.background = element_blank(),
         legend.title = element_text(size=18, face="bold"), 
         axis.text = element_text(size=18), 
         axis.title = element_text(size=18,  face="bold"));pca3
+
+ggsave(pca3, filename="M-multi-species/output/03-test-lipidomics/class_quant_pca.png", width=6, height=4)
 ```
 
 ## Plot a heatmap of class concentration (scaled to z score)
@@ -814,18 +936,34 @@ Ceramindes and CE show up in sample 70.
 ## Plot concentration of each class
 
 ```{r}
-class_quant_long %>%
+class1<-class_quant_long %>%
   
   ggplot(aes(x = paste(sample, species), y = nmol.g_plasma.mg_tissue)) +
   facet_wrap(~ class)+
   geom_bar(stat="identity")+
-  labs(x = "Sample", y = "Concentration (nmol.mg tissue)", title = "Lipid class composition") +
+  labs(x = "Sample", y = "Concentration (nmol per mg tissue)", title = "Lipid class concentration") +
   theme_classic() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1), 
-        legend.position="right")  
+        legend.position="right");class1
+
+ggsave(class1, filename="M-multi-species/output/03-test-lipidomics/class_concentration.png", width=9, height=7)
 ```
 
-FFAs and TGs are most abundant as expected in corals. 
+```{r}
+class2<-class_quant_long %>%
+  
+  ggplot(aes(x = paste(sample, species), y = nmol.g_plasma.mg_tissue)) +
+  facet_wrap(~ class, scales="free")+
+  geom_bar(stat="identity")+
+  labs(x = "Sample", y = "Concentration (nmol per mg tissue)", title = "Lipid class concentration") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+        legend.position="right");class2
+
+ggsave(class2, filename="M-multi-species/output/03-test-lipidomics/class_concentration-free-scales.png", width=9, height=7)
+```
+
+FFAs and TGs are most abundant followed by PC and PEs as expected in corals. 
 
 # 4. Class percent composition 
 
@@ -873,32 +1011,23 @@ There are 15 classes detected.
 
 View a basic plot for total lipids via a stacked bar plot. 
 ```{r}
-class_comp_long %>%
+class3<-class_comp_long %>%
   
   ggplot(aes(x = paste(sample, species), y = percent_composition, fill = class)) +
   geom_bar(stat = "identity", colour="black") +
   labs(x = "Sample", y = "Percent Composition", title = "Lipid class composition") +
   theme_classic() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1), 
-        legend.position="right")  
-```
+        legend.position="right"); class3
 
-There is variation in total lipid classes across samples. 
+ggsave(class3, filename="M-multi-species/output/03-test-lipidomics/class_composition_overall.png", width=9, height=7)
+```
+POC has more TG and POR has fewer TG by composition. There are also fewer PC in POC and more PE in POR. 
 
 ## Plot barplot for each lipid class for each sample 
 
 ```{r}
-class_comp_long %>%
-  
-  ggplot(aes(x = paste(sample, species), y = percent_composition)) +
-  facet_wrap(~ class, scales="free")+
-  geom_bar(stat="identity")+
-  labs(x = "Sample", y = "Percent Composition", title = "Lipid class composition") +
-  theme_classic() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
-        legend.position="right")  
-
-class_comp_long %>%
+class4<-class_comp_long %>%
   
   ggplot(aes(x = paste(sample, species), y = percent_composition)) +
   facet_wrap(~ class)+
@@ -906,7 +1035,21 @@ class_comp_long %>%
   labs(x = "Sample", y = "Percent Composition", title = "Lipid class composition") +
   theme_classic() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1), 
-        legend.position="right")  
+        legend.position="right");class4
+
+ggsave(class4, filename="M-multi-species/output/03-test-lipidomics/class_composition.png", width=9, height=7)
+
+class5<-class_comp_long %>%
+  
+  ggplot(aes(x = paste(sample, species), y = percent_composition)) +
+  facet_wrap(~ class, scales="free")+
+  geom_bar(stat="identity")+
+  labs(x = "Sample", y = "Percent Composition", title = "Lipid class composition") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+        legend.position="right");class5
+
+ggsave(class5, filename="M-multi-species/output/03-test-lipidomics/class_composition-free-scales.png", width=9, height=7)
 ```
 
 CE	Cholesterol Ester
@@ -918,7 +1061,7 @@ HexCER	Hexosylceramides
 LPC	Lysophosphatidylcholine
 LPE	Lysophosphatidylethanolamine
 LPG	Lyso-phosphatidylglycerol
-LPI	Lysophosphatidylinositol 
+LPI	Lysophosphatidylinositol
 LPS	Lipopolysaccharides
 LacCER	Lactosylceramide
 PA	Phosphatidic acid
@@ -955,14 +1098,16 @@ permanova
 
 ```{r}
 pca4<-ggplot2::autoplot(scaled.pca, data=class_comp_wide, loadings=FALSE,  colour="sample", loadings.label.colour="black", loadings.colour="black", loadings.label=FALSE, frame=FALSE, loadings.label.size=5, loadings.label.vjust=-1, size=5) + 
-  geom_text(aes(x = PC1, y = PC2, label = paste(species, sample)), vjust = -0.5)+
+  geom_text(aes(x = PC1, y = PC2, label = paste(species)), vjust = -0.5)+
   theme_classic()+
    theme(legend.text = element_text(size=18), 
-         legend.position="none",
+         legend.position="right",
         plot.background = element_blank(),
         legend.title = element_text(size=18, face="bold"), 
         axis.text = element_text(size=18), 
         axis.title = element_text(size=18,  face="bold"));pca4
+
+ggsave(pca4, filename="M-multi-species/output/03-test-lipidomics/class_composition_pca.png", width=6, height=4)
 ```
 
 The Acropora cluster together much more closely and POC and POR are separate. 
