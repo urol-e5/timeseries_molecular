@@ -25,6 +25,9 @@ bibliography: references.bib
 
 ```{r setup, include=FALSE}
 library(knitr)
+library(DESeq2)
+library(tidyverse)
+library(ggplot2)
 knitr::opts_chunk$set(
   echo = TRUE,         # Display code chunks
   eval = FALSE,        # Evaluate code chunks
@@ -32,4 +35,146 @@ knitr::opts_chunk$set(
   message = FALSE,     # Hide messages
   comment = ""         # Prevents appending '##' to beginning of lines in code output
 )
+```
+
+```{r save-bash-variables-to-rvars-file, engine='bash', eval=TRUE}
+{
+echo "#### Assign Variables ####"
+echo ""
+
+echo "# Data directories"
+echo 'export timeseries_dir=/home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular'
+echo 'export output_dir_top="${timeseries_dir}/D-Apul/output/03.00-D-Apul-RNAseq-gene-expression-DESeq2"'
+echo ""
+
+
+
+echo "# Output files"
+echo 'export coldata="${output_dir_top}/DESeq2-coldata.tab"'
+echo ""
+
+echo "# Paths to programs"
+echo 'export programs_dir="/home/shared"'
+
+
+echo "# Set number of CPUs to use"
+echo 'export threads=40'
+echo ""
+
+
+echo "# Print formatting"
+echo 'export line="--------------------------------------------------------"'
+echo ""
+} > .bashvars
+
+cat .bashvars
+```
+
+
+```{r create-coldata-file, engine='bash', eval=FALSE}
+# Load bash variables into memory
+source .bashvars
+
+# Create output directory, if it doesn't exist
+mkdir --parents "${output_dir_top}"
+
+# Create associative array with sample and timepoint
+metadata="../../M-multi-species/data/rna_metadata.csv"
+
+# Declare the array
+declare -A sample_timepoint_map
+
+# Read the metadata file line by line
+while IFS=',' read -r sample_number sample_name plate well_number azenta_sample_name colony_id timepoint sample_type species_strain SampleBuffer; do
+    # Check if the species is "Acropora pulchra"
+    if [[ "${species_strain}" == "Acropora pulchra" ]]; then
+        # Add the Azenta sample name as the key and Timepoint as the value in the associative array
+        sample_timepoint_map["${azenta_sample_name}"]="${timepoint}"
+    fi
+done < <(tail -n +2 "${metadata}") # Skip the header
+
+# Create DESeq2-formatted coldata file
+
+## Create header
+printf "\t%s\n" "condition" > "${coldata}"
+
+## Tab-delimited output of sample and timepoint
+for sample in "${!sample_timepoint_map[@]}"
+do
+  printf "%s\t%s\n" "$sample" "${sample_timepoint_map[$sample]}"
+done | sort -k1,1 \
+>> "${coldata}"
+
+# Peek at output
+head "${coldata}"
+
+echo ""
+echo "${line}"
+echo ""
+
+wc -l "${coldata}"
+```
+
+```{r read-gene-counts}
+cts <- as.matrix(read.csv(file = "../output/02.20-D-Apul-RNAseq-alignment-HiSat2/apul-gene_count_matrix.csv", row.names="gene_id", check.names = FALSE))
+
+coldata <- read.csv(file = "../output/03.00-D-Apul-RNAseq-gene-expression-DESeq2/DESeq2-coldata.tab", row.names=1, sep = "\t")
+coldata$condition <- factor(coldata$condition)
+
+head(cts)
+
+head(coldata)
+```
+
+```{r check-rownames}
+all(rownames(coldata) == colnames(cts))
+```
+
+```{r create-deseq2-data-set}
+dds <- DESeqDataSetFromMatrix(countData = cts,
+                              colData = coldata,
+                              design = ~ condition)
+dds
+
+```
+
+```{r add-gene-feature}
+featureData <- data.frame(gene=rownames(cts))
+mcols(dds) <- DataFrame(mcols(dds), featureData)
+mcols(dds)
+```
+
+```{r level}
+dds$condition <- factor(dds$condition, levels = c("TP1","TP2", "TP3", "TP4"))
+```
+
+```{r deseq}
+dds <- DESeq(dds)
+
+```
+
+```{r deseq2-pairwise-results-tables}
+tp1.v.tp2.res <- results(dds, contrast=c("condition","TP1","TP2"))
+tp1.v.tp3.res <- results(dds, contrast=c("condition","TP1","TP3"))
+tp1.v.tp4.res <- results(dds, contrast=c("condition","TP1","TP4"))
+tp2.v.tp3.res <- results(dds, contrast=c("condition","TP2","TP3"))
+tp2.v.tp4.res <- results(dds, contrast=c("condition","TP2","TP4"))
+tp3.v.tp4.res <- results(dds, contrast=c("condition","TP3","TP4"))
+
+tp1.v.tp2.res
+```
+
+- Here we transform counts using a variance stabilizing transformation (VST), since we have many samples. 
+- Here we use `blind=FALSE` b/c we are interested in differences explained by experimental design, and may wish to use this transformed data in downstream analyses. 
+```{r}
+vsd <- varianceStabilizingTransformation(dds, blind=FALSE)
+```
+
+## Visualize sample clustering via PCA (after transformation)
+
+NOTE: Hover over points to see the sample numbers
+
+```{r}
+# PCA with points color coded by time point 
+plotPCA(vsd)
 ```
