@@ -75,6 +75,12 @@ cat .bashvars
 ```{r set-variables}
 # Define the output directory path
 output_dir <- "../output/03.00-D-Apul-RNAseq-gene-expression-DESeq2/"
+
+# Set desired false discovery rate threshold (i.e. adjusted p-value, padj)
+fdr <- 0.05
+
+# Set log2 fold change threshold (a value of '1' is equal to a fold change of '2')
+log2fc <- 1
 ```
 
 
@@ -167,15 +173,21 @@ dds <- DESeq(dds)
 ```
 
 ## Pairwise results tables
+
+### Full 
 ```{r deseq2-pairwise-results-tables}
-tp1.v.tp2.results <- results(dds, contrast=c("condition","TP1","TP2"))
-tp1.v.tp3.results <- results(dds, contrast=c("condition","TP1","TP3"))
-tp1.v.tp4.results <- results(dds, contrast=c("condition","TP1","TP4"))
-tp2.v.tp3.results <- results(dds, contrast=c("condition","TP2","TP3"))
-tp2.v.tp4.results <- results(dds, contrast=c("condition","TP2","TP4"))
-tp3.v.tp4.results <- results(dds, contrast=c("condition","TP3","TP4"))
+tp1.v.tp2.results <- results(dds, contrast=c("condition","TP1","TP2"), alpha = fdr, lfcThreshold = log2fc)
+tp1.v.tp3.results <- results(dds, contrast=c("condition","TP1","TP3"), alpha = fdr, lfcThreshold = log2fc)
+tp1.v.tp4.results <- results(dds, contrast=c("condition","TP1","TP4"), alpha = fdr, lfcThreshold = log2fc)
+tp2.v.tp3.results <- results(dds, contrast=c("condition","TP2","TP3"), alpha = fdr, lfcThreshold = log2fc)
+tp2.v.tp4.results <- results(dds, contrast=c("condition","TP2","TP4"), alpha = fdr, lfcThreshold = log2fc)
+tp3.v.tp4.results <- results(dds, contrast=c("condition","TP3","TP4"), alpha = fdr, lfcThreshold = log2fc)
 
 tp1.v.tp2.results
+
+summary(tp1.v.tp2.results)
+
+table(tp1.v.tp2.results$padj < 0.05)
 ```
 
 # Write DDS results tables to CSVs
@@ -209,7 +221,22 @@ NOTE: Hover over points to see the sample numbers
 
 ## PCA - All time points
 Visualize sample clustering via PCA (after transformation)
-```{r}
+```{r pca-all-timepoints}
 # PCA with points color coded by time point 
 plotPCA(vsd)
+```
+
+## Heatmap - All time points
+```{r heatmap-all-timepoints-top20}
+top_20_counts_all <- order(rowMeans(counts(dds,normalized=TRUE)),
+                decreasing=TRUE)[1:20]
+
+timepoint_annotation = colData(dds) %>% as.data.frame() %>% select(condition)
+
+
+
+
+pheatmap(assay(vsd)[top_20_counts_all,], cluster_rows=FALSE, show_rownames=FALSE,
+         cluster_cols=FALSE, annotation_col = timepoint_annotation)
+
 ```
