@@ -24,6 +24,7 @@ bibliography: references.bib
 ---
 
 ```{r setup, include=FALSE}
+library("RColorBrewer")
 library(DESeq2)
 library(ggplot2)
 library(knitr)
@@ -95,22 +96,22 @@ mkdir --parents "${output_dir_top}"
 # Create associative array with sample and timepoint
 metadata="../../M-multi-species/data/rna_metadata.csv"
 
-# Declare the array
-declare -A sample_timepoint_map
-
-# Read the metadata file line by line
-while IFS=',' read -r sample_number sample_name plate well_number azenta_sample_name colony_id timepoint sample_type species_strain SampleBuffer; do
-    # Check if the species is "Acropora pulchra"
-    if [[ "${species_strain}" == "Acropora pulchra" ]]; then
-        # Add the Azenta sample name as the key and Timepoint as the value in the associative array
-        sample_timepoint_map["${azenta_sample_name}"]="${timepoint}"
-    fi
-done < <(tail -n +2 "${metadata}") # Skip the header
-
 # Create DESeq2-formatted coldata file
 
 ## Create header
-printf "\t%s\n" "condition" > "${coldata}"
+printf "\t%s\t%s\n" "time.point" "colony.id"> "${coldata}"
+
+## Read the metadata file line by line
+while IFS=',' read -r sample_number sample_name plate well_number azenta_sample_name colony_id timepoint sample_type species_strain SampleBuffer; do
+    # Check if the species is "Acropora pulchra"
+    if [[ "${species_strain}" == "Acropora pulchra" ]]; then
+      printf "%s\t%s\t%s\n" "${azenta_sample_name}" "${timepoint}" "${colony_id}"
+    fi
+done < <(tail -n +2 "${metadata}") \
+| sort -k1,1 \
+>> "${coldata}"
+
+
 
 ## Tab-delimited output of sample and timepoint
 for sample in "${!sample_timepoint_map[@]}"
@@ -120,50 +121,58 @@ done | sort -k1,1 \
 >> "${coldata}"
 
 # Peek at output
-head "${coldata}"
+head "${coldata}" | column -t
 
 echo ""
 echo "${line}"
 echo ""
 
 wc -l "${coldata}"
+
+echo ""
+echo "${line}"
+echo ""
+
+echo "Colony counts:"
+echo ""
+awk 'NR > 1 {print $3}' "${coldata}" | sort | uniq -c
 ```
 
 # Read in gene counts and coldata files
 ```{r read-gene-counts}
-cts <- as.matrix(read.csv(file = "../output/02.20-D-Apul-RNAseq-alignment-HiSat2/apul-gene_count_matrix.csv", row.names="gene_id", check.names = FALSE))
+gene.counts <- as.matrix(read.csv(file = "../output/02.20-D-Apul-RNAseq-alignment-HiSat2/apul-gene_count_matrix.csv", row.names="gene_id", check.names = FALSE))
 
 coldata <- read.csv(file = "../output/03.00-D-Apul-RNAseq-gene-expression-DESeq2/DESeq2-coldata.tab", row.names=1, sep = "\t")
-coldata$condition <- factor(coldata$condition)
+coldata$time.point <- factor(coldata$time.point)
 
-head(cts)
+head(gene.counts)
 
 head(coldata)
 ```
 
 ## Verify rownames match
 ```{r check-rownames}
-all(rownames(coldata) == colnames(cts))
+all(rownames(coldata) == colnames(gene.counts))
 ```
 
 # Create DESeq2 data set
 ```{r create-deseq2-data-set}
-dds <- DESeqDataSetFromMatrix(countData = cts,
+dds <- DESeqDataSetFromMatrix(countData = gene.counts,
                               colData = coldata,
-                              design = ~ condition)
+                              design = ~ time.point + colony.id)
 dds
 
 ```
 
 ## Add gene columun feature
 ```{r add-gene-feature}
-featureData <- data.frame(gene=rownames(cts))
+featureData <- data.frame(gene=rownames(gene.counts))
 mcols(dds) <- DataFrame(mcols(dds), featureData)
 mcols(dds)
 ```
 
 ```{r level}
-dds$condition <- factor(dds$condition, levels = c("TP1","TP2", "TP3", "TP4"))
+dds$time.point <- factor(dds$time.point, levels = c("TP1","TP2", "TP3", "TP4"))
 ```
 
 # DESeq analysis
@@ -176,12 +185,12 @@ dds <- DESeq(dds)
 
 ### Full 
 ```{r deseq2-pairwise-results-tables}
-tp1.v.tp2.results <- results(dds, contrast=c("condition","TP1","TP2"), alpha = fdr, lfcThreshold = log2fc)
-tp1.v.tp3.results <- results(dds, contrast=c("condition","TP1","TP3"), alpha = fdr, lfcThreshold = log2fc)
-tp1.v.tp4.results <- results(dds, contrast=c("condition","TP1","TP4"), alpha = fdr, lfcThreshold = log2fc)
-tp2.v.tp3.results <- results(dds, contrast=c("condition","TP2","TP3"), alpha = fdr, lfcThreshold = log2fc)
-tp2.v.tp4.results <- results(dds, contrast=c("condition","TP2","TP4"), alpha = fdr, lfcThreshold = log2fc)
-tp3.v.tp4.results <- results(dds, contrast=c("condition","TP3","TP4"), alpha = fdr, lfcThreshold = log2fc)
+tp1.v.tp2.results <- results(dds, contrast=c("time.point","TP1","TP2"), alpha = fdr, lfcThreshold = log2fc)
+tp1.v.tp3.results <- results(dds, contrast=c("time.point","TP1","TP3"), alpha = fdr, lfcThreshold = log2fc)
+tp1.v.tp4.results <- results(dds, contrast=c("time.point","TP1","TP4"), alpha = fdr, lfcThreshold = log2fc)
+tp2.v.tp3.results <- results(dds, contrast=c("time.point","TP2","TP3"), alpha = fdr, lfcThreshold = log2fc)
+tp2.v.tp4.results <- results(dds, contrast=c("time.point","TP2","TP4"), alpha = fdr, lfcThreshold = log2fc)
+tp3.v.tp4.results <- results(dds, contrast=c("time.point","TP3","TP4"), alpha = fdr, lfcThreshold = log2fc)
 
 tp1.v.tp2.results
 
@@ -219,11 +228,29 @@ NOTE: Hover over points to see the sample numbers
 
 # Plotting
 
+## Sample distances
+```{r plot-sample-distances}
+sampleDists <- dist(t(assay(vsd)))
+
+sampleDistMatrix <- as.matrix( sampleDists )
+
+rownames(sampleDistMatrix) <- paste( vsd$colony.id, vsd$time.point, sep = " - " )
+
+colnames(sampleDistMatrix) <- NULL
+
+colors <- colorRampPalette( rev(brewer.pal(9, "Blues")) )(255)
+
+pheatmap(sampleDistMatrix,
+         clustering_distance_rows = sampleDists,
+         clustering_distance_cols = sampleDists,
+         col = colors)
+```
+
 ## PCA - All time points
 Visualize sample clustering via PCA (after transformation)
 ```{r pca-all-timepoints}
 # PCA with points color coded by time point 
-plotPCA(vsd)
+plotPCA(vsd, intgroup = c("time.point"))
 ```
 
 ## Heatmap - All time points
@@ -231,7 +258,7 @@ plotPCA(vsd)
 top_20_counts_all <- order(rowMeans(counts(dds,normalized=TRUE)),
                 decreasing=TRUE)[1:20]
 
-timepoint_annotation = colData(dds) %>% as.data.frame() %>% select(condition)
+timepoint_annotation = colData(dds) %>% as.data.frame() %>% select(time.point)
 
 
 
