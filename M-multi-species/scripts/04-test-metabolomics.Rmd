@@ -1,0 +1,227 @@
+---
+title: "Analyzing test metabolomics data"
+author: "Ariana S Huffmyer"
+date: "2024"
+output: 
+  html_document:
+    code_folding: hide
+    toc: yes
+    toc_depth: 6
+    toc_float: yes
+editor_options: 
+  chunk_output_type: console
+--- 
+
+# Set Up    
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+Load libraries. 
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(readxl)
+library(vegan)
+library(factoextra)
+library(ggfortify)
+library(ComplexHeatmap)
+library(viridis)
+```
+
+# 1. Metabolite relative concentration
+
+## Load and prepare data 
+
+```{r}
+data<-read_xlsx("M-multi-species/data/metabolomics/test_Metabolites.xlsx", sheet="Relative Quant Data", skip=1)%>%
+  select(!`HMDB ID`)%>%
+  select(!`KEGG ID`)%>%
+  mutate(across(everything(), ~ na_if(.x, "N/A")))
+```
+
+Convert to numeric format. 
+
+```{r}
+# Keep the "Compound" column unchanged, convert all other columns to numeric
+data_wide <- as.data.frame(lapply(names(data), function(col) {
+  if (col == "Compound") {
+    return(data[[col]])  # Keep the "Compound" column as is
+  } else {
+    # Convert other columns to character first, then to numeric
+    return(as.numeric(as.character(data[[col]])))
+  }
+}))
+
+# Ensure the column names remain unchanged
+colnames(data_wide) <- names(data)
+
+str(data_wide)
+```
+
+There are 404 compounds in this list. Some are not measured in our samples, some are measured in <4 samples, some are measured in all 4 samples. 
+
+First, remove all compounds that are not detected in all 4 samples. We cannot separate an NA from a true 0 because a metabolite may be present, but just below the detection limit. 
+
+```{r}
+data_wide<-data_wide%>%
+  drop_na()
+```
+
+There are 68 metabolites that were measured in all four samples, including 4 internal standards.  
+
+Select the internal standards. Glutamic acid had a CV of 0.2%, so we will normalize to this standard. This was the most consistent standard reading. 
+
+```{r}
+standards<-data_wide%>%
+  filter(str_detect(Compound, "C13"))%>%
+  filter(Compound=="2C13-Glutamic acid")
+
+data_wide<-data_wide%>%
+  filter(!str_detect(Compound, "C13"))
+```
+
+Change to long format and add in standard value for each sample. 
+```{r}
+data_long<-data_wide%>%
+  pivot_longer(names_to="sample", values_to="concentration", cols=c(2:5))
+
+standards<-standards%>%
+  pivot_longer(names_to="sample", values_to="standard", cols=c(2:5))%>%
+  select(!Compound)
+
+data_long<-left_join(data_long, standards)
+```
+
+Calculate normalized concentration to internal standard. 
+```{r}
+data_long$conc_norm<-data_long$concentration/data_long$standard
+```
+
+Add in metadata manually. 
+
+```{r}
+data_long<-data_long%>%
+  mutate(species=if_else(sample=="70 Host", "Porites", 
+                         if_else(sample=="68 Host", "Pocillopora", 
+                                 if_else(sample=="140 Host", "Acropora", 
+                                         if_else(sample=="165 Host", "Acropora", NA)))))%>%
+  mutate(tissue.mg=if_else(sample=="70 Host", 16.63, 
+                         if_else(sample=="68 Host", 53.56, 
+                                 if_else(sample=="140 Host", 5.84, 
+                                         if_else(sample=="165 Host", 17.06, NA)))))
+```
+
+Normalize to tissue input. 
+
+```{r}
+data_long$conc_norm_mg<-data_long$conc_norm/data_long$tissue.mg
+```
+
+Data are now normalized. 
+
+## Generate a list of metabolites in the data set 
+
+```{r}
+unique(data_long$Compound)
+```
+
+[1] "Alanine"                                "Cadaverine"                            
+ [3] "Choline"                                "Serine"                                
+ [5] "Cytosine"                               "Leucine /D-Norleucine"                 
+ [7] "Ornithine"                              "Asparagine"                            
+ [9] "Aspartic Acid"                          "Tyramine"                              
+[11] "Trigonelline"                           "4-Guanidinobutanoate"                  
+[13] "Glutamine"                              "Lysine"                                
+[15] "Glutamic acid"                          "Guanine"                               
+[17] "Histidine"                              "Tryptamine"                            
+[19] "Carnitine"                              "Phenylalanine"                         
+[21] "Methionine Sulfoxide"                   "Arginine"                              
+[23] "N6-Trimethyllysine"                     "Caffeine"                              
+[25] "Dimethylarginine (A/SDMA)"              "Tryptophan"                            
+[27] "2'-Deoxycytidine"                       "Cytidine"                              
+[29] "Uridine"                                "isoValerylcarnitine"                   
+[31] "Glycerophosphocholine"                  "Hexanoyl-L-Carnitine (6:0 Carnitine)"  
+[33] "Deoxyguanosine"                         "Adenosine"                             
+[35] "Inosine"                                "Oleamide"                              
+[37] "Retinol"                                "Octanoyl-L-Carnitine (8:0 Carnitine)"  
+[39] "5'-Methylthioadenosine"                 "GMP"                                   
+[41] "Myristoyl-L-Carnitine (14:0 Carnitine)" "Riboflavin"                            
+[43] "Cholecalciferol"                        "Ergocalciferol"                        
+[45] "S-Adenosylmethionine (SAM)"             "PAF C-16"                              
+[47] "Nicotinic Acid"                         "Adenine"                               
+[49] "Hypoxanthine"                           "Phenylacetic Acid"                     
+[51] "Acetylphosphate"                        "Hydrocinnamic Acid"                    
+[53] "Xanthine"                               "Glycerol-3-P"                          
+[55] "Inositol"                               "Azelaic Acid"                          
+[57] "Erythrose-4-Phosphate"                  "Pantothenate"                          
+[59] "Ribose-5-P"                             "Biotin"                                
+[61] "G1P/F1P/F6P"                            "Linoleic Acid"                         
+[63] "IMP"                                    "Adenylosuccinate"   
+
+Importantly, core metabolites such as glucose, pyruvate, a-ketoglutarate, lactate, acetyl CoA were not high enough to get a signal. We did get a signal for glutamine, glutamate, and SAM. We likely need to increase tissue input.  
+
+## Plot PCA of samples 
+
+Generate wide data. 
+```{r}
+data_wide<-data_long%>%
+  ungroup()%>%
+  select(Compound, sample, conc_norm_mg, species)%>%
+  pivot_wider(names_from=Compound, values_from=conc_norm_mg)
+```
+
+```{r}
+scaled.pca<-prcomp(data_wide%>%select(where(is.numeric)), scale=TRUE, center=TRUE) 
+```
+
+Prepare a PCA plot
+```{r}
+# scale data
+vegan <- scale(data_wide%>%select(where(is.numeric)))
+
+# PerMANOVA 
+permanova<-adonis2(vegan ~ sample, data = data_wide, method='eu')
+permanova
+```
+
+```{r}
+pca1<-ggplot2::autoplot(scaled.pca, data=data_wide, loadings=FALSE,  colour="sample", loadings.label.colour="black", loadings.colour="black", loadings.label=FALSE, frame=FALSE, loadings.label.size=5, loadings.label.vjust=-1, size=5) + 
+  geom_text(aes(x = PC1, y = PC2, label = species), vjust = -0.5)+
+  theme_classic()+
+   theme(legend.text = element_text(size=18), 
+         legend.position="right",
+        plot.background = element_blank(),
+        legend.title = element_text(size=18, face="bold"), 
+        axis.text = element_text(size=18), 
+        axis.title = element_text(size=18,  face="bold"));pca1
+```
+
+## View metabolite concentration trends  
+
+With a small sample set, its hard to infer differences in concentration. This is preliminary. 
+
+View concentration of metabolites of interest that we have signals for. 
+
+- SAM
+- Glutamine
+- Glutamate 
+
+```{r}
+list<-c("S-Adenosylmethionine (SAM)", "Glutamine", "Glutamic acid")
+```
+
+```{r}
+data_long%>%
+  filter(Compound %in% list)%>%
+  
+  ggplot(aes(x=sample, y=conc_norm))+
+  geom_point()+
+  facet_grid(~Compound)+
+  theme_classic()
+```
+
+
+
