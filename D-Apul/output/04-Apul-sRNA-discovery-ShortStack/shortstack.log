@@ -1,0 +1,1331 @@
+
+ShortStack version 4.1.0
+
+Beginning run
+Options:
+{   'adapter': None,
+    'align_only': False,
+    'autotrim': False,
+    'autotrim_key': 'TCGGACCAGGCTTCATTCCCC',
+    'bamfile': None,
+    'dicermax': 24,
+    'dicermin': 21,
+    'dn_mirna': True,
+    'genomefile': '/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/data/Apulchra-genome.fa',
+    'known_miRNAs': '/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/M-multi-species/data/cnidarian-mirbase-mature-v22.1.fasta',
+    'locifile': None,
+    'locus': None,
+    'make_bigwigs': False,
+    'mincov': 1,
+    'mmap': 'u',
+    'nohp': False,
+    'outdir': '/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/11-Apul-sRNA-ShortStack_4.1.0-pulchra_genome/ShortStack_out',
+    'pad': 200,
+    'readfile': [   '/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/01.10-D-Apul-sRNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs-sRNA/1A10-fastp-adapters-polyG-31bp-merged.fq.gz',
+                    '/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/01.10-D-Apul-sRNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs-sRNA/1A11-fastp-adapters-polyG-31bp-merged.fq.gz',
+                    '/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/01.10-D-Apul-sRNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs-sRNA/1A12-fastp-adapters-polyG-31bp-merged.fq.gz',
+                    '/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/01.10-D-Apul-sRNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs-sRNA/1A1-fastp-adapters-polyG-31bp-merged.fq.gz',
+                    '/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/01.10-D-Apul-sRNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs-sRNA/1A2-fastp-adapters-polyG-31bp-merged.fq.gz',
+                    '/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/01.10-D-Apul-sRNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs-sRNA/1A8-fastp-adapters-polyG-31bp-merged.fq.gz',
+                    '/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/01.10-D-Apul-sRNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs-sRNA/1A9-fastp-adapters-polyG-31bp-merged.fq.gz',
+                    '/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/01.10-D-Apul-sRNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs-sRNA/1B10-fastp-adapters-polyG-31bp-merged.fq.gz',
+                    '/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/01.10-D-Apul-sRNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs-sRNA/1B11-fastp-adapters-polyG-31bp-merged.fq.gz',
+                    '/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/01.10-D-Apul-sRNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs-sRNA/1B12-fastp-adapters-polyG-31bp-merged.fq.gz',
+                    '/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/01.10-D-Apul-sRNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs-sRNA/1B1-fastp-adapters-polyG-31bp-merged.fq.gz',
+                    '/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/01.10-D-Apul-sRNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs-sRNA/1B2-fastp-adapters-polyG-31bp-merged.fq.gz',
+                    '/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/01.10-D-Apul-sRNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs-sRNA/1B5-fastp-adapters-polyG-31bp-merged.fq.gz',
+                    '/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/01.10-D-Apul-sRNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs-sRNA/1B9-fastp-adapters-polyG-31bp-merged.fq.gz',
+                    '/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/01.10-D-Apul-sRNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs-sRNA/1C10-fastp-adapters-polyG-31bp-merged.fq.gz',
+                    '/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/01.10-D-Apul-sRNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs-sRNA/1C4-fastp-adapters-polyG-31bp-merged.fq.gz',
+                    '/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/01.10-D-Apul-sRNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs-sRNA/1D10-fastp-adapters-polyG-31bp-merged.fq.gz',
+                    '/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/01.10-D-Apul-sRNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs-sRNA/1D3-fastp-adapters-polyG-31bp-merged.fq.gz',
+                    '/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/01.10-D-Apul-sRNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs-sRNA/1D4-fastp-adapters-polyG-31bp-merged.fq.gz',
+                    '/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/01.10-D-Apul-sRNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs-sRNA/1D6-fastp-adapters-polyG-31bp-merged.fq.gz',
+                    '/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/01.10-D-Apul-sRNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs-sRNA/1D8-fastp-adapters-polyG-31bp-merged.fq.gz',
+                    '/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/01.10-D-Apul-sRNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs-sRNA/1D9-fastp-adapters-polyG-31bp-merged.fq.gz',
+                    '/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/01.10-D-Apul-sRNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs-sRNA/1E10-fastp-adapters-polyG-31bp-merged.fq.gz',
+                    '/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/01.10-D-Apul-sRNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs-sRNA/1E11-fastp-adapters-polyG-31bp-merged.fq.gz',
+                    '/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/01.10-D-Apul-sRNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs-sRNA/1E12-fastp-adapters-polyG-31bp-merged.fq.gz',
+                    '/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/01.10-D-Apul-sRNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs-sRNA/1E1-fastp-adapters-polyG-31bp-merged.fq.gz',
+                    '/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/01.10-D-Apul-sRNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs-sRNA/1E3-fastp-adapters-polyG-31bp-merged.fq.gz',
+                    '/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/01.10-D-Apul-sRNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs-sRNA/1E5-fastp-adapters-polyG-31bp-merged.fq.gz',
+                    '/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/01.10-D-Apul-sRNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs-sRNA/1E9-fastp-adapters-polyG-31bp-merged.fq.gz',
+                    '/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/01.10-D-Apul-sRNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs-sRNA/1F11-fastp-adapters-polyG-31bp-merged.fq.gz',
+                    '/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/01.10-D-Apul-sRNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs-sRNA/1F4-fastp-adapters-polyG-31bp-merged.fq.gz',
+                    '/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/01.10-D-Apul-sRNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs-sRNA/1F8-fastp-adapters-polyG-31bp-merged.fq.gz',
+                    '/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/01.10-D-Apul-sRNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs-sRNA/1G5-fastp-adapters-polyG-31bp-merged.fq.gz',
+                    '/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/01.10-D-Apul-sRNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs-sRNA/1H12-fastp-adapters-polyG-31bp-merged.fq.gz',
+                    '/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/01.10-D-Apul-sRNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs-sRNA/1H7-fastp-adapters-polyG-31bp-merged.fq.gz',
+                    '/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/01.10-D-Apul-sRNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs-sRNA/1H8-fastp-adapters-polyG-31bp-merged.fq.gz'# reads processed: 1089229
+# reads with at least one alignment: 738135 (67.77%)
+# reads that failed to align: 351094 (32.23%)
+Reported 4242347 alignments
+,
+                    '/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/01.10-D-Apul-sRNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs-sRNA/2B2-fastp-adapters-polyG-31bp-merged.fq.gz',
+                    '/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/01.10-D-Apul-sRNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs-sRNA/2B3-fastp-adapters-polyG-31bp-merged.fq.gz',
+                    '/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/01.10-D-Apul-sRNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs-sRNA/2C1-fastp-adapters-polyG-31bp-merged.fq.gz',
+                    '/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/01.10-D-Apul-sRNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs-sRNA/2C2-fastp-adapters-polyG-31bp-merged.fq.gz',
+                    '/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/01.10-D-Apul-sRNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs-sRNA/2D2-fastp-adapters-polyG-31bp-merged.fq.gz',
+                    '/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/01.10-D-Apul-sRNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs-sRNA/2E2-fastp-adapters-polyG-31bp-merged.fq.gz',
+                    '/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/01.10-D-Apul-sRNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs-sRNA/2F1-fastp-adapters-polyG-31bp-merged.fq.gz',
+                    '/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/01.10-D-Apul-sRNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs-sRNA/2G1-fastp-adapters-polyG-31bp-merged.fq.gz'],
+    'strand_cutoff': 0.8,
+    'threads': 40}
+Required executable RNAfold : /home/sam/programs/mambaforge/envs/ShortStack-4.1.0_env/bin/RNAfold
+Required executable strucVis : /home/sam/programs/mambaforge/envs/ShortStack-4.1.0_env/bin/strucVis
+Required executable bowtie : /home/sam/programs/mambaforge/envs/ShortStack-4.1.0_env/bin/bowtie
+Required executable bowtie-build : /home/sam/programs/mambaforge/envs/ShortStack-4.1.0_env/bin/bowtie-build
+Required executable samtools : /home/sam/programs/mambaforge/envs/ShortStack-4.1.0_env/bin/samtools
+
+Wed 18 Dec 2024 23:30:17 -0800 PST
+Condensing reads
+
+Thu 19 Dec 2024 00:07:05 -0800 PST
+Required bowtie indices not found. Building them ...
+
+
+    Completed
+
+Beginning alignment phase
+
+Thu 19 Dec 2024 00:16:17 -0800 PST
+Aligning /home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/11-Apul-sRNA-ShortStack_4.1.0-pulchra_genome/ShortStack_out/1A10-fastp-adapters-polyG-31bp-merged_condensed.fa
+First pass alignment with bowtie using 40 threads
+Second pass - placing multimappers using 40 threads to process 2 chunks
+[bam_sort_core] merging from 0 files and 40 in-memory blocks...
+# reads processed: 570348
+# reads with at least one alignment: 54776 (9.60%)
+# reads that failed to align: 515572 (90.40%)
+Reported 225553 alignments
+
+Converting to sorted bam format
+Uniquely mapped (U):
+	sequences: 323431/1089229 (29.7%)
+	reads: 1074476/5951493 (18.1%)
+Multi-mapped placed with guidance (P):
+	sequences: 163922/1089229 (15.0%)
+	reads: 846730/5951493 (14.2%)
+Multi-mapped randomly placed (R):
+	sequences: 135213/1089229 (12.4%)
+	reads: 337421/5951493 (5.7%)
+Very highly multi-mapped (>=20 hits)(H):
+	sequences: 115569/1089229 (10.6%)
+	reads: 1882383/5951493 (31.6%)
+Not mapped (no hits)(N):
+	sequences: 351094/1089229 (32.2%)
+	reads: 1810483/5951493 (30.4%)
+
+Thu 19 Dec 2024 00:18:05 -0800 PST
+Aligning /home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/11-Apul-sRNA-ShortStack_4.1.0-pulchra_genome/ShortStack_out/1A11-fastp-adapters-polyG-31bp-merged_condensed.fa
+First pass alignment with bowtie using 40 threads
+Second pass - placing multimappers using 40 threads to process 1 chunks
+[bam_sort_core] merging from 0 files and 40 in-memory blocks...
+# reads processed: 1272465
+# reads with at least one alignment: 970474 (76.27%)
+# reads that failed to align: 301991 (23.73%)
+Reported 4704557 alignments
+
+Converting to sorted bam format
+Uniquely mapped (U):
+	sequences: 20037/570348 (3.5%)
+	reads: 96225/2615314 (3.7%)
+Multi-mapped placed with guidance (P):
+	sequences: 14732/570348 (2.6%)
+	reads: 64714/2615314 (2.5%)
+Multi-mapped randomly placed (R):
+	sequences: 16359/570348 (2.9%)
+	reads: 48528/2615314 (1.9%)
+Very highly multi-mapped (>=20 hits)(H):
+	sequences: 3648/570348 (0.6%)
+	reads: 516167/2615314 (19.7%)
+Not mapped (no hits)(N):
+	sequences: 515572/570348 (90.4%)
+	reads: 1889680/2615314 (72.3%)
+
+Thu 19 Dec 2024 00:18:22 -0800 PST
+Aligning /home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/11-Apul-sRNA-ShortStack_4.1.0-pulchra_genome/ShortStack_out/1A12-fastp-adapters-polyG-31bp-merged_condensed.fa
+First pass alignment with bowtie using 40 threads
+Second pass - placing multimappers using 40 threads to process 2 chunks
+[bam_sort_core] merging from 0 files and 40 in-memory blocks...
+# reads processed: 1558385
+# reads with at least one alignment: 1050856 (67.43%)
+# reads that failed to align: 507529 (32.57%)
+Reported 5396384 alignments
+
+Converting to sorted bam format
+Uniquely mapped (U):
+	sequences: 437246/1272465 (34.4%)
+	reads: 2127437/6183357 (34.4%)
+Multi-mapped placed with guidance (P):
+	sequences: 261828/1272465 (20.6%)
+	reads: 1451191/6183357 (23.5%)
+Multi-mapped randomly placed (R):
+	sequences: 168671/1272465 (13.3%)
+	reads: 507434/6183357 (8.2%)
+Very highly multi-mapped (>=20 hits)(H):
+	sequences: 102729/1272465 (8.1%)
+	reads: 664171/6183357 (10.7%)
+Not mapped (no hits)(N):
+	sequences: 301991/1272465 (23.7%)
+	reads: 1433124/6183357 (23.2%)
+
+Thu 19 Dec 2024 00:20:16 -0800 PST
+Aligning /home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/11-Apul-sRNA-ShortStack_4.1.0-pulchra_genome/ShortStack_out/1A1-fastp-adapters-polyG-31bp-merged_condensed.fa
+First pass alignment with bowtie using 40 threads
+Second pass - placing multimappers using 40 threads to process 2 chunks
+[bam_sort_core] merging from 0 files and 40 in-memory blocks...
+# reads processed: 2017013
+# reads with at least one alignment: 1445065 (71.64%)
+# reads that failed to align: 571948 (28.36%)
+Reported 6953927 alignments
+
+Converting to sorted bam format
+Uniquely mapped (U):
+	sequences: 461570/1558385 (29.6%)
+	reads: 2510372/8707352 (28.8%)
+Multi-mapped placed with guidance (P):
+	sequences: 290494/1558385 (18.6%)
+	reads: 1939561/8707352 (22.3%)
+Multi-mapped randomly placed (R):
+	sequences: 173885/1558385 (11.2%)
+	reads: 552343/8707352 (6.3%)
+Very highly multi-mapped (>=20 hits)(H):
+	sequences: 124907/1558385 (8.0%)
+	reads: 1218750/8707352 (14.0%)
+Not mapped (no hits)(N):
+	sequences: 507529/1558385 (32.6%)
+	reads: 2486326/8707352 (28.6%)
+
+Thu 19 Dec 2024 00:22:20 -0800 PST
+Aligning /home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/11-Apul-sRNA-ShortStack_4.1.0-pulchra_genome/ShortStack_out/1A2-fastp-adapters-polyG-31bp-merged_condensed.fa
+First pass alignment with bowtie using 40 threads
+Second pass - placing multimappers using 40 threads to process 3 chunks
+[bam_sort_core] merging from 0 files and 40 in-memory blocks...
+# reads processed: 1485596
+# reads with at least one alignment: 1092763 (73.56%)
+# reads that failed to align: 392833 (26.44%)
+Reported 5265066 alignments
+
+Converting to sorted bam format
+Uniquely mapped (U):
+	sequences: 668003/2017013 (33.1%)
+	reads: 2759128/10520192 (26.2%)
+Multi-mapped placed with guidance (P):
+	sequences: 393235/2017013 (19.5%)
+	reads: 2021359/10520192 (19.2%)
+Multi-mapped randomly placed (R):
+	sequences: 232765/2017013 (11.5%)
+	reads: 633400/10520192 (6.0%)
+Very highly multi-mapped (>=20 hits)(H):
+	sequences: 151062/2017013 (7.5%)
+	reads: 1683046/10520192 (16.0%)
+Not mapped (no hits)(N):
+	sequences: 571948/2017013 (28.4%)
+	reads: 3423259/10520192 (32.5%)
+
+Thu 19 Dec 2024 00:24:49 -0800 PST
+Aligning /home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/11-Apul-sRNA-ShortStack_4.1.0-pulchra_genome/ShortStack_out/1A8-fastp-adapters-polyG-31bp-merged_condensed.fa
+First pass alignment with bowtie using 40 threads
+Second pass - placing multimappers using 40 threads to process 2 chunks
+[bam_sort_core] merging from 0 files and 40 in-memory blocks...
+# reads processed: 2533167
+# reads with at least one alignment: 1756521 (69.34%)
+# reads that failed to align: 776646 (30.66%)
+Reported 8058195 alignments
+
+Converting to sorted bam format
+Uniquely mapped (U):
+	sequences: 539842/1485596 (36.3%)
+	reads: 2200417/7769703 (28.3%)
+Multi-mapped placed with guidance (P):
+	sequences: 252268/1485596 (17.0%)
+	reads: 1379644/7769703 (17.8%)
+Multi-mapped randomly placed (R):
+	sequences: 176841/1485596 (11.9%)
+	reads: 491174/7769703 (6.3%)
+Very highly multi-mapped (>=20 hits)(H):
+	sequences: 123812/1485596 (8.3%)
+	reads: 1835559/7769703 (23.6%)
+Not mapped (no hits)(N):
+	sequences: 392833/1485596 (26.4%)
+	reads: 1862909/7769703 (24.0%)
+
+Thu 19 Dec 2024 00:26:48 -0800 PST
+Aligning /home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/11-Apul-sRNA-ShortStack_4.1.0-pulchra_genome/ShortStack_out/1A9-fastp-adapters-polyG-31bp-merged_condensed.fa
+First pass alignment with bowtie using 40 threads
+Second pass - placing multimappers using 40 threads to process 3 chunks
+[bam_sort_core] merging from 0 files and 40 in-memory blocks...
+# reads processed: 1350448
+# reads with at least one alignment: 845311 (62.59%)
+# reads that failed to align: 505137 (37.41%)
+Reported 4574454 alignments
+
+Converting to sorted bam format
+Uniquely mapped (U):
+	sequences: 809571/2533167 (32.0%)
+	reads: 3951224/13617875 (29.0%)
+Multi-mapped placed with guidance (P):
+	sequences: 510841/2533167 (20.2%)
+	reads: 2859375/13617875 (21.0%)
+Multi-mapped randomly placed (R):
+	sequences: 279589/2533167 (11.0%)
+	reads: 904765/13617875 (6.6%)
+Very highly multi-mapped (>=20 hits)(H):
+	sequences: 156520/2533167 (6.2%)
+	reads: 1083154/13617875 (8.0%)
+Not mapped (no hits)(N):
+	sequences: 776646/2533167 (30.7%)
+	reads: 4819357/13617875 (35.4%)
+
+Thu 19 Dec 2024 00:29:31 -0800 PST
+Aligning /home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/11-Apul-sRNA-ShortStack_4.1.0-pulchra_genome/ShortStack_out/1B10-fastp-adapters-polyG-31bp-merged_condensed.fa
+First pass alignment with bowtie using 40 threads
+Second pass - placing multimappers using 40 threads to process 2 chunks
+[bam_sort_core] merging from 0 files and 40 in-memory blocks...
+# reads processed: 886874
+# reads with at least one alignment: 66513 (7.50%)
+# reads that failed to align: 820361 (92.50%)
+Reported 548917 alignments
+
+Converting to sorted bam format
+Uniquely mapped (U):
+	sequences: 393313/1350448 (29.1%)
+	reads: 1637574/6911300 (23.7%)
+Multi-mapped placed with guidance (P):
+	sequences: 184186/1350448 (13.6%)
+	reads: 1028238/6911300 (14.9%)
+Multi-mapped randomly placed (R):
+	sequences: 143273/1350448 (10.6%)
+	reads: 340635/6911300 (4.9%)
+Very highly multi-mapped (>=20 hits)(H):
+	sequences: 124539/1350448 (9.2%)
+	reads: 1675375/6911300 (24.2%)
+Not mapped (no hits)(N):
+	sequences: 505137/1350448 (37.4%)
+	reads: 2229478/6911300 (32.3%)
+
+Thu 19 Dec 2024 00:31:24 -0800 PST
+Aligning /home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/11-Apul-sRNA-ShortStack_4.1.0-pulchra_genome/ShortStack_out/1B11-fastp-adapters-polyG-31bp-merged_condensed.fa
+First pass alignment with bowtie using 40 threads
+Second pass - placing multimappers using 40 threads to process 1 chunks
+[bam_sort_core] merging from 0 files and 40 in-memory blocks...
+# reads processed: 905253
+# reads with at least one alignment: 88827 (9.81%)
+# reads that failed to align: 816426 (90.19%)
+Reported 592911 alignments
+
+Converting to sorted bam format
+Uniquely mapped (U):
+	sequences: 22909/886874 (2.6%)
+	reads: 122227/4965804 (2.5%)
+Multi-mapped placed with guidance (P):
+	sequences: 8939/886874 (1.0%)
+	reads: 50600/4965804 (1.0%)
+Multi-mapped randomly placed (R):
+	sequences: 13908/886874 (1.6%)
+	reads: 32911/4965804 (0.7%)
+Very highly multi-mapped (>=20 hits)(H):
+	sequences: 20757/886874 (2.3%)
+	reads: 332438/4965804 (6.7%)
+Not mapped (no hits)(N):
+	sequences: 820361/886874 (92.5%)
+	reads: 4427628/4965804 (89.2%)
+
+Thu 19 Dec 2024 00:31:56 -0800 PST
+Aligning /home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/11-Apul-sRNA-ShortStack_4.1.0-pulchra_genome/ShortStack_out/1B12-fastp-adapters-polyG-31bp-merged_condensed.fa
+First pass alignment with bowtie using 40 threads
+Second pass - placing multimappers using 40 threads to process 1 chunks
+[bam_sort_core] merging from 0 files and 40 in-memory blocks...
+# reads processed: 1677356
+# reads with at least one alignment: 985303 (58.74%)
+# reads that failed to align: 692053 (41.26%)
+Reported 5216274 alignments
+
+Converting to sorted bam format
+Uniquely mapped (U):
+	sequences: 31929/905253 (3.5%)
+	reads: 259632/6957313 (3.7%)
+Multi-mapped placed with guidance (P):
+	sequences: 16913/905253 (1.9%)
+	reads: 112715/6957313 (1.6%)
+Multi-mapped randomly placed (R):
+	sequences: 20919/905253 (2.3%)
+	reads: 64619/6957313 (0.9%)
+Very highly multi-mapped (>=20 hits)(H):
+	sequences: 19066/905253 (2.1%)
+	reads: 857569/6957313 (12.3%)
+Not mapped (no hits)(N):
+	sequences: 816426/905253 (90.2%)
+	reads: 5662778/6957313 (81.4%)
+
+Thu 19 Dec 2024 00:32:29 -0800 PST
+Aligning /home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/11-Apul-sRNA-ShortStack_4.1.0-pulchra_genome/ShortStack_out/1B1-fastp-adapters-polyG-31bp-merged_condensed.fa
+First pass alignment with bowtie using 40 threads
+Second pass - placing multimappers using 40 threads to process 2 chunks
+[bam_sort_core] merging from 0 files and 40 in-memory blocks...
+# reads processed: 1552923
+# reads with at least one alignment: 873733 (56.26%)
+# reads that failed to align: 679190 (43.74%)
+Reported 4674478 alignments
+
+Converting to sorted bam format
+Uniquely mapped (U):
+	sequences: 461764/1677356 (27.5%)
+	reads: 2036402/9060831 (22.5%)
+Multi-mapped placed with guidance (P):
+	sequences: 218546/1677356 (13.0%)
+	reads: 1304472/9060831 (14.4%)
+Multi-mapped randomly placed (R):
+	sequences: 170765/1677356 (10.2%)
+	reads: 450012/9060831 (5.0%)
+Very highly multi-mapped (>=20 hits)(H):
+	sequences: 134228/1677356 (8.0%)
+	reads: 1858550/9060831 (20.5%)
+Not mapped (no hits)(N):
+	sequences: 692053/1677356 (41.3%)
+	reads: 3411395/9060831 (37.6%)
+
+Thu 19 Dec 2024 00:34:26 -0800 PST
+Aligning /home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/11-Apul-sRNA-ShortStack_4.1.0-pulchra_genome/ShortStack_out/1B2-fastp-adapters-polyG-31bp-merged_condensed.fa
+First pass alignment with bowtie using 40 threads
+Second pass - placing multimappers using 40 threads to process 2 chunks
+[bam_sort_core] merging from 0 files and 40 in-memory blocks...
+# reads processed: 2803701
+# reads with at least one alignment: 2132502 (76.06%)
+# reads that failed to align: 671199 (23.94%)
+Reported 10091437 alignments
+
+Converting to sorted bam format
+Uniquely mapped (U):
+	sequences: 396187/1552923 (25.5%)
+	reads: 1892077/9380119 (20.2%)
+Multi-mapped placed with guidance (P):
+	sequences: 207112/1552923 (13.3%)
+	reads: 1516594/9380119 (16.2%)
+Multi-mapped randomly placed (R):
+	sequences: 150067/1552923 (9.7%)
+	reads: 441586/9380119 (4.7%)
+Very highly multi-mapped (>=20 hits)(H):
+	sequences: 120367/1552923 (7.8%)
+	reads: 1994837/9380119 (21.3%)
+Not mapped (no hits)(N):
+	sequences: 679190/1552923 (43.7%)
+	reads: 3535025/9380119 (37.7%)
+
+Thu 19 Dec 2024 00:36:15 -0800 PST
+Aligning /home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/11-Apul-sRNA-ShortStack_4.1.0-pulchra_genome/ShortStack_out/1B5-fastp-adapters-polyG-31bp-merged_condensed.fa
+First pass alignment with bowtie using 40 threads
+Second pass - placing multimappers using 40 threads to process 3 chunks
+[bam_sort_core] merging from 0 files and 40 in-memory blocks...
+# reads processed: 1239555
+# reads with at least one alignment: 802489 (64.74%)
+# reads that failed to align: 437066 (35.26%)
+Reported 4765213 alignments
+
+Converting to sorted bam format
+Uniquely mapped (U):
+	sequences: 974736/2803701 (34.8%)
+	reads: 4644851/12874226 (36.1%)
+Multi-mapped placed with guidance (P):
+	sequences: 666862/2803701 (23.8%)
+	reads: 3631041/12874226 (28.2%)
+Multi-mapped randomly placed (R):
+	sequences: 285356/2803701 (10.2%)
+	reads: 968483/12874226 (7.5%)
+Very highly multi-mapped (>=20 hits)(H):
+	sequences: 205548/2803701 (7.3%)
+	reads: 1504877/12874226 (11.7%)
+Not mapped (no hits)(N):
+	sequences: 671199/2803701 (23.9%)
+	reads: 2124974/12874226 (16.5%)
+
+Thu 19 Dec 2024 00:39:35 -0800 PST
+Aligning /home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/11-Apul-sRNA-ShortStack_4.1.0-pulchra_genome/ShortStack_out/1B9-fastp-adapters-polyG-31bp-merged_condensed.fa
+First pass alignment with bowtie using 40 threads
+Second pass - placing multimappers using 40 threads to process 2 chunks
+[bam_sort_core] merging from 0 files and 40 in-memory blocks...
+# reads processed: 1379817
+# reads with at least one alignment: 623676 (45.20%)
+# reads that failed to align: 756141 (54.80%)
+Reported 3905159 alignments
+
+Converting to sorted bam format
+Uniquely mapped (U):
+	sequences: 338513/1239555 (27.3%)
+	reads: 1120120/6836685 (16.4%)
+Multi-mapped placed with guidance (P):
+	sequences: 186699/1239555 (15.1%)
+	reads: 918578/6836685 (13.4%)
+Multi-mapped randomly placed (R):
+	sequences: 145983/1239555 (11.8%)
+	reads: 329904/6836685 (4.8%)
+Very highly multi-mapped (>=20 hits)(H):
+	sequences: 131294/1239555 (10.6%)
+	reads: 2267874/6836685 (33.2%)
+Not mapped (no hits)(N):
+	sequences: 437066/1239555 (35.3%)
+	reads: 2200209/6836685 (32.2%)
+
+Thu 19 Dec 2024 00:41:07 -0800 PST
+Aligning /home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/11-Apul-sRNA-ShortStack_4.1.0-pulchra_genome/ShortStack_out/1C10-fastp-adapters-polyG-31bp-merged_condensed.fa
+First pass alignment with bowtie using 40 threads
+Second pass - placing multimappers using 40 threads to process 2 chunks
+[bam_sort_core] merging from 0 files and 40 in-memory blocks...
+# reads processed: 1821985
+# reads with at least one alignment: 800189 (43.92%)
+# reads that failed to align: 1021796 (56.08%)
+Reported 5480637 alignments
+
+Converting to sorted bam format
+Uniquely mapped (U):
+	sequences: 275893/1379817 (20.0%)
+	reads: 979838/6142279 (16.0%)
+Multi-mapped placed with guidance (P):
+	sequences: 118218/1379817 (8.6%)
+	reads: 753083/6142279 (12.3%)
+Multi-mapped randomly placed (R):
+	sequences: 108808/1379817 (7.9%)
+	reads: 246337/6142279 (4.0%)
+Very highly multi-mapped (>=20 hits)(H):
+	sequences: 120757/1379817 (8.8%)
+	reads: 1321973/6142279 (21.5%)
+Not mapped (no hits)(N):
+	sequences: 756141/1379817 (54.8%)
+	reads: 2841048/6142279 (46.3%)
+
+Thu 19 Dec 2024 00:41:53 -0800 PST
+Aligning /home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/11-Apul-sRNA-ShortStack_4.1.0-pulchra_genome/ShortStack_out/1C4-fastp-adapters-polyG-31bp-merged_condensed.fa
+First pass alignment with bowtie using 40 threads
+Second pass - placing multimappers using 40 threads to process 2 chunks
+[bam_sort_core] merging from 0 files and 40 in-memory blocks...
+# reads processed: 1896137
+# reads with at least one alignment: 1445774 (76.25%)
+# reads that failed to align: 450363 (23.75%)
+Reported 7335520 alignments
+
+Converting to sorted bam format
+Uniquely mapped (U):
+	sequences: 349801/1821985 (19.2%)
+	reads: 1123527/10192438 (11.0%)
+Multi-mapped placed with guidance (P):
+	sequences: 133176/1821985 (7.3%)
+	reads: 642635/10192438 (6.3%)
+Multi-mapped randomly placed (R):
+	sequences: 135423/1821985 (7.4%)
+	reads: 352498/10192438 (3.5%)
+Very highly multi-mapped (>=20 hits)(H):
+	sequences: 181789/1821985 (10.0%)
+	reads: 1691403/10192438 (16.6%)
+Not mapped (no hits)(N):
+	sequences: 1021796/1821985 (56.1%)
+	reads: 6382375/10192438 (62.6%)
+
+Thu 19 Dec 2024 00:42:51 -0800 PST
+Aligning /home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/11-Apul-sRNA-ShortStack_4.1.0-pulchra_genome/ShortStack_out/1D10-fastp-adapters-polyG-31bp-merged_condensed.fa
+First pass alignment with bowtie using 40 threads
+Second pass - placing multimappers using 40 threads to process 2 chunks
+[bam_sort_core] merging from 0 files and 40 in-memory blocks...
+# reads processed: 2543995
+# reads with at least one alignment: 1888911 (74.25%)
+# reads that failed to align: 655084 (25.75%)
+Reported 9585840 alignments
+
+Converting to sorted bam format
+Uniquely mapped (U):
+	sequences: 635258/1896137 (33.5%)
+	reads: 2550937/8008657 (31.9%)
+Multi-mapped placed with guidance (P):
+	sequences: 419740/1896137 (22.1%)
+	reads: 2075216/8008657 (25.9%)
+Multi-mapped randomly placed (R):
+	sequences: 226642/1896137 (12.0%)
+	reads: 639146/8008657 (8.0%)
+Very highly multi-mapped (>=20 hits)(H):
+	sequences: 164134/1896137 (8.7%)
+	reads: 1167223/8008657 (14.6%)
+Not mapped (no hits)(N):
+	sequences: 450363/1896137 (23.8%)
+	reads: 1576135/8008657 (19.7%)
+
+Thu 19 Dec 2024 00:44:03 -0800 PST
+Aligning /home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/11-Apul-sRNA-ShortStack_4.1.0-pulchra_genome/ShortStack_out/1D3-fastp-adapters-polyG-31bp-merged_condensed.fa
+First pass alignment with bowtie using 40 threads
+Second pass - placing multimappers using 40 threads to process 3 chunks
+[bam_sort_core] merging from 0 files and 40 in-memory blocks...
+# reads processed: 2190860
+# reads with at least one alignment: 1590409 (72.59%)
+# reads that failed to align: 600451 (27.41%)
+Reported 7624802 alignments
+
+Converting to sorted bam format
+Uniquely mapped (U):
+	sequences: 805973/2543995 (31.7%)
+	reads: 4878669/15206541 (32.1%)
+Multi-mapped placed with guidance (P):
+	sequences: 601277/2543995 (23.6%)
+	reads: 3965033/15206541 (26.1%)
+Multi-mapped randomly placed (R):
+	sequences: 275786/2543995 (10.8%)
+	reads: 1041448/15206541 (6.8%)
+Very highly multi-mapped (>=20 hits)(H):
+	sequences: 205875/2543995 (8.1%)
+	reads: 2100025/15206541 (13.8%)
+Not mapped (no hits)(N):
+	sequences: 655084/2543995 (25.8%)
+	reads: 3221366/15206541 (21.2%)
+
+Thu 19 Dec 2024 00:45:30 -0800 PST
+Aligning /home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/11-Apul-sRNA-ShortStack_4.1.0-pulchra_genome/ShortStack_out/1D4-fastp-adapters-polyG-31bp-merged_condensed.fa
+First pass alignment with bowtie using 40 threads
+Second pass - placing multimappers using 40 threads to process 3 chunks
+[bam_sort_core] merging from 0 files and 40 in-memory blocks...
+# reads processed: 2314604
+# reads with at least one alignment: 1839986 (79.49%)
+# reads that failed to align: 474618 (20.51%)
+Reported 8372116 alignments
+
+Converting to sorted bam format
+Uniquely mapped (U):
+	sequences: 735121/2190860 (33.6%)
+	reads: 3421296/11513063 (29.7%)
+Multi-mapped placed with guidance (P):
+	sequences: 444780/2190860 (20.3%)
+	reads: 2410146/11513063 (20.9%)
+Multi-mapped randomly placed (R):
+	sequences: 241889/2190860 (11.0%)
+	reads: 759873/11513063 (6.6%)
+Very highly multi-mapped (>=20 hits)(H):
+	sequences: 168619/2190860 (7.7%)
+	reads: 1712399/11513063 (14.9%)
+Not mapped (no hits)(N):
+	sequences: 600451/2190860 (27.4%)
+	reads: 3209349/11513063 (27.9%)
+
+Thu 19 Dec 2024 00:46:43 -0800 PST
+Aligning /home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/11-Apul-sRNA-ShortStack_4.1.0-pulchra_genome/ShortStack_out/1D6-fastp-adapters-polyG-31bp-merged_condensed.fa
+First pass alignment with bowtie using 40 threads
+Second pass - placing multimappers using 40 threads to process 3 chunks
+[bam_sort_core] merging from 0 files and 40 in-memory blocks...
+# reads processed: 1406289
+# reads with at least one alignment: 1060008 (75.38%)
+# reads that failed to align: 346281 (24.62%)
+Reported 4960753 alignments
+
+Converting to sorted bam format
+Uniquely mapped (U):
+	sequences: 869752/2314604 (37.6%)
+	reads: 4989943/13917067 (35.9%)
+Multi-mapped placed with guidance (P):
+	sequences: 535806/2314604 (23.1%)
+	reads: 3568134/13917067 (25.6%)
+Multi-mapped randomly placed (R):
+	sequences: 269873/2314604 (11.7%)
+	reads: 1183812/13917067 (8.5%)
+Very highly multi-mapped (>=20 hits)(H):
+	sequences: 164555/2314604 (7.1%)
+	reads: 1568126/13917067 (11.3%)
+Not mapped (no hits)(N):
+	sequences: 474618/2314604 (20.5%)
+	reads: 2607052/13917067 (18.7%)
+
+Thu 19 Dec 2024 00:48:03 -0800 PST
+Aligning /home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/11-Apul-sRNA-ShortStack_4.1.0-pulchra_genome/ShortStack_out/1D8-fastp-adapters-polyG-31bp-merged_condensed.fa
+First pass alignment with bowtie using 40 threads
+Second pass - placing multimappers using 40 threads to process 2 chunks
+[bam_sort_core] merging from 0 files and 40 in-memory blocks...
+# reads processed: 2096079
+# reads with at least one alignment: 1493088 (71.23%)
+# reads that failed to align: 602991 (28.77%)
+Reported 7323654 alignments
+
+Converting to sorted bam format
+Uniquely mapped (U):
+	sequences: 486585/1406289 (34.6%)
+	reads: 2341390/7489968 (31.3%)
+Multi-mapped placed with guidance (P):
+	sequences: 292041/1406289 (20.8%)
+	reads: 1837532/7489968 (24.5%)
+Multi-mapped randomly placed (R):
+	sequences: 177687/1406289 (12.6%)
+	reads: 537470/7489968 (7.2%)
+Very highly multi-mapped (>=20 hits)(H):
+	sequences: 103695/1406289 (7.4%)
+	reads: 627466/7489968 (8.4%)
+Not mapped (no hits)(N):
+	sequences: 346281/1406289 (24.6%)
+	reads: 2146110/7489968 (28.7%)
+
+Thu 19 Dec 2024 00:48:57 -0800 PST
+Aligning /home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/11-Apul-sRNA-ShortStack_4.1.0-pulchra_genome/ShortStack_out/1D9-fastp-adapters-polyG-31bp-merged_condensed.fa
+First pass alignment with bowtie using 40 threads
+Second pass - placing multimappers using 40 threads to process 3 chunks
+[bam_sort_core] merging from 0 files and 40 in-memory blocks...
+# reads processed: 801315
+# reads with at least one alignment: 77262 (9.64%)
+# reads that failed to align: 724053 (90.36%)
+Reported 495206 alignments
+
+Converting to sorted bam format
+Uniquely mapped (U):
+	sequences: 682136/2096079 (32.5%)
+	reads: 2672336/8967034 (29.8%)
+Multi-mapped placed with guidance (P):
+	sequences: 426964/2096079 (20.4%)
+	reads: 2027958/8967034 (22.6%)
+Multi-mapped randomly placed (R):
+	sequences: 220691/2096079 (10.5%)
+	reads: 611857/8967034 (6.8%)
+Very highly multi-mapped (>=20 hits)(H):
+	sequences: 163297/2096079 (7.8%)
+	reads: 1503535/8967034 (16.8%)
+Not mapped (no hits)(N):
+	sequences: 602991/2096079 (28.8%)
+	reads: 2151348/8967034 (24.0%)
+
+Thu 19 Dec 2024 00:50:11 -0800 PST
+Aligning /home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/11-Apul-sRNA-ShortStack_4.1.0-pulchra_genome/ShortStack_out/1E10-fastp-adapters-polyG-31bp-merged_condensed.fa
+First pass alignment with bowtie using 40 threads
+Second pass - placing multimappers using 40 threads to process 1 chunks
+[bam_sort_core] merging from 0 files and 40 in-memory blocks...
+# reads processed: 986782
+# reads with at least one alignment: 64140 (6.50%)
+# reads that failed to align: 922642 (93.50%)
+Reported 367753 alignments
+
+Converting to sorted bam format
+Uniquely mapped (U):
+	sequences: 26838/801315 (3.3%)
+	reads: 254566/7499529 (3.4%)
+Multi-mapped placed with guidance (P):
+	sequences: 16134/801315 (2.0%)
+	reads: 116088/7499529 (1.5%)
+Multi-mapped randomly placed (R):
+	sequences: 18714/801315 (2.3%)
+	reads: 79558/7499529 (1.1%)
+Very highly multi-mapped (>=20 hits)(H):
+	sequences: 15576/801315 (1.9%)
+	reads: 817834/7499529 (10.9%)
+Not mapped (no hits)(N):
+	sequences: 724053/801315 (90.4%)
+	reads: 6231483/7499529 (83.1%)
+
+Thu 19 Dec 2024 00:50:26 -0800 PST
+Aligning /home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/11-Apul-sRNA-ShortStack_4.1.0-pulchra_genome/ShortStack_out/1E11-fastp-adapters-polyG-31bp-merged_condensed.fa
+First pass alignment with bowtie using 40 threads
+Second pass - placing multimappers using 40 threads to process 1 chunks
+[bam_sort_core] merging from 0 files and 40 in-memory blocks...
+# reads processed: 751751
+# reads with at least one alignment: 60051 (7.99%)
+# reads that failed to align: 691700 (92.01%)
+Reported 361825 alignments
+
+Converting to sorted bam format
+Uniquely mapped (U):
+	sequences: 28652/986782 (2.9%)
+	reads: 83885/5959740 (1.4%)
+Multi-mapped placed with guidance (P):
+	sequences: 7071/986782 (0.7%)
+	reads: 95098/5959740 (1.6%)
+Multi-mapped randomly placed (R):
+	sequences: 17499/986782 (1.8%)
+	reads: 38502/5959740 (0.6%)
+Very highly multi-mapped (>=20 hits)(H):
+	sequences: 10918/986782 (1.1%)
+	reads: 123395/5959740 (2.1%)
+Not mapped (no hits)(N):
+	sequences: 922642/986782 (93.5%)
+	reads: 5618860/5959740 (94.3%)
+
+Thu 19 Dec 2024 00:50:40 -0800 PST
+Aligning /home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/11-Apul-sRNA-ShortStack_4.1.0-pulchra_genome/ShortStack_out/1E12-fastp-adapters-polyG-31bp-merged_condensed.fa
+First pass alignment with bowtie using 40 threads
+Second pass - placing multimappers using 40 threads to process 1 chunks
+[bam_sort_core] merging from 0 files and 40 in-memory blocks...
+# reads processed: 1834316
+# reads with at least one alignment: 899472 (49.04%)
+# reads that failed to align: 934844 (50.96%)
+Reported 4767593 alignments
+
+Converting to sorted bam format
+Uniquely mapped (U):
+	sequences: 23288/751751 (3.1%)
+	reads: 115433/6928881 (1.7%)
+Multi-mapped placed with guidance (P):
+	sequences: 9352/751751 (1.2%)
+	reads: 86743/6928881 (1.3%)
+Multi-mapped randomly placed (R):
+	sequences: 16610/751751 (2.2%)
+	reads: 45793/6928881 (0.7%)
+Very highly multi-mapped (>=20 hits)(H):
+	sequences: 10801/751751 (1.4%)
+	reads: 346225/6928881 (5.0%)
+Not mapped (no hits)(N):
+	sequences: 691700/751751 (92.0%)
+	reads: 6334687/6928881 (91.4%)
+
+Thu 19 Dec 2024 00:50:52 -0800 PST
+Aligning /home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/11-Apul-sRNA-ShortStack_4.1.0-pulchra_genome/ShortStack_out/1E1-fastp-adapters-polyG-31bp-merged_condensed.fa
+First pass alignment with bowtie using 40 threads
+Second pass - placing multimappers using 40 threads to process 2 chunks
+[bam_sort_core] merging from 0 files and 40 in-memory blocks...
+# reads processed: 2673506
+# reads with at least one alignment: 2026854 (75.81%)
+# reads that failed to align: 646652 (24.19%)
+Reported 9550618 alignments
+
+Converting to sorted bam format
+Uniquely mapped (U):
+	sequences: 419375/1834316 (22.9%)
+	reads: 1623544/10473201 (15.5%)
+Multi-mapped placed with guidance (P):
+	sequences: 197765/1834316 (10.8%)
+	reads: 1179816/10473201 (11.3%)
+Multi-mapped randomly placed (R):
+	sequences: 158658/1834316 (8.6%)
+	reads: 443538/10473201 (4.2%)
+Very highly multi-mapped (>=20 hits)(H):
+	sequences: 123674/1834316 (6.7%)
+	reads: 1834344/10473201 (17.5%)
+Not mapped (no hits)(N):
+	sequences: 934844/1834316 (51.0%)
+	reads: 5391959/10473201 (51.5%)
+
+Thu 19 Dec 2024 00:51:44 -0800 PST
+Aligning /home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/11-Apul-sRNA-ShortStack_4.1.0-pulchra_genome/ShortStack_out/1E3-fastp-adapters-polyG-31bp-merged_condensed.fa
+First pass alignment with bowtie using 40 threads
+Second pass - placing multimappers using 40 threads to process 3 chunks
+[bam_sort_core] merging from 0 files and 40 in-memory blocks...
+# reads processed: 1280675
+# reads with at least one alignment: 373006 (29.13%)
+# reads that failed to align: 907669 (70.87%)
+Reported 2421496 alignments
+
+Converting to sorted bam format
+Uniquely mapped (U):
+	sequences: 959295/2673506 (35.9%)
+	reads: 4865239/17188301 (28.3%)
+Multi-mapped placed with guidance (P):
+	sequences: 581360/2673506 (21.7%)
+	reads: 3880093/17188301 (22.6%)
+Multi-mapped randomly placed (R):
+	sequences: 284323/2673506 (10.6%)
+	reads: 1014603/17188301 (5.9%)
+Very highly multi-mapped (>=20 hits)(H):
+	sequences: 201876/2673506 (7.6%)
+	reads: 2867588/17188301 (16.7%)
+Not mapped (no hits)(N):
+	sequences: 646652/2673506 (24.2%)
+	reads: 4560778/17188301 (26.5%)
+
+Thu 19 Dec 2024 00:53:15 -0800 PST
+Aligning /home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/11-Apul-sRNA-ShortStack_4.1.0-pulchra_genome/ShortStack_out/1E5-fastp-adapters-polyG-31bp-merged_condensed.fa
+First pass alignment with bowtie using 40 threads
+Second pass - placing multimappers using 40 threads to process 2 chunks
+[bam_sort_core] merging from 0 files and 40 in-memory blocks...
+# reads processed: 1998234
+# reads with at least one alignment: 1002690 (50.18%)
+# reads that failed to align: 995544 (49.82%)
+Reported 5226629 alignments
+
+Converting to sorted bam format
+Uniquely mapped (U):
+	sequences: 177346/1280675 (13.8%)
+	reads: 479606/8005908 (6.0%)
+Multi-mapped placed with guidance (P):
+	sequences: 43913/1280675 (3.4%)
+	reads: 202828/8005908 (2.5%)
+Multi-mapped randomly placed (R):
+	sequences: 71199/1280675 (5.6%)
+	reads: 189706/8005908 (2.4%)
+Very highly multi-mapped (>=20 hits)(H):
+	sequences: 80548/1280675 (6.3%)
+	reads: 1223950/8005908 (15.3%)
+Not mapped (no hits)(N):
+	sequences: 907669/1280675 (70.9%)
+	reads: 5909818/8005908 (73.8%)
+
+Thu 19 Dec 2024 00:53:48 -0800 PST
+Aligning /home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/11-Apul-sRNA-ShortStack_4.1.0-pulchra_genome/ShortStack_out/1E9-fastp-adapters-polyG-31bp-merged_condensed.fa
+First pass alignment with bowtie using 40 threads
+Second pass - placing multimappers using 40 threads to process 2 chunks
+[bam_sort_core] merging from 0 files and 40 in-memory blocks...
+# reads processed: 1258345
+# reads with at least one alignment: 840294 (66.78%)
+# reads that failed to align: 418051 (33.22%)
+Reported 4459980 alignments
+
+Converting to sorted bam format
+Uniquely mapped (U):
+	sequences: 453832/1998234 (22.7%)
+	reads: 1730522/7877541 (22.0%)
+Multi-mapped placed with guidance (P):
+	sequences: 250330/1998234 (12.5%)
+	reads: 1203227/7877541 (15.3%)
+Multi-mapped randomly placed (R):
+	sequences: 166472/1998234 (8.3%)
+	reads: 397140/7877541 (5.0%)
+Very highly multi-mapped (>=20 hits)(H):
+	sequences: 132056/1998234 (6.6%)
+	reads: 1298349/7877541 (16.5%)
+Not mapped (no hits)(N):
+	sequences: 995544/1998234 (49.8%)
+	reads: 3248303/7877541 (41.2%)
+
+Thu 19 Dec 2024 00:55:08 -0800 PST
+Aligning /home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/11-Apul-sRNA-ShortStack_4.1.0-pulchra_genome/ShortStack_out/1F11-fastp-adapters-polyG-31bp-merged_condensed.fa
+First pass alignment with bowtie using 40 threads
+Second pass - placing multimappers using 40 threads to process 2 chunks
+[bam_sort_core] merging from 0 files and 40 in-memory blocks...
+# reads processed: 1938577
+# reads with at least one alignment: 1387431 (71.57%)
+# reads that failed to align: 551146 (28.43%)
+Reported 6520814 alignments
+
+Converting to sorted bam format
+Uniquely mapped (U):
+	sequences: 397428/1258345 (31.6%)
+	reads: 1934972/7439594 (26.0%)
+Multi-mapped placed with guidance (P):
+	sequences: 176695/1258345 (14.0%)
+	reads: 1249654/7439594 (16.8%)
+Multi-mapped randomly placed (R):
+	sequences: 149825/1258345 (11.9%)
+	reads: 491815/7439594 (6.6%)
+Very highly multi-mapped (>=20 hits)(H):
+	sequences: 116346/1258345 (9.2%)
+	reads: 1089134/7439594 (14.6%)
+Not mapped (no hits)(N):
+	sequences: 418051/1258345 (33.2%)
+	reads: 2674019/7439594 (35.9%)
+
+Thu 19 Dec 2024 00:56:55 -0800 PST
+Aligning /home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/11-Apul-sRNA-ShortStack_4.1.0-pulchra_genome/ShortStack_out/1F4-fastp-adapters-polyG-31bp-merged_condensed.fa
+First pass alignment with bowtie using 40 threads
+Second pass - placing multimappers using 40 threads to process 2 chunks
+[bam_sort_core] merging from 0 files and 40 in-memory blocks...
+# reads processed: 1091157
+# reads with at least one alignment: 659877 (60.47%)
+# reads that failed to align: 431280 (39.53%)
+Reported 3593159 alignments
+
+Converting to sorted bam format
+Uniquely mapped (U):
+	sequences: 661464/1938577 (34.1%)
+	reads: 3505495/10897549 (32.2%)
+Multi-mapped placed with guidance (P):
+	sequences: 370030/1938577 (19.1%)
+	reads: 2363676/10897549 (21.7%)
+Multi-mapped randomly placed (R):
+	sequences: 211240/1938577 (10.9%)
+	reads: 701680/10897549 (6.4%)
+Very highly multi-mapped (>=20 hits)(H):
+	sequences: 144697/1938577 (7.5%)
+	reads: 1481979/10897549 (13.6%)
+Not mapped (no hits)(N):
+	sequences: 551146/1938577 (28.4%)
+	reads: 2844719/10897549 (26.1%)
+
+Thu 19 Dec 2024 00:59:16 -0800 PST
+Aligning /home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/11-Apul-sRNA-ShortStack_4.1.0-pulchra_genome/ShortStack_out/1F8-fastp-adapters-polyG-31bp-merged_condensed.fa
+First pass alignment with bowtie using 40 threads
+Second pass - placing multimappers using 40 threads to process 2 chunks
+[bam_sort_core] merging from 0 files and 40 in-memory blocks...
+# reads processed: 2457948
+# reads with at least one alignment: 1813193 (73.77%)
+# reads that failed to align: 644755 (26.23%)
+Reported 8430522 alignments
+
+Converting to sorted bam format
+Uniquely mapped (U):
+	sequences: 313519/1091157 (28.7%)
+	reads: 976955/7066755 (13.8%)
+Multi-mapped placed with guidance (P):
+	sequences: 125451/1091157 (11.5%)
+	reads: 781439/7066755 (11.1%)
+Multi-mapped randomly placed (R):
+	sequences: 123618/1091157 (11.3%)
+	reads: 311019/7066755 (4.4%)
+Very highly multi-mapped (>=20 hits)(H):
+	sequences: 97289/1091157 (8.9%)
+	reads: 2726762/7066755 (38.6%)
+Not mapped (no hits)(N):
+	sequences: 431280/1091157 (39.5%)
+	reads: 2270580/7066755 (32.1%)
+
+Thu 19 Dec 2024 01:00:51 -0800 PST
+Aligning /home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/11-Apul-sRNA-ShortStack_4.1.0-pulchra_genome/ShortStack_out/1G5-fastp-adapters-polyG-31bp-merged_condensed.fa
+First pass alignment with bowtie using 40 threads
+Second pass - placing multimappers using 40 threads to process 3 chunks
+[bam_sort_core] merging from 0 files and 40 in-memory blocks...
+# reads processed: 1283820
+# reads with at least one alignment: 678247 (52.83%)
+# reads that failed to align: 605573 (47.17%)
+Reported 3440275 alignments
+
+Converting to sorted bam format
+Uniquely mapped (U):
+	sequences: 828940/2457948 (33.7%)
+	reads: 4099811/13186219 (31.1%)
+Multi-mapped placed with guidance (P):
+	sequences: 540479/2457948 (22.0%)
+	reads: 3018984/13186219 (22.9%)
+Multi-mapped randomly placed (R):
+	sequences: 276319/2457948 (11.2%)
+	reads: 935293/13186219 (7.1%)
+Very highly multi-mapped (>=20 hits)(H):
+	sequences: 167455/2457948 (6.8%)
+	reads: 1445734/13186219 (11.0%)
+Not mapped (no hits)(N):
+	sequences: 644755/2457948 (26.2%)
+	reads: 3686397/13186219 (28.0%)
+
+Thu 19 Dec 2024 01:03:38 -0800 PST
+Aligning /home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/11-Apul-sRNA-ShortStack_4.1.0-pulchra_genome/ShortStack_out/1H12-fastp-adapters-polyG-31bp-merged_condensed.fa
+First pass alignment with bowtie using 40 threads
+Second pass - placing multimappers using 40 threads to process 2 chunks
+[bam_sort_core] merging from 0 files and 40 in-memory blocks...
+# reads processed: 2116961
+# reads with at least one alignment: 1680213 (79.37%)
+# reads that failed to align: 436748 (20.63%)
+Reported 8069053 alignments
+
+Converting to sorted bam format
+Uniquely mapped (U):
+	sequences: 324073/1283820 (25.2%)
+	reads: 1103200/6805833 (16.2%)
+Multi-mapped placed with guidance (P):
+	sequences: 143543/1283820 (11.2%)
+	reads: 710663/6805833 (10.4%)
+Multi-mapped randomly placed (R):
+	sequences: 125273/1283820 (9.8%)
+	reads: 297444/6805833 (4.4%)
+Very highly multi-mapped (>=20 hits)(H):
+	sequences: 85358/1283820 (6.6%)
+	reads: 2124864/6805833 (31.2%)
+Not mapped (no hits)(N):
+	sequences: 605573/1283820 (47.2%)
+	reads: 2569662/6805833 (37.8%)
+
+Thu 19 Dec 2024 01:05:10 -0800 PST
+Aligning /home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/11-Apul-sRNA-ShortStack_4.1.0-pulchra_genome/ShortStack_out/1H7-fastp-adapters-polyG-31bp-merged_condensed.fa
+First pass alignment with bowtie using 40 threads
+Second pass - placing multimappers using 40 threads to process 3 chunks
+[bam_sort_core] merging from 0 files and 40 in-memory blocks...
+# reads processed: 1432666
+# reads with at least one alignment: 990207 (69.12%)
+# reads that failed to align: 442459 (30.88%)
+Reported 4957465 alignments
+
+Converting to sorted bam format
+Uniquely mapped (U):
+	sequences: 759135/2116961 (35.9%)
+	reads: 2621848/7833059 (33.5%)
+Multi-mapped placed with guidance (P):
+	sequences: 484111/2116961 (22.9%)
+	reads: 1848675/7833059 (23.6%)
+Multi-mapped randomly placed (R):
+	sequences: 272913/2116961 (12.9%)
+	reads: 680876/7833059 (8.7%)
+Very highly multi-mapped (>=20 hits)(H):
+	sequences: 164054/2116961 (7.7%)
+	reads: 1185386/7833059 (15.1%)
+Not mapped (no hits)(N):
+	sequences: 436748/2116961 (20.6%)
+	reads: 1496274/7833059 (19.1%)
+
+Thu 19 Dec 2024 01:07:53 -0800 PST
+Aligning /home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/11-Apul-sRNA-ShortStack_4.1.0-pulchra_genome/ShortStack_out/1H8-fastp-adapters-polyG-31bp-merged_condensed.fa
+First pass alignment with bowtie using 40 threads
+Second pass - placing multimappers using 40 threads to process 2 chunks
+[bam_sort_core] merging from 0 files and 40 in-memory blocks...
+# reads processed: 2085417
+# reads with at least one alignment: 1297694 (62.23%)
+# reads that failed to align: 787723 (37.77%)
+Reported 8024219 alignments
+
+Converting to sorted bam format
+Uniquely mapped (U):
+	sequences: 454242/1432666 (31.7%)
+	reads: 1868362/7090666 (26.3%)
+Multi-mapped placed with guidance (P):
+	sequences: 252353/1432666 (17.6%)
+	reads: 1332772/7090666 (18.8%)
+Multi-mapped randomly placed (R):
+	sequences: 168218/1432666 (11.7%)
+	reads: 470743/7090666 (6.6%)
+Very highly multi-mapped (>=20 hits)(H):
+	sequences: 115394/1432666 (8.1%)
+	reads: 1743604/7090666 (24.6%)
+Not mapped (no hits)(N):
+	sequences: 442459/1432666 (30.9%)
+	reads: 1675185/7090666 (23.6%)
+
+Thu 19 Dec 2024 01:09:50 -0800 PST
+Aligning /home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/11-Apul-sRNA-ShortStack_4.1.0-pulchra_genome/ShortStack_out/2B2-fastp-adapters-polyG-31bp-merged_condensed.fa
+First pass alignment with bowtie using 40 threads
+Second pass - placing multimappers using 40 threads to process 3 chunks
+[bam_sort_core] merging from 0 files and 40 in-memory blocks...
+# reads processed: 2327966
+# reads with at least one alignment: 1710393 (73.47%)
+# reads that failed to align: 617573 (26.53%)
+Reported 8535209 alignments
+
+Converting to sorted bam format
+Uniquely mapped (U):
+	sequences: 566390/2085417 (27.2%)
+	reads: 2089239/11611845 (18.0%)
+Multi-mapped placed with guidance (P):
+	sequences: 290193/2085417 (13.9%)
+	reads: 1639627/11611845 (14.1%)
+Multi-mapped randomly placed (R):
+	sequences: 201058/2085417 (9.6%)
+	reads: 601649/11611845 (5.2%)
+Very highly multi-mapped (>=20 hits)(H):
+	sequences: 240053/2085417 (11.5%)
+	reads: 4058253/11611845 (34.9%)
+Not mapped (no hits)(N):
+	sequences: 787723/2085417 (37.8%)
+	reads: 3223077/11611845 (27.8%)
+
+Thu 19 Dec 2024 01:12:37 -0800 PST
+Aligning /home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/11-Apul-sRNA-ShortStack_4.1.0-pulchra_genome/ShortStack_out/2B3-fastp-adapters-polyG-31bp-merged_condensed.fa
+First pass alignment with bowtie using 40 threads
+Second pass - placing multimappers using 40 threads to process 3 chunks
+[bam_sort_core] merging from 0 files and 40 in-memory blocks...
+# reads processed: 2370018
+# reads with at least one alignment: 1489166 (62.83%)
+# reads that failed to align: 880852 (37.17%)
+Reported 7357575 alignments
+
+Converting to sorted bam format
+Uniquely mapped (U):
+	sequences: 813313/2327966 (34.9%)
+	reads: 4793698/17445188 (27.5%)
+Multi-mapped placed with guidance (P):
+	sequences: 441068/2327966 (18.9%)
+	reads: 3356903/17445188 (19.2%)
+Multi-mapped randomly placed (R):
+	sequences: 255475/2327966 (11.0%)
+	reads: 993025/17445188 (5.7%)
+Very highly multi-mapped (>=20 hits)(H):
+	sequences: 200537/2327966 (8.6%)
+	reads: 3808825/17445188 (21.8%)
+Not mapped (no hits)(N):
+	sequences: 617573/2327966 (26.5%)
+	reads: 4492737/17445188 (25.8%)
+
+Thu 19 Dec 2024 01:15:30 -0800 PST
+Aligning /home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/11-Apul-sRNA-ShortStack_4.1.0-pulchra_genome/ShortStack_out/2C1-fastp-adapters-polyG-31bp-merged_condensed.fa
+First pass alignment with bowtie using 40 threads
+Second pass - placing multimappers using 40 threads to process 3 chunks
+[bam_sort_core] merging from 0 files and 40 in-memory blocks...
+# reads processed: 2418191
+# reads with at least one alignment: 1894936 (78.36%)
+# reads that failed to align: 523255 (21.64%)
+Reported 9278129 alignments
+
+Converting to sorted bam format
+Uniquely mapped (U):
+	sequences: 695977/2370018 (29.4%)
+	reads: 3131917/13442566 (23.3%)
+Multi-mapped placed with guidance (P):
+	sequences: 391782/2370018 (16.5%)
+	reads: 2318399/13442566 (17.2%)
+Multi-mapped randomly placed (R):
+	sequences: 230400/2370018 (9.7%)
+	reads: 634706/13442566 (4.7%)
+Very highly multi-mapped (>=20 hits)(H):
+	sequences: 171007/2370018 (7.2%)
+	reads: 3161704/13442566 (23.5%)
+Not mapped (no hits)(N):
+	sequences: 880852/2370018 (37.2%)
+	reads: 4195840/13442566 (31.2%)
+
+Thu 19 Dec 2024 01:18:05 -0800 PST
+Aligning /home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/11-Apul-sRNA-ShortStack_4.1.0-pulchra_genome/ShortStack_out/2C2-fastp-adapters-polyG-31bp-merged_condensed.fa
+First pass alignment with bowtie using 40 threads
+Second pass - placing multimappers using 40 threads to process 3 chunks
+[bam_sort_core] merging from 0 files and 40 in-memory blocks...
+# reads processed: 1971103
+# reads with at least one alignment: 1059121 (53.73%)
+# reads that failed to align: 911982 (46.27%)
+Reported 5856824 alignments
+
+Converting to sorted bam format
+Uniquely mapped (U):
+	sequences: 846809/2418191 (35.0%)
+	reads: 4793574/15759131 (30.4%)
+Multi-mapped placed with guidance (P):
+	sequences: 561992/2418191 (23.2%)
+	reads: 3722029/15759131 (23.6%)
+Multi-mapped randomly placed (R):
+	sequences: 290441/2418191 (12.0%)
+	reads: 1023453/15759131 (6.5%)
+Very highly multi-mapped (>=20 hits)(H):
+	sequences: 195694/2418191 (8.1%)
+	reads: 2123717/15759131 (13.5%)
+Not mapped (no hits)(N):
+	sequences: 523255/2418191 (21.6%)
+	reads: 4096358/15759131 (26.0%)
+
+Thu 19 Dec 2024 01:21:10 -0800 PST
+Aligning /home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/11-Apul-sRNA-ShortStack_4.1.0-pulchra_genome/ShortStack_out/2D2-fastp-adapters-polyG-31bp-merged_condensed.fa
+First pass alignment with bowtie using 40 threads
+Second pass - placing multimappers using 40 threads to process 2 chunks
+[bam_sort_core] merging from 0 files and 40 in-memory blocks...
+# reads processed: 1610113
+# reads with at least one alignment: 852988 (52.98%)
+# reads that failed to align: 757125 (47.02%)
+Reported 5698211 alignments
+
+Converting to sorted bam format
+Uniquely mapped (U):
+	sequences: 485769/1971103 (24.6%)
+	reads: 2001371/11056415 (18.1%)
+Multi-mapped placed with guidance (P):
+	sequences: 240851/1971103 (12.2%)
+	reads: 1377470/11056415 (12.5%)
+Multi-mapped randomly placed (R):
+	sequences: 170684/1971103 (8.7%)
+	reads: 405611/11056415 (3.7%)
+Very highly multi-mapped (>=20 hits)(H):
+	sequences: 161817/1971103 (8.2%)
+	reads: 2165525/11056415 (19.6%)
+Not mapped (no hits)(N):
+	sequences: 911982/1971103 (46.3%)
+	reads: 5106438/11056415 (46.2%)
+
+Thu 19 Dec 2024 01:23:23 -0800 PST
+Aligning /home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/11-Apul-sRNA-ShortStack_4.1.0-pulchra_genome/ShortStack_out/2E2-fastp-adapters-polyG-31bp-merged_condensed.fa
+First pass alignment with bowtie using 40 threads
+Second pass - placing multimappers using 40 threads to process 2 chunks
+[bam_sort_core] merging from 0 files and 40 in-memory blocks...
+# reads processed: 1838887
+# reads with at least one alignment: 1146323 (62.34%)
+# reads that failed to align: 692564 (37.66%)
+Reported 8085259 alignments
+
+Converting to sorted bam format
+Uniquely mapped (U):
+	sequences: 398797/1610113 (24.8%)
+	reads: 1259932/11769125 (10.7%)
+Multi-mapped placed with guidance (P):
+	sequences: 131907/1610113 (8.2%)
+	reads: 1355026/11769125 (11.5%)
+Multi-mapped randomly placed (R):
+	sequences: 129107/1610113 (8.0%)
+	reads: 290388/11769125 (2.5%)
+Very highly multi-mapped (>=20 hits)(H):
+	sequences: 193177/1610113 (12.0%)
+	reads: 5163638/11769125 (43.9%)
+Not mapped (no hits)(N):
+	sequences: 757125/1610113 (47.0%)
+	reads: 3700141/11769125 (31.4%)
+
+Thu 19 Dec 2024 01:25:32 -0800 PST
+Aligning /home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/11-Apul-sRNA-ShortStack_4.1.0-pulchra_genome/ShortStack_out/2F1-fastp-adapters-polyG-31bp-merged_condensed.fa
+First pass alignment with bowtie using 40 threads
+Second pass - placing multimappers using 40 threads to process 2 chunks
+[bam_sort_core] merging from 0 files and 40 in-memory blocks...
+# reads processed: 1809014
+# reads with at least one alignment: 1308927 (72.36%)
+# reads that failed to align: 500087 (27.64%)
+Reported 6078852 alignments
+
+Converting to sorted bam format
+Uniquely mapped (U):
+	sequences: 538374/1838887 (29.3%)
+	reads: 1154711/10783240 (10.7%)
+Multi-mapped placed with guidance (P):
+	sequences: 159716/1838887 (8.7%)
+	reads: 777497/10783240 (7.2%)
+Multi-mapped randomly placed (R):
+	sequences: 160288/1838887 (8.7%)
+	reads: 494873/10783240 (4.6%)
+Very highly multi-mapped (>=20 hits)(H):
+	sequences: 287945/1838887 (15.7%)
+	reads: 6104139/10783240 (56.6%)
+Not mapped (no hits)(N):
+	sequences: 692564/1838887 (37.7%)
+	reads: 2252020/10783240 (20.9%)
+
+Thu 19 Dec 2024 01:27:21 -0800 PST
+Aligning /home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/11-Apul-sRNA-ShortStack_4.1.0-pulchra_genome/ShortStack_out/2G1-fastp-adapters-polyG-31bp-merged_condensed.fa
+First pass alignment with bowtie using 40 threads
+Second pass - placing multimappers using 40 threads to process 2 chunks
+[bam_sort_core] merging from 0 files and 40 in-memory blocks...
+
+Converting to sorted bam format
+Uniquely mapped (U):
+	sequences: 641997/1809014 (35.5%)
+	reads: 3903179/12374752 (31.5%)
+Multi-mapped placed with guidance (P):
+	sequences: 325968/1809014 (18.0%)
+	reads: 2428259/12374752 (19.6%)
+Multi-mapped randomly placed (R):
+	sequences: 205741/1809014 (11.4%)
+	reads: 722026/12374752 (5.8%)
+Very highly multi-mapped (>=20 hits)(H):
+	sequences: 135221/1809014 (7.5%)
+	reads: 1561549/12374752 (12.6%)
+Not mapped (no hits)(N):
+	sequences: 500087/1809014 (27.6%)
+	reads: 3759739/12374752 (30.4%)
+
+Thu 19 Dec 2024 01:28:21 -0800 PST
+Merging and indexing alignments
+
+Thu 19 Dec 2024 01:33:00 -0800 PST
+Defining small RNA clusters de novo
+With 422283649 total reads and mincov of 1 reads per million, the min read depth is 422
+
+Thu 19 Dec 2024 01:33:50 -0800 PST
+Analyzing cluster properties using 40 threads
+# reads processed: 49415
+# reads with at least one alignment: 143 (0.29%)
+# reads that failed to align: 49272 (99.71%)
+Reported 1613 alignments
+[bam_sort_core] merging from 0 files and 40 in-memory blocks...
+
+Thu 19 Dec 2024 01:35:25 -0800 PST
+ Completed
+
+Thu 19 Dec 2024 01:35:25 -0800 PST
+Searching for valid microRNA loci
+Aligning known_miRNAs sequences to genome
+
+Screening of possible microRNAs from user provided known_miRNAs
+
+Screening of possible de novo microRNAs
+
+Thu 19 Dec 2024 01:35:37 -0800 PST
+Analyzing cluster properties using 40 threads
+
+Thu 19 Dec 2024 01:35:38 -0800 PST
+ Completed
+
+Writing final files
+
+Found a total of 50 MIRNA loci
+
+
+Non-MIRNA loci by DicerCall:
+N 17927
+23 24
+22 20
+24 11
+21 8
+
+Creating visualizations of microRNA loci with strucVis
+<<< WARNING >>>
+Do not rely on these results alone to annotate new MIRNA loci!
+The false positive rate for de novo MIRNA identification is low, but NOT ZERO
+Insepct each mirna locus, especially the strucVis output, and see
+https://doi.org/10.1105/tpc.17.00851 , https://doi.org/10.1093/nar/gky1141
+
+Thu 19 Dec 2024 01:35:52 -0800 PST
+Run Completed!
+
+real	125m36.970s
+user	1510m19.499s
+sys	470m47.029s
