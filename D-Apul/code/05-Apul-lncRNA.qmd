@@ -73,7 +73,7 @@ head ../output/05-Apul-lncRNA/test_lncRNAs.gtf
 ```{r, engine='bash'}
 /home/shared/subread-2.0.5-Linux-x86_64/bin/featureCounts \
 -T 42 \
--a ../output/05-Apul-lncRNA/test_lncRNAs.gtf \
+-a ../output/05-Apul-lncRNA/lncRNAs.gtf \
 -o ../output/05-Apul-lncRNA/counts.txt \
 -t lncRNA \
 -g gene_id \
