@@ -126,7 +126,7 @@ source .bashvars
 mkdir --parents ${raw_reads_dir}
 
 # Create list of only A.pulchra sample names
-sample_list=$(awk -F "," 'NR > 2 {print $5"\t"$6}' ${timeseries_dir}/data/rna_metadata.csv | awk -F"[\t-]" '$2 == "ACR" {print $1}')
+sample_list=$(awk -F "," '$6 ~ /^ACR/ {print $5}' ${timeseries_dir}/M-multi-species/data/rna_metadata.csv)
 
 echo ""
 echo "${line}"
@@ -140,10 +140,10 @@ echo ""
 
 
 # Use printf to format each item for use in wget
-formatted_list=$(printf "*%s*," ${sample_list})
+formatted_list=$(printf "%s_*," ${sample_list})
 
-# Remove the trailing comma and append *.md5
-formatted_list="${formatted_list%,},*.md5"
+# Remove the trailing comma
+formatted_list=${formatted_list%,}
 
 # Output the final wget command
 echo ""
@@ -157,6 +157,7 @@ echo "${line}"
 echo ""
 
 # Run wget to retrieve FastQs and MD5 files
+# Note: the --no-clobber command will skip re-downloading any files that are already present in the output directory
 wget \
 --directory-prefix ${raw_reads_dir} \
 --recursive \
@@ -166,7 +167,8 @@ wget \
 --no-host-directories \
 --no-parent \
 --quiet \
---accept=\"$formatted_list\" ${raw_reads_url}
+--no-clobber \
+--accept=${formatted_list} ${raw_reads_url}
 
 ls -lh "${raw_reads_dir}"
 ```
@@ -348,7 +350,7 @@ echo ""
 echo "Beginning MultiQC on trimmed FastQC..."
 echo ""
 
-${programs_array[multiqc]} ${trimmed_fastqs_dir} -o ${trimmed_fastqc_dir}
+${programs_array[multiqc]} ${trimmed_fastqc_dir} -o ${trimmed_fastqc_dir}
 
 echo ""
 echo "MultiQC on trimmed FastQs complete."
@@ -362,3 +364,4 @@ rm ${trimmed_fastqc_dir}/*.zip
 echo "FastQC zip files removed."
 echo ""
 ```
+
