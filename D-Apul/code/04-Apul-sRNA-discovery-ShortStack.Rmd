@@ -10,6 +10,9 @@ output:
     number_sections: true
     code_folding: show
     code_download: true
+  github_document:
+    toc: true
+    number_sections: true
   html_document:
     theme: cosmo
     toc: true
@@ -17,9 +20,6 @@ output:
     number_sections: true
     code_folding: show
     code_download: true
-  github_document:
-    toc: true
-    number_sections: true
 bibliography: references.bib
 link-citations: true
 ---
@@ -264,7 +264,7 @@ source .bashvars
 tail -n 25 ${output_dir_top}/shortstack.log
 ```
 
-ShortStack identified 39 miRNAs. (This is in comparison to running ShortStack using the *A. millipora* genome, which yielded 38 miRNAs)
+ShortStack identified 51 miRNAs among all of the A.pulchra samples. This is a notably larger number than the 39 miRNAs identified in `deep-dive-expression`, which examined only 5 colonies from a single time point! I would guess the difference stems from either (a) our capture of more intraspecific diversity, or (b) different miRNA profiles associated with different environmental conditions (i.e. some A.pulchra miRNAs are only expressed under certain conditions). The counts data should give us more insight.
 
 ## Inspect `Results.txt`
 
@@ -420,6 +420,7 @@ Apul_shortstack_results %>%
 
 ggsave("../output/04-Apul-sRNA-discovery-ShortStack/figures/Apul_ShortStack_dbmatch_histogram_reduced.png", width = 12, height = 7, units = "in")
 ```
+It seems like an sRNa is both more likely to be previously described and to have been annoted by ShortStack as an miRNA if it is more highly expressed.
 
 ```{r venn-diagram, eval=TRUE}
 # Make list
