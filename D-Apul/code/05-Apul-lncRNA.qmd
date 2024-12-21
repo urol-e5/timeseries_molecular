@@ -1,0 +1,98 @@
+---
+title: "05-Apul lncRNA"
+author: Steven Roberts
+date: "`r format(Sys.time(), '%d %B, %Y')`"  
+output: 
+  html_document:
+    theme: readable
+    highlight: zenburn
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+library(tidyverse)
+knitr::opts_chunk$set(
+  echo = TRUE,         # Display code chunks
+  eval = FALSE,         # Evaluate code chunks
+  warning = FALSE,     # Hide warnings
+  message = FALSE,     # Hide messages
+  fig.width = 6,       # Set plot width in inches
+  fig.height = 4,      # Set plot height in inches
+  fig.align = "center" # Align plots to the center
+)
+```
+
+
+I already have bed and fasta of lncRNA from deep-dive expression..
+
+```{bash}
+head /home/shared/8TB_HDD_03/sr320/github/deep-dive-expression/D-Apul/output/10.1-Apul-lncRNA/*lncRNA.*
+```
+4. Quantify lncRNA expression
+
+Use featureCounts from the Subread package to count the reads mapped to your lncRNAs. Since you already have a BED file, convert it to a GTF file or use tools that accept BED directly.
+
+Convert BED to GTF (if required)
+
+Use bedToGtf.py or similar scripts to convert the BED file to a GTF file.
+
+```{bash}
+awk 'BEGIN{OFS="\t"; count=1} {printf "%s\t.\tlncRNA\t%d\t%d\t.\t+\t.\tgene_id \"lncRNA_%03d\";\n", $1, $2, $3, count++;}' /home/shared/8TB_HDD_03/sr320/github/deep-dive-expression/D-Apul/output/10.1-Apul-lncRNA/Apul_lncRNA.bed \
+> ../output/05-Apul-lncRNA/lncRNAs.gtf
+```
+
+```{bash}
+head ../data/Apulchra-genome.gff
+```
+
+
+
+```{r, engine='bash'}
+head ../output/05-Apul-lncRNA/lncRNAs.gtf
+```
+```{bash}
+awk '{if(NF<9) print "Error in line:", NR, $0}' ../output/05-Apul-lncRNA/lncRNAs.gtf
+```
+
+
+```{bash}
+head -n 1 ../output/05-Apul-lncRNA/lncRNAs.gtf > ../output/05-Apul-lncRNA/test_lncRNAs.gtf
+```
+
+```{bash}
+head ../output/05-Apul-lncRNA/test_lncRNAs.gtf
+```
+
+
+
+```{r, engine='bash'}
+/home/shared/subread-2.0.5-Linux-x86_64/bin/featureCounts \
+-T 42 \
+-a ../output/05-Apul-lncRNA/lncRNAs.gtf \
+-o ../output/05-Apul-lncRNA/counts.txt \
+-t lncRNA \
+-g gene_id \
+-p \
+../data/*sorted.bam
+```
+```{bash}
+samtools view -H ../data/2C1.sorted.bam | grep '@SQ'
+```
+
+
+```{r, engine='bash'}
+find ../data/*sorted.bam \
+| xargs basename -s .sorted.bam | xargs -I{} \
+/home/shared/stringtie-2.2.1.Linux_x86_64/stringtie \
+-p 42 \
+-eB \
+-G ../output/05-Apul-lncRNA/lncRNAs.gtf \
+-o ../output/05-Apul-lncRNA/{}.gtf \
+../data/{}.sorted.bam
+```
+
