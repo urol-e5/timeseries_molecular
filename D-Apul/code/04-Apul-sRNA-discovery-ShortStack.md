@@ -302,7 +302,7 @@ tail -n 3 ${output_dir_top}/shortstack.log \
 | awk '{print "ShortStack runtime:" "\t" $2}'
 ```
 
-    ShortStack runtime: 125m36.970s
+    ShortStack runtime: 70m35.956s
 
 # 5 Results
 
@@ -317,14 +317,14 @@ tail -n 25 ${output_dir_top}/shortstack.log
 
     Writing final files
 
-    Found a total of 50 MIRNA loci
+    Found a total of 51 MIRNA loci
 
 
     Non-MIRNA loci by DicerCall:
-    N 17927
-    23 24
-    22 20
-    24 11
+    N 18768
+    23 25
+    22 21
+    24 12
     21 8
 
     Creating visualizations of microRNA loci with strucVis
@@ -334,15 +334,21 @@ tail -n 25 ${output_dir_top}/shortstack.log
     Insepct each mirna locus, especially the strucVis output, and see
     https://doi.org/10.1105/tpc.17.00851 , https://doi.org/10.1093/nar/gky1141
 
-    Thu 19 Dec 2024 01:35:52 -0800 PST
+    Fri 20 Dec 2024 19:43:23 -0800 PST
     Run Completed!
 
-    real    125m36.970s
-    user    1510m19.499s
-    sys 470m47.029s
+    real    70m35.956s
+    user    829m16.281s
+    sys 269m7.808s
 
-ShortStack identified 39 miRNAs. (This is in comparison to running
-ShortStack using the *A. millipora* genome, which yielded 38 miRNAs)
+ShortStack identified 51 miRNAs among all of the A.pulchra samples. This
+is a notably larger number than the 39 miRNAs identified in
+`deep-dive-expression`, which examined only 5 colonies from a single
+time point! I would guess the difference stems from either (a) our
+capture of more intraspecific diversity, or (b) different miRNA profiles
+associated with different environmental conditions (i.e. some A.pulchra
+miRNAs are only expressed under certain conditions). The counts data
+should give us more insight.
 
 ## 5.2 Inspect `Results.txt`
 
@@ -361,20 +367,20 @@ awk '(NR>1)' ${output_dir_top}/ShortStack_out/Results.txt | wc -l
 ```
 
     Locus   Name    Chrom   Start   End Length  Reads   DistinctSequences   FracTop Strand  MajorRNA    MajorRNAReads   Short   Long    21  22  23  24  DicerCall   MIRNA   known_miRNAs
-    ntLink_7:3056-3471  Cluster_1   ntLink_7    3056    3471    416 568 175 0.033   -   UGAACGUAUUUUCUGAAGAAACUGCAAAG   45  5   547 2   3   6   5   N   N   NA
-    ntLink_7:9758-10311 Cluster_2   ntLink_7    9758    10311   554 2529    303 0.846   +   GUCAAGUGCAUCGAUCAAGGAUGGAUCAGG  652 9   2432    6   26  18  38  N   N   NA
-    ntLink_7:22564-22979    Cluster_3   ntLink_7    22564   22979   416 589 174 0.024   -   UCUUGAACGUAUUUUCUGAAGAAACUGC    37  7   566 2   1   4   9   N   N   NA
-    ntLink_7:29267-29820    Cluster_4   ntLink_7    29267   29820   554 2551    342 0.844   +   GUCAAGUGCAUCGAUCAAGGAUGGAUCAGG  459 16  2443    8   33  22  29  N   N   NA
-    ntLink_7:42050-42468    Cluster_5   ntLink_7    42050   42468   419 649 153 0.025   -   UCUGAAGAAACUGCAAAGUUCACUGUCCGC  105 2   636 0   1   6   4   N   N   NA
-    ntLink_7:43122-43555    Cluster_6   ntLink_7    43122   43555   434 1686    415 0.043   -   UGCUAGACGAACCUCUGGAUCCGCU   145 37  1535    8   19  10  77  N   N   NA
-    ntLink_7:48749-49302    Cluster_7   ntLink_7    48749   49302   554 2605    317 0.857   +   GUCAAGUGCAUCGAUCAAGGAUGGAUCAGG  680 13  2493    11  37  18  33  N   N   NA
-    ntLink_7:61554-61972    Cluster_8   ntLink_7    61554   61972   419 639 160 0.019   -   UCUGAAGAAACUGCAAAGUUCACUGUCCGC  100 6   623 2   2   3   3   N   N   NA
-    ntLink_7:68251-68803    Cluster_9   ntLink_7    68251   68803   553 3003    486 0.807   +   GUCAAGUGCAUCGAUCAAGGAUGGAUCAGG  728 44  2830    9   37  26  57  N   N   NA
+    ntLink_7:3054-3472  Cluster_1   ntLink_7    3054    3472    419 625 186 0.032   -   UGAACGUAUUUUCUGAAGAAACUGCAAAG   45  6   600 2   4   7   6   N   N   NA
+    ntLink_7:9758-10311 Cluster_2   ntLink_7    9758    10311   554 2797    336 0.857   +   GUCAAGUGCAUCGAUCAAGGAUGGAUCAGG  651 11  2685    6   32  20  43  N   N   NA
+    ntLink_7:22562-22980    Cluster_3   ntLink_7    22562   22980   419 634 180 0.028   -   UCUUGAACGUAUUUUCUGAAGAAACUGC    37  7   608 2   1   5   11  N   N   NA
+    ntLink_7:29267-29820    Cluster_4   ntLink_7    29267   29820   554 2881    361 0.859   +   GUCAAGUGCAUCGAUCAAGGAUGGAUCAGG  459 17  2764    9   34  26  31  N   N   NA
+    ntLink_7:42050-42468    Cluster_5   ntLink_7    42050   42468   419 689 156 0.025   -   UCUGAAGAAACUGCAAAGUUCACUGUCCGC  105 2   675 0   1   6   5   N   N   NA
+    ntLink_7:43122-43556    Cluster_6   ntLink_7    43122   43556   435 1774    435 0.045   -   UGCUAGACGAACCUCUGGAUCCGCU   152 41  1613    8   19  10  83  N   N   NA
+    ntLink_7:48749-49302    Cluster_7   ntLink_7    48749   49302   554 2911    340 0.867   +   GUCAAGUGCAUCGAUCAAGGAUGGAUCAGG  680 13  2793    11  40  19  35  N   N   NA
+    ntLink_7:61554-61972    Cluster_8   ntLink_7    61554   61972   419 678 169 0.021   -   UCUGAAGAAACUGCAAAGUUCACUGUCCGC  100 6   660 2   2   3   5   N   N   NA
+    ntLink_7:68251-68804    Cluster_9   ntLink_7    68251   68804   554 3373    520 0.82    +   GUCAAGUGCAUCGAUCAAGGAUGGAUCAGG  728 49  3185    9   41  28  61  N   N   NA
 
     ----------------------------------------------------------
 
     Nummber of potential loci:
-    18040
+    18885
 
 Column 20 of the `Results.txt` file identifies if a cluster is a miRNA
 or not (`Y` or `N`).
@@ -397,12 +403,12 @@ awk '$20=="N" {print $0}' ${output_dir_top}/ShortStack_out/Results.txt \
 ```
 
     Number of loci characterized as miRNA:
-    50
+    51
 
     ----------------------------------------------------------
 
     Number of loci _not_ characterized as miRNA:
-    17990
+    18834
 
 Column 21 of the `Results.txt` file identifies if a cluster aligned to a
 known miRNA (miRBase) or not (`Y` or `NA`).
@@ -428,12 +434,12 @@ awk '$21=="NA" {print $0}' ${output_dir_top}/ShortStack_out/Results.txt \
 ```
 
     Number of loci matching miRBase miRNAs:
-    351
+    360
 
     ----------------------------------------------------------
 
     Number of loci _not_ matching miRBase miRNAs:
-    17690
+    18526
 
 ### 5.2.1 Directory tree of all ShortStack outputs
 
@@ -452,19 +458,16 @@ tree -h ${output_dir_top}/
 
     /home/shared/8TB_HDD_02/shedurkin/timeseries_molecular/D-Apul/output/04-Apul-sRNA-discovery-ShortStack/
     ├── [4.0K]  figures
-    │   ├── [221K]  Apul_ShortStack_dbmatch_histogram.png
-    │   ├── [353K]  Apul_ShortStack_dbmatch_histogram_reduced.png
-    │   ├── [316K]  Apul_ShortStack_miRNA_histogram.png
-    │   ├── [291K]  Apul_ShortStack_miRNA_histogram_reduced.png
-    │   └── [199K]  Apul_ShortStack_venn.png
-    ├── [ 59K]  shortstack.log
+    │   ├── [226K]  Apul_ShortStack_dbmatch_histogram.png
+    │   ├── [340K]  Apul_ShortStack_dbmatch_histogram_reduced.png
+    │   ├── [323K]  Apul_ShortStack_miRNA_histogram.png
+    │   ├── [294K]  Apul_ShortStack_miRNA_histogram_reduced.png
+    │   └── [202K]  Apul_ShortStack_venn.png
+    ├── [ 53K]  shortstack.log
     └── [ 20K]  ShortStack_out
         ├── [ 28M]  1A10-fastp-adapters-polyG-31bp-merged_condensed.bam
         ├── [212K]  1A10-fastp-adapters-polyG-31bp-merged_condensed.bam.csi
         ├── [ 80M]  1A10-fastp-adapters-polyG-31bp-merged_condensed.fa
-        ├── [8.4M]  1A11-fastp-adapters-polyG-31bp-merged_condensed.bam
-        ├── [ 76K]  1A11-fastp-adapters-polyG-31bp-merged_condensed.bam.csi
-        ├── [ 43M]  1A11-fastp-adapters-polyG-31bp-merged_condensed.fa
         ├── [ 32M]  1A12-fastp-adapters-polyG-31bp-merged_condensed.bam
         ├── [207K]  1A12-fastp-adapters-polyG-31bp-merged_condensed.bam.csi
         ├── [ 95M]  1A12-fastp-adapters-polyG-31bp-merged_condensed.fa
@@ -483,12 +486,6 @@ tree -h ${output_dir_top}/
         ├── [ 33M]  1B10-fastp-adapters-polyG-31bp-merged_condensed.bam
         ├── [214K]  1B10-fastp-adapters-polyG-31bp-merged_condensed.bam.csi
         ├── [ 99M]  1B10-fastp-adapters-polyG-31bp-merged_condensed.fa
-        ├── [ 14M]  1B11-fastp-adapters-polyG-31bp-merged_condensed.bam
-        ├── [138K]  1B11-fastp-adapters-polyG-31bp-merged_condensed.bam.csi
-        ├── [ 64M]  1B11-fastp-adapters-polyG-31bp-merged_condensed.fa
-        ├── [ 14M]  1B12-fastp-adapters-polyG-31bp-merged_condensed.bam
-        ├── [141K]  1B12-fastp-adapters-polyG-31bp-merged_condensed.bam.csi
-        ├── [ 67M]  1B12-fastp-adapters-polyG-31bp-merged_condensed.fa
         ├── [ 39M]  1B1-fastp-adapters-polyG-31bp-merged_condensed.bam
         ├── [216K]  1B1-fastp-adapters-polyG-31bp-merged_condensed.bam.csi
         ├── [122M]  1B1-fastp-adapters-polyG-31bp-merged_condensed.fa
@@ -505,7 +502,7 @@ tree -h ${output_dir_top}/
         ├── [207K]  1C10-fastp-adapters-polyG-31bp-merged_condensed.bam.csi
         ├── [101M]  1C10-fastp-adapters-polyG-31bp-merged_condensed.fa
         ├── [ 42M]  1C4-fastp-adapters-polyG-31bp-merged_condensed.bam
-        ├── [209K]  1C4-fastp-adapters-polyG-31bp-merged_condensed.bam.csi
+        ├── [210K]  1C4-fastp-adapters-polyG-31bp-merged_condensed.bam.csi
         ├── [132M]  1C4-fastp-adapters-polyG-31bp-merged_condensed.fa
         ├── [ 47M]  1D10-fastp-adapters-polyG-31bp-merged_condensed.bam
         ├── [216K]  1D10-fastp-adapters-polyG-31bp-merged_condensed.bam.csi
@@ -525,15 +522,6 @@ tree -h ${output_dir_top}/
         ├── [ 49M]  1D9-fastp-adapters-polyG-31bp-merged_condensed.bam
         ├── [220K]  1D9-fastp-adapters-polyG-31bp-merged_condensed.bam.csi
         ├── [155M]  1D9-fastp-adapters-polyG-31bp-merged_condensed.fa
-        ├── [ 12M]  1E10-fastp-adapters-polyG-31bp-merged_condensed.bam
-        ├── [127K]  1E10-fastp-adapters-polyG-31bp-merged_condensed.bam.csi
-        ├── [ 59M]  1E10-fastp-adapters-polyG-31bp-merged_condensed.fa
-        ├── [ 15M]  1E11-fastp-adapters-polyG-31bp-merged_condensed.bam
-        ├── [158K]  1E11-fastp-adapters-polyG-31bp-merged_condensed.bam.csi
-        ├── [ 71M]  1E11-fastp-adapters-polyG-31bp-merged_condensed.fa
-        ├── [ 11M]  1E12-fastp-adapters-polyG-31bp-merged_condensed.bam
-        ├── [131K]  1E12-fastp-adapters-polyG-31bp-merged_condensed.bam.csi
-        ├── [ 55M]  1E12-fastp-adapters-polyG-31bp-merged_condensed.fa
         ├── [ 41M]  1E1-fastp-adapters-polyG-31bp-merged_condensed.bam
         ├── [217K]  1E1-fastp-adapters-polyG-31bp-merged_condensed.bam.csi
         ├── [134M]  1E1-fastp-adapters-polyG-31bp-merged_condensed.fa
@@ -558,9 +546,15 @@ tree -h ${output_dir_top}/
         ├── [ 58M]  1G5-fastp-adapters-polyG-31bp-merged_condensed.bam
         ├── [215K]  1G5-fastp-adapters-polyG-31bp-merged_condensed.bam.csi
         ├── [184M]  1G5-fastp-adapters-polyG-31bp-merged_condensed.fa
+        ├── [ 32M]  1H11-fastp-adapters-polyG-31bp-merged_condensed.bam
+        ├── [215K]  1H11-fastp-adapters-polyG-31bp-merged_condensed.bam.csi
+        ├── [ 97M]  1H11-fastp-adapters-polyG-31bp-merged_condensed.fa
         ├── [ 28M]  1H12-fastp-adapters-polyG-31bp-merged_condensed.bam
         ├── [209K]  1H12-fastp-adapters-polyG-31bp-merged_condensed.bam.csi
         ├── [ 94M]  1H12-fastp-adapters-polyG-31bp-merged_condensed.fa
+        ├── [ 52M]  1H6-fastp-adapters-polyG-31bp-merged_condensed.bam
+        ├── [213K]  1H6-fastp-adapters-polyG-31bp-merged_condensed.bam.csi
+        ├── [153M]  1H6-fastp-adapters-polyG-31bp-merged_condensed.fa
         ├── [ 53M]  1H7-fastp-adapters-polyG-31bp-merged_condensed.bam
         ├── [211K]  1H7-fastp-adapters-polyG-31bp-merged_condensed.bam.csi
         ├── [158M]  1H7-fastp-adapters-polyG-31bp-merged_condensed.fa
@@ -574,7 +568,7 @@ tree -h ${output_dir_top}/
         ├── [212K]  2B3-fastp-adapters-polyG-31bp-merged_condensed.bam.csi
         ├── [172M]  2B3-fastp-adapters-polyG-31bp-merged_condensed.fa
         ├── [ 55M]  2C1-fastp-adapters-polyG-31bp-merged_condensed.bam
-        ├── [217K]  2C1-fastp-adapters-polyG-31bp-merged_condensed.bam.csi
+        ├── [218K]  2C1-fastp-adapters-polyG-31bp-merged_condensed.bam.csi
         ├── [175M]  2C1-fastp-adapters-polyG-31bp-merged_condensed.fa
         ├── [ 61M]  2C2-fastp-adapters-polyG-31bp-merged_condensed.bam
         ├── [212K]  2C2-fastp-adapters-polyG-31bp-merged_condensed.bam.csi
@@ -589,120 +583,122 @@ tree -h ${output_dir_top}/
         ├── [212K]  2F1-fastp-adapters-polyG-31bp-merged_condensed.bam.csi
         ├── [133M]  2F1-fastp-adapters-polyG-31bp-merged_condensed.fa
         ├── [ 46M]  2G1-fastp-adapters-polyG-31bp-merged_condensed.bam
-        ├── [211K]  2G1-fastp-adapters-polyG-31bp-merged_condensed.bam.csi
+        ├── [210K]  2G1-fastp-adapters-polyG-31bp-merged_condensed.bam.csi
         ├── [132M]  2G1-fastp-adapters-polyG-31bp-merged_condensed.fa
-        ├── [255K]  alignment_details.tsv
+        ├── [219K]  alignment_details.tsv
         ├── [2.8M]  Counts.txt
         ├── [110K]  known_miRNAs.gff3
         ├── [1.8M]  known_miRNAs_unaligned.fasta
         ├── [1.6G]  merged_alignments.bam
-        ├── [182K]  merged_alignments.bam.csi
+        ├── [184K]  merged_alignments.bam.csi
         ├── [ 14K]  mir.fasta
-        ├── [1.8M]  Results.gff3
-        ├── [2.6M]  Results.txt
+        ├── [1.9M]  Results.gff3
+        ├── [2.7M]  Results.txt
         └── [4.0K]  strucVis
-            ├── [9.8K]  Cluster_10051.ps.pdf
-            ├── [8.9K]  Cluster_10051.txt
-            ├── [9.2K]  Cluster_11131.ps.pdf
-            ├── [3.7K]  Cluster_11131.txt
-            ├── [8.4K]  Cluster_11625.ps.pdf
-            ├── [3.1K]  Cluster_11625.txt
-            ├── [8.4K]  Cluster_11627.ps.pdf
-            ├── [3.0K]  Cluster_11627.txt
-            ├── [8.6K]  Cluster_11631.ps.pdf
-            ├── [3.1K]  Cluster_11631.txt
-            ├── [7.8K]  Cluster_13111.ps.pdf
-            ├── [1.8K]  Cluster_13111.txt
-            ├── [ 10K]  Cluster_13595.ps.pdf
-            ├── [ 27K]  Cluster_13595.txt
-            ├── [ 12K]  Cluster_13614.ps.pdf
-            ├── [ 57K]  Cluster_13614.txt
-            ├── [ 10K]  Cluster_13948.ps.pdf
-            ├── [ 69K]  Cluster_13948.txt
-            ├── [9.2K]  Cluster_14018.ps.pdf
-            ├── [ 15K]  Cluster_14018.txt
-            ├── [ 10K]  Cluster_14022.ps.pdf
-            ├── [ 10K]  Cluster_14022.txt
-            ├── [7.9K]  Cluster_14046.ps.pdf
-            ├── [1.9K]  Cluster_14046.txt
-            ├── [9.3K]  Cluster_14101.ps.pdf
-            ├── [ 13K]  Cluster_14101.txt
-            ├── [8.9K]  Cluster_14476.ps.pdf
-            ├── [ 17K]  Cluster_14476.txt
-            ├── [ 11K]  Cluster_15693.ps.pdf
-            ├── [ 82K]  Cluster_15693.txt
-            ├── [ 11K]  Cluster_16466.ps.pdf
-            ├── [ 78K]  Cluster_16466.txt
-            ├── [ 10K]  Cluster_16477.ps.pdf
-            ├── [ 30K]  Cluster_16477.txt
-            ├── [ 11K]  Cluster_16483.ps.pdf
-            ├── [ 98K]  Cluster_16483.txt
-            ├── [8.8K]  Cluster_16532.ps.pdf
-            ├── [ 34K]  Cluster_16532.txt
-            ├── [8.7K]  Cluster_16887.ps.pdf
-            ├── [8.1K]  Cluster_16887.txt
-            ├── [ 10K]  Cluster_1748.ps.pdf
-            ├── [ 14K]  Cluster_1748.txt
-            ├── [9.8K]  Cluster_1760.ps.pdf
-            ├── [ 55K]  Cluster_1760.txt
-            ├── [9.7K]  Cluster_1761.ps.pdf
-            ├── [4.3K]  Cluster_1761.txt
-            ├── [8.7K]  Cluster_1764.ps.pdf
-            ├── [ 57K]  Cluster_1764.txt
-            ├── [ 11K]  Cluster_1795.ps.pdf
-            ├── [ 38K]  Cluster_1795.txt
-            ├── [ 11K]  Cluster_1882.ps.pdf
-            ├── [ 32K]  Cluster_1882.txt
-            ├── [9.9K]  Cluster_1883.ps.pdf
-            ├── [ 22K]  Cluster_1883.txt
-            ├── [ 11K]  Cluster_2291.ps.pdf
-            ├── [ 49K]  Cluster_2291.txt
-            ├── [ 11K]  Cluster_2408.ps.pdf
-            ├── [7.9K]  Cluster_2408.txt
-            ├── [9.6K]  Cluster_2646.ps.pdf
-            ├── [ 28K]  Cluster_2646.txt
-            ├── [ 10K]  Cluster_2986.ps.pdf
-            ├── [7.6K]  Cluster_2986.txt
-            ├── [ 10K]  Cluster_3095.ps.pdf
-            ├── [ 44K]  Cluster_3095.txt
-            ├── [ 10K]  Cluster_3096.ps.pdf
-            ├── [ 47K]  Cluster_3096.txt
-            ├── [9.9K]  Cluster_3169.ps.pdf
-            ├── [ 33K]  Cluster_3169.txt
-            ├── [9.8K]  Cluster_3873.ps.pdf
-            ├── [6.6K]  Cluster_3873.txt
-            ├── [9.1K]  Cluster_3879.ps.pdf
-            ├── [ 42K]  Cluster_3879.txt
-            ├── [ 10K]  Cluster_3880.ps.pdf
-            ├── [8.1K]  Cluster_3880.txt
-            ├── [ 12K]  Cluster_4571.ps.pdf
-            ├── [ 85K]  Cluster_4571.txt
-            ├── [ 11K]  Cluster_4573.ps.pdf
-            ├── [ 20K]  Cluster_4573.txt
-            ├── [ 10K]  Cluster_5303.ps.pdf
-            ├── [ 15K]  Cluster_5303.txt
-            ├── [ 12K]  Cluster_5304.ps.pdf
-            ├── [ 63K]  Cluster_5304.txt
-            ├── [ 10K]  Cluster_5386.ps.pdf
-            ├── [ 36K]  Cluster_5386.txt
-            ├── [8.8K]  Cluster_5466.ps.pdf
-            ├── [1.7K]  Cluster_5466.txt
-            ├── [ 10K]  Cluster_9008.ps.pdf
-            ├── [ 20K]  Cluster_9008.txt
-            ├── [ 10K]  Cluster_9021.ps.pdf
-            ├── [ 62K]  Cluster_9021.txt
-            ├── [ 11K]  Cluster_9059.ps.pdf
-            ├── [ 35K]  Cluster_9059.txt
-            ├── [ 11K]  Cluster_9148.ps.pdf
-            ├── [ 64K]  Cluster_9148.txt
-            ├── [ 10K]  Cluster_9167.ps.pdf
-            ├── [ 15K]  Cluster_9167.txt
-            ├── [10.0K]  Cluster_9335.ps.pdf
-            ├── [ 30K]  Cluster_9335.txt
-            ├── [ 11K]  Cluster_9408.ps.pdf
-            └── [ 85K]  Cluster_9408.txt
+            ├── [9.8K]  Cluster_10452.ps.pdf
+            ├── [9.0K]  Cluster_10452.txt
+            ├── [9.2K]  Cluster_11565.ps.pdf
+            ├── [3.6K]  Cluster_11565.txt
+            ├── [8.4K]  Cluster_12081.ps.pdf
+            ├── [3.1K]  Cluster_12081.txt
+            ├── [8.4K]  Cluster_12083.ps.pdf
+            ├── [3.0K]  Cluster_12083.txt
+            ├── [8.6K]  Cluster_12087.ps.pdf
+            ├── [3.1K]  Cluster_12087.txt
+            ├── [8.9K]  Cluster_13327.ps.pdf
+            ├── [ 12K]  Cluster_13327.txt
+            ├── [7.8K]  Cluster_13647.ps.pdf
+            ├── [1.7K]  Cluster_13647.txt
+            ├── [ 10K]  Cluster_14146.ps.pdf
+            ├── [ 27K]  Cluster_14146.txt
+            ├── [ 12K]  Cluster_14165.ps.pdf
+            ├── [ 59K]  Cluster_14165.txt
+            ├── [ 10K]  Cluster_14532.ps.pdf
+            ├── [ 70K]  Cluster_14532.txt
+            ├── [9.2K]  Cluster_14605.ps.pdf
+            ├── [ 15K]  Cluster_14605.txt
+            ├── [ 10K]  Cluster_14610.ps.pdf
+            ├── [ 10K]  Cluster_14610.txt
+            ├── [7.9K]  Cluster_14633.ps.pdf
+            ├── [1.9K]  Cluster_14633.txt
+            ├── [9.3K]  Cluster_14692.ps.pdf
+            ├── [ 13K]  Cluster_14692.txt
+            ├── [8.9K]  Cluster_15097.ps.pdf
+            ├── [ 17K]  Cluster_15097.txt
+            ├── [ 11K]  Cluster_16354.ps.pdf
+            ├── [ 83K]  Cluster_16354.txt
+            ├── [ 11K]  Cluster_17173.ps.pdf
+            ├── [ 79K]  Cluster_17173.txt
+            ├── [ 10K]  Cluster_17186.ps.pdf
+            ├── [ 32K]  Cluster_17186.txt
+            ├── [ 11K]  Cluster_17192.ps.pdf
+            ├── [ 97K]  Cluster_17192.txt
+            ├── [8.8K]  Cluster_17245.ps.pdf
+            ├── [ 34K]  Cluster_17245.txt
+            ├── [8.7K]  Cluster_17623.ps.pdf
+            ├── [8.1K]  Cluster_17623.txt
+            ├── [ 10K]  Cluster_1819.ps.pdf
+            ├── [ 14K]  Cluster_1819.txt
+            ├── [9.8K]  Cluster_1832.ps.pdf
+            ├── [ 56K]  Cluster_1832.txt
+            ├── [9.7K]  Cluster_1833.ps.pdf
+            ├── [4.3K]  Cluster_1833.txt
+            ├── [8.7K]  Cluster_1836.ps.pdf
+            ├── [ 60K]  Cluster_1836.txt
+            ├── [ 11K]  Cluster_1865.ps.pdf
+            ├── [ 39K]  Cluster_1865.txt
+            ├── [ 11K]  Cluster_1950.ps.pdf
+            ├── [ 33K]  Cluster_1950.txt
+            ├── [ 11K]  Cluster_1951.ps.pdf
+            ├── [ 23K]  Cluster_1951.txt
+            ├── [ 11K]  Cluster_2372.ps.pdf
+            ├── [ 50K]  Cluster_2372.txt
+            ├── [ 11K]  Cluster_2500.ps.pdf
+            ├── [7.9K]  Cluster_2500.txt
+            ├── [9.7K]  Cluster_2746.ps.pdf
+            ├── [ 29K]  Cluster_2746.txt
+            ├── [ 10K]  Cluster_3109.ps.pdf
+            ├── [7.9K]  Cluster_3109.txt
+            ├── [ 10K]  Cluster_3226.ps.pdf
+            ├── [ 46K]  Cluster_3226.txt
+            ├── [ 10K]  Cluster_3227.ps.pdf
+            ├── [ 48K]  Cluster_3227.txt
+            ├── [9.9K]  Cluster_3301.ps.pdf
+            ├── [ 33K]  Cluster_3301.txt
+            ├── [9.8K]  Cluster_4026.ps.pdf
+            ├── [6.6K]  Cluster_4026.txt
+            ├── [9.1K]  Cluster_4034.ps.pdf
+            ├── [ 43K]  Cluster_4034.txt
+            ├── [ 10K]  Cluster_4036.ps.pdf
+            ├── [8.5K]  Cluster_4036.txt
+            ├── [ 12K]  Cluster_4752.ps.pdf
+            ├── [ 85K]  Cluster_4752.txt
+            ├── [ 11K]  Cluster_4754.ps.pdf
+            ├── [ 20K]  Cluster_4754.txt
+            ├── [ 10K]  Cluster_5516.ps.pdf
+            ├── [ 15K]  Cluster_5516.txt
+            ├── [ 12K]  Cluster_5517.ps.pdf
+            ├── [ 64K]  Cluster_5517.txt
+            ├── [ 11K]  Cluster_5603.ps.pdf
+            ├── [ 37K]  Cluster_5603.txt
+            ├── [8.8K]  Cluster_5685.ps.pdf
+            ├── [1.9K]  Cluster_5685.txt
+            ├── [ 10K]  Cluster_9366.ps.pdf
+            ├── [ 20K]  Cluster_9366.txt
+            ├── [ 10K]  Cluster_9380.ps.pdf
+            ├── [ 64K]  Cluster_9380.txt
+            ├── [ 11K]  Cluster_9420.ps.pdf
+            ├── [ 36K]  Cluster_9420.txt
+            ├── [ 11K]  Cluster_9512.ps.pdf
+            ├── [ 66K]  Cluster_9512.txt
+            ├── [ 10K]  Cluster_9532.ps.pdf
+            ├── [ 15K]  Cluster_9532.txt
+            ├── [9.9K]  Cluster_9706.ps.pdf
+            ├── [ 31K]  Cluster_9706.txt
+            ├── [ 11K]  Cluster_9786.ps.pdf
+            └── [ 87K]  Cluster_9786.txt
 
-    3 directories, 247 files
+    3 directories, 237 files
 
 ## 5.3 Visualize
 
@@ -805,6 +801,10 @@ Apul_shortstack_results %>%
 ``` r
 ggsave("../output/04-Apul-sRNA-discovery-ShortStack/figures/Apul_ShortStack_dbmatch_histogram_reduced.png", width = 12, height = 7, units = "in")
 ```
+
+It seems like an sRNa is both more likely to be previously described and
+to have been annoted by ShortStack as an miRNA if it is more highly
+expressed.
 
 ``` r
 # Make list
