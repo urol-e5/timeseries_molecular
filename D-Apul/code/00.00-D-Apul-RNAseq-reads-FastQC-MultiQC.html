@@ -1630,9 +1630,9 @@ echo &quot;#### Assign Variables ####&quot;
 echo &quot;&quot;
 
 echo &quot;# Data directories&quot;
-echo &#39;export timeseries_dir=/home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular&#39;
+echo &#39;export timeseries_dir=/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular&#39;
 echo &#39;export output_dir_top=${timeseries_dir}/D-Apul/output/00.00-D-Apul-RNAseq-reads-FastQC-MultiQC&#39;
-echo &#39;export raw_fastqc_dir=${timeseries_dir}/D-Apul/${output_dir_top}/raw-fastqc&#39;
+echo &#39;export raw_fastqc_dir=${output_dir_top}/raw-fastqc&#39;
 echo &#39;export raw_reads_dir=${timeseries_dir}/D-Apul/data/raw-fastqs&#39;
 echo &#39;export raw_reads_url=&quot;https://owl.fish.washington.edu/nightingales/E5-coral-time-series/30-1047560508/&quot;&#39;
 echo &quot;&quot;
@@ -1678,9 +1678,9 @@ cat .bashvars</code></pre>
 <pre><code>#### Assign Variables ####
 
 # Data directories
-export timeseries_dir=/home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular
+export timeseries_dir=/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular
 export output_dir_top=${timeseries_dir}/D-Apul/output/00.00-D-Apul-RNAseq-reads-FastQC-MultiQC
-export raw_fastqc_dir=${timeseries_dir}/D-Apul/${output_dir_top}/raw-fastqc
+export raw_fastqc_dir=${output_dir_top}/raw-fastqc
 export raw_reads_dir=${timeseries_dir}/D-Apul/data/raw-fastqs
 export raw_reads_url=&quot;https://owl.fish.washington.edu/nightingales/E5-coral-time-series/30-1047560508/&quot;
 
@@ -1717,11 +1717,9 @@ export line=&quot;--------------------------------------------------------&quot;
 <h1><span class="header-section-number">2</span> Download <em>A.pulchra</em> RNA-seq FastQs</h1>
 <div id="download-raw-rna-seq-reads" class="section level2" number="2.1">
 <h2><span class="header-section-number">2.1</span> Download raw RNA-seq reads</h2>
-<p>Reads are downloaded from
-<a href="https://owl.fish.washington.edu/nightingales/E5-coral-time-series/30-1047560508/" class="uri">https://owl.fish.washington.edu/nightingales/E5-coral-time-series/30-1047560508/</a></p>
+<p>Reads are downloaded from <a href="https://owl.fish.washington.edu/nightingales/E5-coral-time-series/30-1047560508/" class="uri">https://owl.fish.washington.edu/nightingales/E5-coral-time-series/30-1047560508/</a></p>
 <p>Since sequencing included multiple species, the code will also parse only those that are <em>A.pulchra</em>.</p>
-<p>The <code>--cut-dirs 3</code> command cuts the preceding directory structure (i.e. <code>nightingales/E5-coral-time-series/30-1047560508/</code>)
-so that we just end up with the reads.</p>
+<p>The <code>--cut-dirs 3</code> command cuts the preceding directory structure (i.e. <code>nightingales/E5-coral-time-series/30-1047560508/</code>) so that we just end up with the reads.</p>
 <pre class="bash"><code># Load bash variables into memory
 source .bashvars
 
@@ -1729,7 +1727,7 @@ source .bashvars
 mkdir --parents ${raw_reads_dir}
 
 # Create list of only A.pulchra sample names
-sample_list=$(awk -F &quot;,&quot; &#39;NR &gt; 2 {print $5&quot;\t&quot;$6}&#39; ${timeseries_dir}/data/rna_metadata.csv | awk -F&quot;[\t-]&quot; &#39;$2 == &quot;ACR&quot; {print $1}&#39;)
+sample_list=$(awk -F &quot;,&quot; &#39;$6 ~ /^ACR/ {print $5}&#39; ${timeseries_dir}/M-multi-species/data/rna_metadata.csv)
 
 echo &quot;&quot;
 echo &quot;${line}&quot;
@@ -1743,10 +1741,10 @@ echo &quot;&quot;
 
 
 # Use printf to format each item for use in wget
-formatted_list=$(printf &quot;*%s*,&quot; ${sample_list})
+formatted_list=$(printf &quot;*%s_*,&quot; ${sample_list})
 
-# Remove the trailing comma and append *.md5
-formatted_list=&quot;${formatted_list%,},*.md5&quot;
+# Remove the trailing comma
+formatted_list=${formatted_list%,}
 
 # Output the final wget command
 echo &quot;&quot;
@@ -1760,6 +1758,7 @@ echo &quot;${line}&quot;
 echo &quot;&quot;
 
 # Run wget to retrieve FastQs and MD5 files
+# Note: the --no-clobber command will skip re-downloading any files that are already present in the output directory
 wget \
 --directory-prefix ${raw_reads_dir} \
 --recursive \
@@ -1769,206 +1768,10 @@ wget \
 --no-host-directories \
 --no-parent \
 --quiet \
---accept=\&quot;$formatted_list\&quot; ${raw_reads_url}
+--no-clobber \
+--accept=${formatted_list} ${raw_reads_url}
 
 ls -lh &quot;${raw_reads_dir}&quot;</code></pre>
-<pre><code>awk: fatal: cannot open file `/home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/data/rna_metadata.csv&#39; for reading (No such file or directory)
-
---------------------------------------------------------
-
-Sample list:
-
-
-
---------------------------------------------------------
-
-
---------------------------------------------------------
-
-Formatted wget accept list:
-
-wget --accept=&quot;**,*.md5&quot;
-
---------------------------------------------------------
-
-total 116G
--rw-r--r-- 1 sam sam 1.4G Oct  3 08:30 10--1B2_R1_001.fastq.gz
--rw-r--r-- 1 sam sam   60 Oct  3 08:30 10--1B2_R1_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.4G Oct  3 08:32 10--1B2_R2_001.fastq.gz
--rw-r--r-- 1 sam sam   60 Oct  3 08:32 10--1B2_R2_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 2.1G Oct  3 08:42 102--2F1_R1_001.fastq.gz
--rw-r--r-- 1 sam sam   61 Oct  3 08:42 102--2F1_R1_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 2.1G Oct  3 08:45 102--2F1_R2_001.fastq.gz
--rw-r--r-- 1 sam sam   61 Oct  3 08:45 102--2F1_R2_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.2G Oct  3 08:46 103--2G1_R1_001.fastq.gz
--rw-r--r-- 1 sam sam   61 Oct  3 08:46 103--2G1_R1_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.2G Oct  3 08:48 103--2G1_R2_001.fastq.gz
--rw-r--r-- 1 sam sam   61 Oct  3 08:48 103--2G1_R2_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.5G Oct  3 08:57 106--2B2_R1_001.fastq.gz
--rw-r--r-- 1 sam sam   61 Oct  3 08:57 106--2B2_R1_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.5G Oct  3 08:59 106--2B2_R2_001.fastq.gz
--rw-r--r-- 1 sam sam   61 Oct  3 08:59 106--2B2_R2_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.2G Oct  3 09:01 107--2C2_R1_001.fastq.gz
--rw-r--r-- 1 sam sam   61 Oct  3 09:01 107--2C2_R1_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.2G Oct  3 09:03 107--2C2_R2_001.fastq.gz
--rw-r--r-- 1 sam sam   61 Oct  3 09:03 107--2C2_R2_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.6G Oct  3 09:05 108--2D2_R1_001.fastq.gz
--rw-r--r-- 1 sam sam   61 Oct  3 09:05 108--2D2_R1_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.6G Oct  3 09:07 108--2D2_R2_001.fastq.gz
--rw-r--r-- 1 sam sam   61 Oct  3 09:07 108--2D2_R2_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.2G Oct  3 09:09 109--2E2_R1_001.fastq.gz
--rw-r--r-- 1 sam sam   61 Oct  3 09:09 109--2E2_R1_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.2G Oct  3 09:11 109--2E2_R2_001.fastq.gz
--rw-r--r-- 1 sam sam   61 Oct  3 09:11 109--2E2_R2_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.3G Oct  3 09:31 114--2B3_R1_001.fastq.gz
--rw-r--r-- 1 sam sam   61 Oct  3 09:31 114--2B3_R1_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.3G Oct  3 09:33 114--2B3_R2_001.fastq.gz
--rw-r--r-- 1 sam sam   61 Oct  3 09:33 114--2B3_R2_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.3G Oct  3 08:26 1--1A1_R1_001.fastq.gz
--rw-r--r-- 1 sam sam   59 Oct  3 08:26 1--1A1_R1_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.3G Oct  3 08:28 1--1A1_R2_001.fastq.gz
--rw-r--r-- 1 sam sam   59 Oct  3 08:28 1--1A1_R2_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.1G Oct  3 10:20 20--1D3_R1_001.fastq.gz
--rw-r--r-- 1 sam sam   60 Oct  3 10:20 20--1D3_R1_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.1G Oct  3 10:21 20--1D3_R2_001.fastq.gz
--rw-r--r-- 1 sam sam   60 Oct  3 10:21 20--1D3_R2_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.2G Oct  3 10:23 21--1E3_R1_001.fastq.gz
--rw-r--r-- 1 sam sam   60 Oct  3 10:23 21--1E3_R1_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.2G Oct  3 10:25 21--1E3_R2_001.fastq.gz
--rw-r--r-- 1 sam sam   60 Oct  3 10:25 21--1E3_R2_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.4G Oct  3 10:16 2--1B1_R1_001.fastq.gz
--rw-r--r-- 1 sam sam   59 Oct  3 10:16 2--1B1_R1_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.4G Oct  3 10:18 2--1B1_R2_001.fastq.gz
--rw-r--r-- 1 sam sam   59 Oct  3 10:18 2--1B1_R2_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.4G Oct  3 10:45 27--1C4_R1_001.fastq.gz
--rw-r--r-- 1 sam sam   60 Oct  3 10:45 27--1C4_R1_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.4G Oct  3 10:47 27--1C4_R2_001.fastq.gz
--rw-r--r-- 1 sam sam   60 Oct  3 10:47 27--1C4_R2_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.6G Oct  3 10:49 28--1D4_R1_001.fastq.gz
--rw-r--r-- 1 sam sam   60 Oct  3 10:49 28--1D4_R1_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.6G Oct  3 10:51 28--1D4_R2_001.fastq.gz
--rw-r--r-- 1 sam sam   60 Oct  3 10:51 28--1D4_R2_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.2G Oct  3 11:00 30--1F4_R1_001.fastq.gz
--rw-r--r-- 1 sam sam   60 Oct  3 11:00 30--1F4_R1_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.2G Oct  3 11:02 30--1F4_R2_001.fastq.gz
--rw-r--r-- 1 sam sam   60 Oct  3 11:02 30--1F4_R2_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.5G Oct  3 11:17 34--1B5_R1_001.fastq.gz
--rw-r--r-- 1 sam sam   60 Oct  3 11:17 34--1B5_R1_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.5G Oct  3 11:19 34--1B5_R2_001.fastq.gz
--rw-r--r-- 1 sam sam   60 Oct  3 11:19 34--1B5_R2_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.2G Oct  3 11:28 37--1E5_R1_001.fastq.gz
--rw-r--r-- 1 sam sam   60 Oct  3 11:28 37--1E5_R1_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.2G Oct  3 11:30 37--1E5_R2_001.fastq.gz
--rw-r--r-- 1 sam sam   60 Oct  3 11:30 37--1E5_R2_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.5G Oct  3 11:36 39--1G5_R1_001.fastq.gz
--rw-r--r-- 1 sam sam   60 Oct  3 11:36 39--1G5_R1_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.6G Oct  3 11:38 39--1G5_R2_001.fastq.gz
--rw-r--r-- 1 sam sam   60 Oct  3 11:38 39--1G5_R2_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.3G Oct  3 11:56 44--1D6_R1_001.fastq.gz
--rw-r--r-- 1 sam sam   60 Oct  3 11:56 44--1D6_R1_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.3G Oct  3 11:58 44--1D6_R2_001.fastq.gz
--rw-r--r-- 1 sam sam   60 Oct  3 11:58 44--1D6_R2_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.5G Oct  3 12:20 5--1E1_R1_001.fastq.gz
--rw-r--r-- 1 sam sam   59 Oct  3 12:20 5--1E1_R1_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.5G Oct  3 12:22 5--1E1_R2_001.fastq.gz
--rw-r--r-- 1 sam sam   59 Oct  3 12:22 5--1E1_R2_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.2G Oct  3 12:44 56--1H7_R1_001.fastq.gz
--rw-r--r-- 1 sam sam   60 Oct  3 12:44 56--1H7_R1_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.2G Oct  3 12:45 56--1H7_R2_001.fastq.gz
--rw-r--r-- 1 sam sam   60 Oct  3 12:45 56--1H7_R2_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.2G Oct  3 12:47 57--1A8_R1_001.fastq.gz
--rw-r--r-- 1 sam sam   60 Oct  3 12:47 57--1A8_R1_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.2G Oct  3 12:48 57--1A8_R2_001.fastq.gz
--rw-r--r-- 1 sam sam   60 Oct  3 12:48 57--1A8_R2_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.1G Oct  3 13:00 60--1D8_R1_001.fastq.gz
--rw-r--r-- 1 sam sam   60 Oct  3 13:01 60--1D8_R1_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.1G Oct  3 13:02 60--1D8_R2_001.fastq.gz
--rw-r--r-- 1 sam sam   60 Oct  3 13:02 60--1D8_R2_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.6G Oct  3 13:08 62--1F8_R1_001.fastq.gz
--rw-r--r-- 1 sam sam   60 Oct  3 13:08 62--1F8_R1_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.6G Oct  3 13:11 62--1F8_R2_001.fastq.gz
--rw-r--r-- 1 sam sam   60 Oct  3 13:11 62--1F8_R2_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.3G Oct  3 13:17 64--1H8_R1_001.fastq.gz
--rw-r--r-- 1 sam sam   60 Oct  3 13:17 64--1H8_R1_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.3G Oct  3 13:18 64--1H8_R2_001.fastq.gz
--rw-r--r-- 1 sam sam   60 Oct  3 13:18 64--1H8_R2_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.5G Oct  3 13:20 65--1A9_R1_001.fastq.gz
--rw-r--r-- 1 sam sam   60 Oct  3 13:20 65--1A9_R1_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.5G Oct  3 13:23 65--1A9_R2_001.fastq.gz
--rw-r--r-- 1 sam sam   60 Oct  3 13:23 65--1A9_R2_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.7G Oct  3 13:25 66--1B9_R1_001.fastq.gz
--rw-r--r-- 1 sam sam   60 Oct  3 13:25 66--1B9_R1_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.6G Oct  3 13:27 66--1B9_R2_001.fastq.gz
--rw-r--r-- 1 sam sam   60 Oct  3 13:27 66--1B9_R2_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.6G Oct  3 13:33 68--1D9_R1_001.fastq.gz
--rw-r--r-- 1 sam sam   60 Oct  3 13:33 68--1D9_R1_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.6G Oct  3 13:35 68--1D9_R2_001.fastq.gz
--rw-r--r-- 1 sam sam   60 Oct  3 13:35 68--1D9_R2_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.5G Oct  3 13:38 69--1E9_R1_001.fastq.gz
--rw-r--r-- 1 sam sam   60 Oct  3 13:38 69--1E9_R1_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.5G Oct  3 13:40 69--1E9_R2_001.fastq.gz
--rw-r--r-- 1 sam sam   60 Oct  3 13:40 69--1E9_R2_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.5G Oct  3 13:55 73--1A10_R1_001.fastq.gz
--rw-r--r-- 1 sam sam   61 Oct  3 13:56 73--1A10_R1_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.5G Oct  3 13:58 73--1A10_R2_001.fastq.gz
--rw-r--r-- 1 sam sam   61 Oct  3 13:58 73--1A10_R2_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.4G Oct  3 13:59 74--1B10_R1_001.fastq.gz
--rw-r--r-- 1 sam sam   61 Oct  3 13:59 74--1B10_R1_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.4G Oct  3 14:01 74--1B10_R2_001.fastq.gz
--rw-r--r-- 1 sam sam   61 Oct  3 14:01 74--1B10_R2_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.2G Oct  3 14:03 75--1C10_R1_001.fastq.gz
--rw-r--r-- 1 sam sam   61 Oct  3 14:03 75--1C10_R1_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.2G Oct  3 14:05 75--1C10_R2_001.fastq.gz
--rw-r--r-- 1 sam sam   61 Oct  3 14:05 75--1C10_R2_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.4G Oct  3 14:07 76--1D10_R1_001.fastq.gz
--rw-r--r-- 1 sam sam   61 Oct  3 14:07 76--1D10_R1_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.4G Oct  3 14:09 76--1D10_R2_001.fastq.gz
--rw-r--r-- 1 sam sam   61 Oct  3 14:09 76--1D10_R2_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.4G Oct  3 14:11 77--1E10_R1_001.fastq.gz
--rw-r--r-- 1 sam sam   61 Oct  3 14:11 77--1E10_R1_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.4G Oct  3 14:13 77--1E10_R2_001.fastq.gz
--rw-r--r-- 1 sam sam   61 Oct  3 14:13 77--1E10_R2_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.2G Oct  3 14:29 81--1A11_R1_001.fastq.gz
--rw-r--r-- 1 sam sam   61 Oct  3 14:29 81--1A11_R1_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.3G Oct  3 14:30 81--1A11_R2_001.fastq.gz
--rw-r--r-- 1 sam sam   61 Oct  3 14:30 81--1A11_R2_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.2G Oct  3 14:32 82--1B11_R1_001.fastq.gz
--rw-r--r-- 1 sam sam   61 Oct  3 14:32 82--1B11_R1_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.2G Oct  3 14:34 82--1B11_R2_001.fastq.gz
--rw-r--r-- 1 sam sam   61 Oct  3 14:34 82--1B11_R2_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.4G Oct  3 14:44 85--1E11_R1_001.fastq.gz
--rw-r--r-- 1 sam sam   61 Oct  3 14:44 85--1E11_R1_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.4G Oct  3 14:45 85--1E11_R2_001.fastq.gz
--rw-r--r-- 1 sam sam   61 Oct  3 14:45 85--1E11_R2_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.1G Oct  3 14:47 86--1F11_R1_001.fastq.gz
--rw-r--r-- 1 sam sam   61 Oct  3 14:47 86--1F11_R1_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.1G Oct  3 14:49 86--1F11_R2_001.fastq.gz
--rw-r--r-- 1 sam sam   61 Oct  3 14:49 86--1F11_R2_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.2G Oct  3 14:57 89--1A12_R1_001.fastq.gz
--rw-r--r-- 1 sam sam   61 Oct  3 14:57 89--1A12_R1_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.2G Oct  3 14:58 89--1A12_R2_001.fastq.gz
--rw-r--r-- 1 sam sam   61 Oct  3 14:58 89--1A12_R2_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.5G Oct  3 15:04 90--1B12_R1_001.fastq.gz
--rw-r--r-- 1 sam sam   61 Oct  3 15:04 90--1B12_R1_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.5G Oct  3 15:06 90--1B12_R2_001.fastq.gz
--rw-r--r-- 1 sam sam   61 Oct  3 15:06 90--1B12_R2_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.5G Oct  3 15:00 9--1A2_R1_001.fastq.gz
--rw-r--r-- 1 sam sam   59 Oct  3 15:00 9--1A2_R1_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.5G Oct  3 15:02 9--1A2_R2_001.fastq.gz
--rw-r--r-- 1 sam sam   59 Oct  3 15:02 9--1A2_R2_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.4G Oct  3 15:15 93--1E12_R1_001.fastq.gz
--rw-r--r-- 1 sam sam   61 Oct  3 15:15 93--1E12_R1_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.4G Oct  3 15:17 93--1E12_R2_001.fastq.gz
--rw-r--r-- 1 sam sam   61 Oct  3 15:17 93--1E12_R2_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.1G Oct  3 15:27 96--1H12_R1_001.fastq.gz
--rw-r--r-- 1 sam sam   61 Oct  3 15:27 96--1H12_R1_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.1G Oct  3 15:29 96--1H12_R2_001.fastq.gz
--rw-r--r-- 1 sam sam   61 Oct  3 15:29 96--1H12_R2_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.3G Oct  3 15:38 99--2C1_R1_001.fastq.gz
--rw-r--r-- 1 sam sam   60 Oct  3 15:38 99--2C1_R1_001.fastq.gz.md5
--rw-r--r-- 1 sam sam 1.3G Oct  3 15:40 99--2C1_R2_001.fastq.gz
--rw-r--r-- 1 sam sam   60 Oct  3 15:40 99--2C1_R2_001.fastq.gz.md5
--rw-rw-r-- 1 sam sam  138 Oct  4 10:52 README.md</code></pre>
 </div>
 <div id="verify-raw-read-checksums" class="section level2" number="2.2">
 <h2><span class="header-section-number">2.2</span> Verify raw read checksums</h2>
@@ -1977,99 +1780,11 @@ source .bashvars
 
 cd &quot;${raw_reads_dir}&quot;
 
-# Checksums file contains other files, so this just looks for the sRNAseq files.
+# Checksums file contains other files, so this just looks for the RNAseq files.
 for file in *.md5
 do
   md5sum --check &quot;${file}&quot;
 done</code></pre>
-<pre><code>./10--1B2_R1_001.fastq.gz: OK
-./10--1B2_R2_001.fastq.gz: OK
-./102--2F1_R1_001.fastq.gz: OK
-./102--2F1_R2_001.fastq.gz: OK
-./103--2G1_R1_001.fastq.gz: OK
-./103--2G1_R2_001.fastq.gz: OK
-./106--2B2_R1_001.fastq.gz: OK
-./106--2B2_R2_001.fastq.gz: OK
-./107--2C2_R1_001.fastq.gz: OK
-./107--2C2_R2_001.fastq.gz: OK
-./108--2D2_R1_001.fastq.gz: OK
-./108--2D2_R2_001.fastq.gz: OK
-./109--2E2_R1_001.fastq.gz: OK
-./109--2E2_R2_001.fastq.gz: OK
-./114--2B3_R1_001.fastq.gz: OK
-./114--2B3_R2_001.fastq.gz: OK
-./1--1A1_R1_001.fastq.gz: OK
-./1--1A1_R2_001.fastq.gz: OK
-./20--1D3_R1_001.fastq.gz: OK
-./20--1D3_R2_001.fastq.gz: OK
-./21--1E3_R1_001.fastq.gz: OK
-./21--1E3_R2_001.fastq.gz: OK
-./2--1B1_R1_001.fastq.gz: OK
-./2--1B1_R2_001.fastq.gz: OK
-./27--1C4_R1_001.fastq.gz: OK
-./27--1C4_R2_001.fastq.gz: OK
-./28--1D4_R1_001.fastq.gz: OK
-./28--1D4_R2_001.fastq.gz: OK
-./30--1F4_R1_001.fastq.gz: OK
-./30--1F4_R2_001.fastq.gz: OK
-./34--1B5_R1_001.fastq.gz: OK
-./34--1B5_R2_001.fastq.gz: OK
-./37--1E5_R1_001.fastq.gz: OK
-./37--1E5_R2_001.fastq.gz: OK
-./39--1G5_R1_001.fastq.gz: OK
-./39--1G5_R2_001.fastq.gz: OK
-./44--1D6_R1_001.fastq.gz: OK
-./44--1D6_R2_001.fastq.gz: OK
-./5--1E1_R1_001.fastq.gz: OK
-./5--1E1_R2_001.fastq.gz: OK
-./56--1H7_R1_001.fastq.gz: OK
-./56--1H7_R2_001.fastq.gz: OK
-./57--1A8_R1_001.fastq.gz: OK
-./57--1A8_R2_001.fastq.gz: OK
-./60--1D8_R1_001.fastq.gz: OK
-./60--1D8_R2_001.fastq.gz: OK
-./62--1F8_R1_001.fastq.gz: OK
-./62--1F8_R2_001.fastq.gz: OK
-./64--1H8_R1_001.fastq.gz: OK
-./64--1H8_R2_001.fastq.gz: OK
-./65--1A9_R1_001.fastq.gz: OK
-./65--1A9_R2_001.fastq.gz: OK
-./66--1B9_R1_001.fastq.gz: OK
-./66--1B9_R2_001.fastq.gz: OK
-./68--1D9_R1_001.fastq.gz: OK
-./68--1D9_R2_001.fastq.gz: OK
-./69--1E9_R1_001.fastq.gz: OK
-./69--1E9_R2_001.fastq.gz: OK
-./73--1A10_R1_001.fastq.gz: OK
-./73--1A10_R2_001.fastq.gz: OK
-./74--1B10_R1_001.fastq.gz: OK
-./74--1B10_R2_001.fastq.gz: OK
-./75--1C10_R1_001.fastq.gz: OK
-./75--1C10_R2_001.fastq.gz: OK
-./76--1D10_R1_001.fastq.gz: OK
-./76--1D10_R2_001.fastq.gz: OK
-./77--1E10_R1_001.fastq.gz: OK
-./77--1E10_R2_001.fastq.gz: OK
-./81--1A11_R1_001.fastq.gz: OK
-./81--1A11_R2_001.fastq.gz: OK
-./82--1B11_R1_001.fastq.gz: OK
-./82--1B11_R2_001.fastq.gz: OK
-./85--1E11_R1_001.fastq.gz: OK
-./85--1E11_R2_001.fastq.gz: OK
-./86--1F11_R1_001.fastq.gz: OK
-./86--1F11_R2_001.fastq.gz: OK
-./89--1A12_R1_001.fastq.gz: OK
-./89--1A12_R2_001.fastq.gz: OK
-./90--1B12_R1_001.fastq.gz: OK
-./90--1B12_R2_001.fastq.gz: OK
-./9--1A2_R1_001.fastq.gz: OK
-./9--1A2_R2_001.fastq.gz: OK
-./93--1E12_R1_001.fastq.gz: OK
-./93--1E12_R2_001.fastq.gz: OK
-./96--1H12_R1_001.fastq.gz: OK
-./96--1H12_R2_001.fastq.gz: OK
-./99--2C1_R1_001.fastq.gz: OK
-./99--2C1_R2_001.fastq.gz: OK</code></pre>
 </div>
 </div>
 <div id="fastqcmultiqc-on-raw-reads" class="section level1" number="3">
@@ -2121,221 +1836,13 @@ echo &quot;Removing FastQC zip files.&quot;
 echo &quot;&quot;
 rm ${raw_fastqc_dir}/*.zip
 echo &quot;FastQC zip files removed.&quot;
-echo &quot;&quot;
+echo &quot;&quot;</code></pre>
+<pre class="bash"><code># Load bash variables into memory
+source .bashvars
 
 # View directory contents
 ls -lh ${raw_fastqc_dir}
 </code></pre>
-<pre><code>Beginning FastQC on raw reads...
-
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-application/gzip
-FastQC on raw reads complete!
-
-Beginning MultiQC on raw FastQC...
-
-
-  /// MultiQC 🔍 | v1.14
-
-|           multiqc | MultiQC Version v1.25.1 now available!
-|           multiqc | Search path : /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/D-Apul/home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/00.00-D-Apul-RNAseq-reads-FastQC-MultiQC/raw-fastqc
-|         searching | ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 177/177  
-|            fastqc | Found 88 reports
-|           multiqc | Compressing plot data
-|           multiqc | Previous MultiQC output found! Adjusting filenames..
-|           multiqc | Use -f or --force to overwrite existing reports instead
-|           multiqc | Report      : ../home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/00.00-D-Apul-RNAseq-reads-FastQC-MultiQC/raw-fastqc/multiqc_report_1.html
-|           multiqc | Data        : ../home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/00.00-D-Apul-RNAseq-reads-FastQC-MultiQC/raw-fastqc/multiqc_data_1
-|           multiqc | MultiQC complete
-|           multiqc | 1 flat-image plot used in the report due to large sample numbers
-|           multiqc | To force interactive plots, use the &#39;--interactive&#39; flag. 
-See the documentation.
-
-MultiQC on raw FastQs complete.
-
-Removing FastQC zip files.
-
-FastQC zip files removed.
-
-total 57M
--rw-r--r-- 1 sam sam 603K Oct  7 09:36 10--1B2_R1_001_fastqc.html
--rw-r--r-- 1 sam sam 604K Oct  7 09:35 10--1B2_R2_001_fastqc.html
--rw-r--r-- 1 sam sam 601K Oct  7 09:39 102--2F1_R1_001_fastqc.html
--rw-r--r-- 1 sam sam 605K Oct  7 09:38 102--2F1_R2_001_fastqc.html
--rw-r--r-- 1 sam sam 599K Oct  7 09:35 103--2G1_R1_001_fastqc.html
--rw-r--r-- 1 sam sam 605K Oct  7 09:35 103--2G1_R2_001_fastqc.html
--rw-r--r-- 1 sam sam 601K Oct  7 09:36 106--2B2_R1_001_fastqc.html
--rw-r--r-- 1 sam sam 600K Oct  7 09:36 106--2B2_R2_001_fastqc.html
--rw-r--r-- 1 sam sam 602K Oct  7 09:35 107--2C2_R1_001_fastqc.html
--rw-r--r-- 1 sam sam 601K Oct  7 09:35 107--2C2_R2_001_fastqc.html
--rw-r--r-- 1 sam sam 603K Oct  7 09:36 108--2D2_R1_001_fastqc.html
--rw-r--r-- 1 sam sam 604K Oct  7 09:37 108--2D2_R2_001_fastqc.html
--rw-r--r-- 1 sam sam 610K Oct  7 09:35 109--2E2_R1_001_fastqc.html
--rw-r--r-- 1 sam sam 608K Oct  7 09:35 109--2E2_R2_001_fastqc.html
--rw-r--r-- 1 sam sam 601K Oct  7 09:36 114--2B3_R1_001_fastqc.html
--rw-r--r-- 1 sam sam 600K Oct  7 09:35 114--2B3_R2_001_fastqc.html
--rw-r--r-- 1 sam sam 601K Oct  7 09:35 1--1A1_R1_001_fastqc.html
--rw-r--r-- 1 sam sam 608K Oct  7 09:35 1--1A1_R2_001_fastqc.html
--rw-r--r-- 1 sam sam 601K Oct  7 09:34 20--1D3_R1_001_fastqc.html
--rw-r--r-- 1 sam sam 596K Oct  7 09:34 20--1D3_R2_001_fastqc.html
--rw-r--r-- 1 sam sam 602K Oct  7 09:35 21--1E3_R1_001_fastqc.html
--rw-r--r-- 1 sam sam 602K Oct  7 09:35 21--1E3_R2_001_fastqc.html
--rw-r--r-- 1 sam sam 604K Oct  7 09:36 2--1B1_R1_001_fastqc.html
--rw-r--r-- 1 sam sam 605K Oct  7 09:36 2--1B1_R2_001_fastqc.html
--rw-r--r-- 1 sam sam 602K Oct  7 09:36 27--1C4_R1_001_fastqc.html
--rw-r--r-- 1 sam sam 604K Oct  7 09:36 27--1C4_R2_001_fastqc.html
--rw-r--r-- 1 sam sam 599K Oct  7 09:37 28--1D4_R1_001_fastqc.html
--rw-r--r-- 1 sam sam 602K Oct  7 09:36 28--1D4_R2_001_fastqc.html
--rw-r--r-- 1 sam sam 599K Oct  7 09:35 30--1F4_R1_001_fastqc.html
--rw-r--r-- 1 sam sam 603K Oct  7 09:35 30--1F4_R2_001_fastqc.html
--rw-r--r-- 1 sam sam 595K Oct  7 09:36 34--1B5_R1_001_fastqc.html
--rw-r--r-- 1 sam sam 605K Oct  7 09:36 34--1B5_R2_001_fastqc.html
--rw-r--r-- 1 sam sam 600K Oct  7 09:35 37--1E5_R1_001_fastqc.html
--rw-r--r-- 1 sam sam 599K Oct  7 09:35 37--1E5_R2_001_fastqc.html
--rw-r--r-- 1 sam sam 600K Oct  7 09:36 39--1G5_R1_001_fastqc.html
--rw-r--r-- 1 sam sam 607K Oct  7 09:37 39--1G5_R2_001_fastqc.html
--rw-r--r-- 1 sam sam 603K Oct  7 09:35 44--1D6_R1_001_fastqc.html
--rw-r--r-- 1 sam sam 603K Oct  7 09:36 44--1D6_R2_001_fastqc.html
--rw-r--r-- 1 sam sam 600K Oct  7 09:36 5--1E1_R1_001_fastqc.html
--rw-r--r-- 1 sam sam 600K Oct  7 09:36 5--1E1_R2_001_fastqc.html
--rw-r--r-- 1 sam sam 601K Oct  7 09:39 56--1H7_R1_001_fastqc.html
--rw-r--r-- 1 sam sam 602K Oct  7 09:39 56--1H7_R2_001_fastqc.html
--rw-r--r-- 1 sam sam 604K Oct  7 09:40 57--1A8_R1_001_fastqc.html
--rw-r--r-- 1 sam sam 605K Oct  7 09:40 57--1A8_R2_001_fastqc.html
--rw-r--r-- 1 sam sam 603K Oct  7 09:40 60--1D8_R1_001_fastqc.html
--rw-r--r-- 1 sam sam 606K Oct  7 09:39 60--1D8_R2_001_fastqc.html
--rw-r--r-- 1 sam sam 602K Oct  7 09:41 62--1F8_R1_001_fastqc.html
--rw-r--r-- 1 sam sam 602K Oct  7 09:41 62--1F8_R2_001_fastqc.html
--rw-r--r-- 1 sam sam 602K Oct  7 09:40 64--1H8_R1_001_fastqc.html
--rw-r--r-- 1 sam sam 599K Oct  7 09:41 64--1H8_R2_001_fastqc.html
--rw-r--r-- 1 sam sam 600K Oct  7 09:42 65--1A9_R1_001_fastqc.html
--rw-r--r-- 1 sam sam 604K Oct  7 09:41 65--1A9_R2_001_fastqc.html
--rw-r--r-- 1 sam sam 602K Oct  7 09:42 66--1B9_R1_001_fastqc.html
--rw-r--r-- 1 sam sam 602K Oct  7 09:42 66--1B9_R2_001_fastqc.html
--rw-r--r-- 1 sam sam 606K Oct  7 09:42 68--1D9_R1_001_fastqc.html
--rw-r--r-- 1 sam sam 604K Oct  7 09:42 68--1D9_R2_001_fastqc.html
--rw-r--r-- 1 sam sam 598K Oct  7 09:42 69--1E9_R1_001_fastqc.html
--rw-r--r-- 1 sam sam 602K Oct  7 09:42 69--1E9_R2_001_fastqc.html
--rw-r--r-- 1 sam sam 599K Oct  7 09:42 73--1A10_R1_001_fastqc.html
--rw-r--r-- 1 sam sam 602K Oct  7 09:42 73--1A10_R2_001_fastqc.html
--rw-r--r-- 1 sam sam 599K Oct  7 09:42 74--1B10_R1_001_fastqc.html
--rw-r--r-- 1 sam sam 603K Oct  7 09:42 74--1B10_R2_001_fastqc.html
--rw-r--r-- 1 sam sam 599K Oct  7 09:41 75--1C10_R1_001_fastqc.html
--rw-r--r-- 1 sam sam 604K Oct  7 09:41 75--1C10_R2_001_fastqc.html
--rw-r--r-- 1 sam sam 600K Oct  7 09:42 76--1D10_R1_001_fastqc.html
--rw-r--r-- 1 sam sam 605K Oct  7 09:42 76--1D10_R2_001_fastqc.html
--rw-r--r-- 1 sam sam 603K Oct  7 09:42 77--1E10_R1_001_fastqc.html
--rw-r--r-- 1 sam sam 605K Oct  7 09:42 77--1E10_R2_001_fastqc.html
--rw-r--r-- 1 sam sam 606K Oct  7 09:42 81--1A11_R1_001_fastqc.html
--rw-r--r-- 1 sam sam 613K Oct  7 09:42 81--1A11_R2_001_fastqc.html
--rw-r--r-- 1 sam sam 603K Oct  7 09:42 82--1B11_R1_001_fastqc.html
--rw-r--r-- 1 sam sam 601K Oct  7 09:41 82--1B11_R2_001_fastqc.html
--rw-r--r-- 1 sam sam 603K Oct  7 09:42 85--1E11_R1_001_fastqc.html
--rw-r--r-- 1 sam sam 608K Oct  7 09:42 85--1E11_R2_001_fastqc.html
--rw-r--r-- 1 sam sam 599K Oct  7 09:41 86--1F11_R1_001_fastqc.html
--rw-r--r-- 1 sam sam 602K Oct  7 09:41 86--1F11_R2_001_fastqc.html
--rw-r--r-- 1 sam sam 602K Oct  7 09:42 89--1A12_R1_001_fastqc.html
--rw-r--r-- 1 sam sam 601K Oct  7 09:42 89--1A12_R2_001_fastqc.html
--rw-r--r-- 1 sam sam 603K Oct  7 09:43 90--1B12_R1_001_fastqc.html
--rw-r--r-- 1 sam sam 603K Oct  7 09:43 90--1B12_R2_001_fastqc.html
--rw-r--r-- 1 sam sam 598K Oct  7 09:43 9--1A2_R1_001_fastqc.html
--rw-r--r-- 1 sam sam 604K Oct  7 09:44 9--1A2_R2_001_fastqc.html
--rw-r--r-- 1 sam sam 595K Oct  7 09:43 93--1E12_R1_001_fastqc.html
--rw-r--r-- 1 sam sam 603K Oct  7 09:43 93--1E12_R2_001_fastqc.html
--rw-r--r-- 1 sam sam 603K Oct  7 09:43 96--1H12_R1_001_fastqc.html
--rw-r--r-- 1 sam sam 601K Oct  7 09:43 96--1H12_R2_001_fastqc.html
--rw-r--r-- 1 sam sam 607K Oct  7 09:44 99--2C1_R1_001_fastqc.html
--rw-r--r-- 1 sam sam 607K Oct  7 09:44 99--2C1_R2_001_fastqc.html
-drwxr-xr-x 2 sam sam 4.0K Oct  7 09:23 multiqc_data
-drwxr-xr-x 2 sam sam 4.0K Oct  7 09:44 multiqc_data_1
--rw-r--r-- 1 sam sam 2.3M Oct  7 09:44 multiqc_report_1.html
--rw-r--r-- 1 sam sam 2.3M Oct  7 09:23 multiqc_report.html</code></pre>
 <div id="refs" class="references csl-bib-body hanging-indent">
 <div id="ref-ewels2016" class="csl-entry">
 Ewels, Philip, Måns Magnusson, Sverker Lundin, and Max Käller. 2016. <span>“MultiQC: Summarize Analysis Results for Multiple Tools and Samples in a Single Report.”</span> <em>Bioinformatics</em> 32 (19): 3047–48. <a href="https://doi.org/10.1093/bioinformatics/btw354">https://doi.org/10.1093/bioinformatics/btw354</a>.
@@ -2343,7 +1850,7 @@ Ewels, Philip, Måns Magnusson, Sverker Lundin, and Max Käller. 2016. <span>“
 </div>
 </div>
 
-<div id="rmd-source-code">LS0tCnRpdGxlOiAiMDAuMDAtRC1BcHVsLVJOQXNlcS1yZWFkcy1GYXN0UUMtTXVsdGlRQy5SbWQiCmF1dGhvcjogIlNhbSBXaGl0ZSIKZGF0ZTogIjIwMjQtMTAtMDQiCm91dHB1dDogCiAgYm9va2Rvd246Omh0bWxfZG9jdW1lbnQyOgogICAgdGhlbWU6IGNvc21vCiAgICB0b2M6IHRydWUKICAgIHRvY19mbG9hdDogdHJ1ZQogICAgbnVtYmVyX3NlY3Rpb25zOiB0cnVlCiAgICBjb2RlX2ZvbGRpbmc6IHNob3cKICAgIGNvZGVfZG93bmxvYWQ6IHRydWUKICBnaXRodWJfZG9jdW1lbnQ6CiAgICB0b2M6IHRydWUKICAgIG51bWJlcl9zZWN0aW9uczogdHJ1ZQogIGh0bWxfZG9jdW1lbnQ6CiAgICB0aGVtZTogY29zbW8KICAgIHRvYzogdHJ1ZQogICAgdG9jX2Zsb2F0OiB0cnVlCiAgICBudW1iZXJfc2VjdGlvbnM6IHRydWUKICAgIGNvZGVfZm9sZGluZzogc2hvdwogICAgY29kZV9kb3dubG9hZDogdHJ1ZQpiaWJsaW9ncmFwaHk6IHJlZmVyZW5jZXMuYmliCi0tLQoKYGBge3Igc2V0dXAsIGluY2x1ZGU9RkFMU0V9CmxpYnJhcnkoa25pdHIpCmtuaXRyOjpvcHRzX2NodW5rJHNldCgKICBlY2hvID0gVFJVRSwgICAgICAgICAjIERpc3BsYXkgY29kZSBjaHVua3MKICBldmFsID0gRkFMU0UsICAgICAgICAjIEV2YWx1YXRlIGNvZGUgY2h1bmtzCiAgd2FybmluZyA9IEZBTFNFLCAgICAgIyBIaWRlIHdhcm5pbmdzCiAgbWVzc2FnZSA9IEZBTFNFLCAgICAgIyBIaWRlIG1lc3NhZ2VzCiAgY29tbWVudCA9ICIiICAgICAgICAgIyBQcmV2ZW50cyBhcHBlbmRpbmcgJyMjJyB0byBiZWdpbm5pbmcgb2YgbGluZXMgaW4gY29kZSBvdXRwdXQKKQpgYGAKClRoaXMgUm1kIGZpbGUgd2lsbCBkb3dubG9hZCByYXcgUk5BLXNlcSBGYXN0UXMgZm9yICpBLnB1bGNocmEqIGFuZCBldmFsdWF0ZSB0aGVtIHVzaW5nIFtGYXN0UUNdKGh0dHBzOi8vZ2l0aHViLmNvbS9zLWFuZHJld3MvRmFzdFFDKSBhbmQgW011bHRpUUNdKGh0dHBzOi8vbXVsdGlxYy5pbmZvLylbQGV3ZWxzMjAxNl0uCgojIENyZWF0ZSBhIEJhc2ggdmFyaWFibGVzIGZpbGUKClRoaXMgYWxsb3dzIHVzYWdlIG9mIEJhc2ggdmFyaWFibGVzIGFjcm9zcyBSIE1hcmtkb3duIGNodW5rcy4KYGBge3Igc2F2ZS1iYXNoLXZhcmlhYmxlcy10by1ydmFycy1maWxlLCBlbmdpbmU9J2Jhc2gnLCBldmFsPVRSVUV9CnsKZWNobyAiIyMjIyBBc3NpZ24gVmFyaWFibGVzICMjIyMiCmVjaG8gIiIKCmVjaG8gIiMgRGF0YSBkaXJlY3RvcmllcyIKZWNobyAnZXhwb3J0IHRpbWVzZXJpZXNfZGlyPS9ob21lL3NoYXJlZC84VEJfSEREXzAxL3NhbS9naXRyZXBvcy91cm9sLWU1L3RpbWVzZXJpZXNfbW9sZWN1bGFyJwplY2hvICdleHBvcnQgb3V0cHV0X2Rpcl90b3A9JHt0aW1lc2VyaWVzX2Rpcn0vRC1BcHVsL291dHB1dC8wMC4wMC1ELUFwdWwtUk5Bc2VxLXJlYWRzLUZhc3RRQy1NdWx0aVFDJwplY2hvICdleHBvcnQgcmF3X2Zhc3RxY19kaXI9JHt0aW1lc2VyaWVzX2Rpcn0vRC1BcHVsLyR7b3V0cHV0X2Rpcl90b3B9L3Jhdy1mYXN0cWMnCmVjaG8gJ2V4cG9ydCByYXdfcmVhZHNfZGlyPSR7dGltZXNlcmllc19kaXJ9L0QtQXB1bC9kYXRhL3Jhdy1mYXN0cXMnCmVjaG8gJ2V4cG9ydCByYXdfcmVhZHNfdXJsPSJodHRwczovL293bC5maXNoLndhc2hpbmd0b24uZWR1L25pZ2h0aW5nYWxlcy9FNS1jb3JhbC10aW1lLXNlcmllcy8zMC0xMDQ3NTYwNTA4LyInCmVjaG8gIiIKCmVjaG8gIiMgUGF0aHMgdG8gcHJvZ3JhbXMiCmVjaG8gJ2V4cG9ydCBmYXN0cWM9L2hvbWUvc2hhcmVkL0Zhc3RRQy0wLjEyLjEvZmFzdHFjJwplY2hvICdleHBvcnQgbXVsdGlxYz0vaG9tZS9zYW0vcHJvZ3JhbXMvbWFtYmFmb3JnZS9iaW4vbXVsdGlxYycKZWNobyAiIgoKZWNobyAiIyBTZXQgRmFzdFEgZmlsZW5hbWUgcGF0dGVybnMiCmVjaG8gImV4cG9ydCBmYXN0cV9wYXR0ZXJuPScqLmZhc3RxLmd6JyIKZWNobyAiZXhwb3J0IFIxX2Zhc3RxX3BhdHRlcm49JypfUjFfKi5mYXN0cS5neiciCmVjaG8gImV4cG9ydCBSMl9mYXN0cV9wYXR0ZXJuPScqX1IyXyouZmFzdHEuZ3onIgplY2hvICIiCgplY2hvICIjIFNldCBudW1iZXIgb2YgQ1BVcyB0byB1c2UiCmVjaG8gJ2V4cG9ydCB0aHJlYWRzPTQwJwplY2hvICIiCgoKZWNobyAiIyMgSW5pdGl0YWxpemUgYXJyYXlzIgplY2hvICdleHBvcnQgZmFzdHFfYXJyYXlfUjE9KCknCmVjaG8gJ2V4cG9ydCBmYXN0cV9hcnJheV9SMj0oKScKZWNobyAnZXhwb3J0IHJhd19mYXN0cXNfYXJyYXk9KCknCmVjaG8gJ2V4cG9ydCBSMV9uYW1lc19hcnJheT0oKScKZWNobyAnZXhwb3J0IFIyX25hbWVzX2FycmF5PSgpJwplY2hvICIiCgplY2hvICIjIFByb2dyYW1zIGFzc29jaWF0aXZlIGFycmF5IgplY2hvICJkZWNsYXJlIC1BIHByb2dyYW1zX2FycmF5IgplY2hvICJwcm9ncmFtc19hcnJheT0oIgplY2hvICdbZmFzdHFjXT0iJHtmYXN0cWN9IiBcJwplY2hvICdbbXVsdGlxY109IiR7bXVsdGlxY30iIFwnCmVjaG8gIikiCmVjaG8gIiIKCmVjaG8gIiMgUHJpbnQgZm9ybWF0dGluZyIKZWNobyAnZXhwb3J0IGxpbmU9Ii0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tIicKZWNobyAiIgp9ID4gLmJhc2h2YXJzCgpjYXQgLmJhc2h2YXJzCmBgYAoKIyBEb3dubG9hZCBfQS5wdWxjaHJhXyBSTkEtc2VxIEZhc3RRcwoKIyMgRG93bmxvYWQgcmF3IFJOQS1zZXEgcmVhZHMKClJlYWRzIGFyZSBkb3dubG9hZGVkIGZyb20gCmh0dHBzOi8vb3dsLmZpc2gud2FzaGluZ3Rvbi5lZHUvbmlnaHRpbmdhbGVzL0U1LWNvcmFsLXRpbWUtc2VyaWVzLzMwLTEwNDc1NjA1MDgvCgpTaW5jZSBzZXF1ZW5jaW5nIGluY2x1ZGVkIG11bHRpcGxlIHNwZWNpZXMsIHRoZSBjb2RlIHdpbGwgYWxzbyBwYXJzZSBvbmx5IHRob3NlIHRoYXQgYXJlIF9BLnB1bGNocmFfLgoKVGhlIGAtLWN1dC1kaXJzIDNgIGNvbW1hbmQgY3V0cyB0aGUgcHJlY2VkaW5nIGRpcmVjdG9yeSBzdHJ1Y3R1cmUgKGkuZS4gYG5pZ2h0aW5nYWxlcy9FNS1jb3JhbC10aW1lLXNlcmllcy8zMC0xMDQ3NTYwNTA4L2ApCnNvIHRoYXQgd2UganVzdCBlbmQgdXAgd2l0aCB0aGUgcmVhZHMuCgpgYGB7YmFzaCBkb3dubG9hZC1yYXctcmVhZHMsIGVuZ2luZT0nYmFzaCcsIGV2YWw9VFJVRX0KIyBMb2FkIGJhc2ggdmFyaWFibGVzIGludG8gbWVtb3J5CnNvdXJjZSAuYmFzaHZhcnMKCiMgTWFrZSBvdXRwdXQgZGlyZWN0b3J5IGlmIGl0IGRvZXNuJ3QgZXhpc3QKbWtkaXIgLS1wYXJlbnRzICR7cmF3X3JlYWRzX2Rpcn0KCiMgQ3JlYXRlIGxpc3Qgb2Ygb25seSBBLnB1bGNocmEgc2FtcGxlIG5hbWVzCnNhbXBsZV9saXN0PSQoYXdrIC1GICIsIiAnTlIgPiAyIHtwcmludCAkNSJcdCIkNn0nICR7dGltZXNlcmllc19kaXJ9L2RhdGEvcm5hX21ldGFkYXRhLmNzdiB8IGF3ayAtRiJbXHQtXSIgJyQyID09ICJBQ1IiIHtwcmludCAkMX0nKQoKZWNobyAiIgplY2hvICIke2xpbmV9IgplY2hvICIiCmVjaG8gIlNhbXBsZSBsaXN0OiIKZWNobyAiIgplY2hvICIke3NhbXBsZV9saXN0fSIKZWNobyAiIgplY2hvICIke2xpbmV9IgplY2hvICIiCgoKIyBVc2UgcHJpbnRmIHRvIGZvcm1hdCBlYWNoIGl0ZW0gZm9yIHVzZSBpbiB3Z2V0CmZvcm1hdHRlZF9saXN0PSQocHJpbnRmICIqJXMqLCIgJHtzYW1wbGVfbGlzdH0pCgojIFJlbW92ZSB0aGUgdHJhaWxpbmcgY29tbWEgYW5kIGFwcGVuZCAqLm1kNQpmb3JtYXR0ZWRfbGlzdD0iJHtmb3JtYXR0ZWRfbGlzdCUsfSwqLm1kNSIKCiMgT3V0cHV0IHRoZSBmaW5hbCB3Z2V0IGNvbW1hbmQKZWNobyAiIgplY2hvICIke2xpbmV9IgplY2hvICIiCmVjaG8gIkZvcm1hdHRlZCB3Z2V0IGFjY2VwdCBsaXN0OiIKZWNobyAiIgplY2hvICJ3Z2V0IC0tYWNjZXB0PVwiJGZvcm1hdHRlZF9saXN0XCIiCmVjaG8gIiIKZWNobyAiJHtsaW5lfSIKZWNobyAiIgoKIyBSdW4gd2dldCB0byByZXRyaWV2ZSBGYXN0UXMgYW5kIE1ENSBmaWxlcwp3Z2V0IFwKLS1kaXJlY3RvcnktcHJlZml4ICR7cmF3X3JlYWRzX2Rpcn0gXAotLXJlY3Vyc2l2ZSBcCi0tbm8tY2hlY2stY2VydGlmaWNhdGUgXAotLWNvbnRpbnVlIFwKLS1jdXQtZGlycyAzIFwKLS1uby1ob3N0LWRpcmVjdG9yaWVzIFwKLS1uby1wYXJlbnQgXAotLXF1aWV0IFwKLS1hY2NlcHQ9XCIkZm9ybWF0dGVkX2xpc3RcIiAke3Jhd19yZWFkc191cmx9CgpscyAtbGggIiR7cmF3X3JlYWRzX2Rpcn0iCmBgYAoKIyMgVmVyaWZ5IHJhdyByZWFkIGNoZWNrc3VtcwpgYGB7YmFzaCB2ZXJpZnktcmF3LXJlYWQtY2hlY2tzdW1zLCBlbmdpbmU9J2Jhc2gnLCBldmFsPVRSVUV9CiMgTG9hZCBiYXNoIHZhcmlhYmxlcyBpbnRvIG1lbW9yeQpzb3VyY2UgLmJhc2h2YXJzCgpjZCAiJHtyYXdfcmVhZHNfZGlyfSIKCiMgQ2hlY2tzdW1zIGZpbGUgY29udGFpbnMgb3RoZXIgZmlsZXMsIHNvIHRoaXMganVzdCBsb29rcyBmb3IgdGhlIHNSTkFzZXEgZmlsZXMuCmZvciBmaWxlIGluICoubWQ1CmRvCiAgbWQ1c3VtIC0tY2hlY2sgIiR7ZmlsZX0iCmRvbmUKYGBgCgojIEZhc3RRQy9NdWx0aVFDIG9uIHJhdyByZWFkcwpgYGB7YmFzaCByYXctZmFzdHFjLW11bHRpcWMsIGVuZ2luZT0nYmFzaCcsIGV2YWw9VFJVRX0KIyBMb2FkIGJhc2ggdmFyaWFibGVzIGludG8gbWVtb3J5CnNvdXJjZSAuYmFzaHZhcnMKCiMgTWFrZSBvdXRwdXQgZGlyZWN0b3J5IGlmIGl0IGRvZXNuJ3QgZXhpc3QKbWtkaXIgLS1wYXJlbnRzICIke3Jhd19mYXN0cWNfZGlyfSIKCiMjIyMjIyMjIyMjIyBSVU4gRkFTVFFDICMjIyMjIyMjIyMjIwoKCiMgQ3JlYXRlIGFycmF5IG9mIHRyaW1tZWQgRmFzdFFzCnJhd19mYXN0cXNfYXJyYXk9KCR7cmF3X3JlYWRzX2Rpcn0vJHtmYXN0cV9wYXR0ZXJufSkKCiMgUGFzcyBhcnJheSBjb250ZW50cyB0byBuZXcgdmFyaWFibGUgYXMgc3BhY2UtZGVsaW1pdGVkIGxpc3QKcmF3X2Zhc3RxY19saXN0PSQoZWNobyAiJHtyYXdfZmFzdHFzX2FycmF5WypdfSIpCgplY2hvICJCZWdpbm5pbmcgRmFzdFFDIG9uIHJhdyByZWFkcy4uLiIKZWNobyAiIgoKIyBSdW4gRmFzdFFDCiMjIyBOT1RFOiBEbyBOT1QgcXVvdGUgcmF3X2Zhc3RxY19saXN0CiR7cHJvZ3JhbXNfYXJyYXlbZmFzdHFjXX0gXAotLXRocmVhZHMgJHt0aHJlYWRzfSBcCi0tb3V0ZGlyICR7cmF3X2Zhc3RxY19kaXJ9IFwKLS1xdWlldCBcCiR7cmF3X2Zhc3RxY19saXN0fQoKZWNobyAiRmFzdFFDIG9uIHJhdyByZWFkcyBjb21wbGV0ZSEiCmVjaG8gIiIKCiMjIyMjIyMjIyMjIyBFTkQgRkFTVFFDICMjIyMjIyMjIyMjIwoKIyMjIyMjIyMjIyMjIFJVTiBNVUxUSVFDICMjIyMjIyMjIyMjIwplY2hvICJCZWdpbm5pbmcgTXVsdGlRQyBvbiByYXcgRmFzdFFDLi4uIgplY2hvICIiCgoke3Byb2dyYW1zX2FycmF5W211bHRpcWNdfSAke3Jhd19mYXN0cWNfZGlyfSAtbyAke3Jhd19mYXN0cWNfZGlyfQoKZWNobyAiIgplY2hvICJNdWx0aVFDIG9uIHJhdyBGYXN0UXMgY29tcGxldGUuIgplY2hvICIiCgojIyMjIyMjIyMjIyMgRU5EIE1VTFRJUUMgIyMjIyMjIyMjIyMjCgplY2hvICJSZW1vdmluZyBGYXN0UUMgemlwIGZpbGVzLiIKZWNobyAiIgpybSAke3Jhd19mYXN0cWNfZGlyfS8qLnppcAplY2hvICJGYXN0UUMgemlwIGZpbGVzIHJlbW92ZWQuIgplY2hvICIiCgojIFZpZXcgZGlyZWN0b3J5IGNvbnRlbnRzCmxzIC1saCAke3Jhd19mYXN0cWNfZGlyfQoKYGBgCg==</div>
+<div id="rmd-source-code">LS0tCnRpdGxlOiAiMDAuMDAtRC1BcHVsLVJOQXNlcS1yZWFkcy1GYXN0UUMtTXVsdGlRQy5SbWQiCmF1dGhvcjogIlNhbSBXaGl0ZSIKZGF0ZTogIjIwMjQtMTAtMDQiCm91dHB1dDogCiAgYm9va2Rvd246Omh0bWxfZG9jdW1lbnQyOgogICAgdGhlbWU6IGNvc21vCiAgICB0b2M6IHRydWUKICAgIHRvY19mbG9hdDogdHJ1ZQogICAgbnVtYmVyX3NlY3Rpb25zOiB0cnVlCiAgICBjb2RlX2ZvbGRpbmc6IHNob3cKICAgIGNvZGVfZG93bmxvYWQ6IHRydWUKICBnaXRodWJfZG9jdW1lbnQ6CiAgICB0b2M6IHRydWUKICAgIG51bWJlcl9zZWN0aW9uczogdHJ1ZQogIGh0bWxfZG9jdW1lbnQ6CiAgICB0aGVtZTogY29zbW8KICAgIHRvYzogdHJ1ZQogICAgdG9jX2Zsb2F0OiB0cnVlCiAgICBudW1iZXJfc2VjdGlvbnM6IHRydWUKICAgIGNvZGVfZm9sZGluZzogc2hvdwogICAgY29kZV9kb3dubG9hZDogdHJ1ZQpiaWJsaW9ncmFwaHk6IHJlZmVyZW5jZXMuYmliCi0tLQoKYGBge3Igc2V0dXAsIGluY2x1ZGU9RkFMU0V9CmxpYnJhcnkoa25pdHIpCmtuaXRyOjpvcHRzX2NodW5rJHNldCgKICBlY2hvID0gVFJVRSwgICAgICAgICAjIERpc3BsYXkgY29kZSBjaHVua3MKICBldmFsID0gRkFMU0UsICAgICAgICAjIEV2YWx1YXRlIGNvZGUgY2h1bmtzCiAgd2FybmluZyA9IEZBTFNFLCAgICAgIyBIaWRlIHdhcm5pbmdzCiAgbWVzc2FnZSA9IEZBTFNFLCAgICAgIyBIaWRlIG1lc3NhZ2VzCiAgY29tbWVudCA9ICIiICAgICAgICAgIyBQcmV2ZW50cyBhcHBlbmRpbmcgJyMjJyB0byBiZWdpbm5pbmcgb2YgbGluZXMgaW4gY29kZSBvdXRwdXQKKQpgYGAKClRoaXMgUm1kIGZpbGUgd2lsbCBkb3dubG9hZCByYXcgUk5BLXNlcSBGYXN0UXMgZm9yICpBLnB1bGNocmEqIGFuZCBldmFsdWF0ZSB0aGVtIHVzaW5nIFtGYXN0UUNdKGh0dHBzOi8vZ2l0aHViLmNvbS9zLWFuZHJld3MvRmFzdFFDKSBhbmQgW011bHRpUUNdKGh0dHBzOi8vbXVsdGlxYy5pbmZvLylbQGV3ZWxzMjAxNl0uCgojIENyZWF0ZSBhIEJhc2ggdmFyaWFibGVzIGZpbGUKClRoaXMgYWxsb3dzIHVzYWdlIG9mIEJhc2ggdmFyaWFibGVzIGFjcm9zcyBSIE1hcmtkb3duIGNodW5rcy4KCmBgYHtyIHNhdmUtYmFzaC12YXJpYWJsZXMtdG8tcnZhcnMtZmlsZSwgZW5naW5lPSdiYXNoJywgZXZhbD1UUlVFfQp7CmVjaG8gIiMjIyMgQXNzaWduIFZhcmlhYmxlcyAjIyMjIgplY2hvICIiCgplY2hvICIjIERhdGEgZGlyZWN0b3JpZXMiCmVjaG8gJ2V4cG9ydCB0aW1lc2VyaWVzX2Rpcj0vaG9tZS9zaGFyZWQvOFRCX0hERF8wMi9zaGVkdXJraW4vdGltZXNlcmllc19tb2xlY3VsYXInCmVjaG8gJ2V4cG9ydCBvdXRwdXRfZGlyX3RvcD0ke3RpbWVzZXJpZXNfZGlyfS9ELUFwdWwvb3V0cHV0LzAwLjAwLUQtQXB1bC1STkFzZXEtcmVhZHMtRmFzdFFDLU11bHRpUUMnCmVjaG8gJ2V4cG9ydCByYXdfZmFzdHFjX2Rpcj0ke291dHB1dF9kaXJfdG9wfS9yYXctZmFzdHFjJwplY2hvICdleHBvcnQgcmF3X3JlYWRzX2Rpcj0ke3RpbWVzZXJpZXNfZGlyfS9ELUFwdWwvZGF0YS9yYXctZmFzdHFzJwplY2hvICdleHBvcnQgcmF3X3JlYWRzX3VybD0iaHR0cHM6Ly9vd2wuZmlzaC53YXNoaW5ndG9uLmVkdS9uaWdodGluZ2FsZXMvRTUtY29yYWwtdGltZS1zZXJpZXMvMzAtMTA0NzU2MDUwOC8iJwplY2hvICIiCgplY2hvICIjIFBhdGhzIHRvIHByb2dyYW1zIgplY2hvICdleHBvcnQgZmFzdHFjPS9ob21lL3NoYXJlZC9GYXN0UUMtMC4xMi4xL2Zhc3RxYycKZWNobyAnZXhwb3J0IG11bHRpcWM9L2hvbWUvc2FtL3Byb2dyYW1zL21hbWJhZm9yZ2UvYmluL211bHRpcWMnCmVjaG8gIiIKCmVjaG8gIiMgU2V0IEZhc3RRIGZpbGVuYW1lIHBhdHRlcm5zIgplY2hvICJleHBvcnQgZmFzdHFfcGF0dGVybj0nKi5mYXN0cS5neiciCmVjaG8gImV4cG9ydCBSMV9mYXN0cV9wYXR0ZXJuPScqX1IxXyouZmFzdHEuZ3onIgplY2hvICJleHBvcnQgUjJfZmFzdHFfcGF0dGVybj0nKl9SMl8qLmZhc3RxLmd6JyIKZWNobyAiIgoKZWNobyAiIyBTZXQgbnVtYmVyIG9mIENQVXMgdG8gdXNlIgplY2hvICdleHBvcnQgdGhyZWFkcz00MCcKZWNobyAiIgoKCmVjaG8gIiMjIEluaXRpdGFsaXplIGFycmF5cyIKZWNobyAnZXhwb3J0IGZhc3RxX2FycmF5X1IxPSgpJwplY2hvICdleHBvcnQgZmFzdHFfYXJyYXlfUjI9KCknCmVjaG8gJ2V4cG9ydCByYXdfZmFzdHFzX2FycmF5PSgpJwplY2hvICdleHBvcnQgUjFfbmFtZXNfYXJyYXk9KCknCmVjaG8gJ2V4cG9ydCBSMl9uYW1lc19hcnJheT0oKScKZWNobyAiIgoKZWNobyAiIyBQcm9ncmFtcyBhc3NvY2lhdGl2ZSBhcnJheSIKZWNobyAiZGVjbGFyZSAtQSBwcm9ncmFtc19hcnJheSIKZWNobyAicHJvZ3JhbXNfYXJyYXk9KCIKZWNobyAnW2Zhc3RxY109IiR7ZmFzdHFjfSIgXCcKZWNobyAnW211bHRpcWNdPSIke211bHRpcWN9IiBcJwplY2hvICIpIgplY2hvICIiCgplY2hvICIjIFByaW50IGZvcm1hdHRpbmciCmVjaG8gJ2V4cG9ydCBsaW5lPSItLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLSInCmVjaG8gIiIKfSA+IC5iYXNodmFycwoKY2F0IC5iYXNodmFycwpgYGAKCiMgRG93bmxvYWQgKkEucHVsY2hyYSogUk5BLXNlcSBGYXN0UXMKCiMjIERvd25sb2FkIHJhdyBSTkEtc2VxIHJlYWRzCgpSZWFkcyBhcmUgZG93bmxvYWRlZCBmcm9tIDxodHRwczovL293bC5maXNoLndhc2hpbmd0b24uZWR1L25pZ2h0aW5nYWxlcy9FNS1jb3JhbC10aW1lLXNlcmllcy8zMC0xMDQ3NTYwNTA4Lz4KClNpbmNlIHNlcXVlbmNpbmcgaW5jbHVkZWQgbXVsdGlwbGUgc3BlY2llcywgdGhlIGNvZGUgd2lsbCBhbHNvIHBhcnNlIG9ubHkgdGhvc2UgdGhhdCBhcmUgKkEucHVsY2hyYSouCgpUaGUgYC0tY3V0LWRpcnMgM2AgY29tbWFuZCBjdXRzIHRoZSBwcmVjZWRpbmcgZGlyZWN0b3J5IHN0cnVjdHVyZSAoaS5lLiBgbmlnaHRpbmdhbGVzL0U1LWNvcmFsLXRpbWUtc2VyaWVzLzMwLTEwNDc1NjA1MDgvYCkgc28gdGhhdCB3ZSBqdXN0IGVuZCB1cCB3aXRoIHRoZSByZWFkcy4KCmBgYHtiYXNoIGRvd25sb2FkLXJhdy1yZWFkcywgZW5naW5lPSdiYXNoJ30KIyBMb2FkIGJhc2ggdmFyaWFibGVzIGludG8gbWVtb3J5CnNvdXJjZSAuYmFzaHZhcnMKCiMgTWFrZSBvdXRwdXQgZGlyZWN0b3J5IGlmIGl0IGRvZXNuJ3QgZXhpc3QKbWtkaXIgLS1wYXJlbnRzICR7cmF3X3JlYWRzX2Rpcn0KCiMgQ3JlYXRlIGxpc3Qgb2Ygb25seSBBLnB1bGNocmEgc2FtcGxlIG5hbWVzCnNhbXBsZV9saXN0PSQoYXdrIC1GICIsIiAnJDYgfiAvXkFDUi8ge3ByaW50ICQ1fScgJHt0aW1lc2VyaWVzX2Rpcn0vTS1tdWx0aS1zcGVjaWVzL2RhdGEvcm5hX21ldGFkYXRhLmNzdikKCmVjaG8gIiIKZWNobyAiJHtsaW5lfSIKZWNobyAiIgplY2hvICJTYW1wbGUgbGlzdDoiCmVjaG8gIiIKZWNobyAiJHtzYW1wbGVfbGlzdH0iCmVjaG8gIiIKZWNobyAiJHtsaW5lfSIKZWNobyAiIgoKCiMgVXNlIHByaW50ZiB0byBmb3JtYXQgZWFjaCBpdGVtIGZvciB1c2UgaW4gd2dldApmb3JtYXR0ZWRfbGlzdD0kKHByaW50ZiAiKiVzXyosIiAke3NhbXBsZV9saXN0fSkKCiMgUmVtb3ZlIHRoZSB0cmFpbGluZyBjb21tYQpmb3JtYXR0ZWRfbGlzdD0ke2Zvcm1hdHRlZF9saXN0JSx9CgojIE91dHB1dCB0aGUgZmluYWwgd2dldCBjb21tYW5kCmVjaG8gIiIKZWNobyAiJHtsaW5lfSIKZWNobyAiIgplY2hvICJGb3JtYXR0ZWQgd2dldCBhY2NlcHQgbGlzdDoiCmVjaG8gIiIKZWNobyAid2dldCAtLWFjY2VwdD1cIiRmb3JtYXR0ZWRfbGlzdFwiIgplY2hvICIiCmVjaG8gIiR7bGluZX0iCmVjaG8gIiIKCiMgUnVuIHdnZXQgdG8gcmV0cmlldmUgRmFzdFFzIGFuZCBNRDUgZmlsZXMKIyBOb3RlOiB0aGUgLS1uby1jbG9iYmVyIGNvbW1hbmQgd2lsbCBza2lwIHJlLWRvd25sb2FkaW5nIGFueSBmaWxlcyB0aGF0IGFyZSBhbHJlYWR5IHByZXNlbnQgaW4gdGhlIG91dHB1dCBkaXJlY3RvcnkKd2dldCBcCi0tZGlyZWN0b3J5LXByZWZpeCAke3Jhd19yZWFkc19kaXJ9IFwKLS1yZWN1cnNpdmUgXAotLW5vLWNoZWNrLWNlcnRpZmljYXRlIFwKLS1jb250aW51ZSBcCi0tY3V0LWRpcnMgMyBcCi0tbm8taG9zdC1kaXJlY3RvcmllcyBcCi0tbm8tcGFyZW50IFwKLS1xdWlldCBcCi0tbm8tY2xvYmJlciBcCi0tYWNjZXB0PSR7Zm9ybWF0dGVkX2xpc3R9ICR7cmF3X3JlYWRzX3VybH0KCmxzIC1saCAiJHtyYXdfcmVhZHNfZGlyfSIKYGBgCgojIyBWZXJpZnkgcmF3IHJlYWQgY2hlY2tzdW1zCgpgYGB7YmFzaCB2ZXJpZnktcmF3LXJlYWQtY2hlY2tzdW1zLCBlbmdpbmU9J2Jhc2gnfQojIExvYWQgYmFzaCB2YXJpYWJsZXMgaW50byBtZW1vcnkKc291cmNlIC5iYXNodmFycwoKY2QgIiR7cmF3X3JlYWRzX2Rpcn0iCgojIENoZWNrc3VtcyBmaWxlIGNvbnRhaW5zIG90aGVyIGZpbGVzLCBzbyB0aGlzIGp1c3QgbG9va3MgZm9yIHRoZSBSTkFzZXEgZmlsZXMuCmZvciBmaWxlIGluICoubWQ1CmRvCiAgbWQ1c3VtIC0tY2hlY2sgIiR7ZmlsZX0iCmRvbmUKYGBgCgojIEZhc3RRQy9NdWx0aVFDIG9uIHJhdyByZWFkcwoKYGBge2Jhc2ggcmF3LWZhc3RxYy1tdWx0aXFjLCBlbmdpbmU9J2Jhc2gnfQojIExvYWQgYmFzaCB2YXJpYWJsZXMgaW50byBtZW1vcnkKc291cmNlIC5iYXNodmFycwoKIyBNYWtlIG91dHB1dCBkaXJlY3RvcnkgaWYgaXQgZG9lc24ndCBleGlzdApta2RpciAtLXBhcmVudHMgIiR7cmF3X2Zhc3RxY19kaXJ9IgoKIyMjIyMjIyMjIyMjIFJVTiBGQVNUUUMgIyMjIyMjIyMjIyMjCgoKIyBDcmVhdGUgYXJyYXkgb2YgdHJpbW1lZCBGYXN0UXMKcmF3X2Zhc3Rxc19hcnJheT0oJHtyYXdfcmVhZHNfZGlyfS8ke2Zhc3RxX3BhdHRlcm59KQoKIyBQYXNzIGFycmF5IGNvbnRlbnRzIHRvIG5ldyB2YXJpYWJsZSBhcyBzcGFjZS1kZWxpbWl0ZWQgbGlzdApyYXdfZmFzdHFjX2xpc3Q9JChlY2hvICIke3Jhd19mYXN0cXNfYXJyYXlbKl19IikKCmVjaG8gIkJlZ2lubmluZyBGYXN0UUMgb24gcmF3IHJlYWRzLi4uIgplY2hvICIiCgojIFJ1biBGYXN0UUMKIyMjIE5PVEU6IERvIE5PVCBxdW90ZSByYXdfZmFzdHFjX2xpc3QKJHtwcm9ncmFtc19hcnJheVtmYXN0cWNdfSBcCi0tdGhyZWFkcyAke3RocmVhZHN9IFwKLS1vdXRkaXIgJHtyYXdfZmFzdHFjX2Rpcn0gXAotLXF1aWV0IFwKJHtyYXdfZmFzdHFjX2xpc3R9CgplY2hvICJGYXN0UUMgb24gcmF3IHJlYWRzIGNvbXBsZXRlISIKZWNobyAiIgoKIyMjIyMjIyMjIyMjIEVORCBGQVNUUUMgIyMjIyMjIyMjIyMjCgojIyMjIyMjIyMjIyMgUlVOIE1VTFRJUUMgIyMjIyMjIyMjIyMjCmVjaG8gIkJlZ2lubmluZyBNdWx0aVFDIG9uIHJhdyBGYXN0UUMuLi4iCmVjaG8gIiIKCiR7cHJvZ3JhbXNfYXJyYXlbbXVsdGlxY119ICR7cmF3X2Zhc3RxY19kaXJ9IC1vICR7cmF3X2Zhc3RxY19kaXJ9CgplY2hvICIiCmVjaG8gIk11bHRpUUMgb24gcmF3IEZhc3RRcyBjb21wbGV0ZS4iCmVjaG8gIiIKCiMjIyMjIyMjIyMjIyBFTkQgTVVMVElRQyAjIyMjIyMjIyMjIyMKCmVjaG8gIlJlbW92aW5nIEZhc3RRQyB6aXAgZmlsZXMuIgplY2hvICIiCnJtICR7cmF3X2Zhc3RxY19kaXJ9LyouemlwCmVjaG8gIkZhc3RRQyB6aXAgZmlsZXMgcmVtb3ZlZC4iCmVjaG8gIiIKYGBgCgpgYGB7YmFzaH0KIyBMb2FkIGJhc2ggdmFyaWFibGVzIGludG8gbWVtb3J5CnNvdXJjZSAuYmFzaHZhcnMKCiMgVmlldyBkaXJlY3RvcnkgY29udGVudHMKbHMgLWxoICR7cmF3X2Zhc3RxY19kaXJ9CgpgYGAKCgo=</div>
 
 
 </div>
