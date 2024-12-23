@@ -66,3 +66,22 @@ wc -l ../output/07-Apul-miRNA-mRNA-miRanda/Apul-miRanda-3UTR-strict_all.tab
 
 ```
 
+This is a lot of putative interactions! We can probably narrow it down though. In vertebrates, miRNA-mRNA binding only requires complementarity of an miRNA seed region of ~8 nucleotides. This requirement is built in to miRanda target prediction. In cnidarians, however, miRNA-mRNA binding is believed to require near-complete complementarity of the full mature miRNA, similarly to plants. Let's look at how many putative interactions are predicted for a binding length of at least 21 nucleotides (the length of our smallest mature miRNA).
+
+```{r, engine='bash'}
+echo "number of putative interactions of at least 21 nucleotides"
+awk -F'\t' '$7 >= 21' ../output/07-Apul-miRNA-mRNA-miRanda/Apul-miRanda-3UTR-strict-parsed.txt | wc -l
+echo ""
+echo "check some:"
+awk -F'\t' '$7 >= 21' ../output/07-Apul-miRNA-mRNA-miRanda/Apul-miRanda-3UTR-strict-parsed.txt | head -5
+```
+
+We can also see from the alignment percentages (last 2 entries) that this number includes alignments with multiple mismatches. Let's filter again to reduce the number of permissible mismatches. Let's say we want no more than 3 mismatches. For an alignment of 21 nucleotides, this would be an alignment rate of (21-3)/21 = 85.7%.
+
+```{r, engine='bash'}
+echo "number of putative interactions of at least 21 nucleotides, with at most 3 mismatches"
+awk -F'\t' '$7 >= 21' ../output/07-Apul-miRNA-mRNA-miRanda/Apul-miRanda-3UTR-strict-parsed.txt | awk -F'\t' '$8 >= 85' | wc -l
+echo ""
+echo "check some:"
+awk -F'\t' '$7 >= 21' ../output/07-Apul-miRNA-mRNA-miRanda/Apul-miRanda-3UTR-strict-parsed.txt | awk -F'\t' '$8 >= 85' | head -5
+```
