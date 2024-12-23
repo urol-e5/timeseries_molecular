@@ -1,0 +1,91 @@
+---
+title: "10-Apul-lncRNA-miRNA-miRanda"
+author: "Kathleen Durkin"
+date: "2024-12-19"
+always_allow_html: true
+output: 
+  bookdown::html_document2:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+  github_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+    html_preview: true 
+---
+
+miRanda is a target prediction software, used to identify likely miRNA-mRNA interactions.
+
+Inputs:
+
+  - FASTA of A.pulchra lncRNAs, generated in `08-Apul-lncRNA`
+  
+  - FASTA of A.pulchra mature miRNAs `miRNA_mature-Apul.fasta`. miRNAs identified in `04-Apul-sRNA-discovery-ShortStack`, matures isolated for use in `06-Apul-miRNA-mRNA-RNAhybrid`
+
+# Obtain lncRNA fasta
+```{r, engine='bash'}
+
+# from lncRNA gtf
+/home/shared/bedtools2/bin/bedtools getfasta -fi ../data/Apulchra-genome.fa -bed ../output/08-Apul-lncRNA/lncRNAs.gtf -fo ../output/10-Apul-lncRNA-miRNA-miRanda/lncRNAs.fa
+
+```
+
+# Run miRanda
+```{r, engine='bash', eval=FALSE}
+
+# score cutoff >100
+# energy cutoff <-10
+# strict binding
+
+/home/shared/miRanda-3.3a/src/miranda \
+../data/06-Apul-miRNA-mRNA-RNAhybrid/miRNA_mature-Apul.fasta \
+../output/10-Apul-lncRNA-miRNA-miRanda/lncRNAs.fa \
+-sc 100 \
+-en -10 \
+-strict \
+-out ../output/10-Apul-lncRNA-miRNA-miRanda/Apul-miRanda-lncRNA-strict_all.tab
+```
+
+
+Let's look at the output
+
+```{r, engine='bash'}
+
+echo "miranda run finished!"
+echo "Counting number of interacting miRNA-lncRNA pairs"
+
+zgrep -c "Performing Scan" ../output/10-Apul-lncRNA-miRNA-miRanda/Apul-miRanda-lncRNA-strict_all.tab
+
+echo "Parsing output"
+grep -A 1 "Scores for this hit:" ../output/10-Apul-lncRNA-miRNA-miRanda/Apul-miRanda-lncRNA-strict_all.tab | sort | grep '>' > ../output/10-Apul-lncRNA-miRNA-miRanda/Apul-miRanda-lncRNA-strict-parsed.txt
+
+echo "counting number of putative interactions predicted (can include multiple interactions between single miRNA-lncRNA pair)"
+wc -l ../output/10-Apul-lncRNA-miRNA-miRanda/Apul-miRanda-lncRNA-strict_all.tab
+
+```
+
+This is a lot of putative interactions! We can probably narrow it down though. In vertebrates, miRNA-mRNA binding only requires complementarity of an miRNA seed region of ~8 nucleotides. This requirement is built in to miRanda target prediction. In cnidarians, however, miRNA-mRNA binding is believed to require near-complete complementarity of the full mature miRNA, similarly to plants. While I couldn't find any information on expected requirements for miRNA-lncRNA sponges, its possible the binding will function similarly to miRNA-mRNa binding. Let's look at how many putative interactions are predicted for a binding length of at least 21 nucleotides (the length of our smallest mature miRNA).
+
+```{r, engine='bash'}
+echo "number of putative interactions of at least 21 nucleotides"
+awk -F'\t' '$7 >= 21' ../output/10-Apul-lncRNA-miRNA-miRanda/Apul-miRanda-lncRNA-strict-parsed.txt | wc -l
+echo ""
+echo "check some:"
+awk -F'\t' '$7 >= 21' ../output/10-Apul-lncRNA-miRNA-miRanda/Apul-miRanda-lncRNA-strict-parsed.txt | head -5
+```
+
+We can also see from the alignment percentages (last 2 entries) that this number includes alignments with multiple mismatches. Let's filter again to reduce the number of permissible mismatches. Let's say we want no more than 3 mismatches. For an alignment of 21 nucleotides, this would be an alignment rate of (21-3)/21 = 85.7%.
+
+```{r, engine='bash'}
+echo "number of putative interactions of at least 21 nucleotides, with at most 3 mismatches"
+awk -F'\t' '$7 >= 21' ../output/10-Apul-lncRNA-miRNA-miRanda/Apul-miRanda-lncRNA-strict-parsed.txt | awk -F'\t' '$8 >= 85' | wc -l
+echo ""
+echo "check some:"
+awk -F'\t' '$7 >= 21' ../output/10-Apul-lncRNA-miRNA-miRanda/Apul-miRanda-lncRNA-strict-parsed.txt | awk -F'\t' '$8 >= 85' | head -5
+```
+
+
