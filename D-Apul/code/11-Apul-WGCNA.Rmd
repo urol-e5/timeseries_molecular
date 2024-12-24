@@ -19,7 +19,6 @@ knitr::opts_chunk$set(
 
 To do: 
 
-- Compare with blockwise module approach 
 - Troubleshoot correlations with Timepoint and site as categories 
 - See if we can run correlations in which some samples have NA with traits (e.g., cre)
 - Look at physiology outliers 
@@ -477,55 +476,40 @@ dev.off()
 
 ```
 
-
-
-
-
-AH LEFT OFF HERE - 20241223 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # Plot eigengene values 
 
 View module eigengene data and make dataframe for Strader plots.  
 ```{r}
 head(MEs)
 names(MEs)
-Strader_MEs <- MEs
-Strader_MEs$Sym_AFDW.mg.cm2 <- datTraits$Sym_AFDW.mg.cm2
-Strader_MEs$sample_id <- rownames(Strader_MEs)
-head(Strader_MEs)
+Eigen_MEs <- MEs
+Eigen_MEs$AzentaSampleName <- rownames(Eigen_MEs)
+head(Eigen_MEs)
 
-Strader_MEs<-Strader_MEs%>%
+plotTraits<-datTraits
+plotTraits$AzentaSampleName <- rownames(plotTraits)
+
+Eigen_MEs<-Eigen_MEs%>%
   droplevels() #drop unused level
 
-dim(Strader_MEs)
-head(Strader_MEs)
+dim(Eigen_MEs)
+head(Eigen_MEs)
 ```
 
 Plot mean module eigengene for each module.  
 
 ```{r}
 #convert wide format to long format for plotting  
-plot_MEs<-Strader_MEs%>%
-  gather(., key="Module", value="Mean", ME35:ME45)
+plot_MEs<-Eigen_MEs%>%
+  gather(., key="Module", value="Mean", ME0:ME47)
+
+#join with phys data 
+plot_MEs<-left_join(plot_MEs, plotTraits)
 
 expression_plots<-plot_MEs%>%
   group_by(Module) %>%
-  #filter(Module %in% c("ME38", "ME48", "ME2"))%>%
   
-  ggplot(aes(x=Sym_AFDW.mg.cm2, y=Mean)) +
+  ggplot(aes(x=Rd, y=Mean)) +
   facet_wrap(~ Module)+
   geom_point()+
   geom_smooth()+
