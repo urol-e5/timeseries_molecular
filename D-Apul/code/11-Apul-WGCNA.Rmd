@@ -34,11 +34,7 @@ library(magrittr)
 library(genefilter)
 ```
 
-Used Jennifer Chang's Bioinformatic Workflow [post on WGCNA analysis](https://bioinformaticsworkbook.org/tutorials/wgcna.html#gsc.tab=0) as a very helpful guide.
-
-**NOTE: WGCNA is recommended for use with at *least* 15 samples to draw meaningful conclusions. We only have 5 samples from each species in our deep-dive dataset, so this code is primarily intended to be a trial run, developing an RNA-sRNA WGCNA coexpression pipeline in preparation for our *time series data*.**
-
-## Load variance stabilized count data
+## Load data
 
 Load in count matrices for RNAseq. 
 
