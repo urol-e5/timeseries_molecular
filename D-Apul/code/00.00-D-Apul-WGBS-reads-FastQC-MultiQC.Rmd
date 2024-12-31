@@ -3,6 +3,9 @@ title: "00.00-D-Apul-WGBS-reads-FastQC-MultiQC"
 author: "Sam White"
 date: "2024-12-31"
 output: 
+  github_document:
+    toc: true
+    number_sections: true
   bookdown::html_document2:
     theme: cosmo
     toc: true
@@ -10,9 +13,6 @@ output:
     number_sections: true
     code_folding: show
     code_download: true
-  github_document:
-    toc: true
-    number_sections: true
   html_document:
     theme: cosmo
     toc: true
@@ -113,7 +113,8 @@ mkdir --parents ${raw_reads_dir}
 # Create list of only A.pulchra sample names
 # Some samples names are preceded by the sample number for some reason,
 # so this handles that formatting.
-sample_list=$(awk -F"," '$11 == "Acropora pulchra" { if ($9 ~ /E/) { print $8 "--" $9 } else { print $9 } }' ${timeseries_dir}/M-multi-species/data/30-1067895835-WGBS-sample-submission-form.csv)
+sample_list=$(awk -F"," '$11 == "Acropora pulchra" { if ($9 ~ /E/) { print $8 "--" $9 } else { print $9 } }' ${timeseries_dir}/M-multi-species/data/30-1067895835-WGBS-sample-submission-form.csv \
+| sort)
 
 echo ""
 echo "${line}"
@@ -210,7 +211,10 @@ echo ""
 echo "Beginning MultiQC on raw FastQC..."
 echo ""
 
-${programs_array[multiqc]} ${raw_fastqc_dir} -o ${raw_fastqc_dir}
+${programs_array[multiqc]} \
+${raw_fastqc_dir} \
+--interactive \
+-o ${raw_fastqc_dir}
 
 echo ""
 echo "MultiQC on raw FastQs complete."
