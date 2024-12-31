@@ -1,5 +1,5 @@
 ---
-title: "00.00-D-Apul-WGBS-reads-FastQC-MultiQC"
+title: "00.20-D-Apul-WGBS-reads-FastQC-MultiQC"
 author: "Sam White"
 date: "2024-12-31"
 output: 
@@ -48,7 +48,7 @@ echo ""
 echo "# Data directories"
 echo 'export timeseries_dir=/home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular'
 echo 'export output_dir_top=${timeseries_dir}/D-Apul/output/00.00-D-Apul-WGBS-reads-FastQC-MultiQC'
-echo 'export raw_fastqc_dir=${timeseries_dir}/D-Apul/${output_dir_top}/raw-fastqc'
+echo 'export raw_fastqc_dir=${output_dir_top}/raw-fastqc'
 echo 'export raw_reads_dir=${timeseries_dir}/D-Apul/data/wgbs-raw-fastqs'
 echo 'export raw_reads_url="https://owl.fish.washington.edu/nightingales/E5-coral-time-series/30-1067895835/"'
 echo ""
