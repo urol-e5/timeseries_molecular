@@ -127,7 +127,7 @@ echo ""
 
 
 # Use printf to format each item for use in wget
-formatted_list=$(printf "*%s*," ${sample_list})
+formatted_list=$(printf "%s*," ${sample_list})
 
 # Remove the trailing comma and append *.md5
 formatted_list="${formatted_list%,},*.md5"
