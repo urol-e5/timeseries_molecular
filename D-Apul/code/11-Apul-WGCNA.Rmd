@@ -1,0 +1,623 @@
+---
+title: "Apul WGCNA"
+output: html_document
+date: "2024-12-23"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+knitr::opts_chunk$set(
+  echo = TRUE,         # Display code chunks
+  eval = TRUE,         # Evaluate code chunks
+  warning = FALSE,     # Hide warnings
+  message = FALSE,     # Hide messages
+  comment = ""         # Prevents appending '##' to beginning of lines in code output
+)
+```
+
+To do: 
+
+- Troubleshoot correlations with Timepoint and site as categories 
+- See if we can run correlations in which some samples have NA with traits (e.g., cre)
+- Look at physiology outliers 
+- Run LRT test in DESeq2 to find differential expression across time and site then pair with correlations to phys using WGCNA 
+
+# Install and load packages
+
+```{r load_libraries, inlcude = TRUE}
+library(tidyverse)
+library(ggplot2)
+library(WGCNA)
+library(magrittr)
+library(genefilter)
+```
+
+# Load data
+
+Load in count matrices for RNAseq. 
+
+```{r load-RNA-counts}
+# RNA variance stabilized counts data
+genes <- read_csv("D-Apul/output/02.20-D-Apul-RNAseq-alignment-HiSat2/apul-gene_count_matrix.csv")
+
+genes<-as.data.frame(genes)
+
+rownames(genes)<-genes$gene_id
+
+genes<-genes%>%select(!gene_id)
+
+metadata<-read_csv("M-multi-species/data/rna_metadata.csv")%>%select(AzentaSampleName, ColonyID, Timepoint)%>%
+  filter(grepl("ACR", ColonyID))
+
+colonies<-unique(metadata$ColonyID)
+
+phys<-read_csv("https://github.com/urol-e5/timeseries/raw/refs/heads/master/time_series_analysis/Output/master_timeseries.csv")%>%filter(colony_id_corr %in% colonies)%>%
+  select(colony_id_corr, species, timepoint, site, Host_AFDW.mg.cm2, Sym_AFDW.mg.cm2, Am, AQY, Rd, Ik, Ic, calc.umol.cm2.hr, cells.mgAFDW, prot_mg.mgafdw, Ratio_AFDW.mg.cm2, Total_Chl, Total_Chl_cell, cre.umol.mgafdw)
+
+#add site information into metadata 
+metadata$Site<-phys$site[match(metadata$ColonyID, phys$colony_id_corr)]
+```
+
+Check that there are no genes with 0 counts across all samples.
+
+```{r}
+nrow(genes)
+
+genes<-genes %>%
+     mutate(Total = rowSums(.[, 1:40]))%>%
+    filter(!Total==0)%>%
+    dplyr::select(!Total)
+
+nrow(genes)
+```
+
+# Run PCA on physiology data to see if there are phys outliers 
+
+Export data for PERMANOVA test.  
+```{r}
+test<-as.data.frame(phys)
+test<-test[complete.cases(test), ]
+```
+
+Build PERMANOVA model.  
+```{r}
+library(factoextra)
+library(vegan)
+
+scaled_test <-prcomp(test%>%select(where(is.numeric)), scale=TRUE, center=TRUE)
+fviz_eig(scaled_test)
+
+# scale data
+vegan <- scale(test%>%select(where(is.numeric)))
+
+# PerMANOVA 
+permanova<-adonis2(vegan ~ timepoint*site, data = test, method='eu')
+permanova
+```
+
+```{r}
+library(ggplot2)
+library(ggfortify)
+library(RColorBrewer)
+library(ComplexHeatmap)
+
+pca1<-ggplot2::autoplot(scaled_test, data=test, frame.colour="timepoint", loadings=FALSE,  colour="timepoint", shape="site", loadings.label.colour="black", loadings.colour="black", loadings.label=FALSE, frame=FALSE, loadings.label.size=5, loadings.label.vjust=-1, size=5) + 
+  geom_text(aes(x = PC1, y = PC2, label = paste(colony_id_corr, timepoint)), vjust = -0.5)+
+  theme_classic()+
+   theme(legend.text = element_text(size=18), 
+         legend.position="right",
+        plot.background = element_blank(),
+        legend.title = element_text(size=18, face="bold"), 
+        axis.text = element_text(size=18), 
+        axis.title = element_text(size=18,  face="bold"));pca1
+```
+
+Remove ACR-173, timepoint 3 sample from analysis. This is Azenta sample 1B2. 
+
+```{r}
+genes<-genes%>%
+  select(!`1B2`)
+```
+
+We also do not have phys data for colony 1B9 ACR-265 at TP4, so I'll remove that here as well. 
+
+```{r}
+genes<-genes%>%
+  select(!`1B9`)
+```
+
+# pOverA filtering
+
+*pOverA*: Specifying the minimum count for a proportion of samples for each gene. Here, we are using a pOverA of 0.1. This is because we have 40 samples with a minimum of n=4 samples per timepoint per site. Therefore, we will accept genes that are present in 4/40 = 0.1 of the samples because we expect different expression by life stage. We are further setting the minimum count of genes to 10, such that 12.5% of the samples must have a gene count of >10 in order for the gene to remain in the data set.  
+
+Filter in the package "genefilter". Pre-filtering our dataset to reduce the memory size dataframe, increase the speed of the transformation and testing functions, and improve quality of statistical analysis by removing low-coverage counts. Removed counts could represent outliers in the data and removing these improves sensitivity of statistical tests.   
+
+```{r}
+filt <- filterfun(pOverA(0.1,10))
+
+#create filter for the counts data
+gfilt <- genefilter(genes, filt)
+
+#identify genes to keep by count filter
+gkeep <- genes[gfilt,]
+
+#identify genes to keep by count filter
+gkeep <- genes[gfilt,]
+
+#identify gene lists
+gn.keep <- rownames(gkeep)
+
+#gene count data filtered in PoverA, P percent of the samples have counts over A
+genes_filt <- as.data.frame(genes[which(rownames(genes) %in% gn.keep),])
+
+#How many rows do we have before and after filtering?
+nrow(genes) #Before
+nrow(genes_filt) #After
+```
+
+We had 35869 genes before, and 23494 genes after filtering. 
+
+# Assign metadata and arrange order of columns 
+
+Display current order of metadata and gene count matrix.  
+```{r}
+metadata$AzentaSampleName
+colnames(genes_filt)
+
+metadata<-metadata%>%
+  filter(!AzentaSampleName=="1B2")%>%
+  filter(!AzentaSampleName=="1B9")
+```
+
+Order metadata the same as the column order in the gene matrix.  
+```{r}
+list<-colnames(genes_filt)
+list<-as.factor(list)
+
+metadata$AzentaSampleName<-as.factor(metadata$AzentaSampleName)
+
+# Re-order the levels
+metadata$AzentaSampleName <- factor(as.character(metadata$AzentaSampleName), levels=list)
+# Re-order the data.frame
+metadata_ordered <- metadata[order(metadata$AzentaSampleName),]
+metadata_ordered$AzentaSampleName
+```
+
+Metadata and gene count matrix are now ordered the same. 
+
+# Conduct variance stabilized transformation 
+
+```{r}
+library(DESeq2)
+#Set DESeq2 design
+gdds <- DESeqDataSetFromMatrix(countData = genes_filt,
+                              colData = metadata_ordered,
+                              design = ~Timepoint+Site)
+```
+
+Check size factors. 
+```{r}
+SF.gdds <- estimateSizeFactors(gdds) #estimate size factors to determine if we can use vst  to transform our data. Size factors should be less than 4 for us to use vst
+print(sizeFactors(SF.gdds)) #View size factors
+
+all(sizeFactors(SF.gdds)) < 4
+```
+
+All size factors are less than 4, so we can use VST transformation.  
+
+```{r}
+gvst <- vst(gdds, blind=FALSE) #apply a variance stabilizing transformation to minimize effects of small counts and normalize wrt library size
+head(assay(gvst), 3) #view transformed gene count data for the first three genes in the dataset.  
+```
+
+# Conduct permanova and pca 
+
+Export data for PERMANOVA test.  
+```{r}
+test<-t(assay(gvst)) #export as matrix
+test<-as.data.frame(test)
+
+#add category columns
+test$Sample<-rownames(test)
+test$Timepoint<-metadata$Timepoint[match(test$Sample, metadata$AzentaSampleName)]
+test$Site<-metadata$Site[match(test$Sample, metadata$AzentaSampleName)]
+```
+
+Build PERMANOVA model.  
+```{r}
+library(factoextra)
+library(vegan)
+
+scaled_test <-prcomp(test%>%select(where(is.numeric)), scale=TRUE, center=TRUE)
+fviz_eig(scaled_test)
+
+# scale data
+vegan <- scale(test%>%select(where(is.numeric)))
+
+# PerMANOVA 
+permanova<-adonis2(vegan ~ Timepoint*Site, data = test, method='eu')
+permanova
+```
+
+```{r}
+library(ggplot2)
+library(ggfortify)
+library(RColorBrewer)
+library(ComplexHeatmap)
+
+pca1<-ggplot2::autoplot(scaled_test, data=test, frame.colour="Timepoint", loadings=FALSE,  colour="Timepoint", shape="Site", loadings.label.colour="black", loadings.colour="black", loadings.label=FALSE, frame=FALSE, loadings.label.size=5, loadings.label.vjust=-1, size=5) + 
+  geom_text(aes(x = PC1, y = PC2, label = Sample), vjust = -0.5)+
+  theme_classic()+
+   theme(legend.text = element_text(size=18), 
+         legend.position="right",
+        plot.background = element_blank(),
+        legend.title = element_text(size=18, face="bold"), 
+        axis.text = element_text(size=18), 
+        axis.title = element_text(size=18,  face="bold"));pca1
+```
+
+Look at sample distances. 
+```{r}
+gsampleDists <- dist(t(assay(gvst))) #calculate distance matix
+gsampleDistMatrix <- as.matrix(gsampleDists) #distance matrix
+rownames(gsampleDistMatrix) <- colnames(gvst) #assign row names
+colnames(gsampleDistMatrix) <- NULL #assign col names
+colors <- colorRampPalette( rev(brewer.pal(9, "Blues")) )(255) #assign colors
+
+save_pheatmap_pdf <- function(x, filename, width=7, height=7) {
+   stopifnot(!missing(x))
+   stopifnot(!missing(filename))
+   pdf(filename, width=width, height=height)
+   grid::grid.newpage()
+   grid::grid.draw(x$gtable)
+   dev.off()
+}
+
+pht<-pheatmap(gsampleDistMatrix, #plot matrix
+         clustering_distance_rows=gsampleDists, #cluster rows
+         clustering_distance_cols=gsampleDists, #cluster columns
+         col=colors) #set colors
+
+pdf(file="D-Apul/output/11.00-Apul-WGCNA/pheatmap.pdf")
+print(pht)
+dev.off()
+```
+
+# WGCNA
+
+Look for outliers by examining tree of samples  
+```{r}
+datExpr <- as.data.frame(t(assay(gvst)))
+
+sampleTree = hclust(dist(datExpr), method = "average");
+# Plot the sample tree: Open a graphic output window of size 12 by 9 inches
+# The user should change the dimensions if the window is too large or too small.
+pdf("D-Apul/output/11.00-Apul-WGCNA/outliers.pdf")
+plot(sampleTree, main = "Sample clustering to detect outliers", sub="", xlab="", cex.lab = 1.5, cex.axis = 1.5, cex.main = 2)
+dev.off()
+```
+
+Soft threshold selection. The soft thresholding power (β) is the number to which the co-expression similarity is raised to calculate adjacency. The function pickSoftThreshold performs a network topology analysis. The user chooses a set of candidate powers, however the default parameters are suitable values.  
+```{r, message=FALSE, warning=FALSE}
+allowWGCNAThreads()
+# # Choose a set of soft-thresholding powers
+powers <- c(seq(from = 1, to=19, by=2), c(21:30)) #Create a string of numbers from 1 through 10, and even numbers from 10 through 20
+# 
+# # Call the network topology analysis function
+sft <-pickSoftThreshold(datExpr, powerVector = powers, verbose = 5)
+```
+
+Plot the results.  
+```{r}
+sizeGrWindow(9, 5)
+par(mfrow = c(1,2));
+cex1 = 0.9;
+# # # Scale-free topology fit index as a function of the soft-thresholding power
+plot(sft$fitIndices[,1], -sign(sft$fitIndices[,3])*sft$fitIndices[,2],
+      xlab="Soft Threshold (power)",ylab="Scale Free Topology Model Fit,signed R^2",type="n",
+     main = paste("Scale independence"));
+ text(sft$fitIndices[,1], -sign(sft$fitIndices[,3])*sft$fitIndices[,2],
+     labels=powers,cex=cex1,col="red");
+# # # this line corresponds to using an R^2 cut-off
+ abline(h=0.9,col="red")
+# # # Mean connectivity as a function of the soft-thresholding power
+ plot(sft$fitIndices[,1], sft$fitIndices[,5],
+     xlab="Soft Threshold (power)",ylab="Mean Connectivity", type="n",
+     main = paste("Mean connectivity"))
+ text(sft$fitIndices[,1], sft$fitIndices[,5], labels=powers, cex=cex1,col="red")
+```
+I used a scale-free topology fit index **R^2 of 0.9**. The lowest recommended R^2 by Langfelder and Horvath is 0.8. I chose 0.9 because we want to use the smallest soft thresholding power that maximizes with model fit. It appears that our **soft thresholding power is 5** because it is the lowest power above the R^2=0.9 threshold that maximizes with model fit. I will use a **signed network**.  
+
+Now we're ready to run WGCNA!
+
+```{r, cache=TRUE}
+picked_power = 5
+temp_cor <- cor       
+cor <- WGCNA::cor         # Force it to use WGCNA cor function (fix a namespace conflict issue)
+netwk_Apul <- blockwiseModules(datExpr,                # <= input here
+
+                          # == Adjacency Function ==
+                          power = picked_power,                # <= power here
+                          networkType = "signed",
+
+                          # == Tree and Block Options ==
+                          deepSplit = 2,
+                          pamRespectsDendro = F,
+                          # detectCutHeight = 0.75,
+                          minModuleSize = 30,
+                          maxBlockSize = 5000,
+
+                          # == Module Adjustments ==
+                          reassignThreshold = 1e-6,
+                          mergeCutHeight = 0.15,
+
+                          # == TOM == Archive the run results in TOM file (saves time)
+                          saveTOMs = F,
+                          saveTOMFileBase = "ER",
+
+                          # == Output Options
+                          numericLabels = T,
+                          verbose = 3)
+
+
+cor <- temp_cor     # Return cor function to original namespace
+
+```
+
+Take a look at dendrogram. 
+```{r}
+# Convert labels to colors for plotting
+mergedColors = labels2colors(netwk_Apul$colors)
+labels = table(netwk_Apul$colors)
+labels
+
+# Plot the dendrogram and the module colors underneath
+
+plotDendroAndColors(
+  netwk_Apul$dendrograms[[1]],
+  mergedColors[netwk_Apul$blockGenes[[1]]],
+  "Module colors",
+  dendroLabels = FALSE,
+  hang = 0.03,
+  addGuide = TRUE,
+  guideHang = 0.05 )
+```
+
+1785 genes are unassigned.  
+
+Show module number before and after merging. 
+```{r}
+length(table(netwk_Apul$unmergedColors))
+length(table(netwk_Apul$colors))
+```
+
+There are 64 modules before merging to 85% similarity and 63 after. 
+
+```{r}
+MEs<-netwk_Apul$MEs
+moduleLabels<-netwk_Apul$colors
+```
+
+# Correlate to traits 
+
+Remove sample from expression data that is not present in physiological data. 1B9
+```{r}
+phys<-phys%>%mutate(Timepoint=if_else(timepoint=="timepoint1","TP1", 
+                        if_else(timepoint=="timepoint2", "TP2", 
+                                if_else(timepoint=="timepoint3", "TP3", 
+                                  if_else(timepoint=="timepoint4", "TP4", NA)))))
+
+phys$Timepoint
+
+phys$Code <- paste0(phys$colony_id_corr, "_", phys$Timepoint)
+
+phys<-phys%>%
+  filter(!Code=="ACR-256_TP4")%>%
+  filter(!Code=="ACR-173_TP3")
+
+metadata_ordered$Code<-paste0(metadata_ordered$ColonyID, "_", metadata_ordered$Timepoint)
+
+setdiff(metadata_ordered$Code, phys$Code)
+
+#all have 38 observations 
+```
+
+Create a physiological/factor dataset with sample in rows and phys data in columns (row name = Azenta sample name)
+```{r}
+phys$AzentaSampleName<-metadata_ordered$AzentaSampleName[match(phys$Code, metadata_ordered$Code)]
+
+traits<-phys%>%
+  select(AzentaSampleName, Timepoint, site, Host_AFDW.mg.cm2, Sym_AFDW.mg.cm2, Am, Rd, Ik, Ic, AQY, cells.mgAFDW, Total_Chl, Ratio_AFDW.mg.cm2, Total_Chl_cell)
+
+#time point
+#site
+traits<-traits%>%
+  mutate(site=if_else(site=="Mahana", "1", 
+                      if_else(site=="Manava", "2", NA)))%>%
+  mutate(Timepoint=gsub("TP", "", Timepoint))
+
+traits$Timepoint<-as.numeric(traits$Timepoint)
+traits$site<-as.numeric(traits$site)
+
+traits<-as.data.frame(traits)
+rownames(traits)<-traits$AzentaSampleName
+
+datTraits<-traits%>%select(!AzentaSampleName)
+
+#datTraits<-datTraits%>%select(!Timepoint)
+```
+
+Add in temperature and light information for each time point from physiology manuscript. 
+```{r}
+env<-read_csv("https://github.com/urol-e5/timeseries/raw/refs/heads/master/time_series_analysis/Output/environment_characteristics_RDA.csv")%>%select(mean_Temp_mean, mean_solar_rad_kwpm2_mean, timepoint)%>%
+  mutate(Timepoint=if_else(timepoint=="timepoint1", "1", 
+                           if_else(timepoint=="timepoint2", "2", 
+                                   if_else(timepoint=="timepont3", "3", "4"))))%>%
+  mutate(Timepoint=as.numeric(Timepoint))%>%
+  select(!timepoint)
+
+#merge into datTraits
+
+datTraits<-left_join(datTraits, env)
+rownames(datTraits)<-traits$AzentaSampleName
+
+str(datTraits)
+
+datTraits<-datTraits%>%select(!Timepoint)
+```
+
+```{r}
+nGenes = ncol(datExpr)
+nSamples = nrow(datExpr)
+
+nGenes
+nSamples
+```
+
+Generate labels for module eigengenes as numbers.  
+```{r}
+MEs0 = moduleEigengenes(datExpr, moduleLabels, softPower=5)$eigengenes
+MEs = orderMEs(MEs0)
+names(MEs)
+```
+
+Correlations of traits with eigengenes
+```{r}
+moduleTraitCor = cor(MEs, datTraits, use = "p");
+moduleTraitPvalue = corPvalueStudent(moduleTraitCor, nSamples);
+Colors=sub("ME","", names(MEs))
+
+moduleTraitTree = hclust(dist(t(moduleTraitCor)), method = "average")
+
+pdf(file="D-Apul/output/11.00-Apul-WGCNA/ModuleTraitClusterTree.pdf")
+plot(moduleTraitTree)
+dev.off()
+```
+
+Correlations of genes with eigengenes. Calculate correlations between ME's and lifestages. 
+```{r}
+moduleGeneCor=cor(MEs,datExpr)
+moduleGenePvalue = corPvalueStudent(moduleGeneCor, nSamples);
+```
+
+Calculate kME values (module membership). 
+
+```{r}
+datKME = signedKME(datExpr, MEs, outputColumnName = "kME")
+head(datKME)
+```
+
+Generate a complex heatmap of module-trait relationships.  
+
+```{r}
+#bold sig p-values
+#dendrogram with WGCNA MEtree cut-off
+#colored y-axis
+
+#Create list of pvalues for eigengene correlation with specific life stages
+heatmappval <- signif(moduleTraitPvalue, 1)
+
+#Make list of heatmap row colors
+htmap.colors <- names(MEs)
+htmap.colors <- gsub("ME", "", htmap.colors)
+
+library(dendsort)
+row_dend = dendsort(hclust(dist(moduleTraitCor)))
+col_dend = dendsort(hclust(dist(t(moduleTraitCor))))
+
+pdf(file = "D-Apul/output/11.00-Apul-WGCNA/Module-trait-relationship-heatmap.pdf", height = 14, width = 8)
+Heatmap(moduleTraitCor, name = "Eigengene", row_title = "Gene Module", column_title = "Module-Trait Eigengene Correlation", 
+        col = blueWhiteRed(50), 
+        row_names_side = "left", 
+        #row_dend_side = "left",
+        width = unit(5, "in"), 
+        height = unit(8.5, "in"), 
+        #column_dend_reorder = TRUE, 
+        #cluster_columns = col_dend,
+        row_dend_reorder = TRUE,
+        #column_split = 6,
+        row_split=3,
+        #column_dend_height = unit(.5, "in"),
+        #column_order = lifestage_order, 
+        cluster_rows = row_dend, 
+        row_gap = unit(2.5, "mm"), 
+        border = TRUE,
+        cell_fun = function(j, i, x, y, w, h, col) {
+        if(heatmappval[i, j] < 0.05) {
+            grid.text(sprintf("%s", heatmappval[i, j]), x, y, gp = gpar(fontsize = 10, fontface = "bold"))
+        }
+        else {
+            grid.text(sprintf("%s", heatmappval[i, j]), x, y, gp = gpar(fontsize = 10, fontface = "plain"))
+        }},
+        column_names_gp =  gpar(fontsize = 12, border=FALSE),
+        column_names_rot = 35,
+        row_names_gp = gpar(fontsize = 12, alpha = 0.75, border = FALSE))
+#draw(ht)
+dev.off()
+
+```
+
+# Plot eigengene values 
+
+View module eigengene data and make dataframe for Strader plots.  
+```{r}
+head(MEs)
+names(MEs)
+Eigen_MEs <- MEs
+Eigen_MEs$AzentaSampleName <- rownames(Eigen_MEs)
+head(Eigen_MEs)
+
+plotTraits<-datTraits
+plotTraits$AzentaSampleName <- rownames(plotTraits)
+
+Eigen_MEs<-Eigen_MEs%>%
+  droplevels() #drop unused level
+
+dim(Eigen_MEs)
+head(Eigen_MEs)
+```
+
+Plot mean module eigengene for each module.  
+
+```{r}
+#convert wide format to long format for plotting  
+str(Eigen_MEs)
+
+plot_MEs <- Eigen_MEs %>%
+  pivot_longer(
+    cols = where(is.numeric),  # Select only numeric columns
+    names_to = "Module",       # Name for the new column containing the column names
+    values_to = "Mean"         # Name for the new column containing the values
+  )
+
+str(plot_MEs)
+
+#join with phys data 
+plot_MEs<-left_join(plot_MEs, plotTraits)
+
+expression_plots<-plot_MEs%>%
+  group_by(Module) %>%
+  
+  ggplot(aes(x=mean_Temp_mean, y=Mean)) +
+  facet_wrap(~ Module)+
+  geom_point()+
+  geom_smooth(method="lm")+
+  #ylim(-0.5,1) +
+  geom_hline(yintercept = 0, linetype="dashed", color = "grey")+
+  theme_bw() + 
+  theme(axis.text.x=element_text(angle = 45, hjust=1, size = 12), #set x-axis label size
+        axis.title.x=element_text(size = 14), #set x-axis title size
+        axis.ticks.x=element_blank(), #No x-label ticks
+        #axis.title.y=element_blank(), #No y-axis title
+        axis.text.y=element_text(size = 14), #set y-axis label size, 
+        panel.border = element_rect(color = "black", fill = NA, size = 1), #set border
+        panel.grid.major = element_blank(), #Set major gridlines
+        panel.grid.minor = element_blank(), #Set minor gridlines
+        axis.line = element_line(colour = "black"), #Set axes color
+        plot.background=element_blank(),
+        plot.title = element_text(size=22)); expression_plots
+```
+
+
