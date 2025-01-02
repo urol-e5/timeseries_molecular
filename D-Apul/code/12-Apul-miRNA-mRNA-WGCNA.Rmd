@@ -23,6 +23,17 @@ output:
 bibliography: references.bib
 ---
 
+To-Do/Questions:
+
+- why am I getting no significant module correlation with timepoint, but clear PCA clustering by timepoint?
+
+- Correct formatting of WGCNA input data. This code currently performs count + pOverA filtering separately on raw gene counts and raw miRNA counts (filtered from all sRNA counts)), then combines for DESeq2 variance stabilization and WGCNA. I think it'd be better to separately variance stabilize counts since the two data sets were generated using different sequencing and alignment methods. Also think, if doing separate variance stabilization, may need tovariance stabilize full sRNA dataset before filtering down to miRNAs, since the miRNAs are a tiny subset of the full sRNA data.
+
+- How to make useful visualizations in Cytoscvape? Was able to import file, but had trouble working with the network
+
+
+
+
 Running Weighted Gene Correlation Network Analysis (WGCNA) to assess patterns of miRNA-mRNA coexpression in A.pulchra. 
 
 
@@ -781,7 +792,15 @@ mv ./CytoscapeInput* ../output/12-Apul-miRNA-mRNA-WGCNA
 
 ```
 
+To load network to Cytoscape:
 
+1. File -> Import -> Network from File...
+
+2. Select Edges file (created above)
+
+3. Assign fromNode to "Source Node," toNode to "Target Node," weight to "Edge Attribute," and direction to "Interaction Type"
+
+4. Once netwrok is loaded, can manipulate/style as desired.
 
 
 ```{r}
