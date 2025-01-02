@@ -48,8 +48,17 @@ if [[ -f "${unprocessed_pairs_file}" ]]; then
   rm "${unprocessed_pairs_file}"
 fi
 
-# Get list of processed files
-processed_files=$(grep "Bismark completed" "${output_dir_top}"/*report.txt | awk -F"_" '{print $1}' | sort | uniq | xargs -n1 basename)
+### Get list of processed files ###
+grep_output=$(grep "Bismark completed" "${output_dir_top}"/*report.txt 2>/dev/null)
+
+# Check if grep output is empty.
+if [ -z "$grep_output" ]; then
+  echo "No processed files found."
+  processed_files=""
+else
+  processed_files=$(echo "$grep_output" | awk -F"_" '{print $1}' | sort | uniq | xargs -n1 basename)
+  echo "Processed files: $processed_files"
+fi
 
 # Find all _R1_ files and match them with their corresponding _R2_ files
 while read -r R1_file R2_file; do
