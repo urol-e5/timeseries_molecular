@@ -5,7 +5,7 @@
 #SBATCH --output=bismark_job_%A_%a.out
 #SBATCH --error=bismark_job_%A_%a.err
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=20
+#SBATCH --cpus-per-task=15
 #SBATCH --mem=100G
 #SBATCH --time=72:00:00
 ##turn on e-mail notification
