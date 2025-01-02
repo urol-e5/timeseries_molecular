@@ -38,6 +38,7 @@ library(reshape2)
 library(pheatmap)
 library(RColorBrewer)
 library(DESeq2)
+library(ComplexHeatmap)
 ```
 
 
@@ -479,7 +480,7 @@ results_list <- list(
 
 # Loop through the list and write each data frame to a CSV file in the specified directory
 for (df_name in names(results_list)) {
-  write.csv(results_list[[df_name]], file = paste0(output_dir, df_name, ".table.csv"), row.names = FALSE, quote = FALSE)
+  write.csv(results_list[[df_name]], file = paste0(output_dir, df_name, ".table.csv"), row.names = TRUE, quote = FALSE)
 }
 ```
 
@@ -804,33 +805,33 @@ pheatmap(as.matrix(Apul_counts_miRNA_vsd[apply(Apul_counts_miRNA_vsd, 1, var) > 
 
 
 ```{r}
+
 # Perform clustering based on normalized expression
-clustering <- pheatmap(as.matrix(Apul_counts_miRNA_norm), 
-                        cluster_rows = TRUE,
-                        cluster_cols = TRUE,
-                        silent = TRUE)  # Save clustering without plotting
+row_clustering <- hclust(dist(as.matrix(Apul_counts_miRNA_norm)))
+col_clustering <- hclust(dist(t(as.matrix(Apul_counts_miRNA_norm))))
 
 # Convert normalized counts to binary (presence/absence)
 binary_counts <- Apul_counts_miRNA_norm > 0
 binary_counts <- as.matrix(binary_counts) * 1  # Convert logical to numeric (1/0)
 
-# Generate heatmap with binary values using the precomputed clustering
-pheatmap(binary_counts, 
-         cluster_rows = clustering$tree_row,  # Use row clustering from normalized data
-         cluster_cols = clustering$tree_col,  # Use column clustering from normalized data
-         show_rownames = TRUE,
-         show_colnames = TRUE,
-         color = c("white", "black"))  # White for 0 (absence), black for 1 (presence)
+# Generate heatmap using predefined dendrograms
+Heatmap(
+  binary_counts,
+  cluster_rows = as.dendrogram(row_clustering),  # Row clustering
+  cluster_columns = as.dendrogram(col_clustering),  # Column clustering
+  col = c("white", "black"),  # White for 0 (absence), black for 1 (presence)
+  name = "Presence/Absence",  # Legend title
+  show_row_names = TRUE,
+  show_column_names = TRUE
+)
 
 ```
 
 It looks like, of the 51 total miRNAs identified, most are consistently present in all A.pulchra colonies and time points. For 10-15 of the miRNAs, presence/absence is more variable accross colonies and timepoints.
 
 
-
-
 ```{r}
-results_df <- as.data.frame(sRNA_tp3.v.tp4.results)
+results_df <- as.data.frame(sRNA_tp1.v.tp2.results)
 results_df$Name <- rownames(results_df)
 
 # Assuming your metadata frame also has a 'Name' column
