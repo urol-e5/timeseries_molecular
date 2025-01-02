@@ -33,7 +33,7 @@ if [[ -f "${output_dir_top}"/fastq_pairs.txt ]]; then
 fi
 
 # Find all _R1_ files and match them with their corresponding _R2_ files
-for R1_file in *_R1_*.fq.gz; do
+for R1_file in *_R1_*.fastq.gz; do
     R2_file="${R1_file/_R1_/_R2_}"
     if [[ -f "$R2_file" ]]; then
         echo "$R1_file $R2_file" >> "${output_dir_top}"/fastq_pairs.txt
