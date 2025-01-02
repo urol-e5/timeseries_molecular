@@ -23,6 +23,26 @@ output:
 bibliography: references.bib
 ---
 
+# Background
+
+This Rmd file will create a bisulfite-converted genome by, and for, Bismark [@krueger2011]using the `Apulchra-genome.fa` file. The genome FastA was taken from the [deep-dive-expression Wiki](https://github.com/urol-e5/deep-dive-expression/wiki/00-Genomic-Resources#acropora-pulchra) (GitHub Wiki), but I'm not sure of its exact origin.
+
+# Inputs
+
+- Directory containing a FastA file with the file extension: .fa or .fasta (also ending in .gz).
+
+# Outputs
+
+- CT Conversion
+
+  - Bowtie2 index files.
+  - CT conversion FastA
+  
+- GA conversion
+
+  - Bowtie2 index files.
+  - GA conversion FastA.
+
 ```{r setup, include=FALSE}
 library(knitr)
 knitr::opts_chunk$set(
@@ -33,8 +53,6 @@ knitr::opts_chunk$set(
   comment = ""         # Prevents appending '##' to beginning of lines in code output
 )
 ```
-
-This Rmd file will create a bisulfite-converted genome by, and for, Bismark using the `Apulchra-genome.fa` file.
 
 # Create a Bash variables file
 
@@ -71,7 +89,7 @@ cat .bashvars
 
 # Bisfulite conversion
 
-```{r save-bash-variables-to-rvars-file, engine='bash', eval=TRUE}
+```{r bismark-genome-conversion, engine='bash', eval=FALSE}
 # Load bash variables into memory
 source .bashvars
 
@@ -80,5 +98,22 @@ ${genome_dir} \
 --parallel ${threads} \
 --bowtie2 \
 --path_to_aligner ${bowtie2_dir}
-
 ```
+
+# Rename output directory
+```{r rename-directory, engine='bash', eval=FALSE}
+# Load bash variables into memory
+source .bashvars
+
+mv ${genome_dir}/Bisulfite_Genome/ ${genome_dir}/Apulchra-genome-bisulfite
+```
+
+# Inpsect BS output
+```{r inspect-BS-output, engine='bash', eval=TRUE}
+# Load bash variables into memory
+source .bashvars
+
+tree -h ${genome_dir}/Apulchra-genome-bisulfite
+```
+
+
