@@ -8,7 +8,7 @@
 # This was run on UNTRIMMED reads!
 
 # INPUT FILES
-repo_dir="/gscratch/srlab/sam/gitrepos/urol-e5/timeseries_molecular/"
+repo_dir="/gscratch/srlab/sam/gitrepos/urol-e5/timeseries_molecular"
 trimmed_fastqs_dir="${repo_dir}/D-Apul/data/wgbs-raw-fastqs"
 bisulfite_genome_dir="${repo_dir}/data/Apulchra-genome-bisulfite"
 
@@ -62,7 +62,7 @@ fi
 
 # Find all _R1_ files and match them with their corresponding _R2_ files
 while read -r R1_file R2_file; do
-    sample_name=$(echo "$R1_file" | awk -F"_" '{print $1"}')
+    sample_name=$(echo "$R1_file" | awk -F"_" '{print $1}')
     if [[ ! " ${processed_files[@]} " =~ " ${sample_name} " ]]; then
         echo "$R1_file $R2_file" >> "${unprocessed_pairs_file}"
     fi
