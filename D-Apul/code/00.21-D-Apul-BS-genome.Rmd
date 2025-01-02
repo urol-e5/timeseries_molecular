@@ -33,7 +33,7 @@ Due to large sizes of output files, the files cannot be sync'd to GitHub. As suc
 
 - [https://gannet.fish.washington.edu/gitrepos/urol-e5/timeseries_molecular/D-Apul/data/Apulchra-genome-bisulfite.tar.gz.md5](https://gannet.fish.washington.edu/gitrepos/urol-e5/timeseries_molecular/D-Apul/data/Apulchra-genome-bisulfite.tar.gz.md5)
 
-  - MD5: `3d36bf7468dbd42eef7b718d612c81ce`
+  - MD5: `9e1db5875f210007a43e2083f01c2db9`
 
 # Inputs
 
@@ -108,20 +108,12 @@ ${genome_dir} \
 --path_to_aligner ${bowtie2_dir}
 ```
 
-# Rename output directory
-```{r rename-directory, engine='bash', eval=FALSE}
-# Load bash variables into memory
-source .bashvars
-
-mv ${genome_dir}/Bisulfite_Genome/ ${genome_dir}/Apulchra-genome-bisulfite
-```
-
 # Inpect BS output
 ```{r inspect-BS-output, engine='bash', eval=TRUE}
 # Load bash variables into memory
 source .bashvars
 
-tree -h ${genome_dir}/Apulchra-genome-bisulfite
+tree -h ${genome_dir}/Bisulfite_Genome
 ```
 
 # REFERENCES
