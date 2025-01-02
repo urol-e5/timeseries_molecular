@@ -23,7 +23,7 @@
 
 # To execute this SLURM script as an array, start the script with the following command:
 
-# sbatch --array=0-$(($$(wc -l < fastq_pairs.txt) - 1)) 02.02-bismark-SLURM-job.sh
+# sbatch --array=0-$(($$(wc -l < ../data/wgbs-raw-fastqs/fastq_pairs.txt) - 1)) 02.20-D-Apul-WGBS-alignment-SLURM-job.sh
 
 # IMPORTANT: Requires fastq_pairs.txt to exist prior to submission!
 apptainer exec \
