@@ -742,9 +742,9 @@ mods_interest <- c("26", "9", "2", "50", "27",
                    "11", "6", "1", "49", "8", 
                    "31", "10", "39", "41", "51", 
                    "29", "11", "45", "21")
-
-c("26", "27", "29", "31", "38", "39", "41", "45", "49", "50", "51")
 ```
+
+Note that, due to the size of many modules, it's probably most practical to export modules individually (unless interested in in connections between modules)
 
 ```{r}
 # Recalculate topological overlap if needed
@@ -776,7 +776,8 @@ cyt = exportNetworkToCytoscape(modTOM,
 ```
 
 ```{r, engine='bash'}
-
+# Move cytoscape files to output directory
+mv ./CytoscapeInput* ../output/12-Apul-miRNA-mRNA-WGCNA
 
 ```
 
