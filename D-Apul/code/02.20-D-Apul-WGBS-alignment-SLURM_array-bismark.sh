@@ -3,6 +3,10 @@
 # This script is designed to be called by a SLURM script which
 # runs this script across an array of HPC nodes.
 
+### IMPORTANT ###
+
+# This was run on UNTRIMMED reads!
+
 # INPUT FILES
 repo_dir="/gscratch/srlab/sam/gitrepos/urol-e5/timeseries_molecular/"
 trimmed_fastqs_dir="${repo_dir}/D-Apul/data/wgbs-raw-fastqs"
