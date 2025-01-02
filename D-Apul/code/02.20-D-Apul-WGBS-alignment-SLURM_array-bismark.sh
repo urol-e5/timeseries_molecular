@@ -10,7 +10,7 @@
 # INPUT FILES
 repo_dir="/gscratch/srlab/sam/gitrepos/urol-e5/timeseries_molecular"
 trimmed_fastqs_dir="${repo_dir}/D-Apul/data/wgbs-raw-fastqs"
-bisulfite_genome_dir="${repo_dir}/D-Apul/data/Apulchra-genome-bisulfite"
+bisulfite_genome_dir="${repo_dir}/D-Apul/data/Bisulfite_Genome"
 
 # OUTPUT FILES
 output_dir_top="${repo_dir}/D-Apul/output/02.20-D-Apul-WGBS-alignment-SLURM_array-bismark"
