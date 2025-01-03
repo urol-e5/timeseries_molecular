@@ -289,5 +289,7 @@ source .bashvars
 
 cd "${output_dir_top}"
 
-${multiqc} .
+${multiqc} \
+--interactive \
+.
 ```
