@@ -24,13 +24,6 @@ bismark_threads=4
 
 ###################################################################################
 
-## CREATE LIST OF PAIRED READS ##
-
-cd "${trimmed_fastqs_dir}"
-
-if [[ -f "${output_dir_top}"/fastq_pairs.txt ]]; then
-  rm "${output_dir_top}"/fastq_pairs.txt
-fi
 
 ## SET ARRAY TASKS ##
 cd "${output_dir_top}"
