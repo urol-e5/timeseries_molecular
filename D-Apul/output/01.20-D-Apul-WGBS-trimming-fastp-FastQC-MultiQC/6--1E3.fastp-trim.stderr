@@ -1,0 +1,50 @@
+Detecting adapter sequence for read1...
+>Illumina TruSeq Adapter Read 1
+AGATCGGAAGAGCACACGTCTGAACTCCAGTCA
+
+Detecting adapter sequence for read2...
+No adapter detected for read2
+
+Read1 before filtering:
+total reads: 49736709
+total bases: 7460506350
+Q20 bases: 7174693771(96.169%)
+Q30 bases: 6749574700(90.4707%)
+
+Read2 before filtering:
+total reads: 49736709
+total bases: 7460506350
+Q20 bases: 7197327222(96.4724%)
+Q30 bases: 6799377328(91.1383%)
+
+Read1 after filtering:
+total reads: 48797465
+total bases: 6457803645
+Q20 bases: 6238771993(96.6083%)
+Q30 bases: 5888738401(91.1879%)
+
+Read2 after filtering:
+total reads: 48797465
+total bases: 6463510653
+Q20 bases: 6274694570(97.0787%)
+Q30 bases: 5943757556(91.9587%)
+
+Filtering result:
+reads passed filter: 97594930
+reads failed due to low quality: 1795808
+reads failed due to too many N: 12936
+reads failed due to too short: 69744
+reads with adapter trimmed: 8570263
+bases trimmed due to adapters: 207490235
+reads with polyX in 3' end: 3533046
+bases trimmed in polyX tail: 40590612
+
+Duplication rate: 9.05575%
+
+Insert size peak (evaluated by paired-end reads): 268
+
+JSON report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/01.20-D-Apul-WGBS-trimming-fastp-FastQC-MultiQC/6--1E3_R1_001.fastp-trim.report.json
+HTML report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/01.20-D-Apul-WGBS-trimming-fastp-FastQC-MultiQC/6--1E3_R1_001.fastp-trim.report.html
+
+/home/shared/fastp-v0.24.0/fastp --in1 6--1E3_R1_001.fastq.gz --in2 6--1E3_R2_001.fastq.gz --detect_adapter_for_pe --trim_poly_g --trim_poly_x --thread 16 --trim_front1 15 --trim_front2 15 --html /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/01.20-D-Apul-WGBS-trimming-fastp-FastQC-MultiQC/6--1E3_R1_001.fastp-trim.report.html --json /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/01.20-D-Apul-WGBS-trimming-fastp-FastQC-MultiQC/6--1E3_R1_001.fastp-trim.report.json --out1 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/01.20-D-Apul-WGBS-trimming-fastp-FastQC-MultiQC/6--1E3_R1_001.fastp-trim.fq.gz --out2 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/01.20-D-Apul-WGBS-trimming-fastp-FastQC-MultiQC/6--1E3_R2_001.fastp-trim.fq.gz 
+fastp v0.24.0, time used: 189 seconds
