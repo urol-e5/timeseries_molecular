@@ -32,47 +32,13 @@ if [[ -f "${output_dir_top}"/fastq_pairs.txt ]]; then
   rm "${output_dir_top}"/fastq_pairs.txt
 fi
 
-# Find all _R1_ files and match them with their corresponding _R2_ files
-for R1_file in *_R1_*.fastq.gz; do
-    R2_file="${R1_file/_R1_/_R2_}"
-    if [[ -f "$R2_file" ]]; then
-        echo "$R1_file $R2_file" >> "${output_dir_top}"/fastq_pairs.txt
-    else
-        echo "Warning: No matching R2 file for $R1_file"
-    fi
-done
-
-# Create a new file for unprocessed pairs
-unprocessed_pairs_file="${output_dir_top}/unprocessed_fastq_pairs-array-${SLURM_ARRAY_TASK_ID}.txt"
-if [[ -f "${unprocessed_pairs_file}" ]]; then
-  rm "${unprocessed_pairs_file}"
-fi
-
-### Get list of processed files ###
-grep_output=$(grep "Bismark completed" "${output_dir_top}"/*report.txt 2>/dev/null)
-
-# Check if grep output is empty.
-if [ -z "$grep_output" ]; then
-  echo "No processed files found."
-  processed_files=""
-else
-  processed_files=$(echo "$grep_output" | awk -F"_" '{print $1}' | sort | uniq | xargs -n1 basename)
-  echo "Processed files: $processed_files"
-fi
-
-# Find all _R1_ files and match them with their corresponding _R2_ files
-while read -r R1_file R2_file; do
-    sample_name=$(echo "$R1_file" | awk -F"_" '{print $1}')
-    if [[ ! " ${processed_files[@]} " =~ " ${sample_name} " ]]; then
-        echo "$R1_file $R2_file" >> "${unprocessed_pairs_file}"
-    fi
-done < "${output_dir_top}/fastq_pairs.txt"
-
 ## SET ARRAY TASKS ##
 cd "${output_dir_top}"
 
 # Get the FastQ file pair for this task
-pair=$(sed -n "${SLURM_ARRAY_TASK_ID}p" "${unprocessed_pairs_file}")
+# the `p` sets the line number to process
+# which corresponds to the array task ID
+pair=$(sed -n "${SLURM_ARRAY_TASK_ID}p" "${output_dir_top}/fastq_pairs.txt")
 
 echo "Contents of pair:"
 echo "${pair}"
@@ -83,12 +49,6 @@ R2_file=$(echo $pair | awk '{print $2}')
 
 # Get just the sample name (excludes the _R[12]_001*)
 sample_name=$(echo "$R1_file" | awk -F"_" '{print $1}')
-
-# Check if the pair has already been processed
-if [[ " ${processed_files[@]} " =~ " ${sample_name} " ]]; then
-    echo "Files ${R1_file} and ${R2_file} have already been processed. Exiting."
-    exit 0
-fi
 
 # Check if R1_file and R2_file are not empty
 if [ -z "$R1_file" ] || [ -z "$R2_file" ]; then
