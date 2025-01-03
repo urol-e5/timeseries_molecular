@@ -1,0 +1,138 @@
+---
+title: "13-Apul-miRNA-mRNA-analysis-comparisons"
+author: "Kathleen Durkin"
+date: "2024-12-19"
+always_allow_html: true
+output: 
+  bookdown::html_document2:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+  github_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+    html_preview: true 
+---
+
+
+What DEGs are also expected to interact with miRNA?
+
+
+```{r}
+tp1.v.tp2 <- read.csv("../output/03.00-D-Apul-RNAseq-gene-expression-DESeq2/tp1.v.tp2.results.table.csv")
+tp1.v.tp2 <- rename(tp1.v.tp2, "X" = "geneID")
+
+tp1.v.tp3 <- read.csv("../output/03.00-D-Apul-RNAseq-gene-expression-DESeq2/tp1.v.tp3.results.table.csv")
+tp1.v.tp3 <- rename(tp1.v.tp3, "X" = "geneID")
+
+tp1.v.tp4 <- read.csv("../output/03.00-D-Apul-RNAseq-gene-expression-DESeq2/tp1.v.tp4.results.table.csv")
+tp1.v.tp4 <- rename(tp1.v.tp4, "X" = "geneID")
+
+tp2.v.tp3 <- read.csv("../output/03.00-D-Apul-RNAseq-gene-expression-DESeq2/tp2.v.tp3.results.table.csv")
+tp2.v.tp3 <- rename(tp2.v.tp3, "X" = "geneID")
+
+tp2.v.tp4 <- read.csv("../output/03.00-D-Apul-RNAseq-gene-expression-DESeq2/tp2.v.tp4.results.table.csv")
+tp2.v.tp4 <- rename(tp2.v.tp4, "X" = "geneID")
+
+tp3.v.tp4 <- read.csv("../output/03.00-D-Apul-RNAseq-gene-expression-DESeq2/tp3.v.tp4.results.table.csv")
+tp3.v.tp4 <- rename(tp3.v.tp4, "X" = "geneID")
+```
+
+Timepoints 2 vs 4 has the most DEGs
+
+```{r}
+paste("Of ", nrow(tp1.v.tp2), " genes")
+paste("")
+paste("tp1 vs tp2: ", nrow(filter(tp1.v.tp2, padj < 0.05)))
+paste("tp1 vs tp3: ", nrow(filter(tp1.v.tp3, padj < 0.05)))
+paste("tp1 vs tp4: ", nrow(filter(tp1.v.tp4, padj < 0.05)))
+paste("tp2 vs tp3: ", nrow(filter(tp2.v.tp3, padj < 0.05)))
+paste("tp2 vs tp4: ", nrow(filter(tp2.v.tp4, padj < 0.05)))
+paste("tp3 vs tp4: ", nrow(filter(tp3.v.tp4, padj < 0.05)))
+```
+
+These DEG counts make sense with our PCA, which shows timepoints 1 and 4 clustering more closely together, and timepoints 2 and 3 clustering more closely together.
+
+
+Read in miRanda results (miRNAs binding to 3UTRs)
+
+```{r}
+miRanda <- read.table("../output/07-Apul-miRNA-mRNA-miRanda/Apul-miRanda-3UTR-strict-parsed-geneIDs.txt", header = FALSE, sep = "\t")
+```
+
+Annotate pairwise comparison results with putative miRNA interactions
+
+```{r}
+# Some UTRs are associated with 2 gene IDs (due to the genes sitting very close to each other)
+# Expand those geneIDs into multiple rows
+miRanda_expand <- miRanda %>%
+  separate_rows(V10, sep = ",")  # Split the FUN column by commas into multiple rows
+
+tp1.v.tp2.miRanda <- left_join(tp1.v.tp2, miRanda, by = c("geneID" = "V10"))
+tp1.v.tp2.miRanda$V1 <- gsub(">", "", tp1.v.tp2.miRanda$V1)
+tp1.v.tp2.miRanda$V1 <- gsub("\\..*", "", tp1.v.tp2.miRanda$V1)
+
+tp1.v.tp3.miRanda <- left_join(tp1.v.tp3, miRanda, by = c("geneID" = "V10"))
+tp1.v.tp3.miRanda$V1 <- gsub(">", "", tp1.v.tp3.miRanda$V1)
+tp1.v.tp3.miRanda$V1 <- gsub("\\..*", "", tp1.v.tp3.miRanda$V1)
+
+tp1.v.tp4.miRanda <- left_join(tp1.v.tp4, miRanda, by = c("geneID" = "V10"))
+tp1.v.tp4.miRanda$V1 <- gsub(">", "", tp1.v.tp4.miRanda$V1)
+tp1.v.tp4.miRanda$V1 <- gsub("\\..*", "", tp1.v.tp4.miRanda$V1)
+
+tp2.v.tp3.miRanda <- left_join(tp2.v.tp3, miRanda, by = c("geneID" = "V10"))
+tp2.v.tp3.miRanda$V1 <- gsub(">", "", tp2.v.tp3.miRanda$V1)
+tp2.v.tp3.miRanda$V1 <- gsub("\\..*", "", tp2.v.tp3.miRanda$V1)
+
+tp2.v.tp4.miRanda <- left_join(tp2.v.tp4, miRanda, by = c("geneID" = "V10"))
+tp2.v.tp4.miRanda$V1 <- gsub(">", "", tp2.v.tp4.miRanda$V1)
+tp2.v.tp4.miRanda$V1 <- gsub("\\..*", "", tp2.v.tp4.miRanda$V1)
+
+tp3.v.tp4.miRanda <- left_join(tp3.v.tp4, miRanda, by = c("geneID" = "V10"))
+tp3.v.tp4.miRanda$V1 <- gsub(">", "", tp3.v.tp4.miRanda$V1)
+tp3.v.tp4.miRanda$V1 <- gsub("\\..*", "", tp3.v.tp4.miRanda$V1)
+
+```
+
+Keep in mind that, since an miRNA may be predicted to bind at multiple places in a single 3UTR, or multiple miRNAs may be predicted to bind to the same 3UTR, this table no longer contains a single row for each gene ID. 
+
+This table essentially shows every miRNA-3UTR predicted interaction and the DESeq2 pairwise expression comparison for the gene associated with that gene.
+
+Let's take a look. We'll filter to significant DEGs (padj < 0.05). In cnidarians, miRNA-mRNA binding is believed to require near-complete complementarity of the full mature miRNA, similarly to plants, so we may want to look at how many putative interactions are predicted for a binding length of at least 20 nucleotides (the length of our smallest mature miRNA is 21) and 80% alignment rate (allows for 4 mismatches in a 20bp alignment). Finally, we should remove the duplicates caused by an miRNA putatively binding to multiple places in the 3UTR -- multiple putative binding sites still indicate one miRNA-mRNA binding pair.
+
+```{r}
+paste("Column descriptions:")
+paste("Number of putative miRNA-DEG interactions")
+paste("Number of putative miRNA-DEG interactions (at least 20bp binding)")
+paste("Number of putative miRNA-DEG interactions(at least 20bp binding, max 4 mismatches)")
+
+z <- data.frame(
+  pairwise = c("tp1_tp2", "tp1_tp3", "tp1_tp4", "tp2_tp3", "tp2_tp4", "tp3_tp4"), 
+  miRNA_DEG = c(tp1.v.tp2.miRanda %>% filter(padj < 0.05) %>% distinct(geneID, V1) %>% nrow(), 
+                tp1.v.tp3.miRanda %>% filter(padj < 0.05) %>% distinct(geneID, V1) %>% nrow(), 
+                tp1.v.tp4.miRanda %>% filter(padj < 0.05) %>% distinct(geneID, V1) %>% nrow(), 
+                tp2.v.tp3.miRanda %>% filter(padj < 0.05) %>% distinct(geneID, V1) %>% nrow(), 
+                tp2.v.tp4.miRanda %>% filter(padj < 0.05) %>% distinct(geneID, V1) %>% nrow(), 
+                tp3.v.tp4.miRanda %>% filter(padj < 0.05) %>% distinct(geneID, V1) %>% nrow()), 
+  miRNA_DEG_20bp = c(tp1.v.tp2.miRanda %>% filter(padj < 0.05) %>% filter(V7 > 19) %>% distinct(geneID, V1) %>% nrow(), 
+                tp1.v.tp3.miRanda %>% filter(padj < 0.05) %>% filter(V7 > 19) %>% distinct(geneID, V1) %>% nrow(), 
+                tp1.v.tp4.miRanda %>% filter(padj < 0.05) %>% filter(V7 > 19) %>% distinct(geneID, V1) %>% nrow(), 
+                tp2.v.tp3.miRanda %>% filter(padj < 0.05) %>% filter(V7 > 19) %>% distinct(geneID, V1) %>% nrow(), 
+                tp2.v.tp4.miRanda %>% filter(padj < 0.05) %>% filter(V7 > 19) %>% distinct(geneID, V1) %>% nrow(), 
+                tp3.v.tp4.miRanda %>% filter(padj < 0.05) %>% filter(V7 > 19) %>% distinct(geneID, V1) %>% nrow()),
+  miRNA_DEG_20bp_4mis = c(tp1.v.tp2.miRanda %>% filter(padj < 0.05) %>% filter(V7 > 19) %>% filter(V8 > 80) %>% distinct(geneID, V1) %>% nrow(), 
+                tp1.v.tp3.miRanda %>% filter(padj < 0.05) %>% filter(V7 > 19) %>% filter(V8 > 80) %>% distinct(geneID, V1) %>% nrow(), 
+                tp1.v.tp4.miRanda %>% filter(padj < 0.05) %>% filter(V7 > 19) %>% filter(V8 > 80) %>% distinct(geneID, V1) %>% nrow(), 
+                tp2.v.tp3.miRanda %>% filter(padj < 0.05) %>% filter(V7 > 19) %>% filter(V8 > 80) %>% distinct(geneID, V1) %>% nrow(), 
+                tp2.v.tp4.miRanda %>% filter(padj < 0.05) %>% filter(V7 > 19) %>% filter(V8 > 80) %>% distinct(geneID, V1) %>% nrow(), 
+                tp3.v.tp4.miRanda %>% filter(padj < 0.05) %>% filter(V7 > 19) %>% filter(V8 > 80) %>% distinct(geneID, V1) %>% nrow())
+)
+z
+```
+
+
+
