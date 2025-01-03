@@ -27,6 +27,8 @@ bibliography: references.bib
 
 This notebook will trim raw WGBS FastQs using [fastp](https://github.com/OpenGene/fastp). Samples which generate an error during trimming will attempt to be repaired using [BBTools `repairl.sh`](https://jgi.doe.gov/data-and-tools/software-tools/bbtools/) (BBMap – Bushnell B. – sourceforge.net/projects/bbmap/). Trimming results will be analyzed with FastQC and summarized by [MultiQC](https://github.com/MultiQC/MultiQC) [@ewels2016].
 
+Based off of the initial FastQC/MultiQC, we trimmed 15bp from each read.
+
 ## Inputs
 
 Raw WGBS FastQ files with the following pattern:
@@ -73,7 +75,7 @@ echo ""
 echo "# Data directories"
 echo 'export repo_dir=/home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular'
 echo 'export output_dir_top=${repo_dir}/D-Apul/output/01.20-D-Apul-WGBS-trimming-fastp-FastQC-MultiQC'
-echo 'export raw_reads_dir="${repo_dir}/data/raw_reads"'
+echo 'export raw_reads_dir="${repo_dir}/D-Apul/data/wgbs-raw-fastqs"'
 echo 'export trimmed_fastqs_dir="${output_dir_top}/trimmed-fastqs"'
 echo ""
 
