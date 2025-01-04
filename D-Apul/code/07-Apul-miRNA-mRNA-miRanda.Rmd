@@ -66,6 +66,31 @@ wc -l ../output/07-Apul-miRNA-mRNA-miRanda/Apul-miRanda-3UTR-strict_all.tab
 
 ```
 
+Let's also annotate each of these putative interactions with the associated gene ID (the gene ID for the mRNA associated with each 3'UTR region input into miRanda). We generated a table associating each 3'UTR region with its parent gene ID in `05-Apul-annotate-UTRs`
+
+```{r}
+miRanda_3UTR <- read.table("../output/07-Apul-miRNA-mRNA-miRanda/Apul-miRanda-3UTR-strict-parsed.txt", header = FALSE, sep = "\t")
+geneIDs_3UTR <- read.table("../output/05-Apul-annotate-UTRs/Apul-3UTR-FUNids.txt", header = FALSE, sep = "\t")
+
+geneIDs_3UTR$V4 <- gsub("Parent=", "", geneIDs_3UTR$V4)
+
+# Some genes sit very close to each other and share 3UTR regions (since we manually defined 3UTRs).
+# Reformat 3UTR-geneID table to avoid many-to-many problem during left join
+geneIDs_3UTR_refmt <- geneIDs_3UTR %>%
+  select(V1, V4) %>%
+  group_by(V1) %>%
+  summarise(V4 = paste(V4, collapse = ","), .groups = "drop")
+
+
+# left join to annotate 3UTR regions in putative interactions with gene IDs
+miRanda_3UTR <- left_join(miRanda_3UTR, geneIDs_3UTR_refmt, by = c("V2" = "V1"))
+
+# save
+write.table(miRanda_3UTR, "../output/07-Apul-miRNA-mRNA-miRanda/Apul-miRanda-3UTR-strict-parsed-geneIDs.txt", sep = "\t", col.names = FALSE, row.names = FALSE, quote = FALSE)
+```
+
+
+
 This is a lot of putative interactions! We can probably narrow it down though. In vertebrates, miRNA-mRNA binding only requires complementarity of an miRNA seed region of ~8 nucleotides. This requirement is built in to miRanda target prediction. In cnidarians, however, miRNA-mRNA binding is believed to require near-complete complementarity of the full mature miRNA, similarly to plants. Let's look at how many putative interactions are predicted for a binding length of at least 21 nucleotides (the length of our smallest mature miRNA).
 
 ```{r, engine='bash'}
