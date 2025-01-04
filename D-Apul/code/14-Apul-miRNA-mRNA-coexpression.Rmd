@@ -21,6 +21,8 @@ editor_options:
     wrap: 72
 ---
 
+
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
@@ -29,13 +31,16 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(reshape2)
 library(pheatmap)
-library(energy)
+library(DESeq2)
+library(genefilter)
 library(parallel)
 library(ggraph)
 library(tidygraph)
 library(igraph)
 library(genefilter)
 library(gridExtra)
+library(energy)
+
 ```
 
 # Prep data 
