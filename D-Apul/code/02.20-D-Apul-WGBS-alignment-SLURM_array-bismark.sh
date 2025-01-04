@@ -29,7 +29,7 @@ cd "${output_dir_top}"
 # Get the FastQ file pair for this task
 # the `p` sets the line number to process
 # which corresponds to the array task ID
-pair=$(sed -n "${SLURM_ARRAY_TASK_ID}p" "${output_dir_top}/fastq_pairs.txt")
+pair=$(sed -n "${SLURM_ARRAY_TASK_ID}p" "${trimmed_fastqs_dir}/fastq_pairs.txt")
 
 echo "Contents of pair:"
 echo "${pair}"
