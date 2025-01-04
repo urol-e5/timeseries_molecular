@@ -66,5 +66,15 @@ sort --threads 24 \
 -o ../output/15-Apul-bismark/{}.sorted.bam
 ```
 
+# methylation exraction
+
+```
+find ../output/09-meth-quant/*deduplicated.bam | xargs -n 1 -I{} /home/shared/Bismark-0.24.0/bismark_methylation_extractor --bedGraph --counts --comprehensive --merge_non_CpG --multicore 24 --buffer_size 75% --output ../output/09-meth-quant {} 
+```
+
+```{bash}
+find ../output/09-meth-quant/*deduplicated.bam | xargs -n 1 -I{} /home/shared/Bismark-0.24.0/bismark_methylation_extractor --bedGraph --counts --comprehensive --merge_non_CpG --multicore 24 --buffer_size 75% --output ../output/09-meth-quant {} 
+```
+
 
 
