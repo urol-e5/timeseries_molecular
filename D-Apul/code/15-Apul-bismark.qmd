@@ -1,0 +1,70 @@
+---
+title: "08-Apul bismark"
+author: Steven Roberts
+date: "`r format(Sys.time(), '%d %B, %Y')`"  
+output: 
+  html_document:
+    theme: readable
+    highlight: zenburn
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+library(tidyverse)
+knitr::opts_chunk$set(
+  echo = TRUE,         # Display code chunks
+  eval = FALSE,         # Evaluate code chunks
+  warning = FALSE,     # Hide warnings
+  message = FALSE,     # Hide messages
+  fig.width = 6,       # Set plot width in inches
+  fig.height = 4,      # Set plot height in inches
+  fig.align = "center" # Align plots to the center
+)
+```
+
+
+Sam did alingment
+
+
+```{bash}
+ls /gscratch/srlab/sam/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/02.20-D-Apul-WGBS-alignment-SLURM_array-bismark 
+```
+
+
+
+
+#dedup
+
+```{bash}
+find /gscratch/srlab/sam/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/02.20-D-Apul-WGBS-alignment-SLURM_array-bismark/*.bam | \
+xargs -n 1 basename -s _R1_001.fastp-trim_bismark_bt2_pe.bam | \
+parallel -j 8 deduplicate_bismark \
+--bam \
+--paired \
+--output_dir ../output/15-Apul-bismark \
+/gscratch/srlab/sam/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/02.20-D-Apul-WGBS-alignment-SLURM_array-bismark//{}_R1_001.fastp-trim_bismark_bt2_pe.bam
+```
+
+
+
+
+
+
+
+
+```{bash}
+find ../output/15-Apul-bismark/*deduplicated.bam | \
+xargs basename -s _R1_001.fastp-trim_bismark_bt2_pe.deduplicated.bam | \
+xargs -I{} samtools \
+sort --threads 24 \
+../output/15-Apul-bismark/{}_R1_001.fastp-trim_bismark_bt2_pe.deduplicated.bam \
+-o ../output/15-Apul-bismark/{}.sorted.bam
+```
+
+
+
