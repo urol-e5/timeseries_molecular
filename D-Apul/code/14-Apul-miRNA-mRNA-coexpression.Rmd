@@ -34,13 +34,14 @@ library(pheatmap)
 library(DESeq2)
 library(genefilter)
 library(parallel)
-library(ggraph)
-library(tidygraph)
-library(igraph)
+library(energy)
 library(genefilter)
 library(gridExtra)
-library(energy)
 
+
+library(tidygraph)
+library(igraph)
+library(ggraph)
 ```
 
 # Prep data 
@@ -156,14 +157,14 @@ miranda_apul$miRNA <- sub("\\..*", "", miranda_apul$miRNA)  # Remove everything 
 Run distance correlation using the [energy package in R](https://cran.r-project.org/web/packages/energy/index.html) with rows as features (ie mRNA or miRNA) and columns as samples. 
 ```{r}
 # Initialize a matrix to store the results
-dcor_matrix <- matrix(0, nrow = nrow(miRNA_norm), ncol = nrow(mRNA_norm))
-rownames(dcor_matrix) <- rownames(miRNA_norm)
-colnames(dcor_matrix) <- rownames(mRNA_norm)
+dcor_matrix <- matrix(0, nrow = nrow(miRNA_counts_filt), ncol = nrow(mRNA_counts_filt))
+rownames(dcor_matrix) <- rownames(miRNA_counts_filt)
+colnames(dcor_matrix) <- rownames(mRNA_counts_filt)
 
 # Calculate distance correlation for each miRNA-mRNA pair
-for (i in 1:nrow(miRNA_norm)) {
-  for (j in 1:nrow(mRNA_norm)) {
-    dcor_matrix[i, j] <- dcor(miRNA_norm[i,], mRNA_norm[j,])
+for (i in 1:nrow(miRNA_counts_filt)) {
+  for (j in 1:nrow(mRNA_counts_filt)) {
+    dcor_matrix[i, j] <- dcor(miRNA_counts_filt[i,],mRNA_counts_filt[j,])
   }
 }
 
