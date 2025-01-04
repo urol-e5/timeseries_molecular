@@ -5,11 +5,9 @@
 
 ### IMPORTANT ###
 
-# This was run on UNTRIMMED reads!
-
 # INPUT FILES
 repo_dir="/gscratch/srlab/sam/gitrepos/urol-e5/timeseries_molecular"
-trimmed_fastqs_dir="${repo_dir}/D-Apul/data/wgbs-raw-fastqs"
+trimmed_fastqs_dir="${repo_dir}/D-Apul/output/01.20-D-Apul-WGBS-trimming-fastp-FastQC-MultiQC"
 bisulfite_genome_dir="${repo_dir}/D-Apul/data"
 
 # OUTPUT FILES
@@ -20,7 +18,7 @@ bowtie2_min_score="L,0,-0.6"
 
 # CPU threads
 # Bismark already spawns multiple instances and additional threads are multiplicative."
-bismark_threads=4
+bismark_threads=5
 
 ###################################################################################
 
