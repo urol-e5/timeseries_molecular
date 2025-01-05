@@ -455,6 +455,77 @@ write.csv(significant_with_pvalues, "../output/14-Apul-miRNA-mRNA-coexp/miRNA_ge
 ```
 
 
+```{r}
+library(pheatmap)
+
+# Prepare data for heatmap
+# Subset the correlation matrix to include only significant pairs
+sig_cor_matrix <- cor_matrix[unique(sig_indices[, 1]), unique(sig_indices[, 2])]
+
+# Plot heatmap
+pheatmap(sig_cor_matrix, 
+         cluster_rows = TRUE, cluster_cols = TRUE, 
+         show_rownames = TRUE, show_colnames = TRUE,
+         main = "Heatmap of Significant Correlations")
+```
+```{r}
+# Example: Plot correlations for a specific miRNA
+selected_miRNA <- "Cluster_12083"  # Replace with an actual miRNA from your data
+
+# Subset data for the selected miRNA
+selected_data <- significant_with_pvalues[significant_with_pvalues$miRNA == selected_miRNA, ]
+
+# Create scatter plot
+library(ggplot2)
+ggplot(selected_data, aes(x = Gene, y = Correlation)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  labs(title = paste("Correlations for", selected_miRNA),
+       x = "Genes", y = "Correlation") +
+  theme_minimal()
+```
+```{r}
+library(ggplot2)
+
+# Combine miRNA and gene data for PCA
+combined_data <- t(cbind(miRNA_counts[unique(sig_indices[, 1]), ],
+                         mRNA_counts[unique(sig_indices[, 2]), ]))
+
+# Perform PCA
+pca <- prcomp(combined_data)
+
+# Create a data frame for visualization
+pca_data <- data.frame(
+  PC1 = pca$x[, 1],
+  PC2 = pca$x[, 2],
+  Feature = c(rownames(miRNA_counts[unique(sig_indices[, 1]), ]),
+              rownames(mRNA_counts[unique(sig_indices[, 2]), ]))
+)
+
+# Plot PCA
+ggplot(pca_data, aes(x = PC1, y = PC2, label = Feature)) +
+  geom_point() +
+  geom_text(size = 3, vjust = 1.5) +
+  labs(title = "PCA of Significant miRNA-Gene Pairs") +
+  theme_minimal()
+```
+
+```{r}
+
+library(GGally)
+
+# Subset data for a few miRNAs and genes
+miRNA_subset <- unique(significant_with_pvalues$miRNA)[1:3]  # Top 3 miRNAs
+gene_subset <- unique(significant_with_pvalues$Gene)[1:3]  # Top 3 genes
+
+subset_data <- t(cbind(
+  miRNA_counts[miRNA_subset, ],
+  mRNA_counts[gene_subset, ]
+))
+
+# Plot pairwise scatterplot matrix
+ggpairs(as.data.frame(subset_data), title = "Scatterplot Matrix of Significant Pairs")
+```
 
 The `dcor` function calculates distance correlation between each mRNA and miRNA. The output value ranges from 0 to 1, where 0 indicates independence and 1 indicates perfect dependence. Unlike Pearson's correlation, this calculation can detect non-linear relationships between mRNA and miRNAs. However, it does not calculate directionality of the relationship. 
 
