@@ -139,10 +139,26 @@ sum(filt_outrm_poa) #count number of genes left
 mRNA_counts_filt <- mRNA_counts[filt_outrm_poa,] #keep only rows that passed filter
 ```
 
+Normalize counts
+```{r}
+# Function to normalize counts (simple RPM normalization)
+normalize_counts <- function(counts) {
+  rpm <- t(t(counts) / colSums(counts)) * 1e6
+  return(rpm)
+}
+
+# Normalize miRNA and mRNA counts
+#miRNA_norm <- normalize_counts(miRNA_counts_filt)
+miRNA_norm <- as.matrix(miRNA_counts_filt)
+
+#mRNA_norm <- normalize_counts(mRNA_counts_filt)
+mRNA_norm <- as.matrix(mRNA_counts_filt)
+```
+
 Read in miranda data 
 ```{r}
 miranda_apul <- read.delim("../output/07-Apul-miRNA-mRNA-miRanda/Apul-miRanda-3UTR-strict-parsed-geneIDs.txt", header = F)
-colnames(miranda_apul) <- c("miRNA", "mRNA", "score", "energy", "query_start_end", "subject_start_end", "total_bp_shared", "query_similar", "subject_similar", "gene_ID")
+colnames(miranda_apul) <- c("miRNA", "mRNA_coords", "score", "energy", "query_start_end", "subject_start_end", "total_bp_shared", "query_similar", "subject_similar", "mRNA")
 
 # Format miranda df 
 miranda_apul$miRNA <- sub("^>", "", miranda_apul$miRNA)  # Remove leading ">"
@@ -246,7 +262,7 @@ colnames(pvalue_chisq_matrix_melt) <- c("miRNA", "mRNA", "pvalue_chisq")
 # colnames(pvalue_t_matrix_melt) <- c("miRNA", "mRNA", "pvalue_t")
 ```
 
-The for loop will take a while to run, as it is computationally intensive. 
+The for loop will take a while to run, as it is computationally intensive. On 1/4/25, JA did not run this chunk - it was taking too long on her computer. 
 
 Join all dfs so that there is one df with mRNA, miRNA, distance correlation, directionality, and various pvalue information. 
 ```{r}
@@ -355,6 +371,8 @@ Merge with miranda data
 combined_data_pcc <- pcc_results %>%
   inner_join(miranda_apul, by = c("miRNA", "mRNA"))
 head(combined_data_pcc)
+
+write.csv(combined_data_pcc, "../output/14-Apul-miRNA-mRNA-coexpression/pcc_miranda_interactions.csv")
 ```
 
 Investigate data 
@@ -379,6 +397,9 @@ cat("PCC correlation > |0.5| and a p-value < 0.05:", nrow(pairs_of_interest_pcc)
 # How many unique miRNAs and mRNAs have a PCC correlation > |0.5| and a p-value < 0.05?
 length(unique(pairs_of_interest_pcc$miRNA))
 length(unique(pairs_of_interest_pcc$mRNA))
+
+# save pairs of interest as csv
+write.csv(pairs_of_interest_pcc, "../output/14-Apul-miRNA-mRNA-coexpression/pcc_pairs_of_interest.csv")
 ```
 
 I noticed that the significant pvalues correspond to high correlation values, whereas low correlation values are typically not significant (if using the p<0.05). 
@@ -404,12 +425,12 @@ p <- ggraph(g_tbl, layout = "fr") +
   geom_node_point(aes(color = type), size = 5) +
   geom_node_text(aes(label = name), repel = TRUE, size = 3) +
   scale_edge_width(range = c(0.5, 3)) +
-  scale_color_manual(values = c("miRNA" = "lightblue", "mRNA" = "lightgreen", "Positive correlation" = "blue", "Negative correlation" = "red")) +
+  scale_color_manual(values = c("miRNA" = "purple", "mRNA" = "orange", "Positive correlation" = "blue", "Negative correlation" = "red")) +
   theme_graph() +
   labs(title = "miRNA-mRNA Interaction Network",
        subtitle = "Edge width represents |PCC|, color represents correlation direction");p
 
-ggsave("../../D-Apul/output/09-Apul-mRNA-miRNA-interactions/prelim_miRNA_mRNA_network.png", p, width = 12, height = 10, dpi = 300)
+ggsave("../output/14-Apul-miRNA-mRNA-coexpression/miRNA_mRNA_network.png", p, width = 15, height = 10, dpi = 300)
 ```
 
 Super cool! 
@@ -462,7 +483,7 @@ n_rows <- ceiling(n_plots / n_cols)
 #grid.arrange(grobs = plots, ncol = n_cols, nrow = n_rows)
 
 # Save plots to a PDF
-pdf("../../D-Apul/output/09-Apul-mRNA-miRNA-interactions/correlation_plots.pdf", width = 5 * n_cols, height = 5 * n_rows)
+pdf("../output/14-Apul-miRNA-mRNA-coexpression/correlation_plots.pdf", width = 5 * n_cols, height = 5 * n_rows)
 grid.arrange(grobs = plots, ncol = n_cols, nrow = n_rows)
 dev.off()
 ```
