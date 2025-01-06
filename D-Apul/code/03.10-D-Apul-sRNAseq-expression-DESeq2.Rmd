@@ -666,6 +666,10 @@ Apul_counts_miRNA_namesdf <- data.frame(Name = rownames(Apul_counts_miRNA))
 
 Apul_counts_miRNA_norm <- left_join(Apul_counts_miRNA_namesdf, Apul_counts_sRNA_norm, by = c("Name" = "Name")) %>%
   column_to_rownames(var = "Name")
+
+colnames(Apul_counts_miRNA_norm) <- gsub("X", "", colnames(Apul_counts_miRNA_norm))
+colnames(Apul_counts_miRNA_norm) <- gsub("\\.", "-", colnames(Apul_counts_miRNA_norm))
+
 write.table(Apul_counts_miRNA_norm, file = "../output/03.10-D-Apul-sRNAseq-expression-DESeq2/Apul_counts_miRNA_normalized.txt", sep = "\t", row.names = TRUE, col.names = TRUE,quote = FALSE)
 
 Apul_counts_miRNA_vsd <- left_join(Apul_counts_miRNA_namesdf, Apul_counts_sRNA_vsd, by = c("Name" = "Name")) %>%
@@ -735,8 +739,7 @@ ggplot(pca_df, aes(x = PC1, y = PC2, color = colony.id)) +
     x = paste0("PC1: ", percentVar[1], "% variance"),
     y = paste0("PC2: ", percentVar[2], "% variance"),
     title = "PCA of VSD miRNA Counts"
-  ) +
-  theme_minimal()
+  )
 
 ## Color by colony ID ##
 # Convert PCA results to data frame
@@ -750,8 +753,7 @@ ggplot(pca_df, aes(x = PC1, y = PC2, color = time.point)) +
     x = paste0("PC1: ", percentVar[1], "% variance"),
     y = paste0("PC2: ", percentVar[2], "% variance"),
     title = "PCA of VSD miRNA Counts"
-  ) +
-  theme_minimal()
+  )
 
 ```
 Interesting! When considering all sRNAs, they strongly clustered by colony and not time point. However, miRNAs alone show clear clustering by time point (though some influence of colony is still apparent).
@@ -806,6 +808,7 @@ pheatmap(as.matrix(Apul_counts_miRNA_vsd[apply(Apul_counts_miRNA_vsd, 1, var) > 
 
 ```{r}
 
+
 # Perform clustering based on normalized expression
 row_clustering <- hclust(dist(as.matrix(Apul_counts_miRNA_norm)))
 col_clustering <- hclust(dist(t(as.matrix(Apul_counts_miRNA_norm))))
@@ -827,18 +830,39 @@ Heatmap(
 
 ```
 
+```{r}
+# Perform clustering based on presence/absence (binary data)
+row_clustering <- hclust(dist(binary_counts))  # Use binary_counts for row clustering
+col_clustering <- hclust(dist(t(binary_counts)))  # Use binary_counts for column clustering
+
+# Generate heatmap using predefined dendrograms
+Heatmap(
+  binary_counts,
+  cluster_rows = as.dendrogram(row_clustering),  # Row clustering based on presence/absence
+  cluster_columns = as.dendrogram(col_clustering),  # Column clustering based on presence/absence
+  col = c("lightgray", "#408EC6"),  # White for 0 (absence), black for 1 (presence)
+  name = "Presence/Absence",  # Legend title
+  show_row_names = TRUE,
+  show_column_names = TRUE,
+  row_names_gp = gpar(fontsize = 6),  # Adjust row names font size
+  column_names_gp = gpar(fontsize = 8)  # Adjust column names font size
+)
+
+```
+
+
 It looks like, of the 51 total miRNAs identified, most are consistently present in all A.pulchra colonies and time points. For 10-15 of the miRNAs, presence/absence is more variable accross colonies and timepoints.
 
 
 ```{r}
-results_df <- as.data.frame(sRNA_tp1.v.tp2.results)
+results_df <- as.data.frame(sRNA_tp2.v.tp4.results)
 results_df$Name <- rownames(results_df)
 
 # Assuming your metadata frame also has a 'Name' column
 # Perform the left join to select only the genes listed in metadata
 filtered_results <- dplyr::left_join(Apul_counts_miRNA_namesdf, results_df, by = "Name")
 
-filter(filtered_results, padj < 0.05)
+filter(filtered_results, padj < 0.4)
 ```
 
 
