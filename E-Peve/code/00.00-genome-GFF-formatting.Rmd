@@ -101,7 +101,7 @@ awk '{print $3}' "${data_dir}/${original_gff}" | sort --unique
 # Fix GFF
 
 
-```{r fix-gff, engine='bash', eval=FALSE}
+```{r fix-gff, engine='bash', eval=TRUE}
 source .bashvars
 
 awk '
