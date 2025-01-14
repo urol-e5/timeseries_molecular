@@ -1,0 +1,124 @@
+---
+title: "P.tuahiniensis GFF reformatting"
+author: "Sam White"
+date: "2025-01-14"
+output: 
+  bookdown::html_document2:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+  github_document:
+    toc: true
+    number_sections: true
+  html_document:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+---
+
+# INTRO
+
+This notebook reformats the original _P.tuahiniensis_ GFF ([Pocillopora_meandrina_HIv1.genes.gff3](../data/Pocillopora_meandrina_HIv1.genes.gff3)),
+
+Finally, despite the naming convention, there aren't any actual annotations in that GFF, beyond the feature designations (i.e. no gene ontology, no SwissProt IDs, gene names, etc.). This notebook does _not_ address those shortcomings.
+
+::: {.callout-note}
+Unlike other scripts, this will output to [`F-Ptua/data`](../data), instead of an output directory in `../output`.
+:::
+
+## Software requirements
+
+Requires [genometools](https://github.com/genometools/genometools) (GitHub repo) to be installed and in the system `$PATH`.
+
+## Inputs
+
+- [Pocillopora_meandrina_HIv1.genes.gff3](../data/Pocillopora_meandrina_HIv1.genes.gff3)
+
+## Outputs
+
+- [](../data/)
+
+```{r setup, include=FALSE}
+library(knitr)
+knitr::opts_chunk$set(
+  echo = TRUE,         # Display code chunks
+  eval = FALSE,        # Evaluate code chunks
+  warning = FALSE,     # Hide warnings
+  message = FALSE,     # Hide messages
+  comment = ""         # Prevents appending '##' to beginning of lines in code output
+)
+```
+
+# Load libraries
+```{r load-libraries}
+library(tidyverse)
+```
+
+# Read GFF3 file
+```{r load-input-gff}
+gff <- read_delim("../data/Pocillopora_meandrina_HIv1.genes.gff3", 
+                  delim="\t", 
+                  col_names=c("seqid", "source", "type", "start", "end", 
+                            "score", "strand", "phase", "attributes"),
+                  show_col_types = FALSE)
+str(gff)
+```
+
+# Get unique types
+```{r unqique-features, eval=TRUE}
+# Get and print unique types, one per line
+cat("Unique feature types in original GFF3:\n")
+gff %>%
+  distinct(type) %>%
+  pull(type) %>%
+  walk(~cat("-", .x, "\n"))
+```
+
+# Create gene entries from transcript entries
+```{r create-gene-entries}
+gene_entries <- gff %>%
+  filter(type == "transcript") %>%
+  mutate(
+    type = "gene",
+    attributes = str_replace(attributes, "\\.t\\d+$", "")
+  )
+
+str(gene_entries)
+```
+
+# Replace transcript with mRNA in original data
+```{r replace-transcript-with-mRNA}
+modified_gff <- gff %>%
+  mutate(type = if_else(type == "transcript", "mRNA", type))
+
+str(modified_gff)
+```
+
+# Combine and sort
+```{r combine-and-sort}
+final_gff <- bind_rows(gene_entries, modified_gff) %>%
+  arrange(seqid, start)
+
+str(final_gff)
+```
+
+```{r unqique-features-updated-gff, eval=TRUE}
+# Get and print unique types, one per line
+cat("Unique feature types in final GFF3:\n")
+final_gff %>%
+  distinct(type) %>%
+  pull(type) %>%
+  walk(~cat("-", .x, "\n"))
+```
+
+# Write output
+write_delim(final_gff, 
+            "Pocillopora_meandrina_HIv1.genes.modified.gff3", 
+            delim="\t",
+            col_names=FALSE)
