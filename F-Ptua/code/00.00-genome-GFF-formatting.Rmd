@@ -82,32 +82,82 @@ gff %>%
 
 # Create gene entries from transcript entries
 ```{r create-gene-entries}
+# Create gene entries from transcripts
 gene_entries <- gff %>%
   filter(type == "transcript") %>%
   mutate(
     type = "gene",
-    attributes = str_replace(attributes, "\\.t\\d+$", "")
-  )
-
+    # Extract base gene ID (g23774)
+    base_id = str_extract(attributes, "g\\d+"),
+    # Create new gene ID format
+    attributes = paste0("ID=gene-", base_id)
+  ) %>%
+  select(-base_id)
 str(gene_entries)
 ```
 
-# Replace transcript with mRNA in original data
+# Create mRNA, Feature IDs, and Parent Attributes
 ```{r replace-transcript-with-mRNA}
 modified_gff <- gff %>%
-  mutate(type = if_else(type == "transcript", "mRNA", type))
+  mutate(
+    # Convert transcript to mRNA
+    type = if_else(type == "transcript", "mRNA", type),
+    # Create base ID for each feature
+    base_id = str_extract(attributes, "g\\d+\\.t\\d+"),
+    # Create lowercase type for prefixes
+    type_lower = tolower(type),
+    # Determine parent type
+    parent_type = case_when(
+      type == "mRNA" ~ "gene",
+      TRUE ~ "mrna"
+    ),
+    # Build new attributes string
+    attributes = case_when(
+      type == "gene" ~ paste0("ID=", type_lower, "-", base_id),
+      TRUE ~ paste0("ID=", type_lower, "-", base_id, 
+                   ";Parent=", parent_type, "-", base_id)
+    )
+  ) %>%
+  select(-base_id, -type_lower, -parent_type)
 
 str(modified_gff)
 ```
 
+# Number exons within mRNA groups
+```{r number-exons}
+exons_gff <- modified_gff %>%
+  # Group by mRNA boundaries
+  group_by(seqid, 
+           mRNA_group = cumsum(type == "mRNA")) %>%
+  # Add exon numbers within groups
+  mutate(
+    # Only count when type is exon
+    exon_num = if_else(type == "exon",
+                       cumsum(type == "exon"),
+                       NA_integer_),
+    # Modify attributes to append exon number
+    attributes = if_else(
+      type == "exon",
+      str_replace(attributes, 
+                 "(ID=exon-[^;]+)",
+                 paste0("\\1-", exon_num)),
+      attributes
+    )
+  ) %>%
+  ungroup() %>%
+  select(-mRNA_group, -exon_num) %>%
+  arrange(seqid, start)
+```
+
 # Combine and sort
 ```{r combine-and-sort}
-final_gff <- bind_rows(gene_entries, modified_gff) %>%
+final_gff <- bind_rows(gene_entries, exons_gff) %>%
   arrange(seqid, start)
 
 str(final_gff)
 ```
 
+# Unique features
 ```{r unqique-features-updated-gff, eval=TRUE}
 # Get and print unique types, one per line
 cat("Unique feature types in final GFF3:\n")
@@ -118,7 +168,9 @@ final_gff %>%
 ```
 
 # Write output
+```{r write-reformatted-gff}
 write_delim(final_gff, 
             "Pocillopora_meandrina_HIv1.genes.modified.gff3", 
             delim="\t",
             col_names=FALSE)
+```
