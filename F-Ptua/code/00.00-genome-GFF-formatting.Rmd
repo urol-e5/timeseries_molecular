@@ -22,7 +22,7 @@ output:
     code_download: true
 ---
 
-# INTRO
+# Background
 
 This notebook reformats the original _P.tuahiniensis_ GFF ([Pocillopora_meandrina_HIv1.genes.gff3](../data/Pocillopora_meandrina_HIv1.genes.gff3)),
 
@@ -38,11 +38,11 @@ Requires [genometools](https://github.com/genometools/genometools) (GitHub repo)
 
 ## Inputs
 
-- [Pocillopora_meandrina_HIv1.genes.gff3](../data/Pocillopora_meandrina_HIv1.genes.gff3)
+- [`Pocillopora_meandrina_HIv1.genes.gff3`](../data/Pocillopora_meandrina_HIv1.genes.gff3)
 
 ## Outputs
 
-- [](../data/)
+- [`Pocillopora_meandrina_HIv1.genes-validated.gff3`](../data/Pocillopora_meandrina_HIv1.genes-validated.gff3)
 
 ```{r setup, include=FALSE}
 library(knitr)
@@ -60,8 +60,36 @@ knitr::opts_chunk$set(
 library(tidyverse)
 ```
 
+# Create a Bash variables file
+
+This allows usage of Bash variables across R Markdown chunks.
+
+```{r save-bash-variables-to-rvars-file, engine='bash', eval=TRUE}
+{
+echo "#### Assign Variables ####"
+echo ""
+
+echo "# Data directories"
+echo 'export repo_dir=~/gitrepos/urol-e5/timeseries_molecular'
+echo 'export data_dir=${repo_dir}/F-Ptua/data'
+echo ""
+
+echo "# Input files"
+echo 'export original_gff="Pocillopora_meandrina_HIv1.genes.gff3"'
+echo 'export intermediate_gff="intermediate.gff3"'
+echo 'export validated_gff="Pocillopora_meandrina_HIv1.genes-validated.gff3"'
+echo ""
+
+echo "# Print formatting"
+echo 'export line="--------------------------------------------------------"'
+echo ""
+} > .bashvars
+
+cat .bashvars
+```
+
 # Read GFF3 file
-```{r load-input-gff}
+```{r load-input-gff, eval=TRUE}
 gff <- read_delim("../data/Pocillopora_meandrina_HIv1.genes.gff3", 
                   delim="\t", 
                   col_names=c("seqid", "source", "type", "start", "end", 
@@ -81,50 +109,68 @@ gff %>%
 ```
 
 # Create gene entries from transcript entries
-```{r create-gene-entries}
-# Create gene entries from transcripts
+```{r create-gene-entries, eval=TRUE}
 gene_entries <- gff %>%
   filter(type == "transcript") %>%
   mutate(
     type = "gene",
-    # Extract base gene ID (g23774)
-    base_id = str_extract(attributes, "g\\d+"),
-    # Create new gene ID format
-    attributes = paste0("ID=gene-", base_id)
+    # Replace prefix but keep TS/RNAseq
+    full_id = str_replace(attributes, 
+                         "ID=Pocillopora_meandrina_HIv1___", 
+                         "ID=gene-"),
+    # Clean up gene ID by removing suffixes
+    attributes = str_remove_all(full_id, "[._]t[a-z0-9]*(?=;|$)")
   ) %>%
-  select(-base_id)
+  select(-full_id)
+
 str(gene_entries)
 ```
 
 # Create mRNA, Feature IDs, and Parent Attributes
-```{r replace-transcript-with-mRNA}
+```{r replace-transcript-with-mRNA, eval=TRUE}
 modified_gff <- gff %>%
   mutate(
     # Convert transcript to mRNA
     type = if_else(type == "transcript", "mRNA", type),
-    # Create base ID for each feature
-    base_id = str_extract(attributes, "g\\d+\\.t\\d+"),
-    # Create lowercase type for prefixes
     type_lower = tolower(type),
-    # Determine parent type
-    parent_type = case_when(
-      type == "mRNA" ~ "gene",
-      TRUE ~ "mrna"
+    
+    # Process ID and Parent attributes separately
+    processed_id = str_replace(
+      attributes,
+      "ID=Pocillopora_meandrina_HIv1___",
+      paste0("ID=", type_lower, "-")
     ),
-    # Build new attributes string
+    
+    # Build final attributes string
     attributes = case_when(
-      type == "gene" ~ paste0("ID=", type_lower, "-", base_id),
-      TRUE ~ paste0("ID=", type_lower, "-", base_id, 
-                   ";Parent=", parent_type, "-", base_id)
+      # For mRNA features
+      type == "mRNA" ~ {
+        base_id <- str_extract(processed_id, "(?:TS|RNAseq)\\.[^;]+")
+        parent_id <- str_remove_all(base_id, "[._]t[a-z0-9]*$")
+        paste0(processed_id, ";Parent=gene-", parent_id)
+      },
+      
+      # For sub-features (CDS, exon)
+      str_detect(processed_id, "Parent=") ~ {
+        # Extract original ID part
+        id_part <- str_extract(processed_id, "(?:TS|RNAseq)\\.[^;]+")
+        # Clean up Parent reference
+        parent_part <- str_extract(attributes, "Parent=.*$") %>%
+          str_replace("Parent=Pocillopora_meandrina_HIv1___", "Parent=mrna-")
+        paste0("ID=", type_lower, "-", id_part, ";", parent_part)
+      },
+      
+      # For any other features
+      TRUE ~ processed_id
     )
   ) %>%
-  select(-base_id, -type_lower, -parent_type)
+  select(-type_lower, -processed_id)
 
 str(modified_gff)
 ```
 
 # Number exons within mRNA groups
-```{r number-exons}
+```{r number-exons, eval=TRUE}
 exons_gff <- modified_gff %>%
   # Group by mRNA boundaries
   group_by(seqid, 
@@ -147,30 +193,72 @@ exons_gff <- modified_gff %>%
   ungroup() %>%
   select(-mRNA_group, -exon_num) %>%
   arrange(seqid, start)
+
+str(exons_gff)
 ```
 
 # Combine and sort
-```{r combine-and-sort}
-final_gff <- bind_rows(gene_entries, exons_gff) %>%
+```{r combine-and-sort, eval=TRUE}
+intermediate_gff <- bind_rows(gene_entries, exons_gff) %>%
   arrange(seqid, start)
 
-str(final_gff)
+str(intermediate_gff)
 ```
 
 # Unique features
 ```{r unqique-features-updated-gff, eval=TRUE}
 # Get and print unique types, one per line
 cat("Unique feature types in final GFF3:\n")
-final_gff %>%
+intermediate_gff %>%
   distinct(type) %>%
   pull(type) %>%
   walk(~cat("-", .x, "\n"))
 ```
 
 # Write output
-```{r write-reformatted-gff}
-write_delim(final_gff, 
-            "Pocillopora_meandrina_HIv1.genes.modified.gff3", 
+```{r write-reformatted-gff, eval=TRUE}
+write_delim(intermediate_gff, 
+            "../data/intermediate.gff3", 
             delim="\t",
             col_names=FALSE)
+```
+
+
+# Validate GFF
+
+Validate GFF using genometools `gff3`.
+
+- `-tidy`: Attempts to clean/fix any potential issues.
+
+- `-checkids`: Checks IDs.
+
+- `-retainids`: Retains IDs from input GFF instead of assigning new ones.
+
+```{r validate-gff, engine='bash', eval=FALSE}
+source .bashvars
+
+gt gff3 \
+-tidy \
+-checkids \
+-retainids \
+"${data_dir}"/"${intermediate_gff}" \
+> "${data_dir}"/"${validated_gff}" \
+2> "${data_dir}"/gt_gff3_validation_errors.log
+```
+
+## Check for error(s) in validation
+
+Process would stop if error occurred, so only need to check end of file.
+
+```{r validate-gff-error-check, engine='bash', eval=TRUE}
+source .bashvars
+
+tail "${data_dir}"/gt_gff3_validation_errors.log
+```
+
+## Inspect Validated GFF
+```{r validated-gff, engine='bash', eval=TRUE}
+source .bashvars
+
+head "${data_dir}"/"${validated_gff}"
 ```
