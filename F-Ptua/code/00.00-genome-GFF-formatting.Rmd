@@ -70,7 +70,7 @@ echo "#### Assign Variables ####"
 echo ""
 
 echo "# Programs"
-echo 'export gffread="~/programs/gffread/gffread"'
+echo 'export gffread=~/programs/gffread/gffread'
 
 echo "# Data directories"
 echo 'export repo_dir=~/gitrepos/urol-e5/timeseries_molecular'
@@ -256,9 +256,27 @@ rm "${data_dir}"/"${intermediate_gff}"
 ```{r create-GTF, engine='bash', eval=TRUE}
 source .bashvars
 
-gt gff3_to_gtf "${data_dir}"/"${validated_gff}" \
+${gffread} \
+-E \
+-T \
+"${data_dir}"/"${validated_gff}" \
 > "${data_dir}"/"${gtf}" \
-2> "${data_dir}"/gt_gff3-to-gtf_errors.log
+2> "${data_dir}"/gffread-gtf.log
 
-head -n 50 "${data_dir}"/"${gtf}"
+```
+
+## Inspect GTF
+```{r inspect-GTF, engine='bash', eval=TRUE}
+source .bashvars
+
+head "${data_dir}"/"${gtf}"
+
+```
+
+## Check GTF Log
+```{r check-GTF-log, engine='bash', eval=TRUE}
+source .bashvars
+
+head "${data_dir}"/gffread-gtf.log
+
 ```
