@@ -66,7 +66,7 @@ knitr::opts_chunk$set(
 
 # Load libraries
 
-```{r load-libraries}
+```{r load-libraries, eval=TRUE}
 library(tidyverse)
 ```
 
@@ -237,7 +237,7 @@ Validate GFF using genometools `gff3`.
 
 -   `-retainids`: Retains IDs from input GFF instead of assigning new ones.
 
-```{r validate-gff, engine='bash', eval=FALSE}
+```{r validate-gff, engine='bash', eval=TRUE}
 source .bashvars
 
 gt gff3 \
