@@ -20,29 +20,38 @@ output:
     number_sections: true
     code_folding: show
     code_download: true
+bibliography: references.bib
 ---
 
 # Background
 
-This notebook reformats the original _P.tuahiniensis_ GFF ([Pocillopora_meandrina_HIv1.genes.gff3](../data/Pocillopora_meandrina_HIv1.genes.gff3)),
+This notebook reformats the original *P.tuahiniensis* GFF ([Pocillopora_meandrina_HIv1.genes.gff3](../data/Pocillopora_meandrina_HIv1.genes.gff3)), to be compliant with the GFF3 standard. The genome was originally downloaded from here:
 
-Finally, despite the naming convention, there aren't any actual annotations in that GFF, beyond the feature designations (i.e. no gene ontology, no SwissProt IDs, gene names, etc.). This notebook does _not_ address those shortcomings.
+-   <http://cyanophora.rutgers.edu/Pocillopora_meandrina/> [@stephens2022]
 
-::: {.callout-note}
+Despite the naming convention of the file, there are no designated `gene` regions. The reformatting will add a `gene` feature, based solely on the `transcript` coordinates. There aren't any other features beyoned `CDS` and `exon`, so adding `gene` features which match the `transcript` regions is primarily just to meet the GFF3 standard.
+
+Additionally, this notebook will generate a GTF for downstream use with HiSat2 for creating a genome index which incorporates exon/intron junctions and splice sites.
+
+::: callout-note
 Unlike other scripts, this will output to [`F-Ptua/data`](../data), instead of an output directory in `../output`.
 :::
 
 ## Software requirements
 
-Requires [genometools](https://github.com/genometools/genometools) (GitHub repo) to be installed and in the system `$PATH`.
+Requires [genometools](https://github.com/genometools/genometools) (GitHub repo) to be installed and in the system `$PATH` and is used for GFF3 validation/formatting.
+
+Requires [gffread](https://ccb.jhu.edu/software/stringtie/gff.shtml#gffread) [@pertea2020] which is used for GFF3-to-GTF conversion.
 
 ## Inputs
 
-- [`Pocillopora_meandrina_HIv1.genes.gff3`](../data/Pocillopora_meandrina_HIv1.genes.gff3)
+-   [`Pocillopora_meandrina_HIv1.genes.gff3`](../data/Pocillopora_meandrina_HIv1.genes.gff3)
 
 ## Outputs
 
-- [`Pocillopora_meandrina_HIv1.genes-validated.gff3`](../data/Pocillopora_meandrina_HIv1.genes-validated.gff3)
+-   [`Pocillopora_meandrina_HIv1.genes-validated.gff3`](../data/Pocillopora_meandrina_HIv1.genes-validated.gff3)
+
+-   [`Pocillopora_meandrina_HIv1.genes-validated.gtf`](../data/Pocillopora_meandrina_HIv1.genes-validated.gtf)
 
 ```{r setup, include=FALSE}
 library(knitr)
@@ -56,6 +65,7 @@ knitr::opts_chunk$set(
 ```
 
 # Load libraries
+
 ```{r load-libraries}
 library(tidyverse)
 ```
@@ -93,6 +103,7 @@ cat .bashvars
 ```
 
 # Read GFF3 file
+
 ```{r load-input-gff, eval=TRUE}
 gff <- read_delim("../data/Pocillopora_meandrina_HIv1.genes.gff3", 
                   delim="\t", 
@@ -103,6 +114,7 @@ str(gff)
 ```
 
 # Get unique types
+
 ```{r unqique-features, eval=TRUE}
 # Get and print unique types, one per line
 cat("Unique feature types in original GFF3:\n")
@@ -113,6 +125,7 @@ gff %>%
 ```
 
 # Create gene entries from transcript entries
+
 ```{r create-gene-entries, eval=TRUE}
 # Create gene entries
 gene_entries <- gff %>%
@@ -126,6 +139,7 @@ str(gene_entries)
 ```
 
 # Create mRNA features
+
 ```{r mrna-features, eval=TRUE}
 # Create mRNA entries
 mrna_entries <- gff %>%
@@ -142,6 +156,11 @@ str(mrna_entries)
 ```
 
 # Other features
+
+Prepends a feature ID (e.g. `cds-`) to the corresponding attribute ID.
+
+Also increments each `exon` feature type within each mRNA, starting at \`.
+
 ```{r other-features, eval=TRUE}
 # Process remaining features
 other_features <- gff %>%
@@ -176,6 +195,7 @@ str(other_features)
 ```
 
 # Combine and sort
+
 ```{r combine-and-sort, eval=TRUE}
 intermediate_gff <- bind_rows(
   gene_entries,
@@ -188,6 +208,7 @@ str(intermediate_gff)
 ```
 
 # Unique features
+
 ```{r unqique-features-updated-gff, eval=TRUE}
 # Get and print unique types, one per line
 cat("Unique feature types in final GFF3:\n")
@@ -198,6 +219,7 @@ intermediate_gff %>%
 ```
 
 # Write output
+
 ```{r write-reformatted-gff, eval=TRUE}
 write_delim(intermediate_gff, 
             "../data/intermediate.gff3", 
@@ -205,16 +227,15 @@ write_delim(intermediate_gff,
             col_names=FALSE)
 ```
 
-
 # Validate GFF
 
 Validate GFF using genometools `gff3`.
 
-- `-tidy`: Attempts to clean/fix any potential issues.
+-   `-tidy`: Attempts to clean/fix any potential issues.
 
-- `-checkids`: Checks IDs.
+-   `-checkids`: Checks IDs.
 
-- `-retainids`: Retains IDs from input GFF instead of assigning new ones.
+-   `-retainids`: Retains IDs from input GFF instead of assigning new ones.
 
 ```{r validate-gff, engine='bash', eval=FALSE}
 source .bashvars
@@ -232,6 +253,12 @@ gt gff3 \
 
 Process would stop if error occurred, so only need to check end of file.
 
+::: callout-note
+Warnings are expected, as this program warns the user when it is inserting text.
+
+In this instance, when it is inserting GFF3-compliant comment lines denoting regions.
+:::
+
 ```{r validate-gff-error-check, engine='bash', eval=TRUE}
 source .bashvars
 
@@ -239,6 +266,7 @@ tail "${data_dir}"/gt_gff3_validation_errors.log
 ```
 
 ## Inspect Validated GFF
+
 ```{r validated-gff, engine='bash', eval=TRUE}
 source .bashvars
 
@@ -246,6 +274,7 @@ head "${data_dir}"/"${validated_gff}"
 ```
 
 ## Remove intermediate GFF
+
 ```{r rm-intermediate-gff, engine='bash', eval=TRUE}
 source .bashvars
 
@@ -253,6 +282,7 @@ rm "${data_dir}"/"${intermediate_gff}"
 ```
 
 # Convert to GTF
+
 ```{r create-GTF, engine='bash', eval=TRUE}
 source .bashvars
 
@@ -266,6 +296,7 @@ ${gffread} \
 ```
 
 ## Inspect GTF
+
 ```{r inspect-GTF, engine='bash', eval=TRUE}
 source .bashvars
 
@@ -274,9 +305,12 @@ head "${data_dir}"/"${gtf}"
 ```
 
 ## Check GTF Log
+
 ```{r check-GTF-log, engine='bash', eval=TRUE}
 source .bashvars
 
 head "${data_dir}"/gffread-gtf.log
 
 ```
+
+# REFERENCES
