@@ -22,9 +22,9 @@ output:
     code_download: true
 ---
 
-# INTRO
+# Background
 
-This notebook reformats the original _P.evermanni_ GFF ([Porites_evermanni_v1.annot.gff](../data/Porites_evermanni_v1.annot.gff)), which is not compliant with [the GFF standard](https://github.com/the-sequence-ontology/specifications/blob/master/gff3.md) (GitHub page). Additionally, the GFF is lacking the `gene` feature, which may (or may not) be needed/useful for downstream processing. This notebook adds a `gene` feature.
+This notebook reformats the original _P.evermanni_ GFF ([Porites_evermanni_v1.annot.gff](../data/Porites_evermanni_v1.annot.gff)), which is not compliant with [the GFF standard](https://github.com/the-sequence-ontology/specifications/blob/master/gff3.md) (GitHub page). The GFF is lacking the `gene` feature, which may (or may not) be needed/useful for downstream processing. This notebook adds a `gene` feature. Additionally, it is lacking the `exon` feature. We've decided to insert `exon` features which cover `UTR` and `CDS` features.
 
 Finally, despite the naming convention, there aren't any actual annotations in that GFF, beyond the feature designations (i.e. no gene ontology, no SwissProt IDs, gene names, etc.). This notebook does _not_ address those shortcomings.
 
@@ -42,7 +42,7 @@ Requires [genometools](https://github.com/genometools/genometools) (GitHub repo)
 
 ## Outputs
 
-- [Porites_evermanni_validated.gff](../data/Porites_evermanni_validated.gff)
+- [Porites_evermanni_validated.gff3](../data/Porites_evermanni_validated.gff3)
 
 ```{r setup, include=FALSE}
 library(knitr)
@@ -73,7 +73,7 @@ echo ""
 echo "# Input files"
 echo 'export original_gff="Porites_evermanni_v1.annot.gff"'
 echo 'export intermediate_gff="intermediate.gff"'
-echo 'export validated_gff="Porites_evermanni_validated.gff"'
+echo 'export validated_gff="Porites_evermanni_validated.gff3"'
 echo ""
 
 echo "# Print formatting"
@@ -105,7 +105,7 @@ awk '{print $3}' "${data_dir}/${original_gff}" | sort --unique
 source .bashvars
 
 awk '
-BEGIN { OFS="\t"; mrna_count = 0; utr_count = 0; gene_count = 0; cds_count = 0 }
+BEGIN { OFS="\t"; mrna_count = 0; utr_count = 0; gene_count = 0; cds_count = 0; exon_count = 0 }
 {
     if ($3 == "mRNA") {
         split($9, attributes, ";")
@@ -139,62 +139,64 @@ BEGIN { OFS="\t"; mrna_count = 0; utr_count = 0; gene_count = 0; cds_count = 0 }
         }
         $9 = $9 ";" parent_id
         print $1, $2, "gene", $4, $5, ".", $7, $8, gene_id
+        print $0  # Print the original mRNA feature
         
         # Increment the gene counter and reset the CDS counter for each new gene
         gene_count++
-        
-        cds_count = gene_count
-    } else if ($3 == "UTR") {
-        utr_count++
-        new_utr_id = "ID=utr-" sprintf("%06d", utr_count)
+    } else if ($3 == "UTR" || $3 == "CDS") {
         split($9, attributes, ";")
+        id_set = 0
+        parent_set = 0
         for (i in attributes) {
+            if (attributes[i] ~ /^ID=/) {
+                id_set = 1
+                if ($3 == "UTR") {
+                    attributes[i] = "ID=utr-" sprintf("%05d", ++utr_count)
+                } else if ($3 == "CDS") {
+                    attributes[i] = "ID=cds-" sprintf("%05d", ++cds_count)
+                }
+            }
             if (attributes[i] ~ /^Parent=/) {
+                parent_set = 1
                 original_parent_id = substr(attributes[i], 8)
                 if (original_parent_id in mrna_map) {
                     attributes[i] = "Parent=" mrna_map[original_parent_id]
                 }
-                break
             }
         }
-        $9 = new_utr_id
-        for (i = 1; i <= length(attributes); i++) {
-            $9 = $9 ";" attributes[i]
-        }
-    } else if ($3 == "CDS") {
-        new_cds_id = "ID=cds-" sprintf("%06d", cds_count)
-        split($9, attributes, ";")
-        for (i in attributes) {
-            if (attributes[i] ~ /^Parent=/) {
-                original_parent_id = substr(attributes[i], 8)
-                if (original_parent_id in mrna_map) {
-                    attributes[i] = "Parent=" mrna_map[original_parent_id]
-                }
-                break
+        if (id_set == 0) {
+            if ($3 == "UTR") {
+                attributes[1] = "ID=utr-" sprintf("%05d", ++utr_count) ";" attributes[1]
+            } else if ($3 == "CDS") {
+                attributes[1] = "ID=cds-" sprintf("%05d", ++cds_count) ";" attributes[1]
             }
         }
-        $9 = new_cds_id
-        for (i = 1; i <= length(attributes); i++) {
-            $9 = $9 ";" attributes[i]
-        }
-    } else {
-        split($9, attributes, ";")
-        for (i in attributes) {
-            if (attributes[i] ~ /^Parent=/) {
-                original_parent_id = substr(attributes[i], 8)
-                if (original_parent_id in mrna_map) {
-                    attributes[i] = "Parent=" mrna_map[original_parent_id]
-                }
-                break
-            }
+        if (parent_set == 0) {
+            attributes[length(attributes) + 1] = "Parent=" mrna_map[original_id]
         }
         $9 = attributes[1]
         for (i = 2; i <= length(attributes); i++) {
             $9 = $9 ";" attributes[i]
         }
+        print $1, $2, $3, $4, $5, $6, $7, $8, $9  # Print the original UTR or CDS feature
+        
+        # Add exon feature
+        exon_count++
+        new_exon_id = "ID=exon-" sprintf("%06d", exon_count)
+        exon_attributes = new_exon_id
+        for (i = 1; i <= length(attributes); i++) {
+            if (attributes[i] !~ /^ID=/) {
+                exon_attributes = exon_attributes ";" attributes[i]
+            }
+        }
+        # Ensure Parent attribute is included in exon attributes
+        if (parent_set == 1) {
+            exon_attributes = exon_attributes ";Parent=" mrna_map[original_parent_id]
+        }
+        print $1, $2, "exon", $4, $5, $6, $7, $8, exon_attributes
     }
-    print $0
-}' "${data_dir}"/"${original_gff}" > "${data_dir}"/"${intermediate_gff}"
+}
+' "${data_dir}/${original_gff}" > "${data_dir}/${intermediate_gff}"
 ```
 
 ## Inspect intermediate GFF
@@ -229,6 +231,10 @@ gt gff3 \
 ## Check for error(s) in validation
 
 Process would stop if error occurred, so only need to check end of file.
+
+::: {.callout-note}
+Warnings are expected, as they generally indicated modifications to the GFF to bring it into compliance.
+:::
 
 ```{r validate-gff-error-check, engine='bash', eval=TRUE}
 source .bashvars
