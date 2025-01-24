@@ -1599,9 +1599,9 @@ border-radius: 0px;
 </div>
 
 
-<div id="intro" class="section level1" number="1">
-<h1><span class="header-section-number">1</span> INTRO</h1>
-<p>This notebook reformats the original <em>P.evermanni</em> GFF (<a href="../data/Porites_evermanni_v1.annot.gff">Porites_evermanni_v1.annot.gff</a>), which is not compliant with <a href="https://github.com/the-sequence-ontology/specifications/blob/master/gff3.md">the GFF standard</a> (GitHub page). Additionally, the GFF is lacking the <code>gene</code> feature, which may (or may not) be needed/useful for downstream processing. This notebook adds a <code>gene</code> feature.</p>
+<div id="background" class="section level1" number="1">
+<h1><span class="header-section-number">1</span> Background</h1>
+<p>This notebook reformats the original <em>P.evermanni</em> GFF (<a href="../data/Porites_evermanni_v1.annot.gff">Porites_evermanni_v1.annot.gff</a>), which is not compliant with <a href="https://github.com/the-sequence-ontology/specifications/blob/master/gff3.md">the GFF standard</a> (GitHub page). The GFF is lacking the <code>gene</code> feature, which may (or may not) be needed/useful for downstream processing. This notebook adds a <code>gene</code> feature. Additionally, it is lacking the <code>exon</code> feature. We’ve decided to insert <code>exon</code> features which cover <code>UTR</code> and <code>CDS</code> features.</p>
 <p>Finally, despite the naming convention, there aren’t any actual annotations in that GFF, beyond the feature designations (i.e. no gene ontology, no SwissProt IDs, gene names, etc.). This notebook does <em>not</em> address those shortcomings.</p>
 <div class="callout-note">
 <p>Unlike other scripts, this will output to <a href="../data">E-Peve/data</a>, instead of an output directory in <code>../output</code>.</p>
@@ -1619,7 +1619,7 @@ border-radius: 0px;
 <div id="outputs" class="section level2" number="1.3">
 <h2><span class="header-section-number">1.3</span> Outputs</h2>
 <ul>
-<li><a href="../data/Porites_evermanni_validated.gff">Porites_evermanni_validated.gff</a></li>
+<li><a href="../data/Porites_evermanni_validated.gff3">Porites_evermanni_validated.gff3</a></li>
 </ul>
 </div>
 </div>
@@ -1638,7 +1638,7 @@ echo &quot;&quot;
 echo &quot;# Input files&quot;
 echo &#39;export original_gff=&quot;Porites_evermanni_v1.annot.gff&quot;&#39;
 echo &#39;export intermediate_gff=&quot;intermediate.gff&quot;&#39;
-echo &#39;export validated_gff=&quot;Porites_evermanni_validated.gff&quot;&#39;
+echo &#39;export validated_gff=&quot;Porites_evermanni_validated.gff3&quot;&#39;
 echo &quot;&quot;
 
 echo &quot;# Print formatting&quot;
@@ -1656,7 +1656,7 @@ export data_dir=${repo_dir}/E-Peve/data
 # Input files
 export original_gff=&quot;Porites_evermanni_v1.annot.gff&quot;
 export intermediate_gff=&quot;intermediate.gff&quot;
-export validated_gff=&quot;Porites_evermanni_validated.gff&quot;
+export validated_gff=&quot;Porites_evermanni_validated.gff3&quot;
 
 # Print formatting
 export line=&quot;--------------------------------------------------------&quot;</code></pre>
@@ -1691,7 +1691,7 @@ UTR</code></pre>
 <pre class="bash"><code>source .bashvars
 
 awk &#39;
-BEGIN { OFS=&quot;\t&quot;; mrna_count = 0; utr_count = 0; gene_count = 0; cds_count = 0 }
+BEGIN { OFS=&quot;\t&quot;; mrna_count = 0; utr_count = 0; gene_count = 0; cds_count = 0; exon_count = 0 }
 {
     if ($3 == &quot;mRNA&quot;) {
         split($9, attributes, &quot;;&quot;)
@@ -1725,62 +1725,64 @@ BEGIN { OFS=&quot;\t&quot;; mrna_count = 0; utr_count = 0; gene_count = 0; cds_c
         }
         $9 = $9 &quot;;&quot; parent_id
         print $1, $2, &quot;gene&quot;, $4, $5, &quot;.&quot;, $7, $8, gene_id
+        print $0  # Print the original mRNA feature
         
         # Increment the gene counter and reset the CDS counter for each new gene
         gene_count++
-        
-        cds_count = gene_count
-    } else if ($3 == &quot;UTR&quot;) {
-        utr_count++
-        new_utr_id = &quot;ID=utr-&quot; sprintf(&quot;%06d&quot;, utr_count)
+    } else if ($3 == &quot;UTR&quot; || $3 == &quot;CDS&quot;) {
         split($9, attributes, &quot;;&quot;)
+        id_set = 0
+        parent_set = 0
         for (i in attributes) {
+            if (attributes[i] ~ /^ID=/) {
+                id_set = 1
+                if ($3 == &quot;UTR&quot;) {
+                    attributes[i] = &quot;ID=utr-&quot; sprintf(&quot;%05d&quot;, ++utr_count)
+                } else if ($3 == &quot;CDS&quot;) {
+                    attributes[i] = &quot;ID=cds-&quot; sprintf(&quot;%05d&quot;, ++cds_count)
+                }
+            }
             if (attributes[i] ~ /^Parent=/) {
+                parent_set = 1
                 original_parent_id = substr(attributes[i], 8)
                 if (original_parent_id in mrna_map) {
                     attributes[i] = &quot;Parent=&quot; mrna_map[original_parent_id]
                 }
-                break
             }
         }
-        $9 = new_utr_id
-        for (i = 1; i &lt;= length(attributes); i++) {
-            $9 = $9 &quot;;&quot; attributes[i]
-        }
-    } else if ($3 == &quot;CDS&quot;) {
-        new_cds_id = &quot;ID=cds-&quot; sprintf(&quot;%06d&quot;, cds_count)
-        split($9, attributes, &quot;;&quot;)
-        for (i in attributes) {
-            if (attributes[i] ~ /^Parent=/) {
-                original_parent_id = substr(attributes[i], 8)
-                if (original_parent_id in mrna_map) {
-                    attributes[i] = &quot;Parent=&quot; mrna_map[original_parent_id]
-                }
-                break
+        if (id_set == 0) {
+            if ($3 == &quot;UTR&quot;) {
+                attributes[1] = &quot;ID=utr-&quot; sprintf(&quot;%05d&quot;, ++utr_count) &quot;;&quot; attributes[1]
+            } else if ($3 == &quot;CDS&quot;) {
+                attributes[1] = &quot;ID=cds-&quot; sprintf(&quot;%05d&quot;, ++cds_count) &quot;;&quot; attributes[1]
             }
         }
-        $9 = new_cds_id
-        for (i = 1; i &lt;= length(attributes); i++) {
-            $9 = $9 &quot;;&quot; attributes[i]
-        }
-    } else {
-        split($9, attributes, &quot;;&quot;)
-        for (i in attributes) {
-            if (attributes[i] ~ /^Parent=/) {
-                original_parent_id = substr(attributes[i], 8)
-                if (original_parent_id in mrna_map) {
-                    attributes[i] = &quot;Parent=&quot; mrna_map[original_parent_id]
-                }
-                break
-            }
+        if (parent_set == 0) {
+            attributes[length(attributes) + 1] = &quot;Parent=&quot; mrna_map[original_id]
         }
         $9 = attributes[1]
         for (i = 2; i &lt;= length(attributes); i++) {
             $9 = $9 &quot;;&quot; attributes[i]
         }
+        print $1, $2, $3, $4, $5, $6, $7, $8, $9  # Print the original UTR or CDS feature
+        
+        # Add exon feature
+        exon_count++
+        new_exon_id = &quot;ID=exon-&quot; sprintf(&quot;%06d&quot;, exon_count)
+        exon_attributes = new_exon_id
+        for (i = 1; i &lt;= length(attributes); i++) {
+            if (attributes[i] !~ /^ID=/) {
+                exon_attributes = exon_attributes &quot;;&quot; attributes[i]
+            }
+        }
+        # Ensure Parent attribute is included in exon attributes
+        if (parent_set == 1) {
+            exon_attributes = exon_attributes &quot;;Parent=&quot; mrna_map[original_parent_id]
+        }
+        print $1, $2, &quot;exon&quot;, $4, $5, $6, $7, $8, exon_attributes
     }
-    print $0
-}&#39; &quot;${data_dir}&quot;/&quot;${original_gff}&quot; &gt; &quot;${data_dir}&quot;/&quot;${intermediate_gff}&quot;</code></pre>
+}
+&#39; &quot;${data_dir}/${original_gff}&quot; &gt; &quot;${data_dir}/${intermediate_gff}&quot;</code></pre>
 <div id="inspect-intermediate-gff" class="section level2" number="4.1">
 <h2><span class="header-section-number">4.1</span> Inspect intermediate GFF</h2>
 <pre class="bash"><code>source .bashvars
@@ -1788,14 +1790,14 @@ BEGIN { OFS=&quot;\t&quot;; mrna_count = 0; utr_count = 0; gene_count = 0; cds_c
 head &quot;${data_dir}&quot;/&quot;${intermediate_gff}&quot;</code></pre>
 <pre><code>Porites_evermani_scaffold_1 Gmove   gene    3107    4488    .   -   .   ID=gene-Peve_00000001
 Porites_evermani_scaffold_1 Gmove   mRNA    3107    4488    543 -   .   ID=mrna-00001;Name=Peve_00000001;start=0;stop=1;cds_size=543;Parent=gene-Peve_00000001
-Porites_evermani_scaffold_1 Gmove   CDS 3107    3444    .   -   .   ID=cds-000001;Parent=mrna-00001
-Porites_evermani_scaffold_1 Gmove   CDS 4284    4488    .   -   .   ID=cds-000001;Parent=mrna-00001
+Porites_evermani_scaffold_1 Gmove   CDS 3107    3444    .   -   .   ID=cds-00001;Parent=mrna-00001
+Porites_evermani_scaffold_1 Gmove   exon    3107    3444    .   -   .   ID=exon-000001;Parent=mrna-00001
+Porites_evermani_scaffold_1 Gmove   CDS 4284    4488    .   -   .   ID=cds-00002;Parent=mrna-00001
+Porites_evermani_scaffold_1 Gmove   exon    4284    4488    .   -   .   ID=exon-000002;Parent=mrna-00001
 Porites_evermani_scaffold_1 Gmove   gene    424479  429034  .   -   .   ID=gene-Peve_00000002
 Porites_evermani_scaffold_1 Gmove   mRNA    424479  429034  2439.63 -   .   ID=mrna-00002;Name=Peve_00000002;start=1;stop=1;cds_size=2019;Parent=gene-Peve_00000002
-Porites_evermani_scaffold_1 Gmove   CDS 424479  425361  .   -   .   ID=cds-000002;Parent=mrna-00002
-Porites_evermani_scaffold_1 Gmove   CDS 426181  426735  .   -   .   ID=cds-000002;Parent=mrna-00002
-Porites_evermani_scaffold_1 Gmove   CDS 427013  427140  .   -   .   ID=cds-000002;Parent=mrna-00002
-Porites_evermani_scaffold_1 Gmove   CDS 427665  427724  .   -   .   ID=cds-000002;Parent=mrna-00002</code></pre>
+Porites_evermani_scaffold_1 Gmove   CDS 424479  425361  .   -   .   ID=cds-00003;Parent=mrna-00002
+Porites_evermani_scaffold_1 Gmove   exon    424479  425361  .   -   .   ID=exon-000003;Parent=mrna-00002</code></pre>
 </div>
 </div>
 <div id="validate-gff" class="section level1" number="5">
@@ -1818,19 +1820,22 @@ gt gff3 \
 <div id="check-for-errors-in-validation" class="section level2" number="5.1">
 <h2><span class="header-section-number">5.1</span> Check for error(s) in validation</h2>
 <p>Process would stop if error occurred, so only need to check end of file.</p>
+<div class="callout-note">
+<p>Warnings are expected, as they generally indicated modifications to the GFF to bring it into compliance.</p>
+</div>
 <pre class="bash"><code>source .bashvars
 
 tail &quot;${data_dir}&quot;/gt_gff3_validation_errors.log</code></pre>
-<pre><code>warning: CDS feature on line 46160 in file &quot;/home/sam/gitrepos/urol-e5/timeseries_molecular//E-Peve/data/intermediate.gff&quot; has the wrong phase . -&gt; correcting it to 0
-warning: CDS feature on line 46161 in file &quot;/home/sam/gitrepos/urol-e5/timeseries_molecular//E-Peve/data/intermediate.gff&quot; has the wrong phase . -&gt; correcting it to 2
-warning: CDS feature on line 46162 in file &quot;/home/sam/gitrepos/urol-e5/timeseries_molecular//E-Peve/data/intermediate.gff&quot; has the wrong phase . -&gt; correcting it to 2
-warning: CDS feature on line 46165 in file &quot;/home/sam/gitrepos/urol-e5/timeseries_molecular//E-Peve/data/intermediate.gff&quot; has the wrong phase . -&gt; correcting it to 0
-warning: CDS feature on line 46166 in file &quot;/home/sam/gitrepos/urol-e5/timeseries_molecular//E-Peve/data/intermediate.gff&quot; has the wrong phase . -&gt; correcting it to 0
-warning: CDS feature on line 46169 in file &quot;/home/sam/gitrepos/urol-e5/timeseries_molecular//E-Peve/data/intermediate.gff&quot; has the wrong phase . -&gt; correcting it to 0
-warning: CDS feature on line 46170 in file &quot;/home/sam/gitrepos/urol-e5/timeseries_molecular//E-Peve/data/intermediate.gff&quot; has the wrong phase . -&gt; correcting it to 0
-warning: CDS feature on line 46171 in file &quot;/home/sam/gitrepos/urol-e5/timeseries_molecular//E-Peve/data/intermediate.gff&quot; has the wrong phase . -&gt; correcting it to 2
-warning: CDS feature on line 46172 in file &quot;/home/sam/gitrepos/urol-e5/timeseries_molecular//E-Peve/data/intermediate.gff&quot; has the wrong phase . -&gt; correcting it to 0
-warning: CDS feature on line 46173 in file &quot;/home/sam/gitrepos/urol-e5/timeseries_molecular//E-Peve/data/intermediate.gff&quot; has the wrong phase . -&gt; correcting it to 0</code></pre>
+<pre><code>warning: CDS feature on line 81189 in file &quot;/home/sam/gitrepos/urol-e5/timeseries_molecular//E-Peve/data/intermediate.gff&quot; has the wrong phase . -&gt; correcting it to 0
+warning: CDS feature on line 81191 in file &quot;/home/sam/gitrepos/urol-e5/timeseries_molecular//E-Peve/data/intermediate.gff&quot; has the wrong phase . -&gt; correcting it to 2
+warning: CDS feature on line 81193 in file &quot;/home/sam/gitrepos/urol-e5/timeseries_molecular//E-Peve/data/intermediate.gff&quot; has the wrong phase . -&gt; correcting it to 2
+warning: CDS feature on line 81197 in file &quot;/home/sam/gitrepos/urol-e5/timeseries_molecular//E-Peve/data/intermediate.gff&quot; has the wrong phase . -&gt; correcting it to 0
+warning: CDS feature on line 81199 in file &quot;/home/sam/gitrepos/urol-e5/timeseries_molecular//E-Peve/data/intermediate.gff&quot; has the wrong phase . -&gt; correcting it to 0
+warning: CDS feature on line 81203 in file &quot;/home/sam/gitrepos/urol-e5/timeseries_molecular//E-Peve/data/intermediate.gff&quot; has the wrong phase . -&gt; correcting it to 0
+warning: CDS feature on line 81205 in file &quot;/home/sam/gitrepos/urol-e5/timeseries_molecular//E-Peve/data/intermediate.gff&quot; has the wrong phase . -&gt; correcting it to 0
+warning: CDS feature on line 81207 in file &quot;/home/sam/gitrepos/urol-e5/timeseries_molecular//E-Peve/data/intermediate.gff&quot; has the wrong phase . -&gt; correcting it to 2
+warning: CDS feature on line 81209 in file &quot;/home/sam/gitrepos/urol-e5/timeseries_molecular//E-Peve/data/intermediate.gff&quot; has the wrong phase . -&gt; correcting it to 0
+warning: CDS feature on line 81211 in file &quot;/home/sam/gitrepos/urol-e5/timeseries_molecular//E-Peve/data/intermediate.gff&quot; has the wrong phase . -&gt; correcting it to 0</code></pre>
 </div>
 <div id="inspect-validated-gff" class="section level2" number="5.2">
 <h2><span class="header-section-number">5.2</span> Inspect Validated GFF</h2>
@@ -1841,12 +1846,12 @@ head &quot;${data_dir}&quot;/&quot;${validated_gff}&quot;</code></pre>
 ##sequence-region   Porites_evermani_scaffold_3486 10898 12049
 Porites_evermani_scaffold_3486  Gmove   gene    10898   12049   .   +   .   ID=gene-Peve_00025828
 Porites_evermani_scaffold_3486  Gmove   mRNA    10898   12049   115 +   .   ID=mrna-22907;Parent=gene-Peve_00025828;Name=Peve_00025828;start=1;stop=0;cds_size=1152
-Porites_evermani_scaffold_3486  Gmove   CDS 10898   12049   .   +   0   ID=cds-022907;Parent=mrna-22907
+Porites_evermani_scaffold_3486  Gmove   CDS 10898   12049   .   +   0   ID=cds-132180;Parent=mrna-22907
+Porites_evermani_scaffold_3486  Gmove   exon    10898   12049   .   +   .   ID=exon-140850;Parent=mrna-22907
 ###
 ##sequence-region   Porites_evermani_scaffold_3485 5941 42299
 Porites_evermani_scaffold_3485  Gmove   gene    41994   42299   .   -   .   ID=gene-Peve_00025824
-Porites_evermani_scaffold_3485  Gmove   mRNA    41994   42299   30.6    -   .   ID=mrna-22903;Parent=gene-Peve_00025824;Name=Peve_00025824;start=1;stop=1;cds_size=306
-Porites_evermani_scaffold_3485  Gmove   CDS 41994   42299   .   -   0   ID=cds-022903;Parent=mrna-22903</code></pre>
+Porites_evermani_scaffold_3485  Gmove   mRNA    41994   42299   30.6    -   .   ID=mrna-22903;Parent=gene-Peve_00025824;Name=Peve_00025824;start=1;stop=1;cds_size=306</code></pre>
 </div>
 </div>
 <div id="remove-intermediate-gff" class="section level1" number="6">
@@ -1856,7 +1861,7 @@ Porites_evermani_scaffold_3485  Gmove   CDS 41994   42299   .   -   0   ID=cds-0
 rm &quot;${data_dir}&quot;/&quot;${intermediate_gff}&quot;</code></pre>
 </div>
 
-<div id="rmd-source-code">LS0tCnRpdGxlOiAiUC5ldmVybWFubmkgR0ZGIHJlZm9ybWF0dGluZyIKYXV0aG9yOiAiU2FtIFdoaXRlIgpkYXRlOiAiMjAyNS0wMS0xMCIKb3V0cHV0OiAKICBib29rZG93bjo6aHRtbF9kb2N1bWVudDI6CiAgICB0aGVtZTogY29zbW8KICAgIHRvYzogdHJ1ZQogICAgdG9jX2Zsb2F0OiB0cnVlCiAgICBudW1iZXJfc2VjdGlvbnM6IHRydWUKICAgIGNvZGVfZm9sZGluZzogc2hvdwogICAgY29kZV9kb3dubG9hZDogdHJ1ZQogIGdpdGh1Yl9kb2N1bWVudDoKICAgIHRvYzogdHJ1ZQogICAgbnVtYmVyX3NlY3Rpb25zOiB0cnVlCiAgaHRtbF9kb2N1bWVudDoKICAgIHRoZW1lOiBjb3NtbwogICAgdG9jOiB0cnVlCiAgICB0b2NfZmxvYXQ6IHRydWUKICAgIG51bWJlcl9zZWN0aW9uczogdHJ1ZQogICAgY29kZV9mb2xkaW5nOiBzaG93CiAgICBjb2RlX2Rvd25sb2FkOiB0cnVlCi0tLQoKIyBJTlRSTwoKVGhpcyBub3RlYm9vayByZWZvcm1hdHMgdGhlIG9yaWdpbmFsIF9QLmV2ZXJtYW5uaV8gR0ZGIChbUG9yaXRlc19ldmVybWFubmlfdjEuYW5ub3QuZ2ZmXSguLi9kYXRhL1Bvcml0ZXNfZXZlcm1hbm5pX3YxLmFubm90LmdmZikpLCB3aGljaCBpcyBub3QgY29tcGxpYW50IHdpdGggW3RoZSBHRkYgc3RhbmRhcmRdKGh0dHBzOi8vZ2l0aHViLmNvbS90aGUtc2VxdWVuY2Utb250b2xvZ3kvc3BlY2lmaWNhdGlvbnMvYmxvYi9tYXN0ZXIvZ2ZmMy5tZCkgKEdpdEh1YiBwYWdlKS4gQWRkaXRpb25hbGx5LCB0aGUgR0ZGIGlzIGxhY2tpbmcgdGhlIGBnZW5lYCBmZWF0dXJlLCB3aGljaCBtYXkgKG9yIG1heSBub3QpIGJlIG5lZWRlZC91c2VmdWwgZm9yIGRvd25zdHJlYW0gcHJvY2Vzc2luZy4gVGhpcyBub3RlYm9vayBhZGRzIGEgYGdlbmVgIGZlYXR1cmUuCgpGaW5hbGx5LCBkZXNwaXRlIHRoZSBuYW1pbmcgY29udmVudGlvbiwgdGhlcmUgYXJlbid0IGFueSBhY3R1YWwgYW5ub3RhdGlvbnMgaW4gdGhhdCBHRkYsIGJleW9uZCB0aGUgZmVhdHVyZSBkZXNpZ25hdGlvbnMgKGkuZS4gbm8gZ2VuZSBvbnRvbG9neSwgbm8gU3dpc3NQcm90IElEcywgZ2VuZSBuYW1lcywgZXRjLikuIFRoaXMgbm90ZWJvb2sgZG9lcyBfbm90XyBhZGRyZXNzIHRob3NlIHNob3J0Y29taW5ncy4KCjo6OiB7LmNhbGxvdXQtbm90ZX0KVW5saWtlIG90aGVyIHNjcmlwdHMsIHRoaXMgd2lsbCBvdXRwdXQgdG8gW0UtUGV2ZS9kYXRhXSguLi9kYXRhKSwgaW5zdGVhZCBvZiBhbiBvdXRwdXQgZGlyZWN0b3J5IGluIGAuLi9vdXRwdXRgLgo6OjoKCiMjIFNvZnR3YXJlIHJlcXVpcmVtZW50cwoKUmVxdWlyZXMgW2dlbm9tZXRvb2xzXShodHRwczovL2dpdGh1Yi5jb20vZ2Vub21ldG9vbHMvZ2Vub21ldG9vbHMpIChHaXRIdWIgcmVwbykgdG8gYmUgaW5zdGFsbGVkIGFuZCBpbiB0aGUgc3lzdGVtIGAkUEFUSGAuCgojIyBJbnB1dHMKCi0gW1Bvcml0ZXNfZXZlcm1hbm5pX3YxLmFubm90LmdmZl0oLi4vZGF0YS9Qb3JpdGVzX2V2ZXJtYW5uaV92MS5hbm5vdC5nZmYpCgojIyBPdXRwdXRzCgotIFtQb3JpdGVzX2V2ZXJtYW5uaV92YWxpZGF0ZWQuZ2ZmXSguLi9kYXRhL1Bvcml0ZXNfZXZlcm1hbm5pX3ZhbGlkYXRlZC5nZmYpCgpgYGB7ciBzZXR1cCwgaW5jbHVkZT1GQUxTRX0KbGlicmFyeShrbml0cikKa25pdHI6Om9wdHNfY2h1bmskc2V0KAogIGVjaG8gPSBUUlVFLCAgICAgICAgICMgRGlzcGxheSBjb2RlIGNodW5rcwogIGV2YWwgPSBGQUxTRSwgICAgICAgICMgRXZhbHVhdGUgY29kZSBjaHVua3MKICB3YXJuaW5nID0gRkFMU0UsICAgICAjIEhpZGUgd2FybmluZ3MKICBtZXNzYWdlID0gRkFMU0UsICAgICAjIEhpZGUgbWVzc2FnZXMKICBjb21tZW50ID0gIiIgICAgICAgICAjIFByZXZlbnRzIGFwcGVuZGluZyAnIyMnIHRvIGJlZ2lubmluZyBvZiBsaW5lcyBpbiBjb2RlIG91dHB1dAopCmBgYAoKCiMgQ3JlYXRlIGEgQmFzaCB2YXJpYWJsZXMgZmlsZQoKVGhpcyBhbGxvd3MgdXNhZ2Ugb2YgQmFzaCB2YXJpYWJsZXMgYWNyb3NzIFIgTWFya2Rvd24gY2h1bmtzLgoKYGBge3Igc2F2ZS1iYXNoLXZhcmlhYmxlcy10by1ydmFycy1maWxlLCBlbmdpbmU9J2Jhc2gnLCBldmFsPVRSVUV9CnsKZWNobyAiIyMjIyBBc3NpZ24gVmFyaWFibGVzICMjIyMiCmVjaG8gIiIKCmVjaG8gIiMgRGF0YSBkaXJlY3RvcmllcyIKZWNobyAnZXhwb3J0IHJlcG9fZGlyPX4vZ2l0cmVwb3MvdXJvbC1lNS90aW1lc2VyaWVzX21vbGVjdWxhci8nCmVjaG8gJ2V4cG9ydCBkYXRhX2Rpcj0ke3JlcG9fZGlyfS9FLVBldmUvZGF0YScKZWNobyAiIgoKZWNobyAiIyBJbnB1dCBmaWxlcyIKZWNobyAnZXhwb3J0IG9yaWdpbmFsX2dmZj0iUG9yaXRlc19ldmVybWFubmlfdjEuYW5ub3QuZ2ZmIicKZWNobyAnZXhwb3J0IGludGVybWVkaWF0ZV9nZmY9ImludGVybWVkaWF0ZS5nZmYiJwplY2hvICdleHBvcnQgdmFsaWRhdGVkX2dmZj0iUG9yaXRlc19ldmVybWFubmlfdmFsaWRhdGVkLmdmZiInCmVjaG8gIiIKCmVjaG8gIiMgUHJpbnQgZm9ybWF0dGluZyIKZWNobyAnZXhwb3J0IGxpbmU9Ii0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tIicKZWNobyAiIgp9ID4gLmJhc2h2YXJzCgpjYXQgLmJhc2h2YXJzCmBgYAoKCiMgUGVhayBhdCBvcmlnaW5hbCBHRkYKYGBge3Igdmlldy1vcmlnaW5hbC1HRkYsIGVuZ2luZT0nYmFzaCcsIGV2YWw9VFJVRX0Kc291cmNlIC5iYXNodmFycwoKaGVhZCAiJHtkYXRhX2Rpcn0vJHtvcmlnaW5hbF9nZmZ9IgpgYGAKIyMgQ2hlY2sgZmVhdHVyZXMKYGBge3IgZmVhdHVyZXMtb3JpZ2luYWwtR0ZGLCBlbmdpbmU9J2Jhc2gnLCBldmFsPVRSVUV9CnNvdXJjZSAuYmFzaHZhcnMKCmF3ayAne3ByaW50ICQzfScgIiR7ZGF0YV9kaXJ9LyR7b3JpZ2luYWxfZ2ZmfSIgfCBzb3J0IC0tdW5pcXVlCmBgYAoKIyBGaXggR0ZGCgoKYGBge3IgZml4LWdmZiwgZW5naW5lPSdiYXNoJywgZXZhbD1UUlVFfQpzb3VyY2UgLmJhc2h2YXJzCgphd2sgJwpCRUdJTiB7IE9GUz0iXHQiOyBtcm5hX2NvdW50ID0gMDsgdXRyX2NvdW50ID0gMDsgZ2VuZV9jb3VudCA9IDA7IGNkc19jb3VudCA9IDAgfQp7CiAgICBpZiAoJDMgPT0gIm1STkEiKSB7CiAgICAgICAgc3BsaXQoJDksIGF0dHJpYnV0ZXMsICI7IikKICAgICAgICBmb3IgKGkgaW4gYXR0cmlidXRlcykgewogICAgICAgICAgICBpZiAoYXR0cmlidXRlc1tpXSB+IC9eSUQ9LykgewogICAgICAgICAgICAgICAgb3JpZ2luYWxfaWQgPSBzdWJzdHIoYXR0cmlidXRlc1tpXSwgNCkKICAgICAgICAgICAgICAgIGdlbmVfaWQgPSAiSUQ9Z2VuZS0iIG9yaWdpbmFsX2lkCiAgICAgICAgICAgICAgICBwYXJlbnRfaWQgPSAiUGFyZW50PWdlbmUtIiBvcmlnaW5hbF9pZAogICAgICAgICAgICAgICAgYnJlYWsKICAgICAgICAgICAgfQogICAgICAgIH0KICAgICAgICAKICAgICAgICAjIEluY3JlbWVudCB0aGUgZ2xvYmFsIG1STkEgY291bnRlcgogICAgICAgIG1ybmFfY291bnQrKwogICAgICAgIAogICAgICAgIG5ld19tcm5hX2lkID0gIklEPW1ybmEtIiBzcHJpbnRmKCIlMDVkIiwgbXJuYV9jb3VudCkKICAgICAgICAKICAgICAgICAjIFN0b3JlIHRoZSBtYXBwaW5nIG9mIG9yaWdpbmFsIG1STkEgSUQgdG8gbmV3IG1STkEgSUQKICAgICAgICBtcm5hX21hcFtvcmlnaW5hbF9pZF0gPSAibXJuYS0iIHNwcmludGYoIiUwNWQiLCBtcm5hX2NvdW50KQogICAgICAgIAogICAgICAgICMgUmVwbGFjZSB0aGUgb2xkIElEIHdpdGggdGhlIG5ldyBtUk5BIElECiAgICAgICAgZm9yIChpIGluIGF0dHJpYnV0ZXMpIHsKICAgICAgICAgICAgaWYgKGF0dHJpYnV0ZXNbaV0gfiAvXklEPS8pIHsKICAgICAgICAgICAgICAgIGF0dHJpYnV0ZXNbaV0gPSBuZXdfbXJuYV9pZAogICAgICAgICAgICAgICAgYnJlYWsKICAgICAgICAgICAgfQogICAgICAgIH0KICAgICAgICAkOSA9IGF0dHJpYnV0ZXNbMV0KICAgICAgICBmb3IgKGkgPSAyOyBpIDw9IGxlbmd0aChhdHRyaWJ1dGVzKTsgaSsrKSB7CiAgICAgICAgICAgICQ5ID0gJDkgIjsiIGF0dHJpYnV0ZXNbaV0KICAgICAgICB9CiAgICAgICAgJDkgPSAkOSAiOyIgcGFyZW50X2lkCiAgICAgICAgcHJpbnQgJDEsICQyLCAiZ2VuZSIsICQ0LCAkNSwgIi4iLCAkNywgJDgsIGdlbmVfaWQKICAgICAgICAKICAgICAgICAjIEluY3JlbWVudCB0aGUgZ2VuZSBjb3VudGVyIGFuZCByZXNldCB0aGUgQ0RTIGNvdW50ZXIgZm9yIGVhY2ggbmV3IGdlbmUKICAgICAgICBnZW5lX2NvdW50KysKICAgICAgICAKICAgICAgICBjZHNfY291bnQgPSBnZW5lX2NvdW50CiAgICB9IGVsc2UgaWYgKCQzID09ICJVVFIiKSB7CiAgICAgICAgdXRyX2NvdW50KysKICAgICAgICBuZXdfdXRyX2lkID0gIklEPXV0ci0iIHNwcmludGYoIiUwNmQiLCB1dHJfY291bnQpCiAgICAgICAgc3BsaXQoJDksIGF0dHJpYnV0ZXMsICI7IikKICAgICAgICBmb3IgKGkgaW4gYXR0cmlidXRlcykgewogICAgICAgICAgICBpZiAoYXR0cmlidXRlc1tpXSB+IC9eUGFyZW50PS8pIHsKICAgICAgICAgICAgICAgIG9yaWdpbmFsX3BhcmVudF9pZCA9IHN1YnN0cihhdHRyaWJ1dGVzW2ldLCA4KQogICAgICAgICAgICAgICAgaWYgKG9yaWdpbmFsX3BhcmVudF9pZCBpbiBtcm5hX21hcCkgewogICAgICAgICAgICAgICAgICAgIGF0dHJpYnV0ZXNbaV0gPSAiUGFyZW50PSIgbXJuYV9tYXBbb3JpZ2luYWxfcGFyZW50X2lkXQogICAgICAgICAgICAgICAgfQogICAgICAgICAgICAgICAgYnJlYWsKICAgICAgICAgICAgfQogICAgICAgIH0KICAgICAgICAkOSA9IG5ld191dHJfaWQKICAgICAgICBmb3IgKGkgPSAxOyBpIDw9IGxlbmd0aChhdHRyaWJ1dGVzKTsgaSsrKSB7CiAgICAgICAgICAgICQ5ID0gJDkgIjsiIGF0dHJpYnV0ZXNbaV0KICAgICAgICB9CiAgICB9IGVsc2UgaWYgKCQzID09ICJDRFMiKSB7CiAgICAgICAgbmV3X2Nkc19pZCA9ICJJRD1jZHMtIiBzcHJpbnRmKCIlMDZkIiwgY2RzX2NvdW50KQogICAgICAgIHNwbGl0KCQ5LCBhdHRyaWJ1dGVzLCAiOyIpCiAgICAgICAgZm9yIChpIGluIGF0dHJpYnV0ZXMpIHsKICAgICAgICAgICAgaWYgKGF0dHJpYnV0ZXNbaV0gfiAvXlBhcmVudD0vKSB7CiAgICAgICAgICAgICAgICBvcmlnaW5hbF9wYXJlbnRfaWQgPSBzdWJzdHIoYXR0cmlidXRlc1tpXSwgOCkKICAgICAgICAgICAgICAgIGlmIChvcmlnaW5hbF9wYXJlbnRfaWQgaW4gbXJuYV9tYXApIHsKICAgICAgICAgICAgICAgICAgICBhdHRyaWJ1dGVzW2ldID0gIlBhcmVudD0iIG1ybmFfbWFwW29yaWdpbmFsX3BhcmVudF9pZF0KICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgICAgIGJyZWFrCiAgICAgICAgICAgIH0KICAgICAgICB9CiAgICAgICAgJDkgPSBuZXdfY2RzX2lkCiAgICAgICAgZm9yIChpID0gMTsgaSA8PSBsZW5ndGgoYXR0cmlidXRlcyk7IGkrKykgewogICAgICAgICAgICAkOSA9ICQ5ICI7IiBhdHRyaWJ1dGVzW2ldCiAgICAgICAgfQogICAgfSBlbHNlIHsKICAgICAgICBzcGxpdCgkOSwgYXR0cmlidXRlcywgIjsiKQogICAgICAgIGZvciAoaSBpbiBhdHRyaWJ1dGVzKSB7CiAgICAgICAgICAgIGlmIChhdHRyaWJ1dGVzW2ldIH4gL15QYXJlbnQ9LykgewogICAgICAgICAgICAgICAgb3JpZ2luYWxfcGFyZW50X2lkID0gc3Vic3RyKGF0dHJpYnV0ZXNbaV0sIDgpCiAgICAgICAgICAgICAgICBpZiAob3JpZ2luYWxfcGFyZW50X2lkIGluIG1ybmFfbWFwKSB7CiAgICAgICAgICAgICAgICAgICAgYXR0cmlidXRlc1tpXSA9ICJQYXJlbnQ9IiBtcm5hX21hcFtvcmlnaW5hbF9wYXJlbnRfaWRdCiAgICAgICAgICAgICAgICB9CiAgICAgICAgICAgICAgICBicmVhawogICAgICAgICAgICB9CiAgICAgICAgfQogICAgICAgICQ5ID0gYXR0cmlidXRlc1sxXQogICAgICAgIGZvciAoaSA9IDI7IGkgPD0gbGVuZ3RoKGF0dHJpYnV0ZXMpOyBpKyspIHsKICAgICAgICAgICAgJDkgPSAkOSAiOyIgYXR0cmlidXRlc1tpXQogICAgICAgIH0KICAgIH0KICAgIHByaW50ICQwCn0nICIke2RhdGFfZGlyfSIvIiR7b3JpZ2luYWxfZ2ZmfSIgPiAiJHtkYXRhX2Rpcn0iLyIke2ludGVybWVkaWF0ZV9nZmZ9IgpgYGAKCiMjIEluc3BlY3QgaW50ZXJtZWRpYXRlIEdGRgpgYGB7ciBpbnRlcm1lZGlhdGUtZ2ZmLCBlbmdpbmU9J2Jhc2gnLCBldmFsPVRSVUV9CnNvdXJjZSAuYmFzaHZhcnMKCmhlYWQgIiR7ZGF0YV9kaXJ9Ii8iJHtpbnRlcm1lZGlhdGVfZ2ZmfSIKYGBgCgojIFZhbGlkYXRlIEdGRgoKVmFsaWRhdGUgR0ZGIHVzaW5nIGdlbm9tZXRvb2xzIGBnZmYzYC4KCi0gYC10aWR5YDogQXR0ZW1wdHMgdG8gY2xlYW4vZml4IGFueSBwb3RlbnRpYWwgaXNzdWVzLgoKLSBgLWNoZWNraWRzYDogQ2hlY2tzIElEcy4KCi0gYC1yZXRhaW5pZHNgOiBSZXRhaW5zIElEcyBmcm9tIGlucHV0IEdGRiBpbnN0ZWFkIG9mIGFzc2lnbmluZyBuZXcgb25lcy4KCmBgYHtyIHZhbGlkYXRlLWdmZiwgZW5naW5lPSdiYXNoJywgZXZhbD1GQUxTRX0Kc291cmNlIC5iYXNodmFycwoKZ3QgZ2ZmMyBcCi10aWR5IFwKLWNoZWNraWRzIFwKLXJldGFpbmlkcyBcCiIke2RhdGFfZGlyfSIvIiR7aW50ZXJtZWRpYXRlX2dmZn0iIFwKPiAiJHtkYXRhX2Rpcn0iLyIke3ZhbGlkYXRlZF9nZmZ9IiBcCjI+ICIke2RhdGFfZGlyfSIvZ3RfZ2ZmM192YWxpZGF0aW9uX2Vycm9ycy5sb2cKYGBgCgojIyBDaGVjayBmb3IgZXJyb3IocykgaW4gdmFsaWRhdGlvbgoKUHJvY2VzcyB3b3VsZCBzdG9wIGlmIGVycm9yIG9jY3VycmVkLCBzbyBvbmx5IG5lZWQgdG8gY2hlY2sgZW5kIG9mIGZpbGUuCgpgYGB7ciB2YWxpZGF0ZS1nZmYtZXJyb3ItY2hlY2ssIGVuZ2luZT0nYmFzaCcsIGV2YWw9VFJVRX0Kc291cmNlIC5iYXNodmFycwoKdGFpbCAiJHtkYXRhX2Rpcn0iL2d0X2dmZjNfdmFsaWRhdGlvbl9lcnJvcnMubG9nCmBgYAoKIyMgSW5zcGVjdCBWYWxpZGF0ZWQgR0ZGCmBgYHtyIHZhbGlkYXRlZC1nZmYsIGVuZ2luZT0nYmFzaCcsIGV2YWw9VFJVRX0Kc291cmNlIC5iYXNodmFycwoKaGVhZCAiJHtkYXRhX2Rpcn0iLyIke3ZhbGlkYXRlZF9nZmZ9IgpgYGAKCiMgUmVtb3ZlIGludGVybWVkaWF0ZSBHRkYKYGBge3Igcm0taW50ZXJtZWRpYXRlLWdmZiwgZW5naW5lPSdiYXNoJywgZXZhbD1GQUxTRX0Kc291cmNlIC5iYXNodmFycwoKcm0gIiR7ZGF0YV9kaXJ9Ii8iJHtpbnRlcm1lZGlhdGVfZ2ZmfSIKYGBg</div>
+<div id="rmd-source-code">LS0tCnRpdGxlOiAiUC5ldmVybWFubmkgR0ZGIHJlZm9ybWF0dGluZyIKYXV0aG9yOiAiU2FtIFdoaXRlIgpkYXRlOiAiMjAyNS0wMS0xMCIKb3V0cHV0OiAKICBib29rZG93bjo6aHRtbF9kb2N1bWVudDI6CiAgICB0aGVtZTogY29zbW8KICAgIHRvYzogdHJ1ZQogICAgdG9jX2Zsb2F0OiB0cnVlCiAgICBudW1iZXJfc2VjdGlvbnM6IHRydWUKICAgIGNvZGVfZm9sZGluZzogc2hvdwogICAgY29kZV9kb3dubG9hZDogdHJ1ZQogIGdpdGh1Yl9kb2N1bWVudDoKICAgIHRvYzogdHJ1ZQogICAgbnVtYmVyX3NlY3Rpb25zOiB0cnVlCiAgaHRtbF9kb2N1bWVudDoKICAgIHRoZW1lOiBjb3NtbwogICAgdG9jOiB0cnVlCiAgICB0b2NfZmxvYXQ6IHRydWUKICAgIG51bWJlcl9zZWN0aW9uczogdHJ1ZQogICAgY29kZV9mb2xkaW5nOiBzaG93CiAgICBjb2RlX2Rvd25sb2FkOiB0cnVlCi0tLQoKIyBCYWNrZ3JvdW5kCgpUaGlzIG5vdGVib29rIHJlZm9ybWF0cyB0aGUgb3JpZ2luYWwgX1AuZXZlcm1hbm5pXyBHRkYgKFtQb3JpdGVzX2V2ZXJtYW5uaV92MS5hbm5vdC5nZmZdKC4uL2RhdGEvUG9yaXRlc19ldmVybWFubmlfdjEuYW5ub3QuZ2ZmKSksIHdoaWNoIGlzIG5vdCBjb21wbGlhbnQgd2l0aCBbdGhlIEdGRiBzdGFuZGFyZF0oaHR0cHM6Ly9naXRodWIuY29tL3RoZS1zZXF1ZW5jZS1vbnRvbG9neS9zcGVjaWZpY2F0aW9ucy9ibG9iL21hc3Rlci9nZmYzLm1kKSAoR2l0SHViIHBhZ2UpLiBUaGUgR0ZGIGlzIGxhY2tpbmcgdGhlIGBnZW5lYCBmZWF0dXJlLCB3aGljaCBtYXkgKG9yIG1heSBub3QpIGJlIG5lZWRlZC91c2VmdWwgZm9yIGRvd25zdHJlYW0gcHJvY2Vzc2luZy4gVGhpcyBub3RlYm9vayBhZGRzIGEgYGdlbmVgIGZlYXR1cmUuIEFkZGl0aW9uYWxseSwgaXQgaXMgbGFja2luZyB0aGUgYGV4b25gIGZlYXR1cmUuIFdlJ3ZlIGRlY2lkZWQgdG8gaW5zZXJ0IGBleG9uYCBmZWF0dXJlcyB3aGljaCBjb3ZlciBgVVRSYCBhbmQgYENEU2AgZmVhdHVyZXMuCgpGaW5hbGx5LCBkZXNwaXRlIHRoZSBuYW1pbmcgY29udmVudGlvbiwgdGhlcmUgYXJlbid0IGFueSBhY3R1YWwgYW5ub3RhdGlvbnMgaW4gdGhhdCBHRkYsIGJleW9uZCB0aGUgZmVhdHVyZSBkZXNpZ25hdGlvbnMgKGkuZS4gbm8gZ2VuZSBvbnRvbG9neSwgbm8gU3dpc3NQcm90IElEcywgZ2VuZSBuYW1lcywgZXRjLikuIFRoaXMgbm90ZWJvb2sgZG9lcyBfbm90XyBhZGRyZXNzIHRob3NlIHNob3J0Y29taW5ncy4KCjo6OiB7LmNhbGxvdXQtbm90ZX0KVW5saWtlIG90aGVyIHNjcmlwdHMsIHRoaXMgd2lsbCBvdXRwdXQgdG8gW0UtUGV2ZS9kYXRhXSguLi9kYXRhKSwgaW5zdGVhZCBvZiBhbiBvdXRwdXQgZGlyZWN0b3J5IGluIGAuLi9vdXRwdXRgLgo6OjoKCiMjIFNvZnR3YXJlIHJlcXVpcmVtZW50cwoKUmVxdWlyZXMgW2dlbm9tZXRvb2xzXShodHRwczovL2dpdGh1Yi5jb20vZ2Vub21ldG9vbHMvZ2Vub21ldG9vbHMpIChHaXRIdWIgcmVwbykgdG8gYmUgaW5zdGFsbGVkIGFuZCBpbiB0aGUgc3lzdGVtIGAkUEFUSGAuCgojIyBJbnB1dHMKCi0gW1Bvcml0ZXNfZXZlcm1hbm5pX3YxLmFubm90LmdmZl0oLi4vZGF0YS9Qb3JpdGVzX2V2ZXJtYW5uaV92MS5hbm5vdC5nZmYpCgojIyBPdXRwdXRzCgotIFtQb3JpdGVzX2V2ZXJtYW5uaV92YWxpZGF0ZWQuZ2ZmM10oLi4vZGF0YS9Qb3JpdGVzX2V2ZXJtYW5uaV92YWxpZGF0ZWQuZ2ZmMykKCmBgYHtyIHNldHVwLCBpbmNsdWRlPUZBTFNFfQpsaWJyYXJ5KGtuaXRyKQprbml0cjo6b3B0c19jaHVuayRzZXQoCiAgZWNobyA9IFRSVUUsICAgICAgICAgIyBEaXNwbGF5IGNvZGUgY2h1bmtzCiAgZXZhbCA9IEZBTFNFLCAgICAgICAgIyBFdmFsdWF0ZSBjb2RlIGNodW5rcwogIHdhcm5pbmcgPSBGQUxTRSwgICAgICMgSGlkZSB3YXJuaW5ncwogIG1lc3NhZ2UgPSBGQUxTRSwgICAgICMgSGlkZSBtZXNzYWdlcwogIGNvbW1lbnQgPSAiIiAgICAgICAgICMgUHJldmVudHMgYXBwZW5kaW5nICcjIycgdG8gYmVnaW5uaW5nIG9mIGxpbmVzIGluIGNvZGUgb3V0cHV0CikKYGBgCgoKIyBDcmVhdGUgYSBCYXNoIHZhcmlhYmxlcyBmaWxlCgpUaGlzIGFsbG93cyB1c2FnZSBvZiBCYXNoIHZhcmlhYmxlcyBhY3Jvc3MgUiBNYXJrZG93biBjaHVua3MuCgpgYGB7ciBzYXZlLWJhc2gtdmFyaWFibGVzLXRvLXJ2YXJzLWZpbGUsIGVuZ2luZT0nYmFzaCcsIGV2YWw9VFJVRX0KewplY2hvICIjIyMjIEFzc2lnbiBWYXJpYWJsZXMgIyMjIyIKZWNobyAiIgoKZWNobyAiIyBEYXRhIGRpcmVjdG9yaWVzIgplY2hvICdleHBvcnQgcmVwb19kaXI9fi9naXRyZXBvcy91cm9sLWU1L3RpbWVzZXJpZXNfbW9sZWN1bGFyLycKZWNobyAnZXhwb3J0IGRhdGFfZGlyPSR7cmVwb19kaXJ9L0UtUGV2ZS9kYXRhJwplY2hvICIiCgplY2hvICIjIElucHV0IGZpbGVzIgplY2hvICdleHBvcnQgb3JpZ2luYWxfZ2ZmPSJQb3JpdGVzX2V2ZXJtYW5uaV92MS5hbm5vdC5nZmYiJwplY2hvICdleHBvcnQgaW50ZXJtZWRpYXRlX2dmZj0iaW50ZXJtZWRpYXRlLmdmZiInCmVjaG8gJ2V4cG9ydCB2YWxpZGF0ZWRfZ2ZmPSJQb3JpdGVzX2V2ZXJtYW5uaV92YWxpZGF0ZWQuZ2ZmMyInCmVjaG8gIiIKCmVjaG8gIiMgUHJpbnQgZm9ybWF0dGluZyIKZWNobyAnZXhwb3J0IGxpbmU9Ii0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tIicKZWNobyAiIgp9ID4gLmJhc2h2YXJzCgpjYXQgLmJhc2h2YXJzCmBgYAoKCiMgUGVhayBhdCBvcmlnaW5hbCBHRkYKYGBge3Igdmlldy1vcmlnaW5hbC1HRkYsIGVuZ2luZT0nYmFzaCcsIGV2YWw9VFJVRX0Kc291cmNlIC5iYXNodmFycwoKaGVhZCAiJHtkYXRhX2Rpcn0vJHtvcmlnaW5hbF9nZmZ9IgpgYGAKIyMgQ2hlY2sgZmVhdHVyZXMKYGBge3IgZmVhdHVyZXMtb3JpZ2luYWwtR0ZGLCBlbmdpbmU9J2Jhc2gnLCBldmFsPVRSVUV9CnNvdXJjZSAuYmFzaHZhcnMKCmF3ayAne3ByaW50ICQzfScgIiR7ZGF0YV9kaXJ9LyR7b3JpZ2luYWxfZ2ZmfSIgfCBzb3J0IC0tdW5pcXVlCmBgYAoKIyBGaXggR0ZGCgoKYGBge3IgZml4LWdmZiwgZW5naW5lPSdiYXNoJywgZXZhbD1UUlVFfQpzb3VyY2UgLmJhc2h2YXJzCgphd2sgJwpCRUdJTiB7IE9GUz0iXHQiOyBtcm5hX2NvdW50ID0gMDsgdXRyX2NvdW50ID0gMDsgZ2VuZV9jb3VudCA9IDA7IGNkc19jb3VudCA9IDA7IGV4b25fY291bnQgPSAwIH0KewogICAgaWYgKCQzID09ICJtUk5BIikgewogICAgICAgIHNwbGl0KCQ5LCBhdHRyaWJ1dGVzLCAiOyIpCiAgICAgICAgZm9yIChpIGluIGF0dHJpYnV0ZXMpIHsKICAgICAgICAgICAgaWYgKGF0dHJpYnV0ZXNbaV0gfiAvXklEPS8pIHsKICAgICAgICAgICAgICAgIG9yaWdpbmFsX2lkID0gc3Vic3RyKGF0dHJpYnV0ZXNbaV0sIDQpCiAgICAgICAgICAgICAgICBnZW5lX2lkID0gIklEPWdlbmUtIiBvcmlnaW5hbF9pZAogICAgICAgICAgICAgICAgcGFyZW50X2lkID0gIlBhcmVudD1nZW5lLSIgb3JpZ2luYWxfaWQKICAgICAgICAgICAgICAgIGJyZWFrCiAgICAgICAgICAgIH0KICAgICAgICB9CiAgICAgICAgCiAgICAgICAgIyBJbmNyZW1lbnQgdGhlIGdsb2JhbCBtUk5BIGNvdW50ZXIKICAgICAgICBtcm5hX2NvdW50KysKICAgICAgICAKICAgICAgICBuZXdfbXJuYV9pZCA9ICJJRD1tcm5hLSIgc3ByaW50ZigiJTA1ZCIsIG1ybmFfY291bnQpCiAgICAgICAgCiAgICAgICAgIyBTdG9yZSB0aGUgbWFwcGluZyBvZiBvcmlnaW5hbCBtUk5BIElEIHRvIG5ldyBtUk5BIElECiAgICAgICAgbXJuYV9tYXBbb3JpZ2luYWxfaWRdID0gIm1ybmEtIiBzcHJpbnRmKCIlMDVkIiwgbXJuYV9jb3VudCkKICAgICAgICAKICAgICAgICAjIFJlcGxhY2UgdGhlIG9sZCBJRCB3aXRoIHRoZSBuZXcgbVJOQSBJRAogICAgICAgIGZvciAoaSBpbiBhdHRyaWJ1dGVzKSB7CiAgICAgICAgICAgIGlmIChhdHRyaWJ1dGVzW2ldIH4gL15JRD0vKSB7CiAgICAgICAgICAgICAgICBhdHRyaWJ1dGVzW2ldID0gbmV3X21ybmFfaWQKICAgICAgICAgICAgICAgIGJyZWFrCiAgICAgICAgICAgIH0KICAgICAgICB9CiAgICAgICAgJDkgPSBhdHRyaWJ1dGVzWzFdCiAgICAgICAgZm9yIChpID0gMjsgaSA8PSBsZW5ndGgoYXR0cmlidXRlcyk7IGkrKykgewogICAgICAgICAgICAkOSA9ICQ5ICI7IiBhdHRyaWJ1dGVzW2ldCiAgICAgICAgfQogICAgICAgICQ5ID0gJDkgIjsiIHBhcmVudF9pZAogICAgICAgIHByaW50ICQxLCAkMiwgImdlbmUiLCAkNCwgJDUsICIuIiwgJDcsICQ4LCBnZW5lX2lkCiAgICAgICAgcHJpbnQgJDAgICMgUHJpbnQgdGhlIG9yaWdpbmFsIG1STkEgZmVhdHVyZQogICAgICAgIAogICAgICAgICMgSW5jcmVtZW50IHRoZSBnZW5lIGNvdW50ZXIgYW5kIHJlc2V0IHRoZSBDRFMgY291bnRlciBmb3IgZWFjaCBuZXcgZ2VuZQogICAgICAgIGdlbmVfY291bnQrKwogICAgfSBlbHNlIGlmICgkMyA9PSAiVVRSIiB8fCAkMyA9PSAiQ0RTIikgewogICAgICAgIHNwbGl0KCQ5LCBhdHRyaWJ1dGVzLCAiOyIpCiAgICAgICAgaWRfc2V0ID0gMAogICAgICAgIHBhcmVudF9zZXQgPSAwCiAgICAgICAgZm9yIChpIGluIGF0dHJpYnV0ZXMpIHsKICAgICAgICAgICAgaWYgKGF0dHJpYnV0ZXNbaV0gfiAvXklEPS8pIHsKICAgICAgICAgICAgICAgIGlkX3NldCA9IDEKICAgICAgICAgICAgICAgIGlmICgkMyA9PSAiVVRSIikgewogICAgICAgICAgICAgICAgICAgIGF0dHJpYnV0ZXNbaV0gPSAiSUQ9dXRyLSIgc3ByaW50ZigiJTA1ZCIsICsrdXRyX2NvdW50KQogICAgICAgICAgICAgICAgfSBlbHNlIGlmICgkMyA9PSAiQ0RTIikgewogICAgICAgICAgICAgICAgICAgIGF0dHJpYnV0ZXNbaV0gPSAiSUQ9Y2RzLSIgc3ByaW50ZigiJTA1ZCIsICsrY2RzX2NvdW50KQogICAgICAgICAgICAgICAgfQogICAgICAgICAgICB9CiAgICAgICAgICAgIGlmIChhdHRyaWJ1dGVzW2ldIH4gL15QYXJlbnQ9LykgewogICAgICAgICAgICAgICAgcGFyZW50X3NldCA9IDEKICAgICAgICAgICAgICAgIG9yaWdpbmFsX3BhcmVudF9pZCA9IHN1YnN0cihhdHRyaWJ1dGVzW2ldLCA4KQogICAgICAgICAgICAgICAgaWYgKG9yaWdpbmFsX3BhcmVudF9pZCBpbiBtcm5hX21hcCkgewogICAgICAgICAgICAgICAgICAgIGF0dHJpYnV0ZXNbaV0gPSAiUGFyZW50PSIgbXJuYV9tYXBbb3JpZ2luYWxfcGFyZW50X2lkXQogICAgICAgICAgICAgICAgfQogICAgICAgICAgICB9CiAgICAgICAgfQogICAgICAgIGlmIChpZF9zZXQgPT0gMCkgewogICAgICAgICAgICBpZiAoJDMgPT0gIlVUUiIpIHsKICAgICAgICAgICAgICAgIGF0dHJpYnV0ZXNbMV0gPSAiSUQ9dXRyLSIgc3ByaW50ZigiJTA1ZCIsICsrdXRyX2NvdW50KSAiOyIgYXR0cmlidXRlc1sxXQogICAgICAgICAgICB9IGVsc2UgaWYgKCQzID09ICJDRFMiKSB7CiAgICAgICAgICAgICAgICBhdHRyaWJ1dGVzWzFdID0gIklEPWNkcy0iIHNwcmludGYoIiUwNWQiLCArK2Nkc19jb3VudCkgIjsiIGF0dHJpYnV0ZXNbMV0KICAgICAgICAgICAgfQogICAgICAgIH0KICAgICAgICBpZiAocGFyZW50X3NldCA9PSAwKSB7CiAgICAgICAgICAgIGF0dHJpYnV0ZXNbbGVuZ3RoKGF0dHJpYnV0ZXMpICsgMV0gPSAiUGFyZW50PSIgbXJuYV9tYXBbb3JpZ2luYWxfaWRdCiAgICAgICAgfQogICAgICAgICQ5ID0gYXR0cmlidXRlc1sxXQogICAgICAgIGZvciAoaSA9IDI7IGkgPD0gbGVuZ3RoKGF0dHJpYnV0ZXMpOyBpKyspIHsKICAgICAgICAgICAgJDkgPSAkOSAiOyIgYXR0cmlidXRlc1tpXQogICAgICAgIH0KICAgICAgICBwcmludCAkMSwgJDIsICQzLCAkNCwgJDUsICQ2LCAkNywgJDgsICQ5ICAjIFByaW50IHRoZSBvcmlnaW5hbCBVVFIgb3IgQ0RTIGZlYXR1cmUKICAgICAgICAKICAgICAgICAjIEFkZCBleG9uIGZlYXR1cmUKICAgICAgICBleG9uX2NvdW50KysKICAgICAgICBuZXdfZXhvbl9pZCA9ICJJRD1leG9uLSIgc3ByaW50ZigiJTA2ZCIsIGV4b25fY291bnQpCiAgICAgICAgZXhvbl9hdHRyaWJ1dGVzID0gbmV3X2V4b25faWQKICAgICAgICBmb3IgKGkgPSAxOyBpIDw9IGxlbmd0aChhdHRyaWJ1dGVzKTsgaSsrKSB7CiAgICAgICAgICAgIGlmIChhdHRyaWJ1dGVzW2ldICF+IC9eSUQ9LykgewogICAgICAgICAgICAgICAgZXhvbl9hdHRyaWJ1dGVzID0gZXhvbl9hdHRyaWJ1dGVzICI7IiBhdHRyaWJ1dGVzW2ldCiAgICAgICAgICAgIH0KICAgICAgICB9CiAgICAgICAgIyBFbnN1cmUgUGFyZW50IGF0dHJpYnV0ZSBpcyBpbmNsdWRlZCBpbiBleG9uIGF0dHJpYnV0ZXMKICAgICAgICBpZiAocGFyZW50X3NldCA9PSAxKSB7CiAgICAgICAgICAgIGV4b25fYXR0cmlidXRlcyA9IGV4b25fYXR0cmlidXRlcyAiO1BhcmVudD0iIG1ybmFfbWFwW29yaWdpbmFsX3BhcmVudF9pZF0KICAgICAgICB9CiAgICAgICAgcHJpbnQgJDEsICQyLCAiZXhvbiIsICQ0LCAkNSwgJDYsICQ3LCAkOCwgZXhvbl9hdHRyaWJ1dGVzCiAgICB9Cn0KJyAiJHtkYXRhX2Rpcn0vJHtvcmlnaW5hbF9nZmZ9IiA+ICIke2RhdGFfZGlyfS8ke2ludGVybWVkaWF0ZV9nZmZ9IgpgYGAKCiMjIEluc3BlY3QgaW50ZXJtZWRpYXRlIEdGRgpgYGB7ciBpbnRlcm1lZGlhdGUtZ2ZmLCBlbmdpbmU9J2Jhc2gnLCBldmFsPVRSVUV9CnNvdXJjZSAuYmFzaHZhcnMKCmhlYWQgIiR7ZGF0YV9kaXJ9Ii8iJHtpbnRlcm1lZGlhdGVfZ2ZmfSIKYGBgCgojIFZhbGlkYXRlIEdGRgoKVmFsaWRhdGUgR0ZGIHVzaW5nIGdlbm9tZXRvb2xzIGBnZmYzYC4KCi0gYC10aWR5YDogQXR0ZW1wdHMgdG8gY2xlYW4vZml4IGFueSBwb3RlbnRpYWwgaXNzdWVzLgoKLSBgLWNoZWNraWRzYDogQ2hlY2tzIElEcy4KCi0gYC1yZXRhaW5pZHNgOiBSZXRhaW5zIElEcyBmcm9tIGlucHV0IEdGRiBpbnN0ZWFkIG9mIGFzc2lnbmluZyBuZXcgb25lcy4KCmBgYHtyIHZhbGlkYXRlLWdmZiwgZW5naW5lPSdiYXNoJywgZXZhbD1GQUxTRX0Kc291cmNlIC5iYXNodmFycwoKZ3QgZ2ZmMyBcCi10aWR5IFwKLWNoZWNraWRzIFwKLXJldGFpbmlkcyBcCiIke2RhdGFfZGlyfSIvIiR7aW50ZXJtZWRpYXRlX2dmZn0iIFwKPiAiJHtkYXRhX2Rpcn0iLyIke3ZhbGlkYXRlZF9nZmZ9IiBcCjI+ICIke2RhdGFfZGlyfSIvZ3RfZ2ZmM192YWxpZGF0aW9uX2Vycm9ycy5sb2cKYGBgCgojIyBDaGVjayBmb3IgZXJyb3IocykgaW4gdmFsaWRhdGlvbgoKUHJvY2VzcyB3b3VsZCBzdG9wIGlmIGVycm9yIG9jY3VycmVkLCBzbyBvbmx5IG5lZWQgdG8gY2hlY2sgZW5kIG9mIGZpbGUuCgo6Ojogey5jYWxsb3V0LW5vdGV9Cldhcm5pbmdzIGFyZSBleHBlY3RlZCwgYXMgdGhleSBnZW5lcmFsbHkgaW5kaWNhdGVkIG1vZGlmaWNhdGlvbnMgdG8gdGhlIEdGRiB0byBicmluZyBpdCBpbnRvIGNvbXBsaWFuY2UuCjo6OgoKYGBge3IgdmFsaWRhdGUtZ2ZmLWVycm9yLWNoZWNrLCBlbmdpbmU9J2Jhc2gnLCBldmFsPVRSVUV9CnNvdXJjZSAuYmFzaHZhcnMKCnRhaWwgIiR7ZGF0YV9kaXJ9Ii9ndF9nZmYzX3ZhbGlkYXRpb25fZXJyb3JzLmxvZwpgYGAKCiMjIEluc3BlY3QgVmFsaWRhdGVkIEdGRgpgYGB7ciB2YWxpZGF0ZWQtZ2ZmLCBlbmdpbmU9J2Jhc2gnLCBldmFsPVRSVUV9CnNvdXJjZSAuYmFzaHZhcnMKCmhlYWQgIiR7ZGF0YV9kaXJ9Ii8iJHt2YWxpZGF0ZWRfZ2ZmfSIKYGBgCgojIFJlbW92ZSBpbnRlcm1lZGlhdGUgR0ZGCmBgYHtyIHJtLWludGVybWVkaWF0ZS1nZmYsIGVuZ2luZT0nYmFzaCcsIGV2YWw9RkFMU0V9CnNvdXJjZSAuYmFzaHZhcnMKCnJtICIke2RhdGFfZGlyfSIvIiR7aW50ZXJtZWRpYXRlX2dmZn0iCmBgYA==</div>
 
 
 </div>
