@@ -3,6 +3,9 @@ title: "P.evermanni GFF reformatting"
 author: "Sam White"
 date: "2025-01-10"
 output: 
+  github_document:
+    toc: true
+    number_sections: true
   bookdown::html_document2:
     theme: cosmo
     toc: true
@@ -10,9 +13,6 @@ output:
     number_sections: true
     code_folding: show
     code_download: true
-  github_document:
-    toc: true
-    number_sections: true
   html_document:
     theme: cosmo
     toc: true
@@ -49,7 +49,6 @@ conversion to GTF.
 
 ```{r setup, include=FALSE}
 library(knitr)
-library(reticulate)
 knitr::opts_chunk$set(
   echo = TRUE,         # Display code chunks
   eval = FALSE,        # Evaluate code chunks
@@ -85,7 +84,7 @@ echo 'export gtf="Porites_evermanni_validated.gtf"'
 echo ""
 
 echo "# Programs"
-echo 'export conda_path="~/programs/miniforge3-24.7.1-0/condabin/conda"'
+echo 'export conda_path="/home/sam/programs/miniforge3-24.7.1-0/bin/mamba"'
 echo 'export conda_env_name="agat_env"'
 echo ""
 
@@ -264,27 +263,32 @@ head "${data_dir}"/"${validated_gff}"
 ```
 
 # Remove intermediate GFF
-```{r rm-intermediate-gff, engine='bash', eval=FALSE}
+```{r rm-intermediate-gff, engine='bash', eval=TRUE}
 source .bashvars
 
 rm "${data_dir}"/"${intermediate_gff}"
 ```
 
-# Convert to GTF
+# Convert to GTF 
 
 ```{r create-GTF, engine='bash', eval=TRUE}
 source .bashvars
 
-# Activate agat conda environment
-"${conda_path}" activate ${conda_env_name}
-
 # Sends progress to /dev/null to avoid crashing Rmd notebook
+"${conda_path}" run -n ${conda_env_name} \
 agat_convert_sp_gff2gtf.pl \
 --gff "${data_dir}"/"${validated_gff}" \
 --output "${data_dir}"/${gtf} \
+1> "${data_dir}"/agat.log \
 2> /dev/null
 ```
 
+## Check AGAT GTF Log
+```{r inspect-AGAT-log, engine='bash', eval=TRUE}
+source .bashvars
+
+cat "${data_dir}"/agat.log
+```
 
 ## Inspect GTF
 
@@ -292,14 +296,5 @@ agat_convert_sp_gff2gtf.pl \
 source .bashvars
 
 head "${data_dir}"/"${gtf}"
-
-```
-
-## Check GTF Log
-
-```{r check-GTF-log, engine='bash', eval=TRUE}
-source .bashvars
-
-head "${data_dir}"/gffread-gtf.log
 
 ```
