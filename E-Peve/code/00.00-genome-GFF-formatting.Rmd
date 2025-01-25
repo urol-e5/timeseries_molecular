@@ -36,6 +36,9 @@ Unlike other scripts, this will output to [E-Peve/data](../data), instead of an 
 
 Requires [genometools](https://github.com/genometools/genometools) (GitHub repo) to be installed and in the system `$PATH`.
 
+Requires [AGAT](https://github.com/NBISweden/AGAT) to be installed via conda/mamba for
+conversion to GTF.
+
 ## Inputs
 
 - [Porites_evermanni_v1.annot.gff](../data/Porites_evermanni_v1.annot.gff)
@@ -46,6 +49,7 @@ Requires [genometools](https://github.com/genometools/genometools) (GitHub repo)
 
 ```{r setup, include=FALSE}
 library(knitr)
+library(reticulate)
 knitr::opts_chunk$set(
   echo = TRUE,         # Display code chunks
   eval = FALSE,        # Evaluate code chunks
@@ -66,7 +70,7 @@ echo "#### Assign Variables ####"
 echo ""
 
 echo "# Data directories"
-echo 'export repo_dir=~/gitrepos/urol-e5/timeseries_molecular/'
+echo 'export repo_dir=~/gitrepos/urol-e5/timeseries_molecular'
 echo 'export data_dir=${repo_dir}/E-Peve/data'
 echo ""
 
@@ -74,6 +78,15 @@ echo "# Input files"
 echo 'export original_gff="Porites_evermanni_v1.annot.gff"'
 echo 'export intermediate_gff="intermediate.gff"'
 echo 'export validated_gff="Porites_evermanni_validated.gff3"'
+echo ""
+
+echo "# Output files"
+echo 'export gtf="Porites_evermanni_validated.gtf"'
+echo ""
+
+echo "# Programs"
+echo 'export conda_path="~/programs/miniforge3-24.7.1-0/condabin/conda"'
+echo 'export conda_env_name="agat_env"'
 echo ""
 
 echo "# Print formatting"
@@ -223,6 +236,7 @@ gt gff3 \
 -tidy \
 -checkids \
 -retainids \
+-sort \
 "${data_dir}"/"${intermediate_gff}" \
 > "${data_dir}"/"${validated_gff}" \
 2> "${data_dir}"/gt_gff3_validation_errors.log
@@ -254,4 +268,38 @@ head "${data_dir}"/"${validated_gff}"
 source .bashvars
 
 rm "${data_dir}"/"${intermediate_gff}"
+```
+
+# Convert to GTF
+
+```{r create-GTF, engine='bash', eval=TRUE}
+source .bashvars
+
+# Activate agat conda environment
+"${conda_path}" activate ${conda_env_name}
+
+# Sends progress to /dev/null to avoid crashing Rmd notebook
+agat_convert_sp_gff2gtf.pl \
+--gff "${data_dir}"/"${validated_gff}" \
+--output "${data_dir}"/${gtf} \
+2> /dev/null
+```
+
+
+## Inspect GTF
+
+```{r inspect-GTF, engine='bash', eval=TRUE}
+source .bashvars
+
+head "${data_dir}"/"${gtf}"
+
+```
+
+## Check GTF Log
+
+```{r check-GTF-log, engine='bash', eval=TRUE}
+source .bashvars
+
+head "${data_dir}"/gffread-gtf.log
+
 ```
