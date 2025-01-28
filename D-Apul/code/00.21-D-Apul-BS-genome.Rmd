@@ -105,7 +105,8 @@ ${bismark_dir}/bismark_genome_preparation \
 ${genome_dir} \
 --parallel ${threads} \
 --bowtie2 \
---path_to_aligner ${bowtie2_dir}
+--path_to_aligner ${bowtie2_dir} \
+1> ${genome_dir}/Apulchra-bs-genome.stderr
 ```
 
 ## Inpect BS output
