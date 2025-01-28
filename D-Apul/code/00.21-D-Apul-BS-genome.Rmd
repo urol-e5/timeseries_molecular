@@ -3,6 +3,9 @@ title: "00.21-D-Apul-BS-genome"
 author: "Sam White"
 date: "2025-01-02"
 output: 
+  github_document:
+    toc: true
+    number_sections: true
   bookdown::html_document2:
     theme: cosmo
     toc: true
@@ -10,9 +13,6 @@ output:
     number_sections: true
     code_folding: show
     code_download: true
-  github_document:
-    toc: true
-    number_sections: true
   html_document:
     theme: cosmo
     toc: true
@@ -97,7 +97,7 @@ cat .bashvars
 
 # Bisfulite conversion
 
-```{r bismark-genome-conversion, engine='bash', eval=FALSE}
+```{r bismark-genome-conversion, engine='bash', eval=TRUE}
 # Load bash variables into memory
 source .bashvars
 
