@@ -29,9 +29,9 @@ This Rmd file will create a bisulfite-converted genome by, and for, Bismark [@kr
 
 Due to large sizes of output files, the files cannot be sync'd to GitHub. As such, the output directories will be gzipped and available here:
 
-- [https://gannet.fish.washington.edu/gitrepos/urol-e5/timeseries_molecular/D-Apul/data/Apulchra-genome-bisulfite.tar.gz](https://gannet.fish.washington.edu/gitrepos/urol-e5/timeseries_molecular/D-Apul/data/Apulchra-genome-bisulfite.tar.gz) (1.3GB)
+- [https://gannet.fish.washington.edu/gitrepos/urol-e5/timeseries_molecular/D-Apul/data/Bisulfite_Genome.tar.gz](https://gannet.fish.washington.edu/gitrepos/urol-e5/timeseries_molecular/D-Apul/data/Bisulfite_Genome.tar.gz) (1.3GB)
 
-- [https://gannet.fish.washington.edu/gitrepos/urol-e5/timeseries_molecular/D-Apul/data/Apulchra-genome-bisulfite.tar.gz.md5](https://gannet.fish.washington.edu/gitrepos/urol-e5/timeseries_molecular/D-Apul/data/Apulchra-genome-bisulfite.tar.gz.md5)
+- [https://gannet.fish.washington.edu/gitrepos/urol-e5/timeseries_molecular/D-Apul/data/Bisulfite_Genome.tar.gz.md5](https://gannet.fish.washington.edu/gitrepos/urol-e5/timeseries_molecular/D-Apul/data/Bisulfite_Genome.tar.gz.md5)
 
   - MD5: `9e1db5875f210007a43e2083f01c2db9`
 
@@ -108,13 +108,30 @@ ${genome_dir} \
 --path_to_aligner ${bowtie2_dir}
 ```
 
-# Inpect BS output
+## Inpect BS output
 ```{r inspect-BS-output, engine='bash', eval=TRUE}
 # Load bash variables into memory
 source .bashvars
 
 tree -h ${genome_dir}/Bisulfite_Genome
 ```
+
+## Compress output folder
+```{r compress-BS-directory, engine='bash', eval=TRUE}
+source .bashvars
+
+tar -czvf ${genome_dir}/Bisulfite_Genome.tar.gz ${genome_dir}/Bisulfite_Genome
+```
+
+## Create MD5sum
+```{r md5sum, engine='bash', eval=TRUE}
+source .bashvars
+
+cd ${genome_dir}
+
+md5sum Bisulfite_Genome.tar.gz | tee Bisulfite_Genome.tar.gz.md5
+```
+
 
 # REFERENCES
 
