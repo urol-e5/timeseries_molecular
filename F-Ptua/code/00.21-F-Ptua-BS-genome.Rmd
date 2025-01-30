@@ -1,7 +1,7 @@
 ---
 title: "00.21-F-Ptua-BS-genome"
 author: "Sam White"
-date: "2025-01-02"
+date: "2025-01-29"
 output: 
   bookdown::html_document2:
     theme: cosmo
@@ -106,7 +106,7 @@ ${genome_dir} \
 --parallel ${threads} \
 --bowtie2 \
 --path_to_aligner ${bowtie2_dir} \
-1> ${genome_dir}/Peve-bs-genome.stderr
+1> ${genome_dir}/Ptua-bs-genome.stderr
 ```
 
 ## Inpect BS output
