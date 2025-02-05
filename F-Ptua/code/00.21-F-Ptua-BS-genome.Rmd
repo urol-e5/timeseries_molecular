@@ -1,0 +1,138 @@
+---
+title: "00.21-F-Ptua-BS-genome"
+author: "Sam White"
+date: "2025-01-29"
+output: 
+  bookdown::html_document2:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+  github_document:
+    toc: true
+    number_sections: true
+  html_document:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+bibliography: references.bib
+---
+
+# Background
+
+This Rmd file will create a bisulfite-converted genome by, and for, Bismark [@krueger2011] using the `Pocillopora_meandrina_HIv1.assembly.fasta` file. The genome FastA was taken from the [Cyanophora webpage](http://cyanophora.rutgers.edu/Pocillopora_meandrina/).
+
+Due to large sizes of output files, the files cannot be sync'd to GitHub. As such, the output directories will be gzipped and available here:
+
+- [https://gannet.fish.washington.edu/gitrepos/urol-e5/timeseries_molecular/F-Ptua/data/Bisulfite_Genome.tar.gz](https://gannet.fish.washington.edu/gitrepos/urol-e5/timeseries_molecular/F-Ptua/data/Bisulfite_Genome.tar.gz) (972MB)
+
+- [https://gannet.fish.washington.edu/gitrepos/urol-e5/timeseries_molecular/F-Ptua/data/Bisulfite_Genome.tar.gz.md5](https://gannet.fish.washington.edu/gitrepos/urol-e5/timeseries_molecular/F-Ptua/data/Bisulfite_Genome.tar.gz.md5)
+
+  - MD5: `654a93dacf6a5a72475ac644599f8f8e`
+
+# Inputs
+
+- Directory containing a FastA file with the file extension: .fa or .fasta (also ending in .gz).
+
+# Outputs
+
+- CT Conversion
+
+  - Bowtie2 index files.
+  - CT conversion FastA
+  
+- GA conversion
+
+  - Bowtie2 index files.
+  - GA conversion FastA.
+
+```{r setup, include=FALSE}
+library(knitr)
+knitr::opts_chunk$set(
+  echo = TRUE,         # Display code chunks
+  eval = FALSE,        # Evaluate code chunks
+  warning = FALSE,     # Hide warnings
+  message = FALSE,     # Hide messages
+  comment = ""         # Prevents appending '##' to beginning of lines in code output
+)
+```
+
+# Create a Bash variables file
+
+This allows usage of Bash variables across R Markdown chunks.
+
+```{r save-bash-variables-to-rvars-file, engine='bash', eval=TRUE}
+{
+echo "#### Assign Variables ####"
+echo ""
+
+echo "# Data directories"
+echo 'export timeseries_dir=/home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular'
+echo 'export output_dir_top=${timeseries_dir}/F-Ptua/data'
+echo 'export genome_dir=${timeseries_dir}/F-Ptua/data'
+echo ""
+
+echo "# Paths to programs"
+echo 'export programs_dir="/home/shared"'
+echo 'export bismark_dir="${programs_dir}/Bismark-0.24.0"'
+echo 'export bowtie2_dir="${programs_dir}/bowtie2-2.4.4-linux-x86_64"'
+echo ""
+
+echo "# Set number of CPUs to use"
+echo 'export threads=20'
+echo ""
+
+echo "# Print formatting"
+echo 'export line="--------------------------------------------------------"'
+echo ""
+} > .bashvars
+
+cat .bashvars
+```
+
+# Bisfulite conversion
+
+```{r bismark-genome-conversion, engine='bash', eval=TRUE}
+# Load bash variables into memory
+source .bashvars
+
+${bismark_dir}/bismark_genome_preparation \
+${genome_dir} \
+--parallel ${threads} \
+--bowtie2 \
+--path_to_aligner ${bowtie2_dir} \
+1> ${genome_dir}/Ptua-bs-genome.stderr
+```
+
+## Inpect BS output
+```{r inspect-BS-output, engine='bash', eval=TRUE}
+# Load bash variables into memory
+source .bashvars
+
+tree -h ${genome_dir}/Bisulfite_Genome
+```
+
+## Compress output folder
+```{r compress-BS-directory, engine='bash', eval=TRUE}
+source .bashvars
+
+tar -czvf ${genome_dir}/Bisulfite_Genome.tar.gz ${genome_dir}/Bisulfite_Genome
+```
+
+## Create MD5sum
+```{r md5sum, engine='bash', eval=TRUE}
+source .bashvars
+
+cd ${genome_dir}
+
+md5sum Bisulfite_Genome.tar.gz | tee Bisulfite_Genome.tar.gz.md5
+```
+
+
+# REFERENCES
+

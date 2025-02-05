@@ -5,7 +5,7 @@
 #SBATCH --output=bismark_job_%A_%a.out
 #SBATCH --error=bismark_job_%A_%a.err
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=15
+#SBATCH --cpus-per-task=20
 #SBATCH --mem=100G
 #SBATCH --time=72:00:00
 ##turn on e-mail notification
@@ -23,7 +23,7 @@
 
 # To execute this SLURM script as an array, start the script with the following command:
 
-# sbatch --array=1-$(wc -l < ../data/wgbs-raw-fastqs/fastq_pairs.txt) 02.20-D-Apul-WGBS-alignment-SLURM-job.sh
+# sbatch --array=1-$(wc -l < ../output/01.20-D-Apul-WGBS-trimming-fastp-FastQC-MultiQC/fastq_pairs.txt) 02.20-D-Apul-WGBS-alignment-SLURM-job.sh
 
 # IMPORTANT: Requires fastq_pairs.txt to exist prior to submission!
 apptainer exec \

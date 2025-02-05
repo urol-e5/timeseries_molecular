@@ -1,0 +1,233 @@
+---
+title: "17-Apul merge matrix"
+author: Steven Roberts
+date: "`r format(Sys.time(), '%d %B, %Y')`"  
+output: 
+  html_document:
+    theme: readable
+    highlight: zenburn
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+library(tidyverse)
+library(methylKit)
+knitr::opts_chunk$set(
+  echo = TRUE,         # Display code chunks
+  eval = FALSE,         # Evaluate code chunks
+  warning = FALSE,     # Hide warnings
+  message = FALSE,     # Hide messages
+  fig.width = 6,       # Set plot width in inches
+  fig.height = 4,      # Set plot height in inches
+  fig.align = "center" # Align plots to the center
+)
+```
+
+
+
+Read in mRNA data 
+
+```{r}
+mRNA_counts <- read.csv(file = "../output/02.20-D-Apul-RNAseq-alignment-HiSat2/apul-gene_count_matrix.csv", check.names = FALSE)
+mRNA_counts <- as.data.frame(mRNA_counts)
+rownames(mRNA_counts) <- mRNA_counts[,1] #set first column that contains gene names as rownames
+mRNA_counts <- mRNA_counts[,-1] # remove column w/ gene names 
+
+# Remove any genes with 0 counts across samples 
+mRNA_counts<-mRNA_counts %>%
+     mutate(Total = rowSums(.[, 1:4]))%>%
+    filter(!Total==0)%>%
+    dplyr::select(!Total)
+
+```
+
+
+```{r}
+# Rename columns to include colony ID and timepoint
+# read in metadata
+metadata <- read.csv("../../M-multi-species/data/rna_metadata.csv") %>% filter(Species.Strain == "Acropora pulchra") %>% dplyr::select(AzentaSampleName, ColonyID, Timepoint) 
+
+
+
+
+
+metadata$Sample <- paste(metadata$AzentaSampleName, metadata$ColonyID, metadata$Timepoint, sep="_")
+# Rename columns
+colnames(mRNA_counts) <- colnames(mRNA_counts) %>%
+  replace(., . %in% metadata$AzentaSampleName, metadata$Sample[match(., metadata$AzentaSampleName)])
+
+# format metadata for DESeq2
+list<-colnames(mRNA_counts)
+list<-as.factor(list)
+metadata$Sample<-as.factor(metadata$Sample)
+# Re-order the levels
+metadata$Sample <- factor(as.character(metadata$Sample), levels=list)
+# Re-order the data.frame
+metadata_ordered <- metadata[order(metadata$Sample),]
+metadata_ordered$Sample
+rownames(metadata_ordered) <- metadata_ordered$Sample
+```
+
+
+
+
+
+
+
+Read in miRNA data
+
+```{r}
+# Note the miRNA counts I'm loading have already been normalized
+# Were normalized with all sRNA counts using DESeq2 (same design as used above for mRNA)
+miRNA_counts <- read.delim("../output/03.10-D-Apul-sRNAseq-expression-DESeq2/Apul_counts_miRNA_normalized.txt")
+head(miRNA_counts)
+
+# Remove any miRNAs with 0 for all samples 
+miRNA_counts <- miRNA_counts %>%
+     mutate(Total = rowSums(.[, 1:4]))%>%
+    filter(!Total==0)%>%
+    dplyr::select(!Total)
+
+# Fix miRNa column names
+colnames(miRNA_counts) <- gsub("X", "", colnames(miRNA_counts))
+colnames(miRNA_counts) <- gsub("\\.", "-", colnames(miRNA_counts))
+colnames(miRNA_counts) <- gsub("\\.", "_", colnames(miRNA_counts))
+```
+
+
+Filter reads by proportion in sample 
+```{r}
+ffun<-filterfun(pOverA(0.1,5))  #set up filtering parameters--must have at least 5 counts present in at least 4 samples
+
+# miRNA
+filt_outrm_poa <- genefilter((miRNA_counts), ffun) #apply filter
+sum(filt_outrm_poa) #count number of genes left
+miRNA_counts_filt <- miRNA_counts[filt_outrm_poa,] #keep only rows that passed filter
+
+# mRNA
+filt_outrm_poa <- genefilter((mRNA_counts), ffun) #apply filter
+sum(filt_outrm_poa) #count number of genes left
+mRNA_counts_filt <- mRNA_counts[filt_outrm_poa,] #keep only rows that passed filter
+```
+
+
+
+
+# lncRNA counts
+
+```{r}
+lncRNA_counts <- read.delim("../output/08-Apul-lncRNA/lncRNA_counts.txt") %>%
+  dplyr::select(-c(2:6))
+
+lncRNA_counts <- as.data.frame(lncRNA_counts)
+rownames(lncRNA_counts) <- lncRNA_counts[,1] #set first column that contains gene names as rownames
+lncRNA_counts <- lncRNA_counts[,-1] # remove column w/ gene names 
+
+
+# Fix miRNa column names
+colnames(lncRNA_counts) <- gsub("X", "", colnames(lncRNA_counts))
+colnames(lncRNA_counts) <- gsub("\\.", "-", colnames(lncRNA_counts))
+colnames(lncRNA_counts) <- gsub("\\.", "_", colnames(lncRNA_counts))
+
+
+
+head(lncRNA_counts)
+
+```
+
+
+Filter reads by proportion in sample 
+```{r}
+ffun<-filterfun(pOverA(0.1,5))  #set up filtering parameters--must have at least 5 counts present in at least 4 samples
+
+# miRNA
+filt_outrm_poa <- genefilter((miRNA_counts), ffun) #apply filter
+sum(filt_outrm_poa) #count number of genes left
+miRNA_counts_filt <- miRNA_counts[filt_outrm_poa,] #keep only rows that passed filter
+
+# mRNA
+filt_outrm_poa <- genefilter((mRNA_counts), ffun) #apply filter
+sum(filt_outrm_poa) #count number of genes left
+mRNA_counts_filt <- mRNA_counts[filt_outrm_poa,] #keep only rows that passed filter
+
+
+# lncRBA
+filt_outrm_poa <- genefilter((lncRNA_counts), ffun) #apply filter
+sum(filt_outrm_poa) #count number of genes left
+lncRNA_counts_filt <- lncRNA_counts[filt_outrm_poa,] #keep only rows that passed filter
+```
+
+
+Normalize counts
+```{r}
+# Function to normalize counts (simple RPM normalization)
+normalize_counts <- function(counts) {
+  rpm <- t(t(counts) / colSums(counts)) * 1e6
+  return(rpm)
+}
+
+# Normalize miRNA and mRNA counts
+#miRNA_norm <- normalize_counts(miRNA_counts_filt)
+miRNA_norm <- as.matrix(miRNA_counts_filt)
+
+#mRNA_norm <- normalize_counts(mRNA_counts_filt)
+mRNA_norm <- as.matrix(mRNA_counts_filt)
+
+#lncRNA_norm <- normalize_counts(mRNA_counts_filt)
+lncRNA_norm <- as.matrix(lncRNA_counts)
+```
+
+
+
+
+
+
+
+```{r}
+# Number of samples
+n_samples <- ncol(miRNA_counts)
+
+
+# Compute correlation matrix
+cor_matrix <- cor(t(miRNA_counts), t(lncRNA_counts), method = "pearson")
+
+# Calculate t-statistics
+t_stat <- cor_matrix * sqrt((n_samples - 2) / (1 - cor_matrix^2))
+
+# Calculate p-values
+p_values <- 2 * pt(-abs(t_stat), df = n_samples - 2)
+
+# Filter significant correlations (e.g., p < 0.05 and |correlation| > 0.7)
+cor_threshold <- 0.7
+sig_indices <- which(p_values < 0.05 & abs(cor_matrix) > cor_threshold, arr.ind = TRUE)
+
+# Extract significant miRNA-gene pairs
+significant_with_pvalues <- data.frame(
+  miRNA = rownames(cor_matrix)[sig_indices[, 1]],
+  lncRNA = colnames(cor_matrix)[sig_indices[, 2]],
+  Correlation = cor_matrix[sig_indices],
+  P_value = p_values[sig_indices]
+)
+
+# View results
+head(significant_with_pvalues)
+
+
+```
+
+```{r}
+write.csv(significant_with_pvalues, "../output/17-Apul-merge-matrix/miRNA_lnc_correlations.csv", row.names = FALSE)
+```
+
+
+```{r}
+write.csv(miRNA_counts_filt, "../output/17-Apul-merge-matrix/miRNA_counts.csv", row.names = TRUE)
+```
+
+
+
