@@ -1,0 +1,42 @@
+Bismark report for: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/01.20-D-Apul-WGBS-trimming-fastp-FastQC-MultiQC/1B4_R1_001.fastp-trim.fq.gz and /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/01.20-D-Apul-WGBS-trimming-fastp-FastQC-MultiQC/1B4_R2_001.fastp-trim.fq.gz (version: v0.24.0)
+Bismark was run with Bowtie 2 against the bisulfite genome of /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/D-Apul/data/ with the specified options: -q --score-min L,0,-1.0 -p 8 --reorder --ignore-quals --no-mixed --no-discordant --dovetail --maxins 500
+Option '--directional' specified (default mode): alignments to complementary strands (CTOT, CTOB) were ignored (i.e. not performed)
+
+Final Alignment report
+======================
+Sequence pairs analysed in total:	45243764
+Number of paired-end alignments with a unique best hit:	30869412
+Mapping efficiency:	68.2% 
+Sequence pairs with no alignments under any condition:	4896965
+Sequence pairs did not map uniquely:	9477387
+Sequence pairs which were discarded because genomic sequence could not be extracted:	21
+
+Number of sequence pairs with unique best (first) alignment came from the bowtie output:
+CT/GA/CT:	15443886	((converted) top strand)
+GA/CT/CT:	0	(complementary to (converted) top strand)
+GA/CT/GA:	0	(complementary to (converted) bottom strand)
+CT/GA/GA:	15425505	((converted) bottom strand)
+
+Number of alignments to (merely theoretical) complementary strands being rejected in total:	0
+
+Final Cytosine Methylation Report
+=================================
+Total number of C's analysed:	1421892148
+
+Total methylated C's in CpG context:	26620858
+Total methylated C's in CHG context:	1824076
+Total methylated C's in CHH context:	7203904
+Total methylated C's in Unknown context:	78068
+
+Total unmethylated C's in CpG context:	200549586
+Total unmethylated C's in CHG context:	242033059
+Total unmethylated C's in CHH context:	943660665
+Total unmethylated C's in Unknown context:	3532484
+
+C methylated in CpG context:	11.7%
+C methylated in CHG context:	0.7%
+C methylated in CHH context:	0.8%
+C methylated in unknown context (CN or CHN):	2.2%
+
+
+Bismark completed in 0d 3h 17m 6s
