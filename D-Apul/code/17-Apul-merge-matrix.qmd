@@ -225,5 +225,9 @@ write.csv(significant_with_pvalues, "../output/17-Apul-merge-matrix/miRNA_lnc_co
 ```
 
 
+```{r}
+write.csv(miRNA_counts_filt, "../output/17-Apul-merge-matrix/miRNA_counts.csv", row.names = TRUE)
+```
+
 
 
