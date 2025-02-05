@@ -1,0 +1,843 @@
+---
+title: "14-Apul-miRNA-mRNA-coexpression"
+author: "Kathleen Durkin"
+date: "2025-01-03"
+always_allow_html: true
+output: 
+  bookdown::html_document2:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+  github_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+    html_preview: true 
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#BiocManager::install("SPONGE")
+
+library(tidyverse)
+library(reshape2)
+library(pheatmap)
+library(DESeq2)
+library(genefilter)
+library(parallel)
+library(energy)
+library(genefilter)
+library(gridExtra)
+
+
+library(tidygraph)
+library(igraph)
+library(ggraph)
+```
+
+# Prep data 
+
+Read in mRNA data 
+
+```{r}
+mRNA_counts <- read.csv(file = "../output/02.20-D-Apul-RNAseq-alignment-HiSat2/apul-gene_count_matrix.csv", check.names = FALSE)
+mRNA_counts <- as.data.frame(mRNA_counts)
+rownames(mRNA_counts) <- mRNA_counts[,1] #set first column that contains gene names as rownames
+mRNA_counts <- mRNA_counts[,-1] # remove column w/ gene names 
+
+# Remove any genes with 0 counts across samples 
+mRNA_counts<-mRNA_counts %>%
+     mutate(Total = rowSums(.[, 1:4]))%>%
+    filter(!Total==0)%>%
+    dplyr::select(!Total)
+
+# Rename columns to include colony ID and timepoint
+# read in metadata
+metadata <- read.csv("../../M-multi-species/data/rna_metadata.csv") %>% filter(Species.Strain == "Acropora pulchra") %>% select(AzentaSampleName, ColonyID, Timepoint) 
+metadata$Sample <- paste(metadata$AzentaSampleName, metadata$ColonyID, metadata$Timepoint, sep="_")
+# Rename columns
+colnames(mRNA_counts) <- colnames(mRNA_counts) %>%
+  replace(., . %in% metadata$AzentaSampleName, metadata$Sample[match(., metadata$AzentaSampleName)])
+
+# format metadata for DESeq2
+list<-colnames(mRNA_counts)
+list<-as.factor(list)
+metadata$Sample<-as.factor(metadata$Sample)
+# Re-order the levels
+metadata$Sample <- factor(as.character(metadata$Sample), levels=list)
+# Re-order the data.frame
+metadata_ordered <- metadata[order(metadata$Sample),]
+metadata_ordered$Sample
+rownames(metadata_ordered) <- metadata_ordered$Sample
+```
+
+Normalize mRNA data (the miRNA counts I loaded were already normalized with all sRNA counts)
+
+```{r}
+# Set up DESeq2 object
+dds <- DESeqDataSetFromMatrix(countData = mRNA_counts,
+                              colData = metadata_ordered,
+                              design = ~ Timepoint + ColonyID)
+dds
+```
+
+```{r}
+# run DESeq2
+dds$Timepoint <- factor(dds$Timepoint, levels = c("TP1","TP2", "TP3", "TP4"))
+
+dds <- DESeq(dds)
+```
+
+
+```{r}
+# extract normalized counts
+# (normalization is automatically performed by deseq2)
+# (We won't need raw mRNA counts, so I'm just overwriting the data frame)
+mRNA_counts <- counts(dds, normalized=TRUE) %>% data.frame()
+```
+
+
+Read in miRNA data
+
+```{r}
+# Note the miRNA counts I'm loading have already been normalized
+# Were normalized with all sRNA counts using DESeq2 (same design as used above for mRNA)
+miRNA_counts <- read.delim("../output/03.10-D-Apul-sRNAseq-expression-DESeq2/Apul_counts_miRNA_normalized.txt")
+head(miRNA_counts)
+
+# Remove any miRNAs with 0 for all samples 
+miRNA_counts <- miRNA_counts %>%
+     mutate(Total = rowSums(.[, 1:4]))%>%
+    filter(!Total==0)%>%
+    dplyr::select(!Total)
+
+# Fix miRNa column names
+colnames(miRNA_counts) <- gsub("X", "", colnames(miRNA_counts))
+colnames(miRNA_counts) <- gsub("\\.", "-", colnames(miRNA_counts))
+colnames(miRNA_counts) <- gsub("\\.", "_", colnames(miRNA_counts))
+```
+
+
+Filter reads by proportion in sample 
+```{r}
+ffun<-filterfun(pOverA(0.1,5))  #set up filtering parameters--must have at least 5 counts present in at least 4 samples
+
+# miRNA
+filt_outrm_poa <- genefilter((miRNA_counts), ffun) #apply filter
+sum(filt_outrm_poa) #count number of genes left
+miRNA_counts_filt <- miRNA_counts[filt_outrm_poa,] #keep only rows that passed filter
+
+# mRNA
+filt_outrm_poa <- genefilter((mRNA_counts), ffun) #apply filter
+sum(filt_outrm_poa) #count number of genes left
+mRNA_counts_filt <- mRNA_counts[filt_outrm_poa,] #keep only rows that passed filter
+```
+
+Normalize counts
+```{r}
+# Function to normalize counts (simple RPM normalization)
+normalize_counts <- function(counts) {
+  rpm <- t(t(counts) / colSums(counts)) * 1e6
+  return(rpm)
+}
+
+# Normalize miRNA and mRNA counts
+#miRNA_norm <- normalize_counts(miRNA_counts_filt)
+miRNA_norm <- as.matrix(miRNA_counts_filt)
+
+#mRNA_norm <- normalize_counts(mRNA_counts_filt)
+mRNA_norm <- as.matrix(mRNA_counts_filt)
+```
+
+Read in miranda data 
+```{r}
+miranda_apul <- read.delim("../output/07-Apul-miRNA-mRNA-miRanda/Apul-miRanda-3UTR-strict-parsed-geneIDs.txt", header = F)
+colnames(miranda_apul) <- c("miRNA", "mRNA_coords", "score", "energy", "query_start_end", "subject_start_end", "total_bp_shared", "query_similar", "subject_similar", "mRNA")
+
+# Format miranda df 
+miranda_apul$miRNA <- sub("^>", "", miranda_apul$miRNA)  # Remove leading ">"
+miranda_apul$miRNA <- sub("\\..*", "", miranda_apul$miRNA)  # Remove everything from the first period onwards
+# miranda_apul$mRNA <- sub("::.*", "", miranda_apul$mRNA)  # Remove everything from "::" onwards
+```
+
+
+# Distance
+
+Run distance correlation using the [energy package in R](https://cran.r-project.org/web/packages/energy/index.html) with rows as features (ie mRNA or miRNA) and columns as samples. 
+```{r}
+# Initialize a matrix to store the results
+dcor_matrix <- matrix(0, nrow = nrow(miRNA_counts_filt), ncol = nrow(mRNA_counts_filt))
+rownames(dcor_matrix) <- rownames(miRNA_counts_filt)
+colnames(dcor_matrix) <- rownames(mRNA_counts_filt)
+
+# Calculate distance correlation for each miRNA-mRNA pair
+for (i in 1:nrow(miRNA_counts_filt)) {
+  for (j in 1:nrow(mRNA_counts_filt)) {
+    dcor_matrix[i, j] <- dcor(miRNA_counts_filt[i,],mRNA_counts_filt[j,])
+  }
+}
+
+# Melt data
+dcor_melted <- melt(dcor_matrix)
+colnames(dcor_melted) <- c("miRNA", "mRNA", "Distance_Correlation")
+head(dcor_melted)
+```
+
+```{r}
+# Load necessary library
+install.packages("impute")
+install.packages("preprocessCore")
+install.packages("WGCNA")
+library(WGCNA)
+
+# Set WGCNA options
+options(stringsAsFactors = FALSE)
+allowWGCNAThreads()  # Enable multi-threading
+
+# Assuming miRNA_counts_filt and mRNA_counts_filt are R objects already in your environment
+
+# Transpose the matrices for WGCNA (features as columns, samples as rows)
+miRNA_counts_t <- t(miRNA_counts_filt)
+mRNA_counts_t <- t(mRNA_counts_filt)
+
+# Combine the mRNA and miRNA data
+combined_data <- cbind(mRNA_counts_t, miRNA_counts_t)
+
+# Preprocessing: Remove low-variance features
+filtered_data <- combined_data[, apply(combined_data, 2, var) > 0.01]
+
+# Check for good samples and genes
+gsg <- goodSamplesGenes(filtered_data, verbose = 3)
+if (!gsg$allOK) {
+    # Remove problematic samples or genes
+    filtered_data <- filtered_data[gsg$goodSamples, gsg$goodGenes]
+}
+
+# Hierarchical clustering of samples
+sampleTree <- hclust(dist(filtered_data), method = "average")
+plot(sampleTree, main = "Sample Clustering", sub = "", xlab = "")
+
+# Choose a soft-thresholding power
+powers <- c(c(1:10), seq(12, 20, 2))
+sft <- pickSoftThreshold(filtered_data, powerVector = powers, verbose = 5)
+
+# Plot scale-free topology fit index
+plot(sft$fitIndices[, 1], -sign(sft$fitIndices[, 3]) * sft$fitIndices[, 2],
+     type = "n", xlab = "Soft Threshold (power)", ylab = "Scale Free Topology Model Fit", main = "Scale Independence")
+text(sft$fitIndices[, 1], -sign(sft$fitIndices[, 3]) * sft$fitIndices[, 2], labels = powers, cex = 0.9, col = "red")
+
+# Choose the power (e.g., based on scale-free topology criteria)
+softPower <- 6  # Update this based on your results
+
+# Construct a network and identify modules
+net <- blockwiseModules(filtered_data, power = softPower,
+                        TOMType = "unsigned", minModuleSize = 30,
+                        reassignThreshold = 0, mergeCutHeight = 0.25,
+                        numericLabels = TRUE, pamRespectsDendro = FALSE,
+                        saveTOMs = TRUE, verbose = 3)
+
+# Plot the dendrogram and module colors
+mergedColors <- labels2colors(net$colors)
+plotDendroAndColors(net$dendrograms[[1]], mergedColors,
+                    "Module Colors", dendroLabels = FALSE, hang = 0.03,
+                    addGuide = TRUE, guideHang = 0.05)
+
+# Extract module eigengenes
+MEs <- net$MEs
+
+# If you have trait data, calculate module-trait correlations
+# Replace 'trait_data' with your actual sample metadata
+# moduleTraitCor <- cor(MEs, trait_data, use = "p")
+# moduleTraitPvalue <- corPvalueStudent(moduleTraitCor, nSamples = nrow(filtered_data))
+
+# Visualize module-trait relationships
+# textMatrix <- paste(signif(moduleTraitCor, 2), "\n(", signif(moduleTraitPvalue, 1), ")", sep = "")
+# dim(textMatrix) <- dim(moduleTraitCor)
+# labeledHeatmap(Matrix = moduleTraitCor, xLabels = colnames(trait_data),
+#                yLabels = names(MEs), ySymbols = names(MEs),
+#                colorLabels = FALSE, colors = blueWhiteRed(50),
+#                textMatrix = textMatrix, setStdMargins = FALSE,
+#                cex.text = 0.8, zlim = c(-1, 1))
+```
+
+
+
+```{r}
+dim(mRNA_counts_filt)  # Dimensions of mRNA matrix
+dim(miRNA_counts_filt)  # Dimensions of miRNA matrix
+```
+
+
+```{r}
+# Calculate correlation matrix
+
+miRNA_counts_t <- t(miRNA_counts_filt)
+mRNA_counts_t <- t(mRNA_counts_filt)
+
+
+cor_matrix <- cor(miRNA_counts_t, mRNA_counts_t, method = "pearson")
+
+# Set a threshold to identify significant correlations
+cor_threshold <- 0.7  # Adjust as needed
+sig_pairs <- which(abs(cor_matrix) > cor_threshold, arr.ind = TRUE)
+
+# Extract significant pairs
+significant_correlations <- data.frame(
+  mRNA = rownames(mRNA_counts_filt)[sig_pairs[, 1]],
+  miRNA = rownames(miRNA_counts_filt)[sig_pairs[, 2]],
+  correlation = cor_matrix[sig_pairs]
+)
+
+# View significant correlations
+head(significant_correlations)
+```
+```{r}
+# Combine mRNA and miRNA data
+combined_data <- cbind(t(mRNA_counts_filt), t(miRNA_counts_filt))
+
+# Calculate distance matrix
+dist_matrix <- dist(combined_data, method = "euclidean")
+
+# Perform hierarchical clustering
+hc <- hclust(dist_matrix, method = "average")
+
+# Plot dendrogram
+plot(hc, main = "Hierarchical Clustering of Features")
+```
+
+```{r}
+# Transpose the combined data: features as rows
+combined_data_t <- t(combined_data)
+
+# Normalize the data (optional but recommended)
+normalized_data <- scale(combined_data_t)
+
+# Perform k-means clustering
+set.seed(123)  # For reproducibility
+k <- 5  # Number of clusters
+clusters <- kmeans(normalized_data, centers = k)
+
+# Add cluster labels to features
+cluster_assignments <- data.frame(
+  Feature = rownames(combined_data_t),
+  Cluster = clusters$cluster
+)
+
+# View cluster assignments
+head(cluster_assignments)
+```
+
+```{r}
+cluster_assignments
+```
+
+
+```{r}
+library(ggplot2)
+
+# Transpose data if necessary (features as rows)
+combined_data_t <- t(combined_data)
+
+# Normalize data (optional)
+normalized_data <- scale(combined_data_t)
+
+# Perform PCA
+pca <- prcomp(normalized_data)
+
+# Create a data frame for visualization
+pca_data <- data.frame(
+  PC1 = pca$x[, 1],   # First principal component
+  PC2 = pca$x[, 2],   # Second principal component
+  Cluster = as.factor(clusters$cluster)  # Cluster assignments
+)
+
+# Plot PCA
+ggplot(pca_data, aes(x = PC1, y = PC2, color = Cluster)) +
+  geom_point(size = 2) +
+  labs(title = "K-Means Clustering: PCA Visualization", x = "PC1", y = "PC2") +
+  theme_minimal()
+```
+
+```{r}
+#install.packages("FactoMineR")
+library(FactoMineR)
+
+# Combine data
+combined_data <- cbind(t(mRNA_counts_filt), t(miRNA_counts_filt))
+
+# Perform PCA
+pca_results <- PCA(combined_data, graph = FALSE)
+
+# Visualize contributions to principal components
+plot(pca_results, choix = "var")
+```
+
+
+```{r}
+library(igraph)
+
+# Combine data
+combined_data <- cbind(t(mRNA_counts_filt), t(miRNA_counts_filt))
+
+# Calculate correlation matrix
+cor_matrix <- cor(combined_data)
+
+# Set a threshold to define edges
+cor_threshold <- 0.7  # Adjust as needed
+adj_matrix <- cor_matrix > cor_threshold
+
+# Create graph object
+g <- graph_from_adjacency_matrix(adj_matrix, mode = "undirected", diag = FALSE)
+
+# Plot the network
+plot(g, vertex.label = NA, main = "Co-Expression Network")
+```
+
+```{r}
+# Align sample names between miRNA and mRNA matrices
+common_samples <- intersect(colnames(miRNA_counts_filt), colnames(mRNA_counts_filt))
+
+# Subset both matrices to include only the common samples
+miRNA_counts <- miRNA_counts_filt[, common_samples]
+mRNA_counts <- mRNA_counts_filt[, common_samples]
+```
+
+```{r}
+# Transpose data for correlation (rows = features, columns = samples)
+miRNA_data <- t(miRNA_counts)
+mRNA_data <- t(mRNA_counts)
+
+# Compute correlation matrix
+cor_matrix <- cor(miRNA_data, mRNA_data, method = "pearson")
+```
+
+```{r}
+# Set correlation threshold
+cor_threshold <- 0.7
+
+# Find significant correlations
+sig_pairs <- which(abs(cor_matrix) > cor_threshold, arr.ind = TRUE)
+
+# Extract significant miRNA-gene pairs
+significant_correlations <- data.frame(
+  miRNA = rownames(cor_matrix)[sig_pairs[, 1]],
+  Gene = colnames(cor_matrix)[sig_pairs[, 2]],
+  Correlation = cor_matrix[sig_pairs]
+)
+
+# View results
+head(significant_correlations)
+```
+```{r}
+# Number of samples
+n_samples <- ncol(miRNA_counts)
+
+# Compute correlation matrix
+cor_matrix <- cor(t(miRNA_counts), t(mRNA_counts), method = "pearson")
+
+# Calculate t-statistics
+t_stat <- cor_matrix * sqrt((n_samples - 2) / (1 - cor_matrix^2))
+
+# Calculate p-values
+p_values <- 2 * pt(-abs(t_stat), df = n_samples - 2)
+
+# Filter significant correlations (e.g., p < 0.05 and |correlation| > 0.7)
+cor_threshold <- 0.7
+sig_indices <- which(p_values < 0.05 & abs(cor_matrix) > cor_threshold, arr.ind = TRUE)
+
+# Extract significant miRNA-gene pairs
+significant_with_pvalues <- data.frame(
+  miRNA = rownames(cor_matrix)[sig_indices[, 1]],
+  Gene = colnames(cor_matrix)[sig_indices[, 2]],
+  Correlation = cor_matrix[sig_indices],
+  P_value = p_values[sig_indices]
+)
+
+# View results
+head(significant_with_pvalues)
+```
+
+```{r}
+write.csv(significant_with_pvalues, "../output/14-Apul-miRNA-mRNA-coexp/miRNA_gene_correlations.csv", row.names = FALSE)
+```
+
+
+```{r}
+library(pheatmap)
+
+# Prepare data for heatmap
+# Subset the correlation matrix to include only significant pairs
+sig_cor_matrix <- cor_matrix[unique(sig_indices[, 1]), unique(sig_indices[, 2])]
+
+# Plot heatmap
+pheatmap(sig_cor_matrix, 
+         cluster_rows = TRUE, cluster_cols = TRUE, 
+         show_rownames = TRUE, show_colnames = TRUE,
+         main = "Heatmap of Significant Correlations")
+```
+```{r}
+# Example: Plot correlations for a specific miRNA
+selected_miRNA <- "Cluster_12083"  # Replace with an actual miRNA from your data
+
+# Subset data for the selected miRNA
+selected_data <- significant_with_pvalues[significant_with_pvalues$miRNA == selected_miRNA, ]
+
+# Create scatter plot
+library(ggplot2)
+ggplot(selected_data, aes(x = Gene, y = Correlation)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  labs(title = paste("Correlations for", selected_miRNA),
+       x = "Genes", y = "Correlation") +
+  theme_minimal()
+```
+```{r}
+library(ggplot2)
+
+# Combine miRNA and gene data for PCA
+combined_data <- t(cbind(miRNA_counts[unique(sig_indices[, 1]), ],
+                         mRNA_counts[unique(sig_indices[, 2]), ]))
+
+# Perform PCA
+pca <- prcomp(combined_data)
+
+# Create a data frame for visualization
+pca_data <- data.frame(
+  PC1 = pca$x[, 1],
+  PC2 = pca$x[, 2],
+  Feature = c(rownames(miRNA_counts[unique(sig_indices[, 1]), ]),
+              rownames(mRNA_counts[unique(sig_indices[, 2]), ]))
+)
+
+# Plot PCA
+ggplot(pca_data, aes(x = PC1, y = PC2, label = Feature)) +
+  geom_point() +
+  geom_text(size = 3, vjust = 1.5) +
+  labs(title = "PCA of Significant miRNA-Gene Pairs") +
+  theme_minimal()
+```
+
+```{r}
+
+library(GGally)
+
+# Subset data for a few miRNAs and genes
+miRNA_subset <- unique(significant_with_pvalues$miRNA)[1:3]  # Top 3 miRNAs
+gene_subset <- unique(significant_with_pvalues$Gene)[1:3]  # Top 3 genes
+
+subset_data <- t(cbind(
+  miRNA_counts[miRNA_subset, ],
+  mRNA_counts[gene_subset, ]
+))
+
+# Plot pairwise scatterplot matrix
+ggpairs(as.data.frame(subset_data), title = "Scatterplot Matrix of Significant Pairs")
+```
+
+The `dcor` function calculates distance correlation between each mRNA and miRNA. The output value ranges from 0 to 1, where 0 indicates independence and 1 indicates perfect dependence. Unlike Pearson's correlation, this calculation can detect non-linear relationships between mRNA and miRNAs. However, it does not calculate directionality of the relationship. 
+
+I will use the signed distance correlation to indicate overall linear trend in the data using Pearson's correlation. I will also use several methods to obtain pvalues for distance correlation: permutation test, chi-square test, and student's t-distribution. I wrote functions to calculate these things below.
+```{r}
+# Function to calculate signed distance correlation
+signed_dcor <- function(x, y) {
+  dc <- dcor(x, y)
+  sign <- sign(cor(x, y, method = "pearson"))
+  return(sign * dc)
+}
+
+# Function to calculate p-value using permutation test
+dcor_pvalue_perm <- function(x, y, R = 1000) { # can change R value to make less computationally intense 
+  observed_dcor <- dcor(x, y)
+  n <- length(x)
+  
+  permuted_dcors <- replicate(R, {
+    perm_y <- sample(y)
+    dcor(x, perm_y)
+  })
+  
+  pvalue <- mean(permuted_dcors >= observed_dcor)
+  return(pvalue)
+}
+
+# Function to calculate p-value using chi-square approximation
+dcor_pvalue_chisq <- function(x, y) {
+  n <- length(x)
+  dc <- dcor(x, y)
+  statistic <- n * dc^2
+  pvalue <- pchisq(statistic, df = 1, lower.tail = FALSE)
+  return(pvalue)
+}
+
+# Initialize matrices to store results
+signed_dcor_matrix <- matrix(0, nrow = nrow(miRNA_norm), ncol = nrow(mRNA_norm))
+pvalue_perm_matrix <- matrix(1, nrow = nrow(miRNA_norm), ncol = nrow(mRNA_norm))
+pvalue_chisq_matrix <- matrix(1, nrow = nrow(miRNA_norm), ncol = nrow(mRNA_norm))
+pvalue_t_matrix <- matrix(1, nrow = nrow(miRNA_norm), ncol = nrow(mRNA_norm))
+
+rownames(signed_dcor_matrix) <- rownames(miRNA_norm)
+colnames(signed_dcor_matrix) <- rownames(mRNA_norm)
+rownames(pvalue_perm_matrix) <- rownames(miRNA_norm)
+colnames(pvalue_perm_matrix) <- rownames(mRNA_norm)
+rownames(pvalue_chisq_matrix) <- rownames(miRNA_norm)
+colnames(pvalue_chisq_matrix) <- rownames(mRNA_norm)
+rownames(pvalue_t_matrix) <- rownames(miRNA_norm)
+colnames(pvalue_t_matrix) <- rownames(mRNA_norm)
+
+# Calculate signed distance correlation and p-values for each miRNA-mRNA pair
+for (i in 1:nrow(miRNA_norm)) {
+  for (j in 1:nrow(mRNA_norm)) {
+    signed_dcor_matrix[i, j] <- signed_dcor(miRNA_norm[i,], mRNA_norm[j,])
+    pvalue_perm_matrix[i, j] <- dcor_pvalue_perm(miRNA_norm[i,], mRNA_norm[j,])
+    pvalue_chisq_matrix[i, j] <- dcor_pvalue_chisq(miRNA_norm[i,], mRNA_norm[j,])
+#    pvalue_t_matrix[i, j] <- dcor_pvalue_t(miRNA_norm[i,], mRNA_norm[j,])
+  }
+}
+
+# Melt 
+signed_dcor_matrix_melt <- melt(signed_dcor_matrix)
+colnames(signed_dcor_matrix_melt) <- c("miRNA", "mRNA", "dcor_corr_direction")
+
+pvalue_perm_matrix_melt <- melt(pvalue_perm_matrix)
+colnames(pvalue_perm_matrix_melt) <- c("miRNA", "mRNA", "pvalue_perm")
+
+pvalue_chisq_matrix_melt <- melt(pvalue_chisq_matrix)
+colnames(pvalue_chisq_matrix_melt) <- c("miRNA", "mRNA", "pvalue_chisq")
+
+# pvalue_t_matrix_melt <- melt(pvalue_t_matrix)
+# colnames(pvalue_t_matrix_melt) <- c("miRNA", "mRNA", "pvalue_t")
+```
+
+The for loop will take a while to run, as it is computationally intensive. On 1/4/25, JA did not run this chunk - it was taking too long on her computer. 
+
+Join all dfs so that there is one df with mRNA, miRNA, distance correlation, directionality, and various pvalue information. 
+```{r}
+all_dcor <- cbind(dcor_melted, signed_dcor_matrix_melt[,3], pvalue_perm_matrix_melt[,3], pvalue_chisq_matrix_melt[,3], pvalue_t_matrix_melt[,3])
+colnames(all_dcor) <- c("miRNA", "mRNA", "Distance_Correlation", "dcor_corr_direction", "pvalue_perm", "pvalue_chisq", "pvalue_t")
+head(all_dcor)
+```
+
+Merge with miranda data 
+```{r}
+combined_data <- all_dcor %>%
+  inner_join(miranda_apul, by = c("miRNA", "mRNA")) #%>%
+  #filter(dcor_corr_direction != 0)
+head(combined_data)
+```
+
+Investigate data 
+```{r}
+# How many p-values are < 0.05 or < 0.1?
+pvalue_summary <- combined_data %>%
+  summarise(
+    pvalue_perm_gt_0.05 = sum(pvalue_perm < 0.05),
+    pvalue_perm_gt_0.1 = sum(pvalue_perm < 0.1),
+    pvalue_chisq_gt_0.05 = sum(pvalue_chisq < 0.05),
+    pvalue_chisq_gt_0.1 = sum(pvalue_chisq < 0.1),
+    pvalue_t_gt_0.05 = sum(pvalue_t < 0.05),
+    pvalue_t_gt_0.1 = sum(pvalue_t < 0.1)
+  )
+print(pvalue_summary)
+
+# How many pairs have a distance correlation > 0.5?
+dc_gt_0.5 <- sum(combined_data$Distance_Correlation > 0.5)
+cat("\nPairs with Distance Correlation > 0.5:", dc_gt_0.5, "\n")
+
+# How many have a dcor_corr_direction that does not equal 0?
+dcor_dir_not_0 <- sum(combined_data$dcor_corr_direction != 0)
+cat("Pairs with dcor_corr_direction != 0:", dcor_dir_not_0, "\n")
+
+# Are there any pairs that have a dcor_corr_direction that does not equal 0 and a p-value < 0.05?
+pairs_of_interest <- combined_data %>%
+  filter(dcor_corr_direction != 0 & 
+         (pvalue_perm < 0.05 | pvalue_chisq < 0.05 | pvalue_t < 0.05))
+cat("Pairs with dcor_corr_direction != 0 and any p-value < 0.05:", nrow(pairs_of_interest), "\n")
+
+# Are there any pairs that have a Distance correlation > 0.5 and a p-value < 0.05?
+pairs_of_interest_dist <- combined_data %>%
+  filter(Distance_Correlation > 0.5 & 
+         (pvalue_perm < 0.05 | pvalue_chisq < 0.05 | pvalue_t < 0.05))
+cat("Pairs with Distance correlation > 0.5 and any p-value < 0.05:", nrow(pairs_of_interest_dist), "\n")
+```
+
+miRNA Cluster_1826 and mRNA FUN_019563 were identified as a pair of interest. 
+
+Visualize 
+```{r}
+ggplot(combined_data, aes(x = Distance_Correlation, y = dcor_corr_direction)) +
+  geom_point(alpha = 0.5) +
+  theme_minimal() +
+  labs(title = "Distance Correlation vs Correlation Direction",
+       x = "Distance Correlation",
+       y = "Correlation Direction")
+
+# Create an edge list from the miRNA and mRNA columns
+edges <- pairs_of_interest_dist[, c("miRNA", "mRNA")]
+
+# Create the graph
+g <- graph_from_data_frame(edges, directed = FALSE)
+
+# Add edge attributes
+E(g)$weight <- pairs_of_interest_dist$Distance_Correlation
+E(g)$direction <- pairs_of_interest_dist$dcor_corr_direction
+E(g)$score <- pairs_of_interest_dist$score
+E(g)$energy <- pairs_of_interest_dist$energy
+
+# Plot the graph
+plot(g,
+     edge.width = E(g)$weight * 5,  # Adjust edge width based on correlation
+     edge.color = ifelse(E(g)$direction > 0, "blue", "red"),  # Color based on direction
+     vertex.size = 10,
+     vertex.label.cex = 0.8,
+     layout = layout_with_fr(g))
+```
+
+Instead of distance correlation, calculate PCC instead 
+```{r}
+# Function to calculate PCC and p-value for a pair of vectors
+calc_pcc <- function(x, y) {
+  result <- cor.test(x, y, method = "pearson")
+  return(c(PCC = result$estimate, p_value = result$p.value))
+}
+
+# Create a data frame of all miRNA-mRNA pairs
+pairs <- expand.grid(miRNA = rownames(miRNA_norm), mRNA = rownames(mRNA_norm))
+
+# Calculate PCC and p-value for each pair
+pcc_results <- pairs %>%
+  rowwise() %>%
+  mutate(
+    pcc_stats = list(calc_pcc(miRNA_norm[miRNA,], mRNA_norm[mRNA,]))
+  ) %>%
+  unnest_wider(pcc_stats)
+```
+
+Merge with miranda data 
+```{r}
+combined_data_pcc <- pcc_results %>%
+  inner_join(miranda_apul, by = c("miRNA", "mRNA"))
+head(combined_data_pcc)
+
+write.csv(combined_data_pcc, "../output/14-Apul-miRNA-mRNA-coexpression/pcc_miranda_interactions.csv")
+```
+
+Investigate data 
+```{r}
+# How many p-values are < 0.05 or < 0.1?
+pvalue_summary_pcc <- combined_data_pcc %>%
+  summarise(
+    pvalue_0.05 = sum(p_value < 0.05),
+    pvalue_0.1 = sum(p_value < 0.1),
+  )
+print(pvalue_summary_pcc)
+
+# How many pairs have a PCC correlation > |0.5|?
+corr_0.5 <- sum(abs(combined_data_pcc$PCC.cor) > 0.5)
+cat("\nPairs with Pearson Correlation > 0.5:", corr_0.5, "\n")
+
+# Are there any pairs that have a PCC correlation > |0.5| and a p-value < 0.05?
+pairs_of_interest_pcc <- combined_data_pcc %>%
+  filter(abs(PCC.cor) > 0.5 & p_value < 0.05 )
+cat("PCC correlation > |0.5| and a p-value < 0.05:", nrow(pairs_of_interest_pcc), "\n")
+
+# How many unique miRNAs and mRNAs have a PCC correlation > |0.5| and a p-value < 0.05?
+length(unique(pairs_of_interest_pcc$miRNA))
+length(unique(pairs_of_interest_pcc$mRNA))
+
+# save pairs of interest as csv
+write.csv(pairs_of_interest_pcc, "../output/14-Apul-miRNA-mRNA-coexpression/pcc_pairs_of_interest.csv")
+```
+
+I noticed that the significant pvalues correspond to high correlation values, whereas low correlation values are typically not significant (if using the p<0.05). 
+
+Plot using igraph 
+```{r}
+# Create the graph
+g <- graph_from_data_frame(pairs_of_interest_pcc, directed = FALSE)
+
+# Add edge attributes
+E(g)$weight <- abs(E(g)$PCC.cor)  # Use absolute PCC for edge weight
+E(g)$color <- ifelse(E(g)$PCC.cor > 0, "blue", "red")  # Blue for positive, red for negative correlations
+
+# Add node attributes
+V(g)$type <- ifelse(V(g)$name %in% pairs_of_interest_pcc$miRNA, "miRNA", "mRNA")
+
+# Convert to tbl_graph for ggraph
+g_tbl <- as_tbl_graph(g)
+
+# Create the plot
+p <- ggraph(g_tbl, layout = "fr") +
+  geom_edge_link(aes(edge_width = weight, color = color), alpha = 0.6) +
+  geom_node_point(aes(color = type), size = 5) +
+  geom_node_text(aes(label = name), repel = TRUE, size = 3) +
+  scale_edge_width(range = c(0.5, 3)) +
+  scale_color_manual(values = c("miRNA" = "purple", "mRNA" = "orange", "Positive correlation" = "blue", "Negative correlation" = "red")) +
+  theme_graph() +
+  labs(title = "miRNA-mRNA Interaction Network",
+       subtitle = "Edge width represents |PCC|, color represents correlation direction");p
+
+ggsave("../output/14-Apul-miRNA-mRNA-coexpression/miRNA_mRNA_network.png", p, width = 15, height = 10, dpi = 300)
+```
+
+Super cool! 
+
+```{r}
+# Function to create a scatter plot for a miRNA-mRNA pair
+plot_correlation <- function(miRNA, mRNA, miRNA_data, mRNA_data, cor_value, p_value) {
+  # Extract data for the specific miRNA and mRNA
+  miRNA_counts <- as.numeric(miRNA_data[miRNA,])
+  mRNA_counts <- as.numeric(mRNA_data[mRNA,])
+  
+  # Combine into a data frame
+  plot_data <- data.frame(
+    miRNA_counts = miRNA_counts,
+    mRNA_counts = mRNA_counts,
+    sample = colnames(miRNA_data)
+  )
+  
+  # Create the plot
+  p <- ggplot(plot_data, aes(x = miRNA_counts, y = mRNA_counts)) +
+    geom_point(aes(color = sample), size = 3) +
+    geom_smooth(method = "lm", se = TRUE, color = "red") +
+    scale_x_log10() +
+    scale_y_log10() +
+    labs(title = paste(miRNA, "vs", mRNA),
+         subtitle = paste("Correlation:", round(cor_value, 3), 
+                          "| p-value:", format.pval(p_value, digits = 3)),
+         x = paste(miRNA, "counts"),
+         y = paste(mRNA, "counts")) +
+    theme_minimal()
+  
+  return(p)
+}
+
+# Create plots for pairs in pairs_of_interest_pcc
+plots <- lapply(1:nrow(pairs_of_interest_pcc), function(i) {
+  miRNA <- pairs_of_interest_pcc$miRNA[i]
+  mRNA <- pairs_of_interest_pcc$mRNA[i]
+  cor_value <- pairs_of_interest_pcc$PCC.cor[i]
+  p_value <- pairs_of_interest_pcc$p_value[i]
+  plot_correlation(miRNA, mRNA, miRNA_norm, mRNA_norm, cor_value, p_value)
+})
+
+# Arrange and display the plots
+# If you have many plots, you might want to adjust the layout
+n_plots <- length(plots)
+n_cols <- min(3, n_plots)  # Adjust the number of columns as needed
+n_rows <- ceiling(n_plots / n_cols)
+
+#grid.arrange(grobs = plots, ncol = n_cols, nrow = n_rows)
+
+# Save plots to a PDF
+pdf("../output/14-Apul-miRNA-mRNA-coexpression/correlation_plots.pdf", width = 5 * n_cols, height = 5 * n_rows)
+grid.arrange(grobs = plots, ncol = n_cols, nrow = n_rows)
+dev.off()
+```

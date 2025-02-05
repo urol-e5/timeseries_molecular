@@ -1,0 +1,59 @@
+---
+title: "16-Apul methylkit"
+author: Steven Roberts
+date: "`r format(Sys.time(), '%d %B, %Y')`"  
+output: 
+  html_document:
+    theme: readable
+    highlight: zenburn
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+library(tidyverse)
+library(methylKit)
+knitr::opts_chunk$set(
+  echo = TRUE,         # Display code chunks
+  eval = FALSE,         # Evaluate code chunks
+  warning = FALSE,     # Hide warnings
+  message = FALSE,     # Hide messages
+  fig.width = 6,       # Set plot width in inches
+  fig.height = 4,      # Set plot height in inches
+  fig.align = "center" # Align plots to the center
+)
+```
+
+```{r}
+analysisFilescov <- list(
+  "../output/15-Apul-bismark/1H6_R1_001.fastp-trim_bismark_bt2.CpG_report.merged_CpG_evidence.cov",
+  "../output/15-Apul-bismark/1D7_R1_001.fastp-trim_bismark_bt2.CpG_report.merged_CpG_evidence.cov",
+  "../output/15-Apul-bismark/1D8_R1_001.fastp-trim_bismark_bt2.CpG_report.merged_CpG_evidence.cov",
+  "../output/15-Apul-bismark/1A9_R1_001.fastp-trim_bismark_bt2.CpG_report.merged_CpG_evidence.cov",
+  "../output/15-Apul-bismark/1D10_R1_001.fastp-trim_bismark_bt2.CpG_report.merged_CpG_evidence.cov",
+  "../output/15-Apul-bismark/2B3_R1_001.fastp-trim_bismark_bt2.CpG_report.merged_CpG_evidence.cov",
+  "../output/15-Apul-bismark/2G1_R1_001.fastp-trim_bismark_bt2.CpG_report.merged_CpG_evidence.cov",
+  "../output/15-Apul-bismark/1E3_R1_001.fastp-trim_bismark_bt2.CpG_report.merged_CpG_evidence.cov",
+  "../output/15-Apul-bismark/1F11_R1_001.fastp-trim_bismark_bt2.CpG_report.merged_CpG_evidence.cov",
+  "../output/15-Apul-bismark/1A8_R1_001.fastp-trim_bismark_bt2.CpG_report.merged_CpG_evidence.cov",
+  "../output/15-Apul-bismark/1D3_R1_001.fastp-trim_bismark_bt2.CpG_report.merged_CpG_evidence.cov",
+  "../output/15-Apul-bismark/1D9_R1_001.fastp-trim_bismark_bt2.CpG_report.merged_CpG_evidence.cov",
+  "../output/15-Apul-bismark/1D4_R1_001.fastp-trim_bismark_bt2.CpG_report.merged_CpG_evidence.cov",
+  "../output/15-Apul-bismark/1A2_R1_001.fastp-trim_bismark_bt2.CpG_report.merged_CpG_evidence.cov",
+  "../output/15-Apul-bismark/1B9_R1_001.fastp-trim_bismark_bt2.CpG_report.merged_CpG_evidence.cov",
+  "../output/15-Apul-bismark/1C4_R1_001.fastp-trim_bismark_bt2.CpG_report.merged_CpG_evidence.cov",
+  "../output/15-Apul-bismark/1A10_R1_001.fastp-trim_bismark_bt2.CpG_report.merged_CpG_evidence.cov",
+  "../output/15-Apul-bismark/1B10_R1_001.fastp-trim_bismark_bt2.CpG_report.merged_CpG_evidence.cov",
+  "../output/15-Apul-bismark/1C10_R1_001.fastp-trim_bismark_bt2.CpG_report.merged_CpG_evidence.cov",
+  "../output/15-Apul-bismark/1H8F1_R1_001.fastp-trim_bismark_bt2.CpG_report.merged_CpG_evidence.cov"
+)
+```
+
+```{r}
+myobj = methRead(location = analysisFilescov, sample.id = list("225", "229", "237", "244", "265", "139", "145", "150", "173", "186", "225", "229", "237", "244", "265", "139", "145", "150", "173", "186"), assembly = "Apul", pipeline = "bismarkCoverage", context="CpG", mincov=2, treatment = c(0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1))
+```
+
