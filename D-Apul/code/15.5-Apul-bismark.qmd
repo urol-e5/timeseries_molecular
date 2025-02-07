@@ -111,6 +111,92 @@ head ../output/15-Apul-bismark/1H3*evidence.cov
 
 # lets look at it..
 
+```{bash}
+ls ../output/15-Apul-bismark/
+```
+
+
+```{bash}
+
+# Define paths
+CSV_FILE="../../M-multi-species/data/e5_DNA_Azenta_metadata.csv"  # Change this to your actual CSV file path
+SOURCE_DIR="../output/15-Apul-bismark"  # Change to your actual directory containing the files
+DEST_DIR="../output/15.5-Apul-bismark"  # Change to your desired output directory
+
+# Create the destination directory if it doesn't exist
+mkdir -p "$DEST_DIR"
+
+# Read the CSV and create a mapping of old IDs to new IDs
+declare -A rename_map
+while IFS=, read -r sample_name azenta_sample_name _; do
+    # Trim whitespace
+    sample_name=$(echo "$sample_name" | tr -d '[:space:]')
+    azenta_sample_name=$(echo "$azenta_sample_name" | tr -d '[:space:]')
+    
+    # Add to mapping if both fields exist
+    if [[ -n "$sample_name" && -n "$azenta_sample_name" ]]; then
+        rename_map["$azenta_sample_name"]="$sample_name"
+    fi
+done < <(tail -n +2 "$CSV_FILE")  # Skip the header row
+
+# Loop through files in the source directory, filtering only .cov files
+for file in "$SOURCE_DIR"/*.cov; do
+    filename=$(basename -- "$file")  # Extract filename
+
+    # Extract sample ID from filename
+    if [[ $filename =~ ([A-Za-z0-9]+)_R1_001 ]]; then
+        old_id="${BASH_REMATCH[1]}"
+        
+        # Check if there's a match in the rename map
+        if [[ -n "${rename_map[$old_id]}" ]]; then
+            new_id="${rename_map[$old_id]}"
+            new_filename="${filename/$old_id/$new_id}"
+            cp "$file" "$DEST_DIR/$new_filename"
+            echo "Copied: $filename → $DEST_DIR/$new_filename"
+        fi
+    fi
+done
+
+echo "Copying complete!"
+```
+
+
+did not work
+
+```{bash}
+cp ../output/15-Apul-bismark/*cov ../output/15.5-Apul-bismark
+```
+
+
+
+```{bash}
+ls ../output/15.5-Apul-bismark | wc -l
+```
+
+
+```{bash}
+# Read the CSV file and create an associative array
+declare -A sample_map
+while IFS=, read -r col1 sample_name col3 col4 azenta_sample_name col6; do
+  sample_map["$azenta_sample_name"]="$sample_name"
+done < ../../M-multi-species/data/e5_DNA_Azenta_metadata.csv
+
+cd ../output/15.5-Apul-bismark/
+
+# Iterate over all *.cov files and rename them
+for file in *.cov; do
+  # Extract the portion before the first underscore
+  prefix="${file%%_*}"
+  if [[ -n "${sample_map[$prefix]}" ]]; then
+    new_file="${file//$prefix/${sample_map[$prefix]}}"
+    mv "$file" "$new_file"
+  fi
+done
+
+```
+
+
+
 
 
 
