@@ -1,0 +1,174 @@
+Bowtie 2 seems to be working fine (tested command '/home/shared/bowtie2-2.4.4-linux-x86_64/bowtie2 --version' [2.4.4])
+Output format is BAM (default)
+Alignments will be written out in BAM format. Samtools found here: '/usr/bin/samtools'
+Reference genome folder provided is /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/D-Apul/data/	(absolute path is '/home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/D-Apul/data/)'
+FastQ format assumed (by default)
+Attention: using more than 4 cores per alignment thread has been reported to have diminishing returns. If possible try to limit -p to a value of 4
+Each Bowtie 2 instance is going to be run with 8 threads. Please monitor performance closely and tune down if necessary!
+
+Input files to be analysed (in current folder '/home/shared/8TB_HDD_03/sr320/github/timeseries_molecular/D-Apul/code'):
+/home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/01.20-D-Apul-WGBS-trimming-fastp-FastQC-MultiQC/2H3_R1_001.fastp-trim.fq.gz
+/home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/01.20-D-Apul-WGBS-trimming-fastp-FastQC-MultiQC/2H3_R2_001.fastp-trim.fq.gz
+Library is assumed to be strand-specific (directional), alignments to strands complementary to the original top or bottom strands will be ignored (i.e. not performed!)
+Output will be written into the directory: /home/shared/8TB_HDD_03/sr320/github/timeseries_molecular/D-Apul/output/14-Apul-bismark/
+Setting parallelization to single-threaded (default)
+
+Summary of all aligner options:	-q --score-min L,0,-1.0 -p 8 --reorder --ignore-quals --no-mixed --no-discordant --dovetail --maxins 500
+Current working directory is: /home/shared/8TB_HDD_03/sr320/github/timeseries_molecular/D-Apul/code
+
+Now reading in and storing sequence information of the genome specified in: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/D-Apul/data/
+
+Single-core mode: setting pid to 1
+
+Paired-end alignments will be performed
+=======================================
+
+The provided filenames for paired-end alignments are /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/01.20-D-Apul-WGBS-trimming-fastp-FastQC-MultiQC/2H3_R1_001.fastp-trim.fq.gz and /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/01.20-D-Apul-WGBS-trimming-fastp-FastQC-MultiQC/2H3_R2_001.fastp-trim.fq.gz
+Input files are in FastQ format
+Writing a C -> T converted version of the input file 2H3_R1_001.fastp-trim.fq.gz to 2H3_R1_001.fastp-trim.fq.gz_C_to_T.fastq
+
+Created C -> T converted version of the FastQ file 2H3_R1_001.fastp-trim.fq.gz (32103792 sequences in total)
+
+Writing a G -> A converted version of the input file 2H3_R2_001.fastp-trim.fq.gz to 2H3_R2_001.fastp-trim.fq.gz_G_to_A.fastq
+
+Created G -> A converted version of the FastQ file 2H3_R2_001.fastp-trim.fq.gz (32103792 sequences in total)
+
+Input files are 2H3_R1_001.fastp-trim.fq.gz_C_to_T.fastq and 2H3_R2_001.fastp-trim.fq.gz_G_to_A.fastq (FastQ)
+Now running 2 instances of Bowtie 2 against the bisulfite genome of /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/D-Apul/data/ with the specified options: -q --score-min L,0,-1.0 -p 8 --reorder --ignore-quals --no-mixed --no-discordant --dovetail --maxins 500
+
+Now starting a Bowtie 2 paired-end alignment for CTread1GAread2CTgenome (reading in sequences from 2H3_R1_001.fastp-trim.fq.gz_C_to_T.fastq and 2H3_R2_001.fastp-trim.fq.gz_G_to_A.fastq, with the options: -q --score-min L,0,-1.0 -p 8 --reorder --ignore-quals --no-mixed --no-discordant --dovetail --maxins 500 --norc))
+Found first alignment:
+LH00652:104:22KG7JLT4:7:1101:10352:1084_1:N:0:GTCAGTCA+TAATGCCG/1	99	ptg000027l_CT_converted	162861	1	125M	=	162795	-191	GTTGTTTTTTGTAAAAAATTGTTTTAAAAAATATTAAATATTTGAGAAATGAGAGTATTTGGAAAATTGGTTATTATGTAAAGGTTATAGTTTATGTAAAATTTTTATTTTAGTTTAAAAATTAA	IIIIIIIIIIIII9II9IIIIIIIIIIIII9IIIIIIIIIIIIIII9I9IIIIIIIIIIIIIIIIIIIIIIIIIIIIIII9IIIIIIIIIIIIIIIIIIIIIII9IIIIIIIIIIIIIIIIIIII	AS:i:-18	XS:i:-42	XN:i:0	XM:i:3	XO:i:0	XG:i:0	NM:i:3	MD:Z:60T0T31G31	YS:i:-44	YT:Z:CP
+LH00652:104:22KG7JLT4:7:1101:10352:1084_2:N:0:GTCAGTCA+TAATGCCG/2	147	ptg000027l_CT_converted	162795	1	91M1D34M	=	162861	191	TTTATTTTGGTTTAAAAATTAAAATTTTAAAAAATAAGTTGAAATTTATTATATAAATTATTTATAGTTGTTTTTTGTAAAAGATTGTTTTAAAAATATTAAATATTTGAGAAATGAGAGTATTT	III9II9II-IIIIII9I9IIII9I9IIIII99IIIIII99I9I9IIII-IIIIIIIIIIIIIII9II9IIII9IIIIIIIIIIIIIIII-IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII	AS:i:-44	XS:i:-44	XN:i:0	XM:i:6	XO:i:1	XG:i:1	NM:i:7	MD:Z:32T3T3A9T3T27A8^A34	YS:i:-18	YT:Z:CP
+Now starting a Bowtie 2 paired-end alignment for CTread1GAread2GAgenome (reading in sequences from 2H3_R1_001.fastp-trim.fq.gz_C_to_T.fastq and 2H3_R2_001.fastp-trim.fq.gz_G_to_A.fastq, with the options: -q --score-min L,0,-1.0 -p 8 --reorder --ignore-quals --no-mixed --no-discordant --dovetail --maxins 500 --nofw))
+Found first alignment:
+LH00652:104:22KG7JLT4:7:1101:10352:1084_1:N:0:GTCAGTCA+TAATGCCG/1	83	ptg000027l_GA_converted	7749644	1	125M	=	7749709	191	TTAATTTTTAAACTAAAATAAAAATTTTACATAAACTATAACCTTTACATAATAACCAATTTTCCAAATACTCTCATTTCTCAAATATTTAATATTTTTTAAAACAATTTTTTACAAAAAACAAC	IIIIIIIIIIIIIIIIIIII9IIIIIIIIIIIIIIIIIIIIIII9IIIIIIIIIIIIIIIIIIIIIIIIIIIIIII9I9IIIIIIIIIIIIIII9IIIIIIIIIIIII9II9IIIIIIIIIIIII	AS:i:-12	XS:i:-24	XN:i:0	XM:i:2	XO:i:0	XG:i:0	NM:i:2	MD:Z:64A51C8	YS:i:-44	YT:Z:CP
+LH00652:104:22KG7JLT4:7:1101:10352:1084_2:N:0:GTCAGTCA+TAATGCCG/2	163	ptg000027l_GA_converted	7749709	1	29M1D96M	=	7749644	-191	AAATACTCTCATTTCTCAAATATTTAATATTTTTAAAACAATCTTTTACAAAAAACAACTATAAATAATTTATATAATAAATTTCAACTTATTTTTTAAAATTTTAATTTTTAAACCAAAATAAA	IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII-IIIIIIIIIIIIIIII9IIII9II9IIIIIIIIIIIIIII-IIII9I9I99IIIIII99IIIII9I9IIII9I9IIIIII-II9II9III	AS:i:-44	XS:i:-44	XN:i:0	XM:i:6	XO:i:1	XG:i:1	NM:i:7	MD:Z:29^T13T7C9C13A9T3A36	YS:i:-12	YT:Z:CP
+
+>>> Writing bisulfite mapping results to 2H3_pe.bam <<<
+
+
+Reading in the sequence files /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/01.20-D-Apul-WGBS-trimming-fastp-FastQC-MultiQC/2H3_R1_001.fastp-trim.fq.gz and /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/01.20-D-Apul-WGBS-trimming-fastp-FastQC-MultiQC/2H3_R2_001.fastp-trim.fq.gz
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1110:20974:10682_1:N:0:GTCAGTCA+TAATGCCG	ptg000095l	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1131:4147:21164_1:N:0:GTCAGTCA+TAATGCCG	ptg000177l	1
+Processed 1000000 sequence pairs so far
+Processed 2000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1210:6032:6689_1:N:0:GTCAGTCA+TAATGCCG	ptg000092l	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1212:44087:4923_1:N:0:GTCAGTCA+TAATGCCG	ptg000183l	26189
+Processed 3000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1257:46531:3718_1:N:0:GTCAGTCA+TAATGCCG	ptg000171l	1
+Processed 4000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1341:20594:11453_1:N:0:GTCAGTCA+TAATGCCG	ntLink_0	96475
+Processed 5000000 sequence pairs so far
+Processed 6000000 sequence pairs so far
+Processed 7000000 sequence pairs so far
+Processed 8000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1497:50988:11495_1:N:0:GTCAGTCA+TAATGCCG	ptg000165l	24782
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2136:34209:18669_1:N:0:GTCAGTCA+TAATGCCG	ptg000094l	36833
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2136:34201:18684_1:N:0:GTCAGTCA+TAATGCCG	ptg000094l	36833
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2136:34193:18698_1:N:0:GTCAGTCA+TAATGCCG	ptg000094l	36833
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2136:34201:18712_1:N:0:GTCAGTCA+TAATGCCG	ptg000094l	36833
+Processed 9000000 sequence pairs so far
+Processed 10000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2213:24954:21724_1:N:0:GTCAGTCA+TAATGCCG	ptg000004l	2
+Processed 11000000 sequence pairs so far
+Processed 12000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2303:48715:21962_1:N:0:GTCAGTCA+TAATGCCG	ptg000047l	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2317:39840:15839_1:N:0:GTCAGTCA+TAATGCCG	ptg000006l	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2331:34824:21640_1:N:0:GTCAGTCA+TAATGCCG	ptg000004l	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2331:34840:21640_1:N:0:GTCAGTCA+TAATGCCG	ptg000004l	1
+Processed 13000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2354:40042:5372_1:N:0:GTCAGTCA+TAATGCCG	ptg000120l	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2381:11727:15825_1:N:0:GTCAGTCA+TAATGCCG	ptg000094l	36823
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2381:11744:15825_1:N:0:GTCAGTCA+TAATGCCG	ptg000094l	36823
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2381:11735:15839_1:N:0:GTCAGTCA+TAATGCCG	ptg000094l	36823
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2393:32583:7221_1:N:0:GTCAGTCA+TAATGCCG	ptg000137l	40569
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2393:32591:7235_1:N:0:GTCAGTCA+TAATGCCG	ptg000137l	40569
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2393:19842:9057_1:N:0:GTCAGTCA+TAATGCCG	ptg000066l	66347
+Processed 14000000 sequence pairs so far
+Processed 15000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2460:50624:20757_1:N:0:GTCAGTCA+TAATGCCG	ptg000066l	66406
+Processed 16000000 sequence pairs so far
+Processed 17000000 sequence pairs so far
+Processed 18000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1233:6970:1308_1:N:0:GTCAGTCA+TAATGCCG	ptg000113l	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1233:6962:1322_1:N:0:GTCAGTCA+TAATGCCG	ptg000113l	1
+Processed 19000000 sequence pairs so far
+Processed 20000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1292:36111:6577_1:N:0:GTCAGTCA+TAATGCCG	ptg000123l	44478
+Processed 21000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1347:34080:7992_1:N:0:GTCAGTCA+TAATGCCG	ptg000039l	1
+Processed 22000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1391:8257:11860_1:N:0:GTCAGTCA+TAATGCCG	ptg000115l	42071
+Processed 23000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1454:10409:29515_1:N:0:GTCAGTCA+TAATGCCG	ptg000177l	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1454:10417:29529_1:N:0:GTCAGTCA+TAATGCCG	ptg000177l	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1473:5797:2808_1:N:0:GTCAGTCA+TAATGCCG	ptg000105l	83226
+Processed 24000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1494:13984:15363_1:N:0:GTCAGTCA+TAATGCCG	ptg000121l	50726
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2115:22972:15741_1:N:0:GTCAGTCA+TAATGCCG	ptg000121l	50734
+Processed 25000000 sequence pairs so far
+Processed 26000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2231:35099:13485_1:N:0:GTCAGTCA+TAATGCCG	ntLink_4	304020
+Processed 27000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2249:44112:26853_1:N:0:GTCAGTCA+TAATGCCG	ptg000075l	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2252:1736:1995_1:N:0:GTCAGTCA+TAATGCCG	ptg000066l	66351
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2286:20408:23994_1:N:0:GTCAGTCA+TAATGCCG	ptg000066l	66414
+Processed 28000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2316:26799:3844_1:N:0:GTCAGTCA+TAATGCCG	ntLink_1	163148
+Processed 29000000 sequence pairs so far
+Processed 30000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2416:37033:1168_1:N:0:GTCAGTCA+TAATGCCG	ptg000066l	66345
+Processed 31000000 sequence pairs so far
+Processed 32000000 sequence pairs so far
+32103792 reads; of these:
+  32103792 (100.00%) were paired; of these:
+    13582677 (42.31%) aligned concordantly 0 times
+    6716191 (20.92%) aligned concordantly exactly 1 time
+    11804924 (36.77%) aligned concordantly >1 times
+57.69% overall alignment rate
+32103792 reads; of these:
+  32103792 (100.00%) were paired; of these:
+    13592495 (42.34%) aligned concordantly 0 times
+    6716572 (20.92%) aligned concordantly exactly 1 time
+    11794725 (36.74%) aligned concordantly >1 times
+57.66% overall alignment rate
+Processed 32103792 sequences in total
+
+Failed to close filehandle AMBIG_1: Bad file descriptor at /home/shared/Bismark-0.24.0/bismark line 2641, <IN2> line 128415168.
+Failed to close filehandle AMBIG_2: Bad file descriptor at /home/shared/Bismark-0.24.0/bismark line 2642, <IN2> line 128415168.
+Failed to close filehandle UNMAPPED_1: Bad file descriptor at /home/shared/Bismark-0.24.0/bismark line 2643, <IN2> line 128415168.
+Failed to close filehandle UNMAPPED_2: Bad file descriptor at /home/shared/Bismark-0.24.0/bismark line 2644, <IN2> line 128415168.
+
+Successfully deleted the temporary files 2H3_R1_001.fastp-trim.fq.gz_C_to_T.fastq and 2H3_R2_001.fastp-trim.fq.gz_G_to_A.fastq
+
+Final Alignment report
+======================
+Sequence pairs analysed in total:	32103792
+Final Cytosine Methylation Report
+=================================
+Total number of C's analysed:	958031882
+
+Total methylated C's in CpG context:	18592313
+Total methylated C's in CHG context:	1028522
+Total methylated C's in CHH context:	4211040
+Total methylated C's in Unknown context:	55394
+
+Total unmethylated C's in CpG context:	128078418
+Total unmethylated C's in CHG context:	160762920
+Total unmethylated C's in CHH context:	645358669
+Total unmethylated C's in Unknown context:	2574713
+
+C methylated in CpG context:	12.7%
+C methylated in CHG context:	0.6%
+C methylated in CHH context:	0.6%
+C methylated in unknown context (CN or CHN):	2.1%
+
+
+Bismark completed in 0d 2h 11m 44s
+
+====================
+Bismark run complete
+====================
+
+Unable to flush stdout: Broken pipe
