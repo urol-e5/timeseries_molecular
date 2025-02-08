@@ -177,11 +177,11 @@ ls ../output/15.5-Apul-bismark | wc -l
 ```{bash}
 # Read the CSV file and create an associative array
 declare -A sample_map
-while IFS=, read -r col1 sample_name col3 col4 azenta_sample_name col6; do
-  sample_map["$azenta_sample_name"]="$sample_name"
+while IFS=, read -r col1 sample_name col3 col4 azenta_sample_name colony_id timepoint col7 col8 col9 col10 col11 col12 col13 col14 col15 col16 col17 col18; do
+  sample_map["$azenta_sample_name"]="${colony_id}-${timepoint}"
 done < ../../M-multi-species/data/e5_DNA_Azenta_metadata.csv
 
-cd ../output/15.5-Apul-bismark/
+cd ../output/15.5-Apul-bismark
 
 # Iterate over all *.cov files and rename them
 for file in *.cov; do
@@ -197,6 +197,72 @@ done
 
 
 
+# Converting cov files to other typesl
 
 
+```{bash}
+cd ../output/15.5-Apul-bismark/
+
+for f in *merged_CpG_evidence.cov
+do
+  STEM=$(basename "${f}" _R1_001.fastp-trim_bismark_bt2.CpG_report.merged_CpG_evidence.cov)
+  cat "${f}" | awk -F $'\t' 'BEGIN {OFS = FS} {if ($5+$6 >= 5) {print $1, $2, $3, $4}}' \
+  > "${STEM}"_5x.bedgraph
+done
+```
+
+
+
+```{bash}
+cd ../output/15.5-Apul-bismark/
+
+for f in *merged_CpG_evidence.cov
+do
+  STEM=$(basename "${f}" _R1_001.fastp-trim_bismark_bt2.CpG_report.merged_CpG_evidence.cov)
+  cat "${f}" | awk -F $'\t' 'BEGIN {OFS = FS} {if ($5+$6 >= 10) {print $1, $2, $3, $4}}' \
+  > "${STEM}"_10x.bedgraph
+done
+```
+
+
+```{bash}
+head ../output/15.5-Apul-bismark/*229-TP1*
+```
+
+# take all 10x bedgraph and given CG loci unique ID
+
+```{bash}
+cd ../output/15.5-Apul-bismark/
+
+awk '{print "CpG_"_$1"_"$2, $4}' ACR-229-TP1_10x.bedgraph | head
+```
+
+```{bash}
+rm ../output/15.5-Apul-bismark/*processed*
+```
+
+
+
+```{bash}
+for file in ../output/15.5-Apul-bismark/*10x.bedgraph; do
+    awk '{print "CpG_"_$1"_"$2, $4}' "$file" > "${file%.bedgraph}_processed.txt"
+done
+```
+
+```{bash}
+for file in ../output/15.5-Apul-bismark/*10x_processed.txt; do
+    head -1 $file
+done
+
+```
+
+
+
+
+
+
+```{bash}
+cd ../output/15.5-Apul-bismark/
+awk '{print $1}' ACR-229-TP1_10x.bedgraph | sort | uniq
+```
 
