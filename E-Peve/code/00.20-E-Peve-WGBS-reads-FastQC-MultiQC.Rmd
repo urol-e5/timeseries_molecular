@@ -1,0 +1,310 @@
+---
+title: "00.20-E-Peve-WGBS-reads-FastQC-MultiQC"
+author: "Sam White"
+date: "2025-02-10"
+output: 
+  bookdown::html_document2:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+  github_document:
+    toc: true
+    number_sections: true
+  html_document:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+bibliography: references.bib
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+knitr::opts_chunk$set(
+  echo = TRUE,         # Display code chunks
+  eval = FALSE,        # Evaluate code chunks
+  warning = FALSE,     # Hide warnings
+  message = FALSE,     # Hide messages
+  comment = ""         # Prevents appending '##' to beginning of lines in code output
+)
+```
+
+This Rmd file will download raw WGBS FastQs for *P.evermanni* and evaluate them using [FastQC](https://github.com/s-andrews/FastQC) and [MultiQC](https://multiqc.info/)[@ewels2016].
+
+# Create a Bash variables file
+
+This allows usage of Bash variables across R Markdown chunks.
+
+```{r save-bash-variables-to-rvars-file, engine='bash', eval=TRUE}
+{
+echo "#### Assign Variables ####"
+echo ""
+
+echo "# Data directories"
+echo 'export timeseries_dir=/home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular'
+echo 'export output_dir_top=${timeseries_dir}/E-Peve/output/00.20-E-Peve-WGBS-reads-FastQC-MultiQC'
+echo 'export raw_fastqc_dir=${output_dir_top}/raw-fastqc'
+echo 'export raw_reads_dir=${timeseries_dir}/E-Peve/data/wgbs-raw-fastqs'
+echo 'export raw_reads_url="https://owl.fish.washington.edu/nightingales/E5-coral-time-series/30-1067895835/"'
+echo ""
+
+echo "# Paths to programs"
+echo 'export fastqc=/home/shared/FastQC-0.12.1/fastqc'
+echo 'export multiqc=/home/sam/programs/mambaforge/bin/multiqc'
+echo ""
+
+echo "# Set FastQ filename patterns"
+echo "export fastq_pattern='*.fastq.gz'"
+echo "export R1_fastq_pattern='*_R1_*.fastq.gz'"
+echo "export R2_fastq_pattern='*_R2_*.fastq.gz'"
+echo ""
+
+echo "# Set number of CPUs to use"
+echo 'export threads=40'
+echo ""
+
+
+echo "## Inititalize arrays"
+echo 'export fastq_array_R1=()'
+echo 'export fastq_array_R2=()'
+echo 'export raw_fastqs_array=()'
+echo 'export R1_names_array=()'
+echo 'export R2_names_array=()'
+echo ""
+
+echo "# Programs associative array"
+echo "declare -A programs_array"
+echo "programs_array=("
+echo '[fastqc]="${fastqc}" \'
+echo '[multiqc]="${multiqc}" \'
+echo ")"
+echo ""
+
+echo "# Print formatting"
+echo 'export line="--------------------------------------------------------"'
+echo ""
+} > .bashvars
+
+cat .bashvars
+```
+
+# Download *P.evermanni* WGBS FastQs
+
+## Inspect metadata file
+
+```{r, inspect-metadta, engine='bash', eval=TRUE}
+# Load bash variables into memory
+source .bashvars
+
+head ${timeseries_dir}/M-multi-species/data/e5_DNA_Azenta_metadata.csv |
+column -t -s","
+```
+
+## Download raw WGBS reads
+
+Reads are downloaded from <https://owl.fish.washington.edu/nightingales/E5-coral-time-series/30-1067895835/>
+
+Since sequencing included multiple species, the code will also parse only those that are *P.evermanni*.
+
+The `--cut-dirs 3` command cuts the preceding directory structure (i.e. `nightingales/E5-coral-time-series/30-1067895835/`) so that we just end up with the reads.
+
+```{bash download-raw-reads, engine='bash', eval=TRUE}
+# Load bash variables into memory
+source .bashvars
+
+# Make output directory if it doesn't exist
+mkdir --parents ${raw_reads_dir}
+
+# Create list of only P.evermanni sample names
+# Some samples names are preceded by the sample number for some reason,
+# so this handles that formatting.
+sample_list=$(awk -F"," '$9 == "Porites evermanni" { print $5 }' ${timeseries_dir}/M-multi-species/data/e5_DNA_Azenta_metadata.csv \
+| sort)
+
+echo ""
+echo "${line}"
+echo ""
+echo "Sample list:"
+echo ""
+echo "${sample_list}"
+echo ""
+echo "${line}"
+echo ""
+
+
+# Use printf to format each item for use in wget
+formatted_list=$(printf "%s_*," ${sample_list})
+
+# Remove the trailing comma
+formatted_list="${formatted_list%,}"
+
+# Output the final wget command
+echo ""
+echo "${line}"
+echo ""
+echo "Formatted wget accept list:" was needed
+to handle a strange parsing issue with mapping `489` to `POR-79`.
+echo ""
+echo "wget --accept=\"$formatted_list\""
+echo ""
+echo "${line}"
+echo ""
+
+# Run wget to retrieve FastQs and MD5 files
+wget \
+--directory-prefix ${raw_reads_dir} \
+--recursive \
+--no-check-certificate \
+--continue \
+--cut-dirs 3 \
+--no-host-directories \
+--no-parent \
+--quiet \
+--accept=\"$formatted_list\" ${raw_reads_url}
+
+ls -lh "${raw_reads_dir}"
+```
+
+## Verify raw read checksums
+
+```{bash verify-raw-read-checksums, engine='bash', eval=TRUE}
+# Load bash variables into memory
+source .bashvars
+
+cd "${raw_reads_dir}"
+
+for file in *.md5
+do
+  md5sum --check "${file}"
+done
+```
+
+
+# Rename FastQs for Project Consistency
+
+New naming format will be `<colony_id>-<timepoint>`.
+
+Use of a temp file, instead of working directory from the metadata file can
+avoid potential issues with character/text formatting from the input CSV.
+
+```{bash rename-fastqs, engine='bash', eval=TRUE}
+# Load bash variables into memory
+source .bashvars
+
+cd "${raw_reads_dir}"
+
+# Create an associative array to store the mapping
+declare -A number_to_colony_timepoint
+
+# Create a temporary file to store the mapping
+temp_mapping_file=$(mktemp)
+
+# Read the metadata file and populate the temporary file using awk
+# Maps Azenta sample name to colony_id and timepoint.
+awk -F, 'NR > 1 { print $5, $6 "-" $7 }' "$metadata_file" > "$temp_mapping_file"
+
+# Read the temporary file and populate the associative array
+while read -r Number colony_timepoint; do
+    echo ""
+    echo "Read from temp file: Number=$Number, colony_timepoint=$colony_timepoint"  # Debugging output
+    echo ""
+    number_to_colony_timepoint["$Number"]="$colony_timepoint"
+done < "$temp_mapping_file"
+
+# Remove the temporary file
+rm "$temp_mapping_file"
+
+# Print the associative array for debugging
+echo "Number to colony_id-Timepoint mapping:"
+for key in "${!number_to_colony_timepoint[@]}"; do
+    echo ""
+    echo "$key -> ${number_to_colony_timepoint[$key]}"
+    echo ""
+done
+
+# Iterate over the FastQ files in the current directory
+for fastq_file in *.fastq.gz; do
+    # Extract the sample number from the filename
+    sample_number=$(echo "$fastq_file" | cut -d'_' -f1)
+    
+    # Check if the sample number exists in the associative array
+    if [[ -n "${number_to_colony_timepoint[$sample_number]}" ]]; then
+        new_sample_name="${number_to_colony_timepoint[$sample_number]}"
+        new_filename=$(echo "$fastq_file" | sed "s/^$sample_number/$new_sample_name/")
+        mv "$fastq_file" "$new_filename"
+        echo "Renamed $fastq_file to $new_filename"
+    else
+        echo "Sample number '$sample_number' not found in metadata."
+        # Debugging: Print all keys in the associative array with quotes
+        echo "Available keys in the associative array:"
+        for key in "${!number_to_colony_timepoint[@]}"; do
+            echo "'$key'"
+        done
+    fi
+done
+```
+
+# FastQC/MultiQC on raw reads
+
+```{bash raw-fastqc-multiqc, engine='bash', eval=TRUE}
+# Load bash variables into memory
+source .bashvars
+
+# Make output directory if it doesn't exist
+mkdir --parents "${raw_fastqc_dir}"
+
+############ RUN FASTQC ############
+
+
+# Create array of trimmed FastQs
+raw_fastqs_array=(${raw_reads_dir}/${fastq_pattern})
+
+# Pass array contents to new variable as space-delimited list
+raw_fastqc_list=$(echo "${raw_fastqs_array[*]}")
+
+echo "Beginning FastQC on raw reads..."
+echo ""
+
+# Run FastQC
+### NOTE: Do NOT quote raw_fastqc_list
+${programs_array[fastqc]} \
+--threads ${threads} \
+--outdir ${raw_fastqc_dir} \
+--quiet \
+${raw_fastqc_list}
+
+echo "FastQC on raw reads complete!"
+echo ""
+
+############ END FASTQC ############
+
+############ RUN MULTIQC ############
+echo "Beginning MultiQC on raw FastQC..."
+echo ""
+
+${programs_array[multiqc]} \
+${raw_fastqc_dir} \
+--interactive \
+-o ${raw_fastqc_dir}
+
+echo ""
+echo "MultiQC on raw FastQs complete."
+echo ""
+
+############ END MULTIQC ############
+
+echo "Removing FastQC zip files."
+echo ""
+rm ${raw_fastqc_dir}/*.zip
+echo "FastQC zip files removed."
+echo ""
+
+# View directory contents
+ls -lh ${raw_fastqc_dir}
+
+```
