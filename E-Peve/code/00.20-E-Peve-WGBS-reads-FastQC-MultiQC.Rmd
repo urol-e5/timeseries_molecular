@@ -3,6 +3,9 @@ title: "00.20-E-Peve-WGBS-reads-FastQC-MultiQC"
 author: "Sam White"
 date: "2025-02-10"
 output: 
+  github_document:
+    toc: true
+    number_sections: true
   bookdown::html_document2:
     theme: cosmo
     toc: true
@@ -10,9 +13,6 @@ output:
     number_sections: true
     code_folding: show
     code_download: true
-  github_document:
-    toc: true
-    number_sections: true
   html_document:
     theme: cosmo
     toc: true
@@ -48,10 +48,12 @@ echo ""
 echo "# Data directories"
 echo 'export timeseries_dir=/home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular'
 echo 'export output_dir_top=${timeseries_dir}/E-Peve/output/00.20-E-Peve-WGBS-reads-FastQC-MultiQC'
-echo 'export raw_fastqc_dir=${output_dir_top}/raw-fastqc'
 echo 'export raw_reads_dir=${timeseries_dir}/E-Peve/data/wgbs-raw-fastqs'
 echo 'export raw_reads_url="https://owl.fish.washington.edu/nightingales/E5-coral-time-series/30-1067895835/"'
 echo ""
+
+echo "# Input files"
+echo 'export metadata_file="${timeseries_dir}/M-multi-species/data/e5_DNA_Azenta_metadata.csv"'
 
 echo "# Paths to programs"
 echo 'export fastqc=/home/shared/FastQC-0.12.1/fastqc'
@@ -101,7 +103,7 @@ cat .bashvars
 # Load bash variables into memory
 source .bashvars
 
-head ${timeseries_dir}/M-multi-species/data/e5_DNA_Azenta_metadata.csv |
+head ${metadata_file} |
 column -t -s","
 ```
 
@@ -121,8 +123,6 @@ source .bashvars
 mkdir --parents ${raw_reads_dir}
 
 # Create list of only P.evermanni sample names
-# Some samples names are preceded by the sample number for some reason,
-# so this handles that formatting.
 sample_list=$(awk -F"," '$9 == "Porites evermanni" { print $5 }' ${timeseries_dir}/M-multi-species/data/e5_DNA_Azenta_metadata.csv \
 | sort)
 
@@ -147,8 +147,7 @@ formatted_list="${formatted_list%,}"
 echo ""
 echo "${line}"
 echo ""
-echo "Formatted wget accept list:" was needed
-to handle a strange parsing issue with mapping `489` to `POR-79`.
+echo "Formatted wget accept list:"
 echo ""
 echo "wget --accept=\"$formatted_list\""
 echo ""
@@ -255,9 +254,6 @@ done
 # Load bash variables into memory
 source .bashvars
 
-# Make output directory if it doesn't exist
-mkdir --parents "${raw_fastqc_dir}"
-
 ############ RUN FASTQC ############
 
 
@@ -274,7 +270,7 @@ echo ""
 ### NOTE: Do NOT quote raw_fastqc_list
 ${programs_array[fastqc]} \
 --threads ${threads} \
---outdir ${raw_fastqc_dir} \
+--outdir ${raw_reads_dir} \
 --quiet \
 ${raw_fastqc_list}
 
@@ -288,9 +284,9 @@ echo "Beginning MultiQC on raw FastQC..."
 echo ""
 
 ${programs_array[multiqc]} \
-${raw_fastqc_dir} \
+${raw_reads_dir} \
 --interactive \
--o ${raw_fastqc_dir}
+-o ${raw_reads_dir}
 
 echo ""
 echo "MultiQC on raw FastQs complete."
@@ -300,11 +296,11 @@ echo ""
 
 echo "Removing FastQC zip files."
 echo ""
-rm ${raw_fastqc_dir}/*.zip
+rm ${raw_reads_dir}/*.zip
 echo "FastQC zip files removed."
 echo ""
 
 # View directory contents
-ls -lh ${raw_fastqc_dir}
+ls -lh ${raw_reads_dir}
 
 ```
