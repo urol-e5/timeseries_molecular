@@ -113,6 +113,10 @@ Reads are downloaded from <https://owl.fish.washington.edu/nightingales/E5-coral
 
 Since sequencing included multiple species, the code will also parse only those that are *P.evermanni*.
 
+Some filenames are preceeded by `<sample_number>--` for some reason. This formatting
+is limited to only samples in `E` wells, so the code below uses that aspect
+to retrieve those samples as well.
+
 The `--cut-dirs 3` command cuts the preceding directory structure (i.e. `nightingales/E5-coral-time-series/30-1067895835/`) so that we just end up with the reads.
 
 ```{bash download-raw-reads, engine='bash', eval=TRUE}
@@ -123,7 +127,9 @@ source .bashvars
 mkdir --parents ${raw_reads_dir}
 
 # Create list of only P.evermanni sample names
-sample_list=$(awk -F"," '$9 == "Porites evermanni" { print $5 }' ${timeseries_dir}/M-multi-species/data/e5_DNA_Azenta_metadata.csv \
+# Some samples names are preceded by the Sample Number for some reason,
+# so this handles that formatting.
+sample_list=$(awk -F"," '$11 == "Porites evermanni" { if ($9 ~ /E/) { print $8 "--" $9 } else { print $9 } }' ${timeseries_dir}/M-multi-species/data/30-1067895835-WGBS-sample-submission-form.csv \
 | sort)
 
 echo ""
@@ -209,9 +215,6 @@ awk -F, 'NR > 1 { print $5, $6 "-" $7 }' "$metadata_file" > "$temp_mapping_file"
 
 # Read the temporary file and populate the associative array
 while read -r Number colony_timepoint; do
-    echo ""
-    echo "Read from temp file: Number=$Number, colony_timepoint=$colony_timepoint"  # Debugging output
-    echo ""
     number_to_colony_timepoint["$Number"]="$colony_timepoint"
 done < "$temp_mapping_file"
 
@@ -229,14 +232,18 @@ done
 # Iterate over the FastQ files in the current directory
 for fastq_file in *.fastq.gz; do
     # Extract the sample number from the filename
-    sample_number=$(echo "$fastq_file" | cut -d'_' -f1)
+    sample_number=$(echo "$fastq_file" | sed -E 's/^([0-9]+--)?([A-Za-z0-9]+).*/\2/')
     
     # Check if the sample number exists in the associative array
     if [[ -n "${number_to_colony_timepoint[$sample_number]}" ]]; then
         new_sample_name="${number_to_colony_timepoint[$sample_number]}"
-        new_filename=$(echo "$fastq_file" | sed "s/^$sample_number/$new_sample_name/")
-        mv "$fastq_file" "$new_filename"
-        echo "Renamed $fastq_file to $new_filename"
+        new_filename=$(echo "$fastq_file" | sed -E "s/^([0-9]+--)?$sample_number/$new_sample_name/")
+        if [[ "$fastq_file" != "$new_filename" ]]; then
+            mv "$fastq_file" "$new_filename"
+            echo "Renamed $fastq_file to $new_filename"
+        else
+            echo "No renaming needed for $fastq_file"
+        fi
     else
         echo "Sample number '$sample_number' not found in metadata."
         # Debugging: Print all keys in the associative array with quotes
