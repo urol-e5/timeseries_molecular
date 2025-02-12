@@ -1,0 +1,50 @@
+Detecting adapter sequence for read1...
+>Illumina TruSeq Adapter Read 1
+AGATCGGAAGAGCACACGTCTGAACTCCAGTCA
+
+Detecting adapter sequence for read2...
+No adapter detected for read2
+
+Read1 before filtering:
+total reads: 36739639
+total bases: 5510945850
+Q20 bases: 5289641656(95.9843%)
+Q30 bases: 4952513459(89.8669%)
+
+Read2 before filtering:
+total reads: 36739639
+total bases: 5510945850
+Q20 bases: 5304036367(96.2455%)
+Q30 bases: 4977841364(90.3264%)
+
+Read1 after filtering:
+total reads: 35983341
+total bases: 4990883581
+Q20 bases: 4810709676(96.3899%)
+Q30 bases: 4519043024(90.546%)
+
+Read2 after filtering:
+total reads: 35983341
+total bases: 4990873454
+Q20 bases: 4830628777(96.7892%)
+Q30 bases: 4549268655(91.1518%)
+
+Filtering result:
+reads passed filter: 71966682
+reads failed due to low quality: 1421472
+reads failed due to too many N: 9382
+reads failed due to too short: 81742
+reads with adapter trimmed: 2655399
+bases trimmed due to adapters: 60249667
+reads with polyX in 3' end: 2838642
+bases trimmed in polyX tail: 33503170
+
+Duplication rate: 7.84424%
+
+Insert size peak (evaluated by paired-end reads): 203
+
+JSON report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-WGBS-trimming-fastp-FastQC-MultiQC/POR-74-TP4_R1_001.fastp-trim.report.json
+HTML report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-WGBS-trimming-fastp-FastQC-MultiQC/POR-74-TP4_R1_001.fastp-trim.report.html
+
+/home/shared/fastp-v0.24.0/fastp --in1 POR-74-TP4_R1_001.fastq.gz --in2 POR-74-TP4_R2_001.fastq.gz --detect_adapter_for_pe --trim_poly_g --trim_poly_x --thread 16 --trim_front1 10 --trim_front2 10 --html /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-WGBS-trimming-fastp-FastQC-MultiQC/POR-74-TP4_R1_001.fastp-trim.report.html --json /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-WGBS-trimming-fastp-FastQC-MultiQC/POR-74-TP4_R1_001.fastp-trim.report.json --out1 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-WGBS-trimming-fastp-FastQC-MultiQC/POR-74-TP4_R1_001.fastp-trim.fq.gz --out2 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-WGBS-trimming-fastp-FastQC-MultiQC/POR-74-TP4_R2_001.fastp-trim.fq.gz 
+fastp v0.24.0, time used: 133 seconds
