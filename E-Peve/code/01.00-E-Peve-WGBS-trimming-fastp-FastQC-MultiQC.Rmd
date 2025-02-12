@@ -118,7 +118,7 @@ cat .bashvars
 
 # Trimming and Error Repair
 
-Trimming will remove any Illumina sequencing adapters, as well as polyG and polyX (primarily polyA) sequences. Trimming will also remove the first 10bp from the 5' end of each read - this is based on FastQC/MultiQC assessment of raw reads.
+Trimming will remove any Illumina sequencing adapters, as well as polyG and polyX (primarily polyA) sequences. Trimming will also remove the first 15bp from the 5' end of each read - this is based on FastQC/MultiQC assessment of raw reads.
 
 Samples generating an error during trimming will attempt to be repaired with BBTools' `repair.sh` script.
 
@@ -178,8 +178,8 @@ do
   --trim_poly_g \
   --trim_poly_x \
   --thread 16 \
-  --trim_front1 10 \
-  --trim_front2 10 \
+  --trim_front1 15 \
+  --trim_front2 15 \
   --html ${output_dir_top}/"${R1_sample_name}".fastp-trim.report.html \
   --json ${output_dir_top}/"${R1_sample_name}".fastp-trim.report.json \
   --out1 ${output_dir_top}/"${R1_sample_name}".fastp-trim.fq.gz \
