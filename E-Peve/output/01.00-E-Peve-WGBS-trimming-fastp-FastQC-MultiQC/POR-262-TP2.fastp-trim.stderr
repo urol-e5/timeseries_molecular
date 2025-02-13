@@ -18,26 +18,26 @@ Q20 bases: 6952902705(96.9169%)
 Q30 bases: 6670197631(92.9762%)
 
 Read1 after filtering:
-total reads: 47112775
-total bases: 6525686320
-Q20 bases: 6374612181(97.6849%)
-Q30 bases: 6145136819(94.1684%)
+total reads: 47015136
+total bases: 6278903322
+Q20 bases: 6132505967(97.6684%)
+Q30 bases: 5909803424(94.1216%)
 
 Read2 after filtering:
-total reads: 47112775
-total bases: 6524245505
-Q20 bases: 6351191013(97.3475%)
-Q30 bases: 6106100933(93.5909%)
+total reads: 47015136
+total bases: 6278612469
+Q20 bases: 6108929788(97.2974%)
+Q30 bases: 5868055578(93.461%)
 
 Filtering result:
-reads passed filter: 94225550
-reads failed due to low quality: 1327124
-reads failed due to too many N: 382
-reads failed due to too short: 101448
-reads with adapter trimmed: 3721633
-bases trimmed due to adapters: 93893325
-reads with polyX in 3' end: 3650607
-bases trimmed in polyX tail: 43793793
+reads passed filter: 94030272
+reads failed due to low quality: 1519904
+reads failed due to too many N: 380
+reads failed due to too short: 103948
+reads with adapter trimmed: 4104058
+bases trimmed due to adapters: 89303958
+reads with polyX in 3' end: 3650284
+bases trimmed in polyX tail: 43771352
 
 Duplication rate: 14.9295%
 
@@ -46,5 +46,5 @@ Insert size peak (evaluated by paired-end reads): 269
 JSON report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-WGBS-trimming-fastp-FastQC-MultiQC/POR-262-TP2_R1_001.fastp-trim.report.json
 HTML report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-WGBS-trimming-fastp-FastQC-MultiQC/POR-262-TP2_R1_001.fastp-trim.report.html
 
-/home/shared/fastp-v0.24.0/fastp --in1 POR-262-TP2_R1_001.fastq.gz --in2 POR-262-TP2_R2_001.fastq.gz --detect_adapter_for_pe --trim_poly_g --trim_poly_x --thread 16 --trim_front1 10 --trim_front2 10 --html /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-WGBS-trimming-fastp-FastQC-MultiQC/POR-262-TP2_R1_001.fastp-trim.report.html --json /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-WGBS-trimming-fastp-FastQC-MultiQC/POR-262-TP2_R1_001.fastp-trim.report.json --out1 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-WGBS-trimming-fastp-FastQC-MultiQC/POR-262-TP2_R1_001.fastp-trim.fq.gz --out2 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-WGBS-trimming-fastp-FastQC-MultiQC/POR-262-TP2_R2_001.fastp-trim.fq.gz 
-fastp v0.24.0, time used: 146 seconds
+/home/shared/fastp-v0.24.0/fastp --in1 POR-262-TP2_R1_001.fastq.gz --in2 POR-262-TP2_R2_001.fastq.gz --detect_adapter_for_pe --trim_poly_g --trim_poly_x --thread 16 --trim_front1 15 --trim_front2 15 --html /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-WGBS-trimming-fastp-FastQC-MultiQC/POR-262-TP2_R1_001.fastp-trim.report.html --json /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-WGBS-trimming-fastp-FastQC-MultiQC/POR-262-TP2_R1_001.fastp-trim.report.json --out1 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-WGBS-trimming-fastp-FastQC-MultiQC/POR-262-TP2_R1_001.fastp-trim.fq.gz --out2 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-WGBS-trimming-fastp-FastQC-MultiQC/POR-262-TP2_R2_001.fastp-trim.fq.gz 
+fastp v0.24.0, time used: 143 seconds
