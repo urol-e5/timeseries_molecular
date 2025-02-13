@@ -269,9 +269,6 @@ ${fastqc} \
 --quiet \
 ${trimmed_fastqc_list}
 
-# Remove zip files
-rm *_fastqc.zip
-
 echo "FastQC on trimmed reads complete!"
 echo ""
 
@@ -293,6 +290,9 @@ cd "${output_dir_top}"
 ${multiqc} . \
 --cl-config "sp: { fastp: { fn: '*report.json' } }" \
 --interactive
+
+# Remove zip files
+rm *_fastqc.zip
 ```
 
 # REFERENCES
