@@ -1,0 +1,697 @@
+---
+title: "Apul time series multi-omic correlations"
+output: 
+  github_document: null
+date: "2025-02-13"
+editor_options: 
+  chunk_output_type: console
+---
+
+This script conducts correlation network analyses for gene expression and WGBS data for the time series project for Acropora pulchra.    
+
+# Set up 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Load libraries 
+```{r, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(DESeq2)
+library(igraph)
+library(psych)
+library(tidygraph)
+library(ggraph)
+library(WGCNA)
+library(edgeR)
+library(reshape2)
+library(ggcorrplot)
+library(corrplot)
+library(rvest)
+library(purrr)
+library(pheatmap)
+```
+
+# Acropora pulchra 
+
+## Load and format data 
+
+Gene expression mRNA data. 
+```{r}
+# RNA variance stabilized counts data
+genes <- read_csv("D-Apul/output/02.20-D-Apul-RNAseq-alignment-HiSat2/apul-gene_count_matrix.csv")
+
+genes<-as.data.frame(genes)
+
+rownames(genes)<-genes$gene_id
+
+genes<-genes%>%select(!gene_id)
+```
+
+Load metadata.  
+```{r}
+metadata<-read_csv("M-multi-species/data/rna_metadata.csv")%>%select(AzentaSampleName, ColonyID, Timepoint)%>%
+  filter(grepl("ACR", ColonyID))
+
+colonies<-unique(metadata$ColonyID)
+```
+
+Load physiology data. 
+```{r}
+phys<-read_csv("https://github.com/urol-e5/timeseries/raw/refs/heads/master/time_series_analysis/Output/master_timeseries.csv")%>%filter(colony_id_corr %in% colonies)%>%
+  select(colony_id_corr, species, timepoint, site, Host_AFDW.mg.cm2, Sym_AFDW.mg.cm2, Am, AQY, Rd, Ik, Ic, calc.umol.cm2.hr, cells.mgAFDW, prot_mg.mgafdw, Ratio_AFDW.mg.cm2, Total_Chl, Total_Chl_cell, cre.umol.mgafdw)
+
+#add site information into metadata 
+metadata$Site<-phys$site[match(metadata$ColonyID, phys$colony_id_corr)]
+```
+
+Load WGBS data. 
+```{r}
+#pull processed files from Gannet 
+
+# Define the base URL
+base_url <- "https://gannet.fish.washington.edu/seashell/bu-github/timeseries_molecular/D-Apul/output/15.5-Apul-bismark/"
+
+# Read the HTML page
+page <- read_html(base_url)
+
+# Extract links to files
+file_links <- page %>%
+  html_nodes("a") %>%
+  html_attr("href")
+
+# Filter for files ending in "processed.txt"
+processed_files <- file_links[grepl("processed\\.txt$", file_links)]
+
+# Create full URLs
+file_urls <- paste0(base_url, processed_files)
+
+# Function to read a file from URL
+read_processed_file <- function(url) {
+  read_table(url, col_types = cols(.default = "c"))  # Read as character to avoid parsing issues
+}
+
+# Import all processed files into a list
+processed_data <- lapply(file_urls, read_processed_file)
+
+# Name the list elements by file name
+names(processed_data) <- processed_files
+
+# Print structure of imported data
+str(processed_data)
+
+# add a header row that has "CpG" for the first column and "sample" for the second column, which will be populated by the file name 
+
+processed_data <- Map(function(df, filename) {
+  colnames(df) <- c("CpG", filename)  # Rename columns
+  return(df)
+}, processed_data, names(processed_data))  # Use stored file names
+
+#merge files together by "CpG"
+merged_data <- purrr::reduce(processed_data, full_join, by = "CpG")
+
+# Print structure of final merged data
+str(merged_data)
+```
+
+Replace any NA with 0. 
+```{r}
+# Convert all columns (except "CpG") to numeric and replace NAs with 0
+merged_data <- merged_data %>%
+  mutate(across(-CpG, as.numeric)) %>%  # Convert all except CpG to numeric
+  mutate(across(-CpG, ~ replace_na(.x, 0)))  # Replace NA with 0 in numeric columns
+```
+
+## Filter data sets 
+
+Only keep CpGs that have a non-zero value in all samples. 
+
+```{r}
+filtered_data <- merged_data %>%
+  filter(if_all(-CpG, ~ .x > 0))
+```
+
+We had 12,093,025 CpGs before filtering and have only 507 after filtering. This makes sense because most CpGs were not methylated in all samples. 
+
+Only keep the sample information in the column name. 
+
+```{r}
+colnames(filtered_data) <- gsub("^(.*?)_.*$", "\\1", colnames(filtered_data))
+```
+
+Next I will format the genes, WGBS, and physiology data sets to have consistent sample ID naming.  
+
+Only keep genes that are non-zero in all samples. 
+```{r}
+filtered_genes <- genes %>%
+  filter(if_all(everything(), ~ .x > 0))
+```
+
+There were 44371 genes identified with 10717 genes kept after filtering to only keep genes detected >0 in all samples.  
+
+## Rename samples to be consistent between data sets 
+
+The goal is to have each data frame with the feature as row names and sample ID (ACR-ID-TP) as column names. 
+
+Format metadata.    
+```{r}
+metadata$code<-paste0(metadata$ColonyID, "-", metadata$Timepoint)
+```
+
+Format gene data set. 
+```{r}
+# Create a named vector for mapping: SampleName -> colonyID
+rename_map <- setNames(metadata$code, metadata$AzentaSampleName)
+
+# Rename matching columns in the gene dataset
+colnames(filtered_genes) <- ifelse(colnames(filtered_genes) %in% names(rename_map), 
+                                  rename_map[colnames(filtered_genes)], 
+                                  colnames(filtered_genes))
+```
+
+View differences in column names between genes and wgbs data sets. 
+```{r}
+setdiff(colnames(filtered_data), colnames(filtered_genes))
+```
+
+All colony names match! 
+
+Set CpG id as rownames in the wgbs dataset. 
+```{r}
+filtered_data<-as.data.frame(filtered_data)
+
+rownames(filtered_data)<-filtered_data$CpG
+
+filtered_data<-filtered_data%>%
+  select(!CpG)
+```
+
+The genes and wgbs data sets are now formatted the same way. 
+
+Create a matching sample name in the physiology set. 
+
+```{r}
+#change the format of the timepoint column 
+phys <- phys %>%
+  filter(species=="Acropora")%>%
+  mutate(timepoint = gsub("timepoint", "TP", timepoint))%>%
+  mutate(code = paste0(colony_id_corr, "-", timepoint))
+
+#set row names and trim to useful columns
+phys<-as.data.frame(phys)
+rownames(phys)<-phys$code
+phys<-phys%>%
+  select(!code)
+
+#remove calcification and antioxidant capacity that have NAs 
+phys<-phys%>%
+  select(!c(cre.umol.mgafdw, calc.umol.cm2.hr))%>%
+  select(!c(colony_id_corr, species, timepoint, site))
+```
+
+We have physiology data from 39 out of 40 colonies in this data set.  
+
+Set metadata with samples as column names. 
+```{r}
+metadata<-as.data.frame(metadata)
+rownames(metadata)<-metadata$code
+metadata<-metadata%>%
+  select(ColonyID, Timepoint, Site)
+```
+
+## Transform data 
+
+Set the order of genes, wgbs, and metadata to all be the same. 
+```{r}
+# Ensure rownames of metadata are used as the desired column order
+desired_order <- rownames(metadata)
+
+# Find columns in genes_data that match the desired order
+matching_columns <- intersect(desired_order, colnames(filtered_genes))
+
+# Reorder columns in genes_data to match metadata rownames
+filtered_genes <- filtered_genes %>%
+  select(all_of(matching_columns))
+
+# Print the updated column order
+print(colnames(filtered_genes))
+print(rownames(metadata))
+```
+
+Repeat for wgbs data.
+```{r}
+# Find columns in genes_data that match the desired order
+matching_columns <- intersect(desired_order, colnames(filtered_data))
+
+# Reorder columns in genes_data to match metadata rownames
+filtered_data <- filtered_data %>%
+  select(all_of(matching_columns))
+
+# Print the updated column order
+print(colnames(filtered_data))
+print(rownames(metadata))
+```
+
+Use a variance stabilized transformation for the genes and wgbs data sets.  
+
+```{r}
+dds_genes <- DESeqDataSetFromMatrix(countData = filtered_genes, 
+                              colData = metadata, 
+                              design = ~ Timepoint * Site)
+
+# Variance Stabilizing Transformation
+vsd_genes <- assay(vst(dds_genes, blind = TRUE))
+```
+
+I had to round wgbs data to whole integers for normalization - need to return to this to decide if this is appropriate. 
+```{r}
+str(filtered_data)
+
+#round to integers 
+filtered_data<-filtered_data %>%
+  mutate(across(where(is.numeric), round))
+
+dds_wgbs <- DESeqDataSetFromMatrix(countData = filtered_data, 
+                              colData = metadata, 
+                              design = ~ Timepoint * Site)
+
+# Variance Stabilizing Transformation
+vsd_wgbs <- assay(varianceStabilizingTransformation(dds_wgbs, blind = TRUE))
+```
+
+Scale physiological variables to have all on the same scale (mean of 0 and std dev of 1). 
+
+```{r}
+phys <- phys %>%
+  mutate(across(where(is.numeric), scale))
+```
+
+Rbind together the data sets in preparation for wgcna 
+
+```{r}
+combined_data<-rbind(vsd_genes, vsd_wgbs)
+```
+
+This dataset now has all CpGs and genes included.  
+
+## Conduct module correlations with WGCNA 
+
+Set soft threshold.  
+
+```{r}
+options(stringsAsFactors = FALSE)
+enableWGCNAThreads()  # Enable multi-threading
+allowWGCNAThreads(nThreads = 2)
+
+# Combine mRNA and lncRNA datasets
+datExpr <- t(combined_data)
+
+sum(is.na(datExpr))  # Should be 0
+sum(!is.finite(as.matrix(datExpr)))  # Should be 0
+
+# Remove genes/samples with missing or infinite values
+datExpr <- datExpr[complete.cases(datExpr), ]
+datExpr <- datExpr[, colSums(is.na(datExpr)) == 0]
+
+# # Choose a set of soft-thresholding powers
+powers <- c(seq(from = 1, to=19, by=2), c(21:30)) #Create a string of numbers from 1 through 10, and even numbers from 10 through 20
+# 
+# # Call the network topology analysis function
+sft <-pickSoftThreshold(datExpr, powerVector = powers, verbose = 5)
+```
+
+Plot the results.  
+```{r}
+sizeGrWindow(9, 5)
+par(mfrow = c(1,2));
+cex1 = 0.9;
+# # # Scale-free topology fit index as a function of the soft-thresholding power
+plot(sft$fitIndices[,1], -sign(sft$fitIndices[,3])*sft$fitIndices[,2],
+      xlab="Soft Threshold (power)",ylab="Scale Free Topology Model Fit,signed R^2",type="n",
+     main = paste("Scale independence"));
+ text(sft$fitIndices[,1], -sign(sft$fitIndices[,3])*sft$fitIndices[,2],
+     labels=powers,cex=cex1,col="red");
+# # # this line corresponds to using an R^2 cut-off
+ abline(h=0.9,col="red")
+# # # Mean connectivity as a function of the soft-thresholding power
+ plot(sft$fitIndices[,1], sft$fitIndices[,5],
+     xlab="Soft Threshold (power)",ylab="Mean Connectivity", type="n",
+     main = paste("Mean connectivity"))
+ text(sft$fitIndices[,1], sft$fitIndices[,5], labels=powers, cex=cex1,col="red")
+```
+
+Selected power will be 5 (the first value to cross 0.9 threshold).  
+
+### Generate network 
+
+```{r}
+selected_power<-5 
+
+# Network construction (adjust power based on sft output)
+net = blockwiseModules(datExpr, power = selected_power,
+                       TOMType = "unsigned", minModuleSize = 30,
+                       reassignThreshold = 0, mergeCutHeight = 0.25,
+                       numericLabels = TRUE, pamRespectsDendro = FALSE,
+                       saveTOMs = FALSE, verbose = 3)
+```
+
+View modules.  
+```{r}
+moduleEigengenes = moduleEigengenes(datExpr, colors = net$colors)$eigengenes
+
+length(table(net$unmergedColors))
+length(table(net$colors))
+
+MEs<-net$MEs
+moduleLabels<-net$colors
+```
+
+There are 24 modules after merging similar modules from original 39 modules. 
+
+Determine whether mRNA and or wgbs features are present in each module. 
+
+```{r}
+# Get gene names and corresponding module colors
+gene_module_info <- data.frame(
+  Gene = colnames(datExpr),
+  Module = moduleLabels
+)
+
+# Check structure
+head(gene_module_info)
+
+#Add ME to all the names
+gene_module_info$Module <- paste0("ME", gene_module_info$Module)
+
+```
+
+Classify modules based on the proportion of the module comprised by mRNAs.   
+```{r}
+# Function to calculate the proportion of mRNAs (genes with "FUN" in ID)
+calculate_mRNA_proportion <- function(genes) {
+  total_genes <- length(genes)
+  mRNA_count <- sum(grepl("FUN", genes))
+  
+  # Proportion of mRNAs
+  proportion_mRNA <- mRNA_count / total_genes
+  return(proportion_mRNA)
+}
+
+# Apply the function to each module
+module_mRNA_proportion <- tapply(gene_module_info$Gene, 
+                                 gene_module_info$Module, 
+                                 calculate_mRNA_proportion)
+
+# View the proportions
+module_mRNA_proportion
+```
+
+Most modules are a mix of the two, but some have only mRNA and some have only CpGs. 
+
+### Run correlation between modules. 
+
+```{r}
+cor_matrix = cor(moduleEigengenes)
+```
+
+Compute correlations with Spearman correlation and BH p-value adjustment.   
+```{r}
+# Compute Spearman correlation between mRNA and lncRNA
+apul_cor_results <- corr.test(moduleEigengenes, method = "spearman", adjust = "BH")
+
+# Extract correlation values and p-values
+apul_cor_matrix <- apul_cor_results$r  # Correlation coefficients
+apul_p_matrix <- apul_cor_results$p  # Adjusted p-values
+```
+
+Construct network. 
+```{r}
+# Set correlation and significance thresholds
+cor_threshold <- 0.6  # Adjust based on desired stringency
+p_threshold <- 0.05
+
+# Convert correlation matrix into an edge list
+apul_significant_edges <- which(abs(apul_cor_matrix) > cor_threshold & apul_p_matrix < p_threshold, arr.ind = TRUE)
+
+apul_edge_list <- data.frame(
+  mRNA = rownames(apul_cor_matrix)[apul_significant_edges[,1]],
+  CpG = colnames(apul_cor_matrix)[apul_significant_edges[,2]],
+  correlation = apul_cor_matrix[apul_significant_edges]
+)
+
+# Construct network graph
+apul_network <- graph_from_data_frame(apul_edge_list, directed = FALSE)
+
+module_mRNA_proportion<-as.data.frame(module_mRNA_proportion)
+
+V(apul_network)$prop_mrna <- module_mRNA_proportion$module_mRNA_proportion[match(V(apul_network)$name, rownames(module_mRNA_proportion))]
+```
+
+Plot network. 
+```{r}
+# Visualize network
+plot1<-ggraph(apul_network, layout = "fr") +  # Force-directed layout
+  geom_edge_link(aes(edge_alpha = correlation), show.legend = TRUE, width=3) +
+  geom_node_point(aes(colour=prop_mrna), size = 5) +
+  scale_colour_gradient(name="Prop. mRNA", low = "purple", high = "cyan3")+
+  geom_node_text(aes(label = name), repel = TRUE, size = 4) +
+  theme_void() +
+  labs(title = "A. pulchra mRNA-CpG Network");plot1
+
+ggsave(plot1, filename="D-Apul/output/18-Apul-multiomic-correlation-networks/Apulchra_mrna_cpg_cor_network.png", width=8, height=8)
+```
+
+### Plot eigengene patterns and proportions of mRNA and lncRNAs
+
+```{r}
+module_mRNA_proportion$module_CpG_proportion<-1-module_mRNA_proportion$module_mRNA_proportion
+```
+
+View total size of modules 
+```{r}
+module_sizes <- table(moduleLabels)
+module_sizes<-as.data.frame(module_sizes)
+module_sizes$module<-paste0("ME", module_sizes$moduleLabels)
+```
+
+Plot a stacked bar plot. 
+
+```{r}
+stack_data<-module_mRNA_proportion
+stack_data$module<-rownames(stack_data)
+stack_data$size<-module_sizes$Freq[match(stack_data$module, module_sizes$module)]
+
+stack_data$module <- factor(stack_data$module, 
+                             levels = rev(stack_data$module[order(stack_data$size)]))
+
+stack_data<-stack_data%>%
+  mutate(mRNAs=module_mRNA_proportion*size)%>%
+  mutate(CpGs=module_CpG_proportion*size)%>%
+  select(!c(module_mRNA_proportion, module_CpG_proportion, size))
+
+
+# Reshape the data for ggplot (long format)
+
+stack_long <- melt(stack_data[, c("module", "mRNAs", "CpGs")], 
+                    id.vars = "module",
+                    variable.name = "Feature", 
+                    value.name = "Count")
+
+plot2<-ggplot(stack_long, aes(x = module, y = Count, fill = Feature)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = c("mRNAs" = "skyblue", 
+                               "CpGs" = "salmon"), 
+                    labels = c("mRNA", "CpGs"))+
+  theme_classic() +
+  labs(title = "A. pulchra module mRNA and CpG components",
+       x = "Module",
+       y = "Counts",
+       fill = "Feature") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1));plot2
+
+ggsave(plot2, filename="D-Apul/output/18-Apul-multiomic-correlation-networks/Apulchra_mrna_cpg_module_features.png", width=8, height=6)
+```
+
+Next plot eigengene expression of each module across samples. 
+
+```{r}
+#convert wide format to long format for plotting  
+head(moduleEigengenes)
+
+plot_MEs <- moduleEigengenes 
+
+plot_MEs$sample<-rownames(plot_MEs)
+
+plot_MEs<-plot_MEs%>%
+  pivot_longer(
+    cols = where(is.numeric),  # Select only numeric columns
+    names_to = "Module",       # Name for the new column containing the column names
+    values_to = "Mean"         # Name for the new column containing the values
+  )
+
+expression_plots<-plot_MEs%>%
+  group_by(Module) %>%
+  
+  ggplot(aes(x=sample, y=Mean)) +
+  facet_wrap(~ Module)+
+    geom_hline(yintercept = 0, linetype="dashed", color = "grey")+
+  geom_point()+
+  geom_line(aes(group=1))+
+  ggtitle("Acropora pulchra mRNA-CpG modules")+
+  theme_classic()+ 
+  theme(axis.text.x=element_text(angle = 90, hjust=1)); expression_plots
+
+ggsave(expression_plots, filename="D-Apul/output/18-Apul-multiomic-correlation-networks/Apulchra_module_expression_sample.png", width=20, height=14)
+```
+
+Plot expression by time point. 
+```{r}
+plot_MEs$Timepoint<-metadata$Timepoint[match(plot_MEs$sample, rownames(metadata))]
+
+expression_plots2<-plot_MEs%>%
+  group_by(Module) %>%
+  
+  ggplot(aes(x=Timepoint, y=Mean)) +
+  facet_wrap(~ Module)+
+  geom_hline(yintercept = 0, linetype="dashed", color = "grey")+
+  geom_boxplot()+
+  geom_point()+
+  #geom_line(aes(group=Timepoint))+
+  ggtitle("Acropora pulchra mRNA-CpG modules")+
+  theme_classic()+ 
+  theme(axis.text.x=element_text(angle = 90, hjust=1)); expression_plots2
+
+ggsave(expression_plots2, filename="D-Apul/output/18-Apul-multiomic-correlation-networks/Apulchra_module_expression_timepoint.png", width=20, height=14)
+```
+
+Module 11 is just elevated in one sample. We shouldn't place much weight on this one module, which contains only CpG features. We should look into why the one sample was distinguished with Module 11.  
+
+Plot expression by site. 
+```{r}
+plot_MEs$Site<-metadata$Site[match(plot_MEs$sample, rownames(metadata))]
+
+expression_plots3<-plot_MEs%>%
+  group_by(Module) %>%
+  
+  ggplot(aes(x=Site, y=Mean)) +
+  facet_wrap(~ Module)+
+  geom_hline(yintercept = 0, linetype="dashed", color = "grey")+
+  geom_boxplot()+
+  geom_point()+
+  #geom_line(aes(group=Timepoint))+
+  ggtitle("Acropora pulchra mRNA-CpG modules")+
+  theme_classic()+ 
+  theme(axis.text.x=element_text(angle = 90, hjust=1)); expression_plots3
+
+ggsave(expression_plots3, filename="D-Apul/output/18-Apul-multiomic-correlation-networks/Apulchra_module_expression_site.png", width=20, height=14)
+```
+
+### Plot correlations of specific modules 
+
+Which modules were significantly correlated? Show correlation matrix. 
+
+```{r}
+# Compute Spearman correlation between mRNA and lncRNA
+apul_cor_results 
+
+# Extract correlation values and p-values
+apul_cor_matrix  # Correlation coefficients
+apul_p_matrix  # Adjusted p-values
+```
+
+```{r}
+plot3<-ggcorrplot(apul_cor_results$r, 
+           type = "lower", # Only plot lower triangle
+           p.mat = apul_p_matrix, 
+           sig.level = 0.05,  # Show significant correlations
+           insig = "blank",  # Remove insignificant correlations
+           lab = TRUE,  # Show correlation coefficients
+           lab_size = 4,  # Label size
+           colors = c("blue", "white", "red"),  # Color gradient
+           title = "A. pulchra Module Correlation Matrix");plot3
+
+ggsave(plot3, filename="D-Apul/output/18-Apul-multiomic-correlation-networks/Apulchra_module_cor_matrix.png", width=10, height=8)
+```
+
+## Plot correlations between modules and physiological metrics and other metadata 
+
+Add a column in the phys data as a 0 or 1 for each time point to allow us to conduct correlations to time point. 
+
+Additionally, add in a column for site to indicate Mahana = 1 and Manava = 2.  
+
+```{r}
+phys$Site<-metadata$Site[match(rownames(phys), rownames(metadata))]
+phys$Timepoint<-metadata$Timepoint[match(rownames(phys), rownames(metadata))]
+
+head(phys)
+
+phys<-phys%>%
+  mutate(Mahana = if_else(Site=="Mahana", 1, 0))%>%
+  mutate(Manava = if_else(Site=="Manava", 1, 0))%>%
+  select(!Site)
+
+phys<-phys%>%
+  mutate(TP1 = if_else(Timepoint=="TP1", 1, 0))%>%
+  mutate(TP2 = if_else(Timepoint=="TP2", 1, 0))%>%
+  mutate(TP3 = if_else(Timepoint=="TP3", 1, 0))%>%
+  mutate(TP4 = if_else(Timepoint=="TP4", 1, 0))%>%
+  select(!Timepoint)
+
+head(phys)
+```
+
+```{r}
+setdiff(rownames(moduleEigengenes), rownames(phys))
+#sample ACR-265-TP4 is not in the phys dataset, remove for this analysis 
+
+cor_modules <- moduleEigengenes[!rownames(moduleEigengenes) %in% "ACR-265-TP4", ]
+
+# Compute correlation between module eigengenes and physiological traits
+module_trait_cor <- cor(cor_modules, phys, use = "pairwise.complete.obs", method = "pearson")
+
+# Compute p-values for significance testing
+module_trait_pvalues <- corPvalueStudent(module_trait_cor, nrow(datExpr))
+
+# Print results
+print(module_trait_cor)   # Correlation values
+print(module_trait_pvalues)   # P-values
+```
+
+Visualize these correlations. 
+
+```{r}
+# Define significance threshold (e.g., p < 0.05)
+significance_threshold <- 0.05
+
+# Create a matrix of text labels for pheatmap
+text_labels <- ifelse(module_trait_pvalues < significance_threshold, 
+                      paste0("**", round(module_trait_cor, 2), "**"),  # Asterick significant values
+                      round(module_trait_cor, 2))  # Regular for non-significant values
+
+# Convert to matrix to ensure proper display
+text_labels <- matrix(text_labels, nrow = nrow(module_trait_cor), dimnames = dimnames(module_trait_cor))
+
+# Generate the heatmap
+plot4<-pheatmap(module_trait_cor, 
+         main = "Module-Physiology Correlation", 
+         display_numbers = text_labels, 
+         cluster_rows = TRUE, cluster_cols = FALSE);plot4
+
+ggsave(plot4, filename="D-Apul/output/18-Apul-multiomic-correlation-networks/Apulchra_module_trait_heatmap.png", width=10, height=8)
+```
+
+I next need to plot individual modules against traits to view the relationships.  
+
+
+
+
+
+
+
+
+
+
+
+
