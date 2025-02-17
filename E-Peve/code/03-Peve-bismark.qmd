@@ -1,0 +1,156 @@
+---
+title: "03-Peve bismark"
+author: Steven Roberts
+date: "`r format(Sys.time(), '%d %B, %Y')`"  
+output: 
+  html_document:
+    theme: readable
+    highlight: zenburn
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+library(tidyverse)
+knitr::opts_chunk$set(
+  echo = TRUE,         # Display code chunks
+  eval = FALSE,         # Evaluate code chunks
+  warning = FALSE,     # Hide warnings
+  message = FALSE,     # Hide messages
+  fig.width = 6,       # Set plot width in inches
+  fig.height = 4,      # Set plot height in inches
+  fig.align = "center" # Align plots to the center
+)
+```
+
+
+
+```{bash}
+cd ../data
+curl -O https://gannet.fish.washington.edu/seashell/snaps/Porites_evermanni_v1.fa
+```
+
+
+
+
+# ALignment
+
+```{bash}
+# Directories and programs
+bismark_dir="/programs/Bismark-0.21.0"
+bowtie2_dir="/programs/bowtie2-2.3.4.1-linux-x86_64/"
+genome_folder="../data/"
+
+bismark_genome_preparation \
+--verbose \
+--parallel 28 \
+${genome_folder}
+```
+
+
+https://gannet.fish.washington.edu/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-WGBS-trimming-fastp-FastQC-MultiQC/
+
+```{bash}
+wget -r \
+--no-directories --no-parent \
+-P ../data/03-Peve-bismark \
+-A "*gz" https://gannet.fish.washington.edu/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-WGBS-trimming-fastp-FastQC-MultiQC/
+```
+
+
+```{bash}
+reads_dir="../data/03-Peve-bismark/"
+genome_folder="../data/"
+
+
+find ${reads_dir}*_R1_001.fastp-trim.fq.gz \
+| xargs basename -s _R1_001_val_1.fq.gz | xargs -I{} bismark \
+-genome ${genome_folder} \
+-p 12 \
+-score_min L,0,-0.6 \
+--directional \
+-1 ${reads_dir}{}_R1_001.fastp-trim.fq.gz \
+-2 ${reads_dir}{}_R2_001.fastp-trim.fq.gz \
+-o ../output/03-Peve-bismark
+```
+
+
+
+
+
+
+
+
+
+#dedup
+
+```{bash}
+find /gscratch/srlab/sam/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/02.20-D-Apul-WGBS-alignment-SLURM_array-bismark/*.bam | \
+xargs -n 1 basename -s _R1_001.fastp-trim_bismark_bt2_pe.bam | \
+parallel -j 8 deduplicate_bismark \
+--bam \
+--paired \
+--output_dir ../output/15-Apul-bismark \
+/gscratch/srlab/sam/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/02.20-D-Apul-WGBS-alignment-SLURM_array-bismark//{}_R1_001.fastp-trim_bismark_bt2_pe.bam
+```
+
+
+
+
+
+
+
+
+```{bash}
+find ../output/15-Apul-bismark/*deduplicated.bam | \
+xargs basename -s _R1_001.fastp-trim_bismark_bt2_pe.deduplicated.bam | \
+xargs -I{} samtools \
+sort --threads 24 \
+../output/15-Apul-bismark/{}_R1_001.fastp-trim_bismark_bt2_pe.deduplicated.bam \
+-o ../output/15-Apul-bismark/{}.sorted.bam
+```
+
+# methylation exraction
+
+```
+find ../output/09-meth-quant/*deduplicated.bam | xargs -n 1 -I{} /home/shared/Bismark-0.24.0/bismark_methylation_extractor --bedGraph --counts --comprehensive --merge_non_CpG --multicore 24 --buffer_size 75% --output ../output/09-meth-quant {} 
+```
+
+```{bash}
+find ../output/15-Apul-bismark/*deduplicated.bam | xargs -n 1 -I{} \
+bismark_methylation_extractor --bedGraph --counts --comprehensive --merge_non_CpG \
+--multicore 24 --buffer_size 75% --output ../output/15-Apul-bismark "{}"
+```
+
+# Methylation call
+
+```
+find ../output/09-meth-quant/*deduplicated.bismark.cov.gz | \
+xargs -n 1 basename -s _pe.deduplicated.bismark.cov.gz | \
+parallel -j 48 /home/shared/Bismark-0.24.0/coverage2cytosine \
+--genome_folder ../data/ \
+-o ../output/09-meth-quant/{} \
+--merge_CpG \
+--zero_based \
+../output/09-meth-quant/{}_pe.deduplicated.bismark.cov.gz
+```
+
+```{bash}
+find ../output/15-Apul-bismark/*deduplicated.bismark.cov.gz | \
+xargs -n 1 basename -s _pe.deduplicated.bismark.cov.gz | \
+parallel -j 24 coverage2cytosine \
+--genome_folder /gscratch/srlab/sam/gitrepos/urol-e5/timeseries_molecular/D-Apul/data/ \
+-o ../output/15-Apul-bismark/{} \
+--merge_CpG \
+--zero_based \
+../output/15-Apul-bismark/{}_pe.deduplicated.bismark.cov.gz
+```
+
+```{bash}
+head ../output/15-Apul-bismark/1H3*evidence.cov
+```
+
