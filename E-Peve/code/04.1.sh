@@ -1,7 +1,7 @@
 #!/bin/bash
 # Set directories and files
 reads_dir="../../data/03-Peve-bismark/"
-genome_folder="../..data/"
+genome_folder="../../data/"
 output_dir="."
 checkpoint_file="completed_samples.log"
 
