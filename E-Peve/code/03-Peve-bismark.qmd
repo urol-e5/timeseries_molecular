@@ -68,14 +68,17 @@ genome_folder="../data/"
 
 
 find ${reads_dir}*_R1_001.fastp-trim.fq.gz \
-| xargs basename -s _R1_001_val_1.fq.gz | xargs -I{} bismark \
--genome ${genome_folder} \
--p 12 \
--score_min L,0,-0.6 \
---directional \
--1 ${reads_dir}{}_R1_001.fastp-trim.fq.gz \
--2 ${reads_dir}{}_R2_001.fastp-trim.fq.gz \
--o ../output/03-Peve-bismark
+| xargs -n 1 basename -s _R1_001.fastp-trim.fq.gz \
+| while read sample; do
+    bismark \
+        --genome ${genome_folder} \
+        -p 12 \
+        --score_min L,0,-0.6 \
+        -1 ${reads_dir}${sample}_R1_001.fastp-trim.fq.gz \
+        -2 ${reads_dir}${sample}_R2_001.fastp-trim.fq.gz \
+        -o ../output/03-Peve-bismark \
+        > ../output/03-Peve-bismark/${sample}_bismark.out 2> ../output/03-Peve-bismark/${sample}_bismark.err
+done
 ```
 
 
