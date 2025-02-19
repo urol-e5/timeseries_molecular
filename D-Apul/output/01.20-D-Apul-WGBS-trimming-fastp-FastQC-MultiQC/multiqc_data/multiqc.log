@@ -1,19 +1,62 @@
-[2025-01-03 01:33:02,974] multiqc                                            [DEBUG  ]  This is MultiQC v1.14
-[2025-01-03 01:33:02,975] multiqc                                            [DEBUG  ]  Command used: /home/sam/programs/mambaforge/bin/multiqc --interactive .
-[2025-01-03 01:33:03,773] multiqc                                            [WARNING]  MultiQC Version v1.26 now available!
-[2025-01-03 01:33:03,773] multiqc                                            [DEBUG  ]  Working dir : /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/01.20-D-Apul-WGBS-trimming-fastp-FastQC-MultiQC
-[2025-01-03 01:33:03,773] multiqc                                            [DEBUG  ]  Template    : default
-[2025-01-03 01:33:03,773] multiqc                                            [DEBUG  ]  Running Python 3.10.10 | packaged by conda-forge | (main, Mar 24 2023, 20:08:06) [GCC 11.3.0]
-[2025-01-03 01:33:03,774] multiqc                                            [DEBUG  ]  Analysing modules: custom_content, ccs, ngsderive, purple, conpair, lima, peddy, somalier, methylQA, mosdepth, phantompeakqualtools, qualimap, preseq, hifiasm, quast, qorts, rna_seqc, rockhopper, rsem, rseqc, busco, bustools, goleft_indexcov, gffcompare, disambiguate, supernova, deeptools, sargasso, verifybamid, mirtrace, happy, mirtop, sambamba, gopeaks, homer, hops, macs2, theta2, snpeff, gatk, htseq, bcftools, featureCounts, fgbio, dragen, dragen_fastqc, dedup, pbmarkdup, damageprofiler, biobambam2, jcvi, mtnucratio, picard, vep, sentieon, prokka, qc3C, nanostat, samblaster, samtools, sexdeterrmine, eigenstratdatabasetools, bamtools, jellyfish, vcftools, longranger, stacks, varscan2, snippy, umitools, bbmap, bismark, biscuit, diamond, hicexplorer, hicup, hicpro, salmon, kallisto, slamdunk, star, hisat2, tophat, bowtie2, bowtie1, cellranger, snpsplit, odgi, pangolin, nextclade, humid, kat, leehom, adapterRemoval, bbduk, clipandmerge, cutadapt, flexbar, kaiju, kraken, malt, motus, trimmomatic, sickle, skewer, sortmerna, biobloomtools, fastq_screen, afterqc, fastp, fastqc, filtlong, prinseqplusplus, pychopper, porechop, pycoqc, minionqc, anglerfish, multivcfanalyzer, clusterflow, checkqc, bcl2fastq, bclconvert, interop, ivar, flash, seqyclean, optitype, whatshap
-[2025-01-03 01:33:03,774] multiqc                                            [DEBUG  ]  Using temporary directory for creating report: /tmp/tmpglmejsvr
-[2025-01-03 01:33:04,281] multiqc                                            [INFO   ]  Search path : /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/01.20-D-Apul-WGBS-trimming-fastp-FastQC-MultiQC
-[2025-01-03 01:33:11,055] multiqc                                            [DEBUG  ]  Summary of files that were skipped by the search: [skipped_module_specific_max_filesize: 1480] // [skipped_no_match: 360] // [skipped_ignore_pattern: 160]
-[2025-01-03 01:33:11,961] multiqc.plots.bargraph                             [DEBUG  ]  Using matplotlib version 3.7.1
-[2025-01-03 01:33:11,966] multiqc.plots.linegraph                            [DEBUG  ]  Using matplotlib version 3.7.1
-[2025-01-03 01:33:11,967] multiqc                                            [DEBUG  ]  No samples found: custom_content
-[2025-01-03 01:33:20,786] multiqc.modules.fastqc.fastqc                      [INFO   ]  Found 80 reports
-[2025-01-03 01:33:21,843] multiqc                                            [INFO   ]  Compressing plot data
-[2025-01-03 01:33:22,799] multiqc                                            [INFO   ]  Report      : multiqc_report.html
-[2025-01-03 01:33:22,799] multiqc                                            [INFO   ]  Data        : multiqc_data
-[2025-01-03 01:33:22,799] multiqc                                            [DEBUG  ]  Moving data file from '/tmp/tmpglmejsvr/multiqc_data' to '/home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/01.20-D-Apul-WGBS-trimming-fastp-FastQC-MultiQC/multiqc_data'
-[2025-01-03 01:33:22,978] multiqc                                            [INFO   ]  MultiQC complete
+[2025-02-19 12:14:38,240] multiqc                                            [DEBUG  ]  This is MultiQC v1.14
+[2025-02-19 12:14:38,241] multiqc                                            [DEBUG  ]  Found command line config: {'sp': {'fastp': {'fn': '*report.json'}}}
+[2025-02-19 12:14:38,241] multiqc                                            [DEBUG  ]  Added to filename patterns: [{'fastp': {'fn': '*report.json'}}]
+[2025-02-19 12:14:38,241] multiqc                                            [DEBUG  ]  Command used: /home/sam/programs/mambaforge/bin/multiqc . --cl-config sp: { fastp: { fn: '*report.json' } } --interactive
+[2025-02-19 12:14:39,029] multiqc                                            [WARNING]  MultiQC Version v1.27 now available!
+[2025-02-19 12:14:39,030] multiqc                                            [DEBUG  ]  Working dir : /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/01.20-D-Apul-WGBS-trimming-fastp-FastQC-MultiQC
+[2025-02-19 12:14:39,030] multiqc                                            [DEBUG  ]  Template    : default
+[2025-02-19 12:14:39,031] multiqc                                            [DEBUG  ]  Running Python 3.10.10 | packaged by conda-forge | (main, Mar 24 2023, 20:08:06) [GCC 11.3.0]
+[2025-02-19 12:14:39,033] multiqc                                            [DEBUG  ]  Analysing modules: custom_content, ccs, ngsderive, purple, conpair, lima, peddy, somalier, methylQA, mosdepth, phantompeakqualtools, qualimap, preseq, hifiasm, quast, qorts, rna_seqc, rockhopper, rsem, rseqc, busco, bustools, goleft_indexcov, gffcompare, disambiguate, supernova, deeptools, sargasso, verifybamid, mirtrace, happy, mirtop, sambamba, gopeaks, homer, hops, macs2, theta2, snpeff, gatk, htseq, bcftools, featureCounts, fgbio, dragen, dragen_fastqc, dedup, pbmarkdup, damageprofiler, biobambam2, jcvi, mtnucratio, picard, vep, sentieon, prokka, qc3C, nanostat, samblaster, samtools, sexdeterrmine, eigenstratdatabasetools, bamtools, jellyfish, vcftools, longranger, stacks, varscan2, snippy, umitools, bbmap, bismark, biscuit, diamond, hicexplorer, hicup, hicpro, salmon, kallisto, slamdunk, star, hisat2, tophat, bowtie2, bowtie1, cellranger, snpsplit, odgi, pangolin, nextclade, humid, kat, leehom, adapterRemoval, bbduk, clipandmerge, cutadapt, flexbar, kaiju, kraken, malt, motus, trimmomatic, sickle, skewer, sortmerna, biobloomtools, fastq_screen, afterqc, fastp, fastqc, filtlong, prinseqplusplus, pychopper, porechop, pycoqc, minionqc, anglerfish, multivcfanalyzer, clusterflow, checkqc, bcl2fastq, bclconvert, interop, ivar, flash, seqyclean, optitype, whatshap
+[2025-02-19 12:14:39,034] multiqc                                            [DEBUG  ]  Using temporary directory for creating report: /tmp/tmp6kdtuopd
+[2025-02-19 12:14:40,679] multiqc                                            [INFO   ]  Search path : /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/01.20-D-Apul-WGBS-trimming-fastp-FastQC-MultiQC
+[2025-02-19 12:15:03,424] multiqc                                            [DEBUG  ]  Summary of files that were skipped by the search: [skipped_module_specific_max_filesize: 1240] // [skipped_no_match: 320] // [skipped_ignore_pattern: 160]
+[2025-02-19 12:15:05,773] multiqc.plots.bargraph                             [DEBUG  ]  Using matplotlib version 3.7.1
+[2025-02-19 12:15:05,792] multiqc.plots.linegraph                            [DEBUG  ]  Using matplotlib version 3.7.1
+[2025-02-19 12:15:05,794] multiqc                                            [DEBUG  ]  No samples found: custom_content
+[2025-02-19 12:15:05,837] multiqc.modules.fastp.fastp                        [DEBUG  ]  No duplication rate plot data: ACR-225-TP3_R1_001.fastp-trim.report.json
+[2025-02-19 12:15:05,847] multiqc.modules.fastp.fastp                        [DEBUG  ]  No duplication rate plot data: ACR-139-TP4_R1_001.fastp-trim.report.json
+[2025-02-19 12:15:05,872] multiqc.modules.fastp.fastp                        [DEBUG  ]  No duplication rate plot data: ACR-237-TP2_R1_001.fastp-trim.report.json
+[2025-02-19 12:15:05,890] multiqc.modules.fastp.fastp                        [DEBUG  ]  No duplication rate plot data: ACR-173-TP4_R1_001.fastp-trim.report.json
+[2025-02-19 12:15:05,909] multiqc.modules.fastp.fastp                        [DEBUG  ]  No duplication rate plot data: ACR-145-TP3_R1_001.fastp-trim.report.json
+[2025-02-19 12:15:05,932] multiqc.modules.fastp.fastp                        [DEBUG  ]  No duplication rate plot data: ACR-225-TP2_R1_001.fastp-trim.report.json
+[2025-02-19 12:15:05,943] multiqc.modules.fastp.fastp                        [DEBUG  ]  No duplication rate plot data: ACR-229-TP1_R1_001.fastp-trim.report.json
+[2025-02-19 12:15:05,957] multiqc.modules.fastp.fastp                        [DEBUG  ]  No duplication rate plot data: ACR-244-TP3_R1_001.fastp-trim.report.json
+[2025-02-19 12:15:05,969] multiqc.modules.fastp.fastp                        [DEBUG  ]  No duplication rate plot data: ACR-265-TP3_R1_001.fastp-trim.report.json
+[2025-02-19 12:15:05,983] multiqc.modules.fastp.fastp                        [DEBUG  ]  No duplication rate plot data: ACR-265-TP1_R1_001.fastp-trim.report.json
+[2025-02-19 12:15:05,997] multiqc.modules.fastp.fastp                        [DEBUG  ]  No duplication rate plot data: ACR-229-TP4_R1_001.fastp-trim.report.json
+[2025-02-19 12:15:06,012] multiqc.modules.fastp.fastp                        [DEBUG  ]  No duplication rate plot data: ACR-145-TP2_R1_001.fastp-trim.report.json
+[2025-02-19 12:15:06,029] multiqc.modules.fastp.fastp                        [DEBUG  ]  No duplication rate plot data: ACR-139-TP2_R1_001.fastp-trim.report.json
+[2025-02-19 12:15:06,040] multiqc.modules.fastp.fastp                        [DEBUG  ]  No duplication rate plot data: ACR-237-TP1_R1_001.fastp-trim.report.json
+[2025-02-19 12:15:06,053] multiqc.modules.fastp.fastp                        [DEBUG  ]  No duplication rate plot data: ACR-265-TP4_R1_001.fastp-trim.report.json
+[2025-02-19 12:15:06,063] multiqc.modules.fastp.fastp                        [DEBUG  ]  No duplication rate plot data: ACR-150-TP2_R1_001.fastp-trim.report.json
+[2025-02-19 12:15:06,076] multiqc.modules.fastp.fastp                        [DEBUG  ]  No duplication rate plot data: ACR-145-TP4_R1_001.fastp-trim.report.json
+[2025-02-19 12:15:06,089] multiqc.modules.fastp.fastp                        [DEBUG  ]  No duplication rate plot data: ACR-237-TP4_R1_001.fastp-trim.report.json
+[2025-02-19 12:15:06,104] multiqc.modules.fastp.fastp                        [DEBUG  ]  No duplication rate plot data: ACR-229-TP3_R1_001.fastp-trim.report.json
+[2025-02-19 12:15:06,124] multiqc.modules.fastp.fastp                        [DEBUG  ]  No duplication rate plot data: ACR-139-TP1_R1_001.fastp-trim.report.json
+[2025-02-19 12:15:06,137] multiqc.modules.fastp.fastp                        [DEBUG  ]  No duplication rate plot data: ACR-145-TP1_R1_001.fastp-trim.report.json
+[2025-02-19 12:15:06,157] multiqc.modules.fastp.fastp                        [DEBUG  ]  No duplication rate plot data: ACR-150-TP1_R1_001.fastp-trim.report.json
+[2025-02-19 12:15:06,184] multiqc.modules.fastp.fastp                        [DEBUG  ]  No duplication rate plot data: ACR-173-TP3_R1_001.fastp-trim.report.json
+[2025-02-19 12:15:06,229] multiqc.modules.fastp.fastp                        [DEBUG  ]  No duplication rate plot data: ACR-186-TP2_R1_001.fastp-trim.report.json
+[2025-02-19 12:15:06,254] multiqc.modules.fastp.fastp                        [DEBUG  ]  No duplication rate plot data: ACR-225-TP1_R1_001.fastp-trim.report.json
+[2025-02-19 12:15:06,286] multiqc.modules.fastp.fastp                        [DEBUG  ]  No duplication rate plot data: ACR-186-TP3_R1_001.fastp-trim.report.json
+[2025-02-19 12:15:06,315] multiqc.modules.fastp.fastp                        [DEBUG  ]  No duplication rate plot data: ACR-150-TP3_R1_001.fastp-trim.report.json
+[2025-02-19 12:15:06,331] multiqc.modules.fastp.fastp                        [DEBUG  ]  No duplication rate plot data: ACR-244-TP2_R1_001.fastp-trim.report.json
+[2025-02-19 12:15:06,350] multiqc.modules.fastp.fastp                        [DEBUG  ]  No duplication rate plot data: ACR-173-TP1_R1_001.fastp-trim.report.json
+[2025-02-19 12:15:06,375] multiqc.modules.fastp.fastp                        [DEBUG  ]  No duplication rate plot data: ACR-139-TP3_R1_001.fastp-trim.report.json
+[2025-02-19 12:15:06,400] multiqc.modules.fastp.fastp                        [DEBUG  ]  No duplication rate plot data: ACR-225-TP4_R1_001.fastp-trim.report.json
+[2025-02-19 12:15:06,429] multiqc.modules.fastp.fastp                        [DEBUG  ]  No duplication rate plot data: ACR-244-TP1_R1_001.fastp-trim.report.json
+[2025-02-19 12:15:06,454] multiqc.modules.fastp.fastp                        [DEBUG  ]  No duplication rate plot data: ACR-244-TP4_R1_001.fastp-trim.report.json
+[2025-02-19 12:15:06,467] multiqc.modules.fastp.fastp                        [DEBUG  ]  No duplication rate plot data: ACR-186-TP1_R1_001.fastp-trim.report.json
+[2025-02-19 12:15:06,491] multiqc.modules.fastp.fastp                        [DEBUG  ]  No duplication rate plot data: ACR-229-TP2_R1_001.fastp-trim.report.json
+[2025-02-19 12:15:06,515] multiqc.modules.fastp.fastp                        [DEBUG  ]  No duplication rate plot data: ACR-150-TP4_R1_001.fastp-trim.report.json
+[2025-02-19 12:15:06,527] multiqc.modules.fastp.fastp                        [DEBUG  ]  No duplication rate plot data: ACR-265-TP2_R1_001.fastp-trim.report.json
+[2025-02-19 12:15:06,565] multiqc.modules.fastp.fastp                        [DEBUG  ]  No duplication rate plot data: ACR-237-TP3_R1_001.fastp-trim.report.json
+[2025-02-19 12:15:06,575] multiqc.modules.fastp.fastp                        [DEBUG  ]  No duplication rate plot data: ACR-186-TP4_R1_001.fastp-trim.report.json
+[2025-02-19 12:15:06,599] multiqc.modules.fastp.fastp                        [DEBUG  ]  No duplication rate plot data: ACR-173-TP2_R1_001.fastp-trim.report.json
+[2025-02-19 12:15:06,605] multiqc.modules.fastp.fastp                        [INFO   ]  Found 40 reports
+[2025-02-19 12:15:42,728] multiqc.modules.fastqc.fastqc                      [INFO   ]  Found 80 reports
+[2025-02-19 12:15:46,305] multiqc                                            [INFO   ]  Compressing plot data
+[2025-02-19 12:15:55,939] multiqc                                            [INFO   ]  Report      : multiqc_report.html
+[2025-02-19 12:15:55,940] multiqc                                            [INFO   ]  Data        : multiqc_data
+[2025-02-19 12:15:55,940] multiqc                                            [DEBUG  ]  Moving data file from '/tmp/tmp6kdtuopd/multiqc_data' to '/home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/01.20-D-Apul-WGBS-trimming-fastp-FastQC-MultiQC/multiqc_data'
+[2025-02-19 12:15:56,273] multiqc                                            [INFO   ]  MultiQC complete
