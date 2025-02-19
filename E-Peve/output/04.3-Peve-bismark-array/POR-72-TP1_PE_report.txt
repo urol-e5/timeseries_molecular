@@ -1,0 +1,42 @@
+Bismark report for: ../../data/03-Peve-bismark/POR-72-TP1_R1_001.fastp-trim.fq.gz and ../../data/03-Peve-bismark/POR-72-TP1_R2_001.fastp-trim.fq.gz (version: v0.24.2)
+Bismark was run with Bowtie 2 against the bisulfite genome of /mmfs1/gscratch/srlab/sr320/github/timeseries_molecular/E-Peve/data/ with the specified options: -q --score-min L,0,-0.6 -p 12 --reorder --ignore-quals --no-mixed --no-discordant --dovetail --maxins 500
+Option '--directional' specified (default mode): alignments to complementary strands (CTOT, CTOB) were ignored (i.e. not performed)
+
+Final Alignment report
+======================
+Sequence pairs analysed in total:	35427019
+Number of paired-end alignments with a unique best hit:	21572360
+Mapping efficiency:	60.9% 
+Sequence pairs with no alignments under any condition:	10954486
+Sequence pairs did not map uniquely:	2900173
+Sequence pairs which were discarded because genomic sequence could not be extracted:	3736
+
+Number of sequence pairs with unique best (first) alignment came from the bowtie output:
+CT/GA/CT:	10808017	((converted) top strand)
+GA/CT/CT:	0	(complementary to (converted) top strand)
+GA/CT/GA:	0	(complementary to (converted) bottom strand)
+CT/GA/GA:	10760607	((converted) bottom strand)
+
+Number of alignments to (merely theoretical) complementary strands being rejected in total:	0
+
+Final Cytosine Methylation Report
+=================================
+Total number of C's analysed:	1095026210
+
+Total methylated C's in CpG context:	15786362
+Total methylated C's in CHG context:	1014844
+Total methylated C's in CHH context:	3997656
+Total methylated C's in Unknown context:	22845
+
+Total unmethylated C's in CpG context:	155908636
+Total unmethylated C's in CHG context:	191337325
+Total unmethylated C's in CHH context:	726981387
+Total unmethylated C's in Unknown context:	1356197
+
+C methylated in CpG context:	9.2%
+C methylated in CHG context:	0.5%
+C methylated in CHH context:	0.5%
+C methylated in Unknown context (CN or CHN):	1.7%
+
+
+Bismark completed in 0d 3h 9m 40s

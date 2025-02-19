@@ -1,0 +1,42 @@
+Bismark report for: ../../data/03-Peve-bismark/POR-83-TP3_R1_001.fastp-trim.fq.gz and ../../data/03-Peve-bismark/POR-83-TP3_R2_001.fastp-trim.fq.gz (version: v0.24.2)
+Bismark was run with Bowtie 2 against the bisulfite genome of /mmfs1/gscratch/srlab/sr320/github/timeseries_molecular/E-Peve/data/ with the specified options: -q --score-min L,0,-0.6 -p 12 --reorder --ignore-quals --no-mixed --no-discordant --dovetail --maxins 500
+Option '--directional' specified (default mode): alignments to complementary strands (CTOT, CTOB) were ignored (i.e. not performed)
+
+Final Alignment report
+======================
+Sequence pairs analysed in total:	29875318
+Number of paired-end alignments with a unique best hit:	19369386
+Mapping efficiency:	64.8% 
+Sequence pairs with no alignments under any condition:	8051274
+Sequence pairs did not map uniquely:	2454658
+Sequence pairs which were discarded because genomic sequence could not be extracted:	3500
+
+Number of sequence pairs with unique best (first) alignment came from the bowtie output:
+CT/GA/CT:	9699836	((converted) top strand)
+GA/CT/CT:	0	(complementary to (converted) top strand)
+GA/CT/GA:	0	(complementary to (converted) bottom strand)
+CT/GA/GA:	9666050	((converted) bottom strand)
+
+Number of alignments to (merely theoretical) complementary strands being rejected in total:	0
+
+Final Cytosine Methylation Report
+=================================
+Total number of C's analysed:	985072911
+
+Total methylated C's in CpG context:	13222740
+Total methylated C's in CHG context:	801199
+Total methylated C's in CHH context:	3177494
+Total methylated C's in Unknown context:	18999
+
+Total unmethylated C's in CpG context:	142622877
+Total unmethylated C's in CHG context:	171947878
+Total unmethylated C's in CHH context:	653300723
+Total unmethylated C's in Unknown context:	1251502
+
+C methylated in CpG context:	8.5%
+C methylated in CHG context:	0.5%
+C methylated in CHH context:	0.5%
+C methylated in Unknown context (CN or CHN):	1.5%
+
+
+Bismark completed in 0d 2h 14m 14s
