@@ -1,0 +1,31 @@
+---
+title: "Untitled"
+output: html_document
+date: "2025-02-19"
+---
+
+
+
+
+```{bash}
+wget -r \
+--no-directories --no-parent \
+-P ../data/wgbs-trim \
+-A "*gz" https://gannet.fish.washington.edu/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/01.20-D-Apul-WGBS-trimming-fastp-FastQC-MultiQC/
+```
+```{bash}
+# Directories and programs
+bismark_dir="/programs/Bismark-0.21.0"
+bowtie2_dir="/programs/bowtie2-2.3.4.1-linux-x86_64/"
+genome_folder="../data/"
+
+bismark_genome_preparation \
+--verbose \
+--parallel 2 \
+../../data/
+```
+
+
+```{r}
+```
+
