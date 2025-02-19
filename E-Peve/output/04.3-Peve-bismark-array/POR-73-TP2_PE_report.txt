@@ -1,0 +1,42 @@
+Bismark report for: ../../data/03-Peve-bismark/POR-73-TP2_R1_001.fastp-trim.fq.gz and ../../data/03-Peve-bismark/POR-73-TP2_R2_001.fastp-trim.fq.gz (version: v0.24.2)
+Bismark was run with Bowtie 2 against the bisulfite genome of /mmfs1/gscratch/srlab/sr320/github/timeseries_molecular/E-Peve/data/ with the specified options: -q --score-min L,0,-0.6 -p 12 --reorder --ignore-quals --no-mixed --no-discordant --dovetail --maxins 500
+Option '--directional' specified (default mode): alignments to complementary strands (CTOT, CTOB) were ignored (i.e. not performed)
+
+Final Alignment report
+======================
+Sequence pairs analysed in total:	49167218
+Number of paired-end alignments with a unique best hit:	5100673
+Mapping efficiency:	10.4% 
+Sequence pairs with no alignments under any condition:	43253415
+Sequence pairs did not map uniquely:	813130
+Sequence pairs which were discarded because genomic sequence could not be extracted:	1218
+
+Number of sequence pairs with unique best (first) alignment came from the bowtie output:
+CT/GA/CT:	2556981	((converted) top strand)
+GA/CT/CT:	0	(complementary to (converted) top strand)
+GA/CT/GA:	0	(complementary to (converted) bottom strand)
+CT/GA/GA:	2542474	((converted) bottom strand)
+
+Number of alignments to (merely theoretical) complementary strands being rejected in total:	0
+
+Final Cytosine Methylation Report
+=================================
+Total number of C's analysed:	259940012
+
+Total methylated C's in CpG context:	3363832
+Total methylated C's in CHG context:	207189
+Total methylated C's in CHH context:	834642
+Total methylated C's in Unknown context:	5891
+
+Total unmethylated C's in CpG context:	37487666
+Total unmethylated C's in CHG context:	44930760
+Total unmethylated C's in CHH context:	173115923
+Total unmethylated C's in Unknown context:	409558
+
+C methylated in CpG context:	8.2%
+C methylated in CHG context:	0.5%
+C methylated in CHH context:	0.5%
+C methylated in Unknown context (CN or CHN):	1.4%
+
+
+Bismark completed in 0d 1h 12m 12s
