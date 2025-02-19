@@ -10,7 +10,7 @@
 #SBATCH --ntasks=1                        # Run a single task
 #SBATCH --cpus-per-task=24                # Number of CPU cores per task
 #SBATCH --mem=100G                         # Memory per node
-#SBATCH --chdir=/gscratch/srlab/sr320/github/timeseries_molecular/E-Peve/output/04-Peve-bismark-array
+#SBATCH --chdir=/gscratch/srlab/sr320/github/timeseries_molecular/E-Peve/output/04.3-Peve-bismark-array
 
 
 
@@ -24,4 +24,4 @@ apptainer exec \
 --bind /mmfs1/gscratch/ \
 --bind /gscratch/ \
 /gscratch/srlab/sr320/srlab-R4.4-bioinformatics-container-703094b.sif \
-../../code/04.1.sh
+../../code/04.3.sh
