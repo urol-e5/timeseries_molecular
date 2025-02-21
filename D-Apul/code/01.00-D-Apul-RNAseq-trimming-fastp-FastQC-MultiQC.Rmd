@@ -3,6 +3,9 @@ title: "01.00-D-Apul-RNAseq-trimming-fastp-FastQC-MultiQC"
 author: "Sam White"
 date: "2024-10-05"
 output: 
+  github_document:
+    toc: true
+    number_sections: true
   bookdown::html_document2:
     theme: cosmo
     toc: true
@@ -10,9 +13,6 @@ output:
     number_sections: true
     code_folding: show
     code_download: true
-  github_document:
-    toc: true
-    number_sections: true
   html_document:
     theme: cosmo
     toc: true
@@ -38,7 +38,7 @@ knitr::opts_chunk$set(
 
 This Rmd file trims *A.pulchra* RNAseq files using [fastp](https://github.com/OpenGene/fastp) [@chen2023], followed by quality checks with [FastQC](https://github.com/s-andrews/FastQC) and [MultiQC](https://multiqc.info/)[@ewels2016].
 
-Based off of the initial FastQC/MultiQC, we trimmed 25bp from each read.
+Based off of the initial FastQC/MultiQC, we trimmed 15bp from each read.
 
 ## Inputs
 
@@ -49,7 +49,7 @@ Raw WGBS FastQ files with the following pattern:
   - Expects input files formatted like so: `<species_abbreviation>-<colony_ID>-<timepoint>_R[12]_001.fastq.gz`
 
 ::: {.callout-note}
-If one needs to download the raw FastQs, please see [00.20-D-Apul-WGBS-reads-FastQC-MultiQC.Rmd](./00.00-D-Apul-RNAseq-reads-FastQC-MultiQC.Rmd)
+If one needs to download the raw FastQs, please see [00.00-D-Apul-RNAseq-reads-FastQC-MultiQC.Rmd](./00.00-D-Apul-RNAseq-reads-FastQC-MultiQC.Rmd)
 :::
 
 
@@ -84,7 +84,7 @@ echo "#### Assign Variables ####"
 echo ""
 
 echo "# Data directories"
-echo 'export timeseries_dir=/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular'
+echo 'export timeseries_dir=/home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular'
 echo 'export output_dir_top=${timeseries_dir}/D-Apul/output/01.00-D-Apul-RNAseq-trimming-fastp-FastQC-MultiQC'
 echo 'export raw_reads_dir=${timeseries_dir}/D-Apul/data/rnaseq-raw-fastqs'
 echo ""
@@ -138,7 +138,7 @@ cat .bashvars
 
 [fastp](https://github.com/OpenGene/fastp) [@chen2023] is set to auto-detect Illumina adapters, as well as trim the first 15bp from each read, as past experience shows these first 15bp are more inconsistent than the remainder of the read length.
 
-```{bash fastp-trimming, engine='bash'}
+```{bash fastp-trimming, engine='bash', eval=TRUE}
 # Load bash variables into memory
 source .bashvars
 
