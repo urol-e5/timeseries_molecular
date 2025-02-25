@@ -7,7 +7,7 @@ editor_options:
   chunk_output_type: console
 ---
 
-This script conducts machine learning analyses to predict mRNA state from methylation state.      
+This script conducts trial machine learning analyses to predict mRNA state from methylation state.      
 
 # Set up 
 
@@ -453,7 +453,7 @@ ggplot(top_cpgs, aes(x = reorder(CpG, abs(Loading)), y = Loading, fill = Methyla
   labs(title = "Top CpGs Contributing to Most Predictive Methylation PCs",
        x = "CpG Site",
        y = "Loading Strength") +
-  facet_wrap(~Methylation_PC, scales = "free_y")  # Separate plots for each PC
+  facet_grid(~Methylation_PC, scales = "free_y")  # Separate plots for each PC
 
 ```
 
