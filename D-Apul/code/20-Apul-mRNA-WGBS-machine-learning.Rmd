@@ -511,10 +511,21 @@ cor_matrix <- cor(predicted_matrix, as.matrix(gene_pcs), use = "pairwise.complet
 cor_matrix[is.na(cor_matrix) | is.infinite(cor_matrix)] <- 0  
 
 # Plot heatmap
-pheatmap(cor_matrix, color = colorRampPalette(c("blue", "white", "red"))(50),
+pheatmap(cor_matrix, color = colorRampPalette(c("blue", "white", "red"))(100),
          main = "Correlation Between Actual and Predicted Gene Expression PCs",
          fontsize = 10)
 
 
 ```
+
+Plot one of the module pairs with 0 correlation.  
+
+```{r}
+pred_plot_data<-as.data.frame(predicted_matrix)
+actual_plot_data<-as.data.frame(gene_pcs)
+
+plot(actual_plot_data$PC20, pred_plot_data$PC6)
+```
+
+The correlations showing 0 in the heatmap are those in which the predicted value did not correlate at all with the actual value. Some of the PCs are more predictive than others. 
 
