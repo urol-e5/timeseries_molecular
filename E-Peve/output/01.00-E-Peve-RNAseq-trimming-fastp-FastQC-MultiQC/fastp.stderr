@@ -1,0 +1,1938 @@
+Detecting adapter sequence for read1...
+>Illumina TruSeq Adapter Read 1
+AGATCGGAAGAGCACACGTCTGAACTCCAGTCA
+
+Detecting adapter sequence for read2...
+No adapter detected for read2
+
+WARNING: fastp uses up to 16 threads although you specified 40
+Read1 before filtering:
+total reads: 19629651
+total bases: 2944447650
+Q20 bases: 2887793472(98.0759%)
+Q30 bases: 2771587437(94.1293%)
+
+Read2 before filtering:
+total reads: 19629651
+total bases: 2944447650
+Q20 bases: 2863901281(97.2645%)
+Q30 bases: 2722392772(92.4585%)
+
+Read1 after filtering:
+total reads: 19283010
+total bases: 2570894186
+Q20 bases: 2527539680(98.3136%)
+Q30 bases: 2434724529(94.7034%)
+
+Read2 after filtering:
+total reads: 19283010
+total bases: 2571222632
+Q20 bases: 2516813373(97.8839%)
+Q30 bases: 2406786760(93.6048%)
+
+Filtering result:
+reads passed filter: 38566020
+reads failed due to low quality: 444110
+reads failed due to too many N: 2326
+reads failed due to too short: 246846
+reads with adapter trimmed: 4109671
+bases trimmed due to adapters: 62115608
+reads with polyX in 3' end: 101377
+bases trimmed in polyX tail: 1292906
+
+Duplication rate: 42.8342%
+
+Insert size peak (evaluated by paired-end reads): 30
+
+JSON report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-216-TP1.fastp-trim.report.json
+HTML report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-216-TP1.fastp-trim.report.html
+
+/home/shared/fastp --in1 POR-216-TP1_R1_001.fastq.gz --in2 POR-216-TP1_R2_001.fastq.gz --detect_adapter_for_pe --trim_poly_g --trim_poly_x --trim_front1 15 --trim_front2 15 --thread 40 --html /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-216-TP1.fastp-trim.report.html --json /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-216-TP1.fastp-trim.report.json --out1 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-216-TP1_R1_001.fastp-trim.fq.gz --out2 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-216-TP1_R2_001.fastp-trim.fq.gz 
+fastp v0.23.2, time used: 77 seconds
+Detecting adapter sequence for read1...
+>Illumina TruSeq Adapter Read 1
+AGATCGGAAGAGCACACGTCTGAACTCCAGTCA
+
+Detecting adapter sequence for read2...
+CAAGGAGTCTAACATGTGCGCGAGTCTTAGGGTGCTTGAAACCCAGAGGCAGAATGAAAG
+
+WARNING: fastp uses up to 16 threads although you specified 40
+Read1 before filtering:
+total reads: 18889247
+total bases: 2833387050
+Q20 bases: 2775191887(97.9461%)
+Q30 bases: 2655347458(93.7164%)
+
+Read2 before filtering:
+total reads: 18889247
+total bases: 2833387050
+Q20 bases: 2749394133(97.0356%)
+Q30 bases: 2601746990(91.8246%)
+
+Read1 after filtering:
+total reads: 18503836
+total bases: 2468031223
+Q20 bases: 2423924029(98.2129%)
+Q30 bases: 2329317713(94.3796%)
+
+Read2 after filtering:
+total reads: 18503836
+total bases: 2465341429
+Q20 bases: 2409475709(97.734%)
+Q30 bases: 2295982929(93.1304%)
+
+Filtering result:
+reads passed filter: 37007672
+reads failed due to low quality: 471738
+reads failed due to too many N: 2224
+reads failed due to too short: 296860
+reads with adapter trimmed: 4047354
+bases trimmed due to adapters: 61381809
+reads with polyX in 3' end: 75847
+bases trimmed in polyX tail: 1552702
+
+Duplication rate: 43.013%
+
+Insert size peak (evaluated by paired-end reads): 30
+
+JSON report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-216-TP2.fastp-trim.report.json
+HTML report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-216-TP2.fastp-trim.report.html
+
+/home/shared/fastp --in1 POR-216-TP2_R1_001.fastq.gz --in2 POR-216-TP2_R2_001.fastq.gz --detect_adapter_for_pe --trim_poly_g --trim_poly_x --trim_front1 15 --trim_front2 15 --thread 40 --html /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-216-TP2.fastp-trim.report.html --json /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-216-TP2.fastp-trim.report.json --out1 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-216-TP2_R1_001.fastp-trim.fq.gz --out2 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-216-TP2_R2_001.fastp-trim.fq.gz 
+fastp v0.23.2, time used: 71 seconds
+Detecting adapter sequence for read1...
+>Illumina TruSeq Adapter Read 1
+AGATCGGAAGAGCACACGTCTGAACTCCAGTCA
+
+Detecting adapter sequence for read2...
+CAAGGAGTCTAACATGTGCGCGAGTCTTAGGGTGCTTGAAACCCAGAGGCAGAATGAAAG
+
+WARNING: fastp uses up to 16 threads although you specified 40
+Read1 before filtering:
+total reads: 16130742
+total bases: 2419611300
+Q20 bases: 2374582724(98.139%)
+Q30 bases: 2280382925(94.2458%)
+
+Read2 before filtering:
+total reads: 16130742
+total bases: 2419611300
+Q20 bases: 2352687266(97.2341%)
+Q30 bases: 2236000776(92.4116%)
+
+Read1 after filtering:
+total reads: 15840913
+total bases: 2114112777
+Q20 bases: 2079400436(98.3581%)
+Q30 bases: 2004198234(94.8009%)
+
+Read2 after filtering:
+total reads: 15840913
+total bases: 2111456715
+Q20 bases: 2066868929(97.8883%)
+Q30 bases: 1976467255(93.6068%)
+
+Filtering result:
+reads passed filter: 31681826
+reads failed due to low quality: 364696
+reads failed due to too many N: 1832
+reads failed due to too short: 213130
+reads with adapter trimmed: 3390968
+bases trimmed due to adapters: 50803645
+reads with polyX in 3' end: 54346
+bases trimmed in polyX tail: 1146196
+
+Duplication rate: 48.3551%
+
+Insert size peak (evaluated by paired-end reads): 30
+
+JSON report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-216-TP3.fastp-trim.report.json
+HTML report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-216-TP3.fastp-trim.report.html
+
+/home/shared/fastp --in1 POR-216-TP3_R1_001.fastq.gz --in2 POR-216-TP3_R2_001.fastq.gz --detect_adapter_for_pe --trim_poly_g --trim_poly_x --trim_front1 15 --trim_front2 15 --thread 40 --html /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-216-TP3.fastp-trim.report.html --json /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-216-TP3.fastp-trim.report.json --out1 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-216-TP3_R1_001.fastp-trim.fq.gz --out2 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-216-TP3_R2_001.fastp-trim.fq.gz 
+fastp v0.23.2, time used: 57 seconds
+Detecting adapter sequence for read1...
+>Illumina TruSeq Adapter Read 1
+AGATCGGAAGAGCACACGTCTGAACTCCAGTCA
+
+Detecting adapter sequence for read2...
+CAAGGAGTCTAACATGTGCGCGAGTCTTAGGGTGCTTGAAACCCAGAGGCAGAATGAAAG
+
+WARNING: fastp uses up to 16 threads although you specified 40
+Read1 before filtering:
+total reads: 21522395
+total bases: 3228359250
+Q20 bases: 3170667174(98.213%)
+Q30 bases: 3047389862(94.3944%)
+
+Read2 before filtering:
+total reads: 21522395
+total bases: 3228359250
+Q20 bases: 3149922532(97.5704%)
+Q30 bases: 3011426918(93.2804%)
+
+Read1 after filtering:
+total reads: 21204544
+total bases: 2819366665
+Q20 bases: 2774586832(98.4117%)
+Q30 bases: 2675451635(94.8955%)
+
+Read2 after filtering:
+total reads: 21204544
+total bases: 2815025908
+Q20 bases: 2762947206(98.15%)
+Q30 bases: 2655271643(94.3249%)
+
+Filtering result:
+reads passed filter: 42409088
+reads failed due to low quality: 412216
+reads failed due to too many N: 2104
+reads failed due to too short: 221382
+reads with adapter trimmed: 5671309
+bases trimmed due to adapters: 89847121
+reads with polyX in 3' end: 86342
+bases trimmed in polyX tail: 1712701
+
+Duplication rate: 55.3179%
+
+Insert size peak (evaluated by paired-end reads): 198
+
+JSON report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-216-TP4.fastp-trim.report.json
+HTML report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-216-TP4.fastp-trim.report.html
+
+/home/shared/fastp --in1 POR-216-TP4_R1_001.fastq.gz --in2 POR-216-TP4_R2_001.fastq.gz --detect_adapter_for_pe --trim_poly_g --trim_poly_x --trim_front1 15 --trim_front2 15 --thread 40 --html /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-216-TP4.fastp-trim.report.html --json /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-216-TP4.fastp-trim.report.json --out1 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-216-TP4_R1_001.fastp-trim.fq.gz --out2 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-216-TP4_R2_001.fastp-trim.fq.gz 
+fastp v0.23.2, time used: 72 seconds
+Detecting adapter sequence for read1...
+>Illumina TruSeq Adapter Read 1
+AGATCGGAAGAGCACACGTCTGAACTCCAGTCA
+
+Detecting adapter sequence for read2...
+GGGAAACTCACCAGGTCCAGACATAGTGAGGATTGACAGATTGAGAGCTCTTTCTTGATT
+
+WARNING: fastp uses up to 16 threads although you specified 40
+Read1 before filtering:
+total reads: 21310837
+total bases: 3196625550
+Q20 bases: 3138368720(98.1776%)
+Q30 bases: 3015843481(94.3446%)
+
+Read2 before filtering:
+total reads: 21310837
+total bases: 3196625550
+Q20 bases: 3110322000(97.3002%)
+Q30 bases: 2957108312(92.5072%)
+
+Read1 after filtering:
+total reads: 20954901
+total bases: 2795413190
+Q20 bases: 2750358104(98.3882%)
+Q30 bases: 2652280549(94.8797%)
+
+Read2 after filtering:
+total reads: 20954901
+total bases: 2790638052
+Q20 bases: 2731674877(97.8871%)
+Q30 bases: 2612025935(93.5996%)
+
+Filtering result:
+reads passed filter: 41909802
+reads failed due to low quality: 446048
+reads failed due to too many N: 2180
+reads failed due to too short: 263644
+reads with adapter trimmed: 4591056
+bases trimmed due to adapters: 70254919
+reads with polyX in 3' end: 78763
+bases trimmed in polyX tail: 1128551
+
+Duplication rate: 47.3001%
+
+Insert size peak (evaluated by paired-end reads): 30
+
+JSON report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-236-TP1.fastp-trim.report.json
+HTML report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-236-TP1.fastp-trim.report.html
+
+/home/shared/fastp --in1 POR-236-TP1_R1_001.fastq.gz --in2 POR-236-TP1_R2_001.fastq.gz --detect_adapter_for_pe --trim_poly_g --trim_poly_x --trim_front1 15 --trim_front2 15 --thread 40 --html /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-236-TP1.fastp-trim.report.html --json /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-236-TP1.fastp-trim.report.json --out1 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-236-TP1_R1_001.fastp-trim.fq.gz --out2 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-236-TP1_R2_001.fastp-trim.fq.gz 
+fastp v0.23.2, time used: 78 seconds
+Detecting adapter sequence for read1...
+>Illumina TruSeq Adapter Read 1
+AGATCGGAAGAGCACACGTCTGAACTCCAGTCA
+
+Detecting adapter sequence for read2...
+CAAGGAGTCTAACATGTGCGCGAGTCTTAGGGTGCTTGAAACCCAGAGGCAGAATGAAAG
+
+WARNING: fastp uses up to 16 threads although you specified 40
+Read1 before filtering:
+total reads: 19622258
+total bases: 2943338700
+Q20 bases: 2886423506(98.0663%)
+Q30 bases: 2766851842(94.0039%)
+
+Read2 before filtering:
+total reads: 19622258
+total bases: 2943338700
+Q20 bases: 2859038761(97.1359%)
+Q30 bases: 2710037914(92.0736%)
+
+Read1 after filtering:
+total reads: 19238643
+total bases: 2567117003
+Q20 bases: 2523686186(98.3082%)
+Q30 bases: 2429269072(94.6302%)
+
+Read2 after filtering:
+total reads: 19238643
+total bases: 2563709733
+Q20 bases: 2506923550(97.785%)
+Q30 bases: 2391819822(93.2953%)
+
+Filtering result:
+reads passed filter: 38477286
+reads failed due to low quality: 449560
+reads failed due to too many N: 1966
+reads failed due to too short: 315704
+reads with adapter trimmed: 4187638
+bases trimmed due to adapters: 63433258
+reads with polyX in 3' end: 42676
+bases trimmed in polyX tail: 794931
+
+Duplication rate: 51.9195%
+
+Insert size peak (evaluated by paired-end reads): 30
+
+JSON report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-236-TP2.fastp-trim.report.json
+HTML report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-236-TP2.fastp-trim.report.html
+
+/home/shared/fastp --in1 POR-236-TP2_R1_001.fastq.gz --in2 POR-236-TP2_R2_001.fastq.gz --detect_adapter_for_pe --trim_poly_g --trim_poly_x --trim_front1 15 --trim_front2 15 --thread 40 --html /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-236-TP2.fastp-trim.report.html --json /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-236-TP2.fastp-trim.report.json --out1 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-236-TP2_R1_001.fastp-trim.fq.gz --out2 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-236-TP2_R2_001.fastp-trim.fq.gz 
+fastp v0.23.2, time used: 62 seconds
+Detecting adapter sequence for read1...
+>Illumina TruSeq Adapter Read 1
+AGATCGGAAGAGCACACGTCTGAACTCCAGTCA
+
+Detecting adapter sequence for read2...
+No adapter detected for read2
+
+WARNING: fastp uses up to 16 threads although you specified 40
+Read1 before filtering:
+total reads: 19295128
+total bases: 2894269200
+Q20 bases: 2835926138(97.9842%)
+Q30 bases: 2715677168(93.8295%)
+
+Read2 before filtering:
+total reads: 19295128
+total bases: 2894269200
+Q20 bases: 2813772140(97.2187%)
+Q30 bases: 2670939312(92.2837%)
+
+Read1 after filtering:
+total reads: 18956403
+total bases: 2526415922
+Q20 bases: 2481072367(98.2052%)
+Q30 bases: 2384767586(94.3933%)
+
+Read2 after filtering:
+total reads: 18956403
+total bases: 2526861391
+Q20 bases: 2472169186(97.8356%)
+Q30 bases: 2360921023(93.4329%)
+
+Filtering result:
+reads passed filter: 37912806
+reads failed due to low quality: 425414
+reads failed due to too many N: 2100
+reads failed due to too short: 249936
+reads with adapter trimmed: 4179165
+bases trimmed due to adapters: 61680881
+reads with polyX in 3' end: 69526
+bases trimmed in polyX tail: 1005972
+
+Duplication rate: 42.4993%
+
+Insert size peak (evaluated by paired-end reads): 30
+
+JSON report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-245-TP1.fastp-trim.report.json
+HTML report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-245-TP1.fastp-trim.report.html
+
+/home/shared/fastp --in1 POR-245-TP1_R1_001.fastq.gz --in2 POR-245-TP1_R2_001.fastq.gz --detect_adapter_for_pe --trim_poly_g --trim_poly_x --trim_front1 15 --trim_front2 15 --thread 40 --html /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-245-TP1.fastp-trim.report.html --json /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-245-TP1.fastp-trim.report.json --out1 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-245-TP1_R1_001.fastp-trim.fq.gz --out2 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-245-TP1_R2_001.fastp-trim.fq.gz 
+fastp v0.23.2, time used: 72 seconds
+Detecting adapter sequence for read1...
+>Illumina TruSeq Adapter Read 1
+AGATCGGAAGAGCACACGTCTGAACTCCAGTCA
+
+Detecting adapter sequence for read2...
+CAAGGAGTCTAACATGTGCGCGAGTCTTAGGGTGCTTGAAACCCAGAGGCAGAATGAAAG
+
+WARNING: fastp uses up to 16 threads although you specified 40
+Read1 before filtering:
+total reads: 16922913
+total bases: 2538436950
+Q20 bases: 2488735472(98.042%)
+Q30 bases: 2384722704(93.9445%)
+
+Read2 before filtering:
+total reads: 16922913
+total bases: 2538436950
+Q20 bases: 2461654398(96.9752%)
+Q30 bases: 2325885303(91.6267%)
+
+Read1 after filtering:
+total reads: 16574371
+total bases: 2209063705
+Q20 bases: 2171660254(98.3068%)
+Q30 bases: 2090290080(94.6233%)
+
+Read2 after filtering:
+total reads: 16574371
+total bases: 2206073518
+Q20 bases: 2154944518(97.6824%)
+Q30 bases: 2050846844(92.9637%)
+
+Filtering result:
+reads passed filter: 33148742
+reads failed due to low quality: 399430
+reads failed due to too many N: 1902
+reads failed due to too short: 295752
+reads with adapter trimmed: 3757600
+bases trimmed due to adapters: 59851172
+reads with polyX in 3' end: 37017
+bases trimmed in polyX tail: 602147
+
+Duplication rate: 51.2301%
+
+Insert size peak (evaluated by paired-end reads): 30
+
+JSON report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-245-TP2.fastp-trim.report.json
+HTML report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-245-TP2.fastp-trim.report.html
+
+/home/shared/fastp --in1 POR-245-TP2_R1_001.fastq.gz --in2 POR-245-TP2_R2_001.fastq.gz --detect_adapter_for_pe --trim_poly_g --trim_poly_x --trim_front1 15 --trim_front2 15 --thread 40 --html /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-245-TP2.fastp-trim.report.html --json /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-245-TP2.fastp-trim.report.json --out1 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-245-TP2_R1_001.fastp-trim.fq.gz --out2 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-245-TP2_R2_001.fastp-trim.fq.gz 
+fastp v0.23.2, time used: 53 seconds
+Detecting adapter sequence for read1...
+>Illumina TruSeq Adapter Read 1
+AGATCGGAAGAGCACACGTCTGAACTCCAGTCA
+
+Detecting adapter sequence for read2...
+CAAGGAGTCTAACATGTGCGCGAGTCTTAGGGTGCTTGAAACCCAGAGGCAGAATGAAAG
+
+WARNING: fastp uses up to 16 threads although you specified 40
+Read1 before filtering:
+total reads: 18939312
+total bases: 2840896800
+Q20 bases: 2786628329(98.0897%)
+Q30 bases: 2672987348(94.0896%)
+
+Read2 before filtering:
+total reads: 18939312
+total bases: 2840896800
+Q20 bases: 2757748668(97.0732%)
+Q30 bases: 2611774723(91.9349%)
+
+Read1 after filtering:
+total reads: 18551669
+total bases: 2474293694
+Q20 bases: 2433278360(98.3423%)
+Q30 bases: 2344002079(94.7342%)
+
+Read2 after filtering:
+total reads: 18551669
+total bases: 2470316393
+Q20 bases: 2414917803(97.7574%)
+Q30 bases: 2302705536(93.215%)
+
+Filtering result:
+reads passed filter: 37103338
+reads failed due to low quality: 452210
+reads failed due to too many N: 2284
+reads failed due to too short: 320792
+reads with adapter trimmed: 3948898
+bases trimmed due to adapters: 63651267
+reads with polyX in 3' end: 49851
+bases trimmed in polyX tail: 974139
+
+Duplication rate: 52.8041%
+
+Insert size peak (evaluated by paired-end reads): 30
+
+JSON report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-245-TP3.fastp-trim.report.json
+HTML report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-245-TP3.fastp-trim.report.html
+
+/home/shared/fastp --in1 POR-245-TP3_R1_001.fastq.gz --in2 POR-245-TP3_R2_001.fastq.gz --detect_adapter_for_pe --trim_poly_g --trim_poly_x --trim_front1 15 --trim_front2 15 --thread 40 --html /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-245-TP3.fastp-trim.report.html --json /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-245-TP3.fastp-trim.report.json --out1 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-245-TP3_R1_001.fastp-trim.fq.gz --out2 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-245-TP3_R2_001.fastp-trim.fq.gz 
+fastp v0.23.2, time used: 60 seconds
+Detecting adapter sequence for read1...
+>Illumina TruSeq Adapter Read 1
+AGATCGGAAGAGCACACGTCTGAACTCCAGTCA
+
+Detecting adapter sequence for read2...
+No adapter detected for read2
+
+WARNING: fastp uses up to 16 threads although you specified 40
+Read1 before filtering:
+total reads: 17178431
+total bases: 2576764650
+Q20 bases: 2527039993(98.0703%)
+Q30 bases: 2425613513(94.1341%)
+
+Read2 before filtering:
+total reads: 17178431
+total bases: 2576764650
+Q20 bases: 2512627752(97.511%)
+Q30 bases: 2398455759(93.0801%)
+
+Read1 after filtering:
+total reads: 16925807
+total bases: 2252148691
+Q20 bases: 2213663448(98.2912%)
+Q30 bases: 2131631502(94.6488%)
+
+Read2 after filtering:
+total reads: 16925807
+total bases: 2252214250
+Q20 bases: 2208390935(98.0542%)
+Q30 bases: 2118886148(94.0801%)
+
+Filtering result:
+reads passed filter: 33851614
+reads failed due to low quality: 346068
+reads failed due to too many N: 1890
+reads failed due to too short: 157290
+reads with adapter trimmed: 4151841
+bases trimmed due to adapters: 63268645
+reads with polyX in 3' end: 106592
+bases trimmed in polyX tail: 1516536
+
+Duplication rate: 35.7002%
+
+Insert size peak (evaluated by paired-end reads): 30
+
+JSON report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-245-TP4.fastp-trim.report.json
+HTML report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-245-TP4.fastp-trim.report.html
+
+/home/shared/fastp --in1 POR-245-TP4_R1_001.fastq.gz --in2 POR-245-TP4_R2_001.fastq.gz --detect_adapter_for_pe --trim_poly_g --trim_poly_x --trim_front1 15 --trim_front2 15 --thread 40 --html /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-245-TP4.fastp-trim.report.html --json /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-245-TP4.fastp-trim.report.json --out1 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-245-TP4_R1_001.fastp-trim.fq.gz --out2 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-245-TP4_R2_001.fastp-trim.fq.gz 
+fastp v0.23.2, time used: 70 seconds
+Detecting adapter sequence for read1...
+>Illumina TruSeq Adapter Read 1
+AGATCGGAAGAGCACACGTCTGAACTCCAGTCA
+
+Detecting adapter sequence for read2...
+No adapter detected for read2
+
+WARNING: fastp uses up to 16 threads although you specified 40
+Read1 before filtering:
+total reads: 17358699
+total bases: 2603804850
+Q20 bases: 2552836313(98.0425%)
+Q30 bases: 2448372584(94.0306%)
+
+Read2 before filtering:
+total reads: 17358699
+total bases: 2603804850
+Q20 bases: 2529604951(97.1503%)
+Q30 bases: 2399278543(92.1451%)
+
+Read1 after filtering:
+total reads: 17040152
+total bases: 2274067238
+Q20 bases: 2234921752(98.2786%)
+Q30 bases: 2151597698(94.6145%)
+
+Read2 after filtering:
+total reads: 17040152
+total bases: 2274297075
+Q20 bases: 2224082126(97.7921%)
+Q30 bases: 2122923085(93.3441%)
+
+Filtering result:
+reads passed filter: 34080304
+reads failed due to low quality: 408910
+reads failed due to too many N: 2004
+reads failed due to too short: 226180
+reads with adapter trimmed: 3454777
+bases trimmed due to adapters: 50295797
+reads with polyX in 3' end: 76263
+bases trimmed in polyX tail: 968684
+
+Duplication rate: 35.2962%
+
+Insert size peak (evaluated by paired-end reads): 30
+
+JSON report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-260-TP1.fastp-trim.report.json
+HTML report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-260-TP1.fastp-trim.report.html
+
+/home/shared/fastp --in1 POR-260-TP1_R1_001.fastq.gz --in2 POR-260-TP1_R2_001.fastq.gz --detect_adapter_for_pe --trim_poly_g --trim_poly_x --trim_front1 15 --trim_front2 15 --thread 40 --html /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-260-TP1.fastp-trim.report.html --json /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-260-TP1.fastp-trim.report.json --out1 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-260-TP1_R1_001.fastp-trim.fq.gz --out2 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-260-TP1_R2_001.fastp-trim.fq.gz 
+fastp v0.23.2, time used: 69 seconds
+Detecting adapter sequence for read1...
+>Illumina TruSeq Adapter Read 1
+AGATCGGAAGAGCACACGTCTGAACTCCAGTCA
+
+Detecting adapter sequence for read2...
+AAGGAGTCTAACATGTGCGCGAGTCTTAGGGTGCTTGAAACCCAGAGGCAGAATGAAAGT
+
+WARNING: fastp uses up to 16 threads although you specified 40
+Read1 before filtering:
+total reads: 17539918
+total bases: 2630987700
+Q20 bases: 2577094271(97.9516%)
+Q30 bases: 2464401402(93.6683%)
+
+Read2 before filtering:
+total reads: 17539918
+total bases: 2630987700
+Q20 bases: 2546137984(96.775%)
+Q30 bases: 2397881264(91.14%)
+
+Read1 after filtering:
+total reads: 17145837
+total bases: 2280855499
+Q20 bases: 2240367490(98.2249%)
+Q30 bases: 2152599077(94.3768%)
+
+Read2 after filtering:
+total reads: 17145837
+total bases: 2278131617
+Q20 bases: 2222175614(97.5438%)
+Q30 bases: 2109317961(92.5898%)
+
+Filtering result:
+reads passed filter: 34291674
+reads failed due to low quality: 451810
+reads failed due to too many N: 2058
+reads failed due to too short: 334294
+reads with adapter trimmed: 4411690
+bases trimmed due to adapters: 69615835
+reads with polyX in 3' end: 43523
+bases trimmed in polyX tail: 662782
+
+Duplication rate: 46.8224%
+
+Insert size peak (evaluated by paired-end reads): 30
+
+JSON report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-260-TP2.fastp-trim.report.json
+HTML report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-260-TP2.fastp-trim.report.html
+
+/home/shared/fastp --in1 POR-260-TP2_R1_001.fastq.gz --in2 POR-260-TP2_R2_001.fastq.gz --detect_adapter_for_pe --trim_poly_g --trim_poly_x --trim_front1 15 --trim_front2 15 --thread 40 --html /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-260-TP2.fastp-trim.report.html --json /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-260-TP2.fastp-trim.report.json --out1 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-260-TP2_R1_001.fastp-trim.fq.gz --out2 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-260-TP2_R2_001.fastp-trim.fq.gz 
+fastp v0.23.2, time used: 61 seconds
+Detecting adapter sequence for read1...
+>Illumina TruSeq Adapter Read 1
+AGATCGGAAGAGCACACGTCTGAACTCCAGTCA
+
+Detecting adapter sequence for read2...
+CAAGGAGTCTAACATGTGCGCGAGTCTTAGGGTGCTTGAAACCCAGAGGCAGAATGAAAG
+
+WARNING: fastp uses up to 16 threads although you specified 40
+Read1 before filtering:
+total reads: 17191159
+total bases: 2578673850
+Q20 bases: 2528250757(98.0446%)
+Q30 bases: 2422963723(93.9616%)
+
+Read2 before filtering:
+total reads: 17191159
+total bases: 2578673850
+Q20 bases: 2506800162(97.2128%)
+Q30 bases: 2377422867(92.1956%)
+
+Read1 after filtering:
+total reads: 16900517
+total bases: 2253537708
+Q20 bases: 2214543179(98.2696%)
+Q30 bases: 2130273081(94.5302%)
+
+Read2 after filtering:
+total reads: 16900517
+total bases: 2250787210
+Q20 bases: 2201302177(97.8014%)
+Q30 bases: 2100175801(93.3085%)
+
+Filtering result:
+reads passed filter: 33801034
+reads failed due to low quality: 360712
+reads failed due to too many N: 1936
+reads failed due to too short: 218636
+reads with adapter trimmed: 3830030
+bases trimmed due to adapters: 57875485
+reads with polyX in 3' end: 61986
+bases trimmed in polyX tail: 834267
+
+Duplication rate: 45.4508%
+
+Insert size peak (evaluated by paired-end reads): 30
+
+JSON report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-260-TP3.fastp-trim.report.json
+HTML report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-260-TP3.fastp-trim.report.html
+
+/home/shared/fastp --in1 POR-260-TP3_R1_001.fastq.gz --in2 POR-260-TP3_R2_001.fastq.gz --detect_adapter_for_pe --trim_poly_g --trim_poly_x --trim_front1 15 --trim_front2 15 --thread 40 --html /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-260-TP3.fastp-trim.report.html --json /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-260-TP3.fastp-trim.report.json --out1 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-260-TP3_R1_001.fastp-trim.fq.gz --out2 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-260-TP3_R2_001.fastp-trim.fq.gz 
+fastp v0.23.2, time used: 64 seconds
+Detecting adapter sequence for read1...
+>Illumina TruSeq Adapter Read 1
+AGATCGGAAGAGCACACGTCTGAACTCCAGTCA
+
+Detecting adapter sequence for read2...
+No adapter detected for read2
+
+WARNING: fastp uses up to 16 threads although you specified 40
+Read1 before filtering:
+total reads: 19591902
+total bases: 2938785300
+Q20 bases: 2882737651(98.0928%)
+Q30 bases: 2765965059(94.1193%)
+
+Read2 before filtering:
+total reads: 19591902
+total bases: 2938785300
+Q20 bases: 2860058105(97.3211%)
+Q30 bases: 2720406920(92.5691%)
+
+Read1 after filtering:
+total reads: 19274074
+total bases: 2566788535
+Q20 bases: 2523420872(98.3104%)
+Q30 bases: 2429807983(94.6633%)
+
+Read2 after filtering:
+total reads: 19274074
+total bases: 2567027969
+Q20 bases: 2513714816(97.9232%)
+Q30 bases: 2405126536(93.693%)
+
+Filtering result:
+reads passed filter: 38548148
+reads failed due to low quality: 408084
+reads failed due to too many N: 2130
+reads failed due to too short: 225442
+reads with adapter trimmed: 4546511
+bases trimmed due to adapters: 67786959
+reads with polyX in 3' end: 77285
+bases trimmed in polyX tail: 1122210
+
+Duplication rate: 46.7736%
+
+Insert size peak (evaluated by paired-end reads): 30
+
+JSON report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-260-TP4.fastp-trim.report.json
+HTML report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-260-TP4.fastp-trim.report.html
+
+/home/shared/fastp --in1 POR-260-TP4_R1_001.fastq.gz --in2 POR-260-TP4_R2_001.fastq.gz --detect_adapter_for_pe --trim_poly_g --trim_poly_x --trim_front1 15 --trim_front2 15 --thread 40 --html /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-260-TP4.fastp-trim.report.html --json /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-260-TP4.fastp-trim.report.json --out1 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-260-TP4_R1_001.fastp-trim.fq.gz --out2 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-260-TP4_R2_001.fastp-trim.fq.gz 
+fastp v0.23.2, time used: 73 seconds
+Detecting adapter sequence for read1...
+>Illumina TruSeq Adapter Read 1
+AGATCGGAAGAGCACACGTCTGAACTCCAGTCA
+
+Detecting adapter sequence for read2...
+No adapter detected for read2
+
+WARNING: fastp uses up to 16 threads although you specified 40
+Read1 before filtering:
+total reads: 20379820
+total bases: 3056973000
+Q20 bases: 2998233917(98.0785%)
+Q30 bases: 2876628291(94.1005%)
+
+Read2 before filtering:
+total reads: 20379820
+total bases: 3056973000
+Q20 bases: 2972997109(97.253%)
+Q30 bases: 2824886804(92.408%)
+
+Read1 after filtering:
+total reads: 20029292
+total bases: 2665792825
+Q20 bases: 2620963760(98.3184%)
+Q30 bases: 2524412173(94.6965%)
+
+Read2 after filtering:
+total reads: 20029292
+total bases: 2666061467
+Q20 bases: 2609858529(97.8919%)
+Q30 bases: 2495542945(93.6041%)
+
+Filtering result:
+reads passed filter: 40058584
+reads failed due to low quality: 442366
+reads failed due to too many N: 2312
+reads failed due to too short: 256378
+reads with adapter trimmed: 4916474
+bases trimmed due to adapters: 74026373
+reads with polyX in 3' end: 95496
+bases trimmed in polyX tail: 1253727
+
+Duplication rate: 46.7181%
+
+Insert size peak (evaluated by paired-end reads): 30
+
+JSON report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-262-TP1.fastp-trim.report.json
+HTML report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-262-TP1.fastp-trim.report.html
+
+/home/shared/fastp --in1 POR-262-TP1_R1_001.fastq.gz --in2 POR-262-TP1_R2_001.fastq.gz --detect_adapter_for_pe --trim_poly_g --trim_poly_x --trim_front1 15 --trim_front2 15 --thread 40 --html /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-262-TP1.fastp-trim.report.html --json /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-262-TP1.fastp-trim.report.json --out1 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-262-TP1_R1_001.fastp-trim.fq.gz --out2 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-262-TP1_R2_001.fastp-trim.fq.gz 
+fastp v0.23.2, time used: 79 seconds
+Detecting adapter sequence for read1...
+>Illumina TruSeq Adapter Read 1
+AGATCGGAAGAGCACACGTCTGAACTCCAGTCA
+
+Detecting adapter sequence for read2...
+No adapter detected for read2
+
+WARNING: fastp uses up to 16 threads although you specified 40
+Read1 before filtering:
+total reads: 20908677
+total bases: 3136301550
+Q20 bases: 3075355978(98.0568%)
+Q30 bases: 2950294016(94.0692%)
+
+Read2 before filtering:
+total reads: 20908677
+total bases: 3136301550
+Q20 bases: 3049224185(97.2236%)
+Q30 bases: 2896563545(92.356%)
+
+Read1 after filtering:
+total reads: 20521732
+total bases: 2737353573
+Q20 bases: 2690990298(98.3063%)
+Q30 bases: 2591668194(94.6779%)
+
+Read2 after filtering:
+total reads: 20521732
+total bases: 2737437782
+Q20 bases: 2678936046(97.8629%)
+Q30 bases: 2561013892(93.5551%)
+
+Filtering result:
+reads passed filter: 41043464
+reads failed due to low quality: 481936
+reads failed due to too many N: 2518
+reads failed due to too short: 289436
+reads with adapter trimmed: 4334510
+bases trimmed due to adapters: 64054172
+reads with polyX in 3' end: 94284
+bases trimmed in polyX tail: 1307236
+
+Duplication rate: 42.3913%
+
+Insert size peak (evaluated by paired-end reads): 30
+
+JSON report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-262-TP2.fastp-trim.report.json
+HTML report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-262-TP2.fastp-trim.report.html
+
+/home/shared/fastp --in1 POR-262-TP2_R1_001.fastq.gz --in2 POR-262-TP2_R2_001.fastq.gz --detect_adapter_for_pe --trim_poly_g --trim_poly_x --trim_front1 15 --trim_front2 15 --thread 40 --html /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-262-TP2.fastp-trim.report.html --json /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-262-TP2.fastp-trim.report.json --out1 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-262-TP2_R1_001.fastp-trim.fq.gz --out2 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-262-TP2_R2_001.fastp-trim.fq.gz 
+fastp v0.23.2, time used: 78 seconds
+Detecting adapter sequence for read1...
+>Illumina TruSeq Adapter Read 1
+AGATCGGAAGAGCACACGTCTGAACTCCAGTCA
+
+Detecting adapter sequence for read2...
+CAAGGAGTCTAACATGTGCGCGAGTCTTAGGGTGCTTGAAACCCAGAGGCAGAATGAAAG
+
+WARNING: fastp uses up to 16 threads although you specified 40
+Read1 before filtering:
+total reads: 21550471
+total bases: 3232570650
+Q20 bases: 3169425961(98.0466%)
+Q30 bases: 3037710519(93.972%)
+
+Read2 before filtering:
+total reads: 21550471
+total bases: 3232570650
+Q20 bases: 3141315432(97.177%)
+Q30 bases: 2979435435(92.1692%)
+
+Read1 after filtering:
+total reads: 21153661
+total bases: 2820739937
+Q20 bases: 2772125635(98.2765%)
+Q30 bases: 2667284569(94.5597%)
+
+Read2 after filtering:
+total reads: 21153661
+total bases: 2817841114
+Q20 bases: 2756298115(97.816%)
+Q30 bases: 2631270096(93.3789%)
+
+Filtering result:
+reads passed filter: 42307322
+reads failed due to low quality: 481116
+reads failed due to too many N: 2394
+reads failed due to too short: 310110
+reads with adapter trimmed: 4689876
+bases trimmed due to adapters: 71919078
+reads with polyX in 3' end: 66723
+bases trimmed in polyX tail: 1081122
+
+Duplication rate: 46.3388%
+
+Insert size peak (evaluated by paired-end reads): 30
+
+JSON report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-262-TP3.fastp-trim.report.json
+HTML report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-262-TP3.fastp-trim.report.html
+
+/home/shared/fastp --in1 POR-262-TP3_R1_001.fastq.gz --in2 POR-262-TP3_R2_001.fastq.gz --detect_adapter_for_pe --trim_poly_g --trim_poly_x --trim_front1 15 --trim_front2 15 --thread 40 --html /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-262-TP3.fastp-trim.report.html --json /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-262-TP3.fastp-trim.report.json --out1 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-262-TP3_R1_001.fastp-trim.fq.gz --out2 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-262-TP3_R2_001.fastp-trim.fq.gz 
+fastp v0.23.2, time used: 79 seconds
+Detecting adapter sequence for read1...
+>Illumina TruSeq Adapter Read 1
+AGATCGGAAGAGCACACGTCTGAACTCCAGTCA
+
+Detecting adapter sequence for read2...
+No adapter detected for read2
+
+WARNING: fastp uses up to 16 threads although you specified 40
+Read1 before filtering:
+total reads: 17498161
+total bases: 2624724150
+Q20 bases: 2575079650(98.1086%)
+Q30 bases: 2470626348(94.129%)
+
+Read2 before filtering:
+total reads: 17498161
+total bases: 2624724150
+Q20 bases: 2551653303(97.2161%)
+Q30 bases: 2422316321(92.2884%)
+
+Read1 after filtering:
+total reads: 17190954
+total bases: 2287316404
+Q20 bases: 2249238157(98.3352%)
+Q30 bases: 2166273070(94.7081%)
+
+Read2 after filtering:
+total reads: 17190954
+total bases: 2287559880
+Q20 bases: 2238584556(97.8591%)
+Q30 bases: 2138625722(93.4894%)
+
+Filtering result:
+reads passed filter: 34381908
+reads failed due to low quality: 372852
+reads failed due to too many N: 1992
+reads failed due to too short: 239570
+reads with adapter trimmed: 4394926
+bases trimmed due to adapters: 64627128
+reads with polyX in 3' end: 61043
+bases trimmed in polyX tail: 1915875
+
+Duplication rate: 46.4745%
+
+Insert size peak (evaluated by paired-end reads): 30
+
+JSON report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-262-TP4.fastp-trim.report.json
+HTML report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-262-TP4.fastp-trim.report.html
+
+/home/shared/fastp --in1 POR-262-TP4_R1_001.fastq.gz --in2 POR-262-TP4_R2_001.fastq.gz --detect_adapter_for_pe --trim_poly_g --trim_poly_x --trim_front1 15 --trim_front2 15 --thread 40 --html /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-262-TP4.fastp-trim.report.html --json /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-262-TP4.fastp-trim.report.json --out1 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-262-TP4_R1_001.fastp-trim.fq.gz --out2 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-262-TP4_R2_001.fastp-trim.fq.gz 
+fastp v0.23.2, time used: 66 seconds
+Detecting adapter sequence for read1...
+>Illumina TruSeq Adapter Read 1
+AGATCGGAAGAGCACACGTCTGAACTCCAGTCA
+
+Detecting adapter sequence for read2...
+CAAGGAGTCTAACATGTGCGCGAGTCTTAGGGTGCTTGAAACCCAGAGGCAGAATGAAAG
+
+WARNING: fastp uses up to 16 threads although you specified 40
+Read1 before filtering:
+total reads: 22145299
+total bases: 3321794850
+Q20 bases: 3255294203(97.9981%)
+Q30 bases: 3114302834(93.7536%)
+
+Read2 before filtering:
+total reads: 22145299
+total bases: 3321794850
+Q20 bases: 3232315140(97.3063%)
+Q30 bases: 3071743003(92.4724%)
+
+Read1 after filtering:
+total reads: 21802122
+total bases: 2910085864
+Q20 bases: 2857440172(98.1909%)
+Q30 bases: 2742740090(94.2495%)
+
+Read2 after filtering:
+total reads: 21802122
+total bases: 2906508251
+Q20 bases: 2844885731(97.8798%)
+Q30 bases: 2718235416(93.5224%)
+
+Filtering result:
+reads passed filter: 43604244
+reads failed due to low quality: 460648
+reads failed due to too many N: 2208
+reads failed due to too short: 223498
+reads with adapter trimmed: 4595617
+bases trimmed due to adapters: 69051791
+reads with polyX in 3' end: 63686
+bases trimmed in polyX tail: 910515
+
+Duplication rate: 49.7895%
+
+Insert size peak (evaluated by paired-end reads): 30
+
+JSON report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-69-TP1.fastp-trim.report.json
+HTML report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-69-TP1.fastp-trim.report.html
+
+/home/shared/fastp --in1 POR-69-TP1_R1_001.fastq.gz --in2 POR-69-TP1_R2_001.fastq.gz --detect_adapter_for_pe --trim_poly_g --trim_poly_x --trim_front1 15 --trim_front2 15 --thread 40 --html /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-69-TP1.fastp-trim.report.html --json /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-69-TP1.fastp-trim.report.json --out1 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-69-TP1_R1_001.fastp-trim.fq.gz --out2 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-69-TP1_R2_001.fastp-trim.fq.gz 
+fastp v0.23.2, time used: 79 seconds
+Detecting adapter sequence for read1...
+>Illumina TruSeq Adapter Read 1
+AGATCGGAAGAGCACACGTCTGAACTCCAGTCA
+
+Detecting adapter sequence for read2...
+CGGGGAAACTCACCAGGTCCAGACATAGTGAGGATTGACAGATTGAGAGCTCTTTCTTGA
+
+WARNING: fastp uses up to 16 threads although you specified 40
+Read1 before filtering:
+total reads: 20128579
+total bases: 3019286850
+Q20 bases: 2961099227(98.0728%)
+Q30 bases: 2838622326(94.0163%)
+
+Read2 before filtering:
+total reads: 20128579
+total bases: 3019286850
+Q20 bases: 2930234539(97.0506%)
+Q30 bases: 2772450367(91.8247%)
+
+Read1 after filtering:
+total reads: 19735689
+total bases: 2636496111
+Q20 bases: 2591778874(98.3039%)
+Q30 bases: 2494662858(94.6204%)
+
+Read2 after filtering:
+total reads: 19735689
+total bases: 2632061309
+Q20 bases: 2571974373(97.7171%)
+Q30 bases: 2449892212(93.0788%)
+
+Filtering result:
+reads passed filter: 39471378
+reads failed due to low quality: 473844
+reads failed due to too many N: 2160
+reads failed due to too short: 309776
+reads with adapter trimmed: 3808787
+bases trimmed due to adapters: 58715805
+reads with polyX in 3' end: 50344
+bases trimmed in polyX tail: 760121
+
+Duplication rate: 48.1235%
+
+Insert size peak (evaluated by paired-end reads): 30
+
+JSON report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-69-TP2.fastp-trim.report.json
+HTML report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-69-TP2.fastp-trim.report.html
+
+/home/shared/fastp --in1 POR-69-TP2_R1_001.fastq.gz --in2 POR-69-TP2_R2_001.fastq.gz --detect_adapter_for_pe --trim_poly_g --trim_poly_x --trim_front1 15 --trim_front2 15 --thread 40 --html /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-69-TP2.fastp-trim.report.html --json /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-69-TP2.fastp-trim.report.json --out1 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-69-TP2_R1_001.fastp-trim.fq.gz --out2 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-69-TP2_R2_001.fastp-trim.fq.gz 
+fastp v0.23.2, time used: 71 seconds
+Detecting adapter sequence for read1...
+>Illumina TruSeq Adapter Read 1
+AGATCGGAAGAGCACACGTCTGAACTCCAGTCA
+
+Detecting adapter sequence for read2...
+AAGGAGTCTAACATGTGCGCGAGTCTTAGGGTGCTTGAAACCCAGAGGCAGAATGAAAGT
+
+WARNING: fastp uses up to 16 threads although you specified 40
+Read1 before filtering:
+total reads: 21158221
+total bases: 3173733150
+Q20 bases: 3109459057(97.9748%)
+Q30 bases: 2973616951(93.6946%)
+
+Read2 before filtering:
+total reads: 21158221
+total bases: 3173733150
+Q20 bases: 3085667220(97.2252%)
+Q30 bases: 2928629701(92.2771%)
+
+Read1 after filtering:
+total reads: 20790481
+total bases: 2765064397
+Q20 bases: 2715071232(98.192%)
+Q30 bases: 2606197797(94.2545%)
+
+Read2 after filtering:
+total reads: 20790481
+total bases: 2761572949
+Q20 bases: 2701804549(97.8357%)
+Q30 bases: 2579854849(93.4198%)
+
+Filtering result:
+reads passed filter: 41580962
+reads failed due to low quality: 445546
+reads failed due to too many N: 2076
+reads failed due to too short: 287858
+reads with adapter trimmed: 5481763
+bases trimmed due to adapters: 86173475
+reads with polyX in 3' end: 52292
+bases trimmed in polyX tail: 838714
+
+Duplication rate: 50.6256%
+
+Insert size peak (evaluated by paired-end reads): 30
+
+JSON report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-69-TP3.fastp-trim.report.json
+HTML report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-69-TP3.fastp-trim.report.html
+
+/home/shared/fastp --in1 POR-69-TP3_R1_001.fastq.gz --in2 POR-69-TP3_R2_001.fastq.gz --detect_adapter_for_pe --trim_poly_g --trim_poly_x --trim_front1 15 --trim_front2 15 --thread 40 --html /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-69-TP3.fastp-trim.report.html --json /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-69-TP3.fastp-trim.report.json --out1 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-69-TP3_R1_001.fastp-trim.fq.gz --out2 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-69-TP3_R2_001.fastp-trim.fq.gz 
+fastp v0.23.2, time used: 73 seconds
+Detecting adapter sequence for read1...
+>Illumina TruSeq Adapter Read 1
+AGATCGGAAGAGCACACGTCTGAACTCCAGTCA
+
+Detecting adapter sequence for read2...
+No adapter detected for read2
+
+WARNING: fastp uses up to 16 threads although you specified 40
+Read1 before filtering:
+total reads: 17398308
+total bases: 2609746200
+Q20 bases: 2558398180(98.0325%)
+Q30 bases: 2450066872(93.8814%)
+
+Read2 before filtering:
+total reads: 17398308
+total bases: 2609746200
+Q20 bases: 2535932847(97.1716%)
+Q30 bases: 2403716950(92.1054%)
+
+Read1 after filtering:
+total reads: 17095311
+total bases: 2276072423
+Q20 bases: 2236382365(98.2562%)
+Q30 bases: 2150022189(94.4619%)
+
+Read2 after filtering:
+total reads: 17095311
+total bases: 2276269631
+Q20 bases: 2225899492(97.7872%)
+Q30 bases: 2122879563(93.2613%)
+
+Filtering result:
+reads passed filter: 34190622
+reads failed due to low quality: 375222
+reads failed due to too many N: 1954
+reads failed due to too short: 228818
+reads with adapter trimmed: 4216375
+bases trimmed due to adapters: 61863027
+reads with polyX in 3' end: 34931
+bases trimmed in polyX tail: 557425
+
+Duplication rate: 49.233%
+
+Insert size peak (evaluated by paired-end reads): 30
+
+JSON report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-69-TP4.fastp-trim.report.json
+HTML report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-69-TP4.fastp-trim.report.html
+
+/home/shared/fastp --in1 POR-69-TP4_R1_001.fastq.gz --in2 POR-69-TP4_R2_001.fastq.gz --detect_adapter_for_pe --trim_poly_g --trim_poly_x --trim_front1 15 --trim_front2 15 --thread 40 --html /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-69-TP4.fastp-trim.report.html --json /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-69-TP4.fastp-trim.report.json --out1 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-69-TP4_R1_001.fastp-trim.fq.gz --out2 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-69-TP4_R2_001.fastp-trim.fq.gz 
+fastp v0.23.2, time used: 63 seconds
+Detecting adapter sequence for read1...
+>Illumina TruSeq Adapter Read 1
+AGATCGGAAGAGCACACGTCTGAACTCCAGTCA
+
+Detecting adapter sequence for read2...
+No adapter detected for read2
+
+WARNING: fastp uses up to 16 threads although you specified 40
+Read1 before filtering:
+total reads: 16412543
+total bases: 2461881450
+Q20 bases: 2413923371(98.052%)
+Q30 bases: 2317155770(94.1213%)
+
+Read2 before filtering:
+total reads: 16412543
+total bases: 2461881450
+Q20 bases: 2396537054(97.3458%)
+Q30 bases: 2283861782(92.769%)
+
+Read1 after filtering:
+total reads: 16114210
+total bases: 2146700916
+Q20 bases: 2110420063(98.3099%)
+Q30 bases: 2033419147(94.723%)
+
+Read2 after filtering:
+total reads: 16114210
+total bases: 2146897934
+Q20 bases: 2103643164(97.9852%)
+Q30 bases: 2016748950(93.9378%)
+
+Filtering result:
+reads passed filter: 32228420
+reads failed due to low quality: 380244
+reads failed due to too many N: 1982
+reads failed due to too short: 214440
+reads with adapter trimmed: 3657282
+bases trimmed due to adapters: 54963527
+reads with polyX in 3' end: 108850
+bases trimmed in polyX tail: 1470464
+
+Duplication rate: 44.7941%
+
+Insert size peak (evaluated by paired-end reads): 30
+
+JSON report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-72-TP1.fastp-trim.report.json
+HTML report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-72-TP1.fastp-trim.report.html
+
+/home/shared/fastp --in1 POR-72-TP1_R1_001.fastq.gz --in2 POR-72-TP1_R2_001.fastq.gz --detect_adapter_for_pe --trim_poly_g --trim_poly_x --trim_front1 15 --trim_front2 15 --thread 40 --html /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-72-TP1.fastp-trim.report.html --json /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-72-TP1.fastp-trim.report.json --out1 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-72-TP1_R1_001.fastp-trim.fq.gz --out2 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-72-TP1_R2_001.fastp-trim.fq.gz 
+fastp v0.23.2, time used: 65 seconds
+Detecting adapter sequence for read1...
+>Illumina TruSeq Adapter Read 1
+AGATCGGAAGAGCACACGTCTGAACTCCAGTCA
+
+Detecting adapter sequence for read2...
+No adapter detected for read2
+
+WARNING: fastp uses up to 16 threads although you specified 40
+Read1 before filtering:
+total reads: 17440374
+total bases: 2616056100
+Q20 bases: 2567400307(98.1401%)
+Q30 bases: 2468803924(94.3712%)
+
+Read2 before filtering:
+total reads: 17440374
+total bases: 2616056100
+Q20 bases: 2543603642(97.2305%)
+Q30 bases: 2419102574(92.4714%)
+
+Read1 after filtering:
+total reads: 17162752
+total bases: 2268402916
+Q20 bases: 2232194209(98.4038%)
+Q30 bases: 2154341596(94.9717%)
+
+Read2 after filtering:
+total reads: 17162752
+total bases: 2269248141
+Q20 bases: 2221853170(97.9114%)
+Q30 bases: 2126294868(93.7004%)
+
+Filtering result:
+reads passed filter: 34325504
+reads failed due to low quality: 367026
+reads failed due to too many N: 2030
+reads failed due to too short: 186188
+reads with adapter trimmed: 5310752
+bases trimmed due to adapters: 93811901
+reads with polyX in 3' end: 90883
+bases trimmed in polyX tail: 1108792
+
+Duplication rate: 43.7561%
+
+Insert size peak (evaluated by paired-end reads): 30
+
+JSON report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-72-TP2.fastp-trim.report.json
+HTML report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-72-TP2.fastp-trim.report.html
+
+/home/shared/fastp --in1 POR-72-TP2_R1_001.fastq.gz --in2 POR-72-TP2_R2_001.fastq.gz --detect_adapter_for_pe --trim_poly_g --trim_poly_x --trim_front1 15 --trim_front2 15 --thread 40 --html /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-72-TP2.fastp-trim.report.html --json /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-72-TP2.fastp-trim.report.json --out1 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-72-TP2_R1_001.fastp-trim.fq.gz --out2 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-72-TP2_R2_001.fastp-trim.fq.gz 
+fastp v0.23.2, time used: 71 seconds
+Detecting adapter sequence for read1...
+>Illumina TruSeq Adapter Read 1
+AGATCGGAAGAGCACACGTCTGAACTCCAGTCA
+
+Detecting adapter sequence for read2...
+No adapter detected for read2
+
+WARNING: fastp uses up to 16 threads although you specified 40
+Read1 before filtering:
+total reads: 20740212
+total bases: 3111031800
+Q20 bases: 3052566175(98.1207%)
+Q30 bases: 2931770222(94.2379%)
+
+Read2 before filtering:
+total reads: 20740212
+total bases: 3111031800
+Q20 bases: 3024034458(97.2036%)
+Q30 bases: 2872449631(92.3311%)
+
+Read1 after filtering:
+total reads: 20360669
+total bases: 2709586638
+Q20 bases: 2665307742(98.3658%)
+Q30 bases: 2569834912(94.8423%)
+
+Read2 after filtering:
+total reads: 20360669
+total bases: 2709855105
+Q20 bases: 2651871373(97.8603%)
+Q30 bases: 2534791441(93.5397%)
+
+Filtering result:
+reads passed filter: 40721338
+reads failed due to low quality: 471256
+reads failed due to too many N: 2294
+reads failed due to too short: 285536
+reads with adapter trimmed: 4928152
+bases trimmed due to adapters: 75929360
+reads with polyX in 3' end: 85065
+bases trimmed in polyX tail: 1293016
+
+Duplication rate: 45.8204%
+
+Insert size peak (evaluated by paired-end reads): 30
+
+JSON report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-72-TP3.fastp-trim.report.json
+HTML report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-72-TP3.fastp-trim.report.html
+
+/home/shared/fastp --in1 POR-72-TP3_R1_001.fastq.gz --in2 POR-72-TP3_R2_001.fastq.gz --detect_adapter_for_pe --trim_poly_g --trim_poly_x --trim_front1 15 --trim_front2 15 --thread 40 --html /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-72-TP3.fastp-trim.report.html --json /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-72-TP3.fastp-trim.report.json --out1 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-72-TP3_R1_001.fastp-trim.fq.gz --out2 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-72-TP3_R2_001.fastp-trim.fq.gz 
+fastp v0.23.2, time used: 77 seconds
+Detecting adapter sequence for read1...
+>Illumina TruSeq Adapter Read 1
+AGATCGGAAGAGCACACGTCTGAACTCCAGTCA
+
+Detecting adapter sequence for read2...
+No adapter detected for read2
+
+WARNING: fastp uses up to 16 threads although you specified 40
+Read1 before filtering:
+total reads: 22741315
+total bases: 3411197250
+Q20 bases: 3340950818(97.9407%)
+Q30 bases: 3193477851(93.6175%)
+
+Read2 before filtering:
+total reads: 22741315
+total bases: 3411197250
+Q20 bases: 3314154493(97.1552%)
+Q30 bases: 3140935458(92.0772%)
+
+Read1 after filtering:
+total reads: 22356278
+total bases: 2973678719
+Q20 bases: 2919133005(98.1657%)
+Q30 bases: 2800842725(94.1878%)
+
+Read2 after filtering:
+total reads: 22356278
+total bases: 2974115891
+Q20 bases: 2907988682(97.7766%)
+Q30 bases: 2773000846(93.2378%)
+
+Filtering result:
+reads passed filter: 44712556
+reads failed due to low quality: 492252
+reads failed due to too many N: 2086
+reads failed due to too short: 275736
+reads with adapter trimmed: 5584271
+bases trimmed due to adapters: 85378816
+reads with polyX in 3' end: 94318
+bases trimmed in polyX tail: 1273567
+
+Duplication rate: 41.3068%
+
+Insert size peak (evaluated by paired-end reads): 30
+
+JSON report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-72-TP4.fastp-trim.report.json
+HTML report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-72-TP4.fastp-trim.report.html
+
+/home/shared/fastp --in1 POR-72-TP4_R1_001.fastq.gz --in2 POR-72-TP4_R2_001.fastq.gz --detect_adapter_for_pe --trim_poly_g --trim_poly_x --trim_front1 15 --trim_front2 15 --thread 40 --html /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-72-TP4.fastp-trim.report.html --json /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-72-TP4.fastp-trim.report.json --out1 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-72-TP4_R1_001.fastp-trim.fq.gz --out2 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-72-TP4_R2_001.fastp-trim.fq.gz 
+fastp v0.23.2, time used: 86 seconds
+Detecting adapter sequence for read1...
+>Illumina TruSeq Adapter Read 1
+AGATCGGAAGAGCACACGTCTGAACTCCAGTCA
+
+Detecting adapter sequence for read2...
+CGGGGAAACTCACCAGGTCCAGACATAGTGAGGATTGACAGATTGAGAGCTCTTTCTTGA
+
+WARNING: fastp uses up to 16 threads although you specified 40
+Read1 before filtering:
+total reads: 20369326
+total bases: 3055398900
+Q20 bases: 2997322286(98.0992%)
+Q30 bases: 2874605929(94.0828%)
+
+Read2 before filtering:
+total reads: 20369326
+total bases: 3055398900
+Q20 bases: 2970774532(97.2303%)
+Q30 bases: 2818473711(92.2457%)
+
+Read1 after filtering:
+total reads: 20022255
+total bases: 2678355774
+Q20 bases: 2632994836(98.3064%)
+Q30 bases: 2534270939(94.6204%)
+
+Read2 after filtering:
+total reads: 20022255
+total bases: 2673856347
+Q20 bases: 2615680422(97.8243%)
+Q30 bases: 2496672494(93.3735%)
+
+Filtering result:
+reads passed filter: 40044510
+reads failed due to low quality: 432258
+reads failed due to too many N: 2370
+reads failed due to too short: 259514
+reads with adapter trimmed: 3534637
+bases trimmed due to adapters: 52610391
+reads with polyX in 3' end: 57589
+bases trimmed in polyX tail: 824585
+
+Duplication rate: 51.4948%
+
+Insert size peak (evaluated by paired-end reads): 30
+
+JSON report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-73-TP1.fastp-trim.report.json
+HTML report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-73-TP1.fastp-trim.report.html
+
+/home/shared/fastp --in1 POR-73-TP1_R1_001.fastq.gz --in2 POR-73-TP1_R2_001.fastq.gz --detect_adapter_for_pe --trim_poly_g --trim_poly_x --trim_front1 15 --trim_front2 15 --thread 40 --html /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-73-TP1.fastp-trim.report.html --json /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-73-TP1.fastp-trim.report.json --out1 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-73-TP1_R1_001.fastp-trim.fq.gz --out2 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-73-TP1_R2_001.fastp-trim.fq.gz 
+fastp v0.23.2, time used: 71 seconds
+Detecting adapter sequence for read1...
+>Illumina TruSeq Adapter Read 1
+AGATCGGAAGAGCACACGTCTGAACTCCAGTCA
+
+Detecting adapter sequence for read2...
+CAAGGAGTCTAACATGTGCGCGAGTCTTAGGGTGCTTGAAACCCAGAGGCAGAATGAAAG
+
+WARNING: fastp uses up to 16 threads although you specified 40
+Read1 before filtering:
+total reads: 21791714
+total bases: 3268757100
+Q20 bases: 3206977012(98.11%)
+Q30 bases: 3074513802(94.0576%)
+
+Read2 before filtering:
+total reads: 21791714
+total bases: 3268757100
+Q20 bases: 3176953163(97.1915%)
+Q30 bases: 3012179247(92.1506%)
+
+Read1 after filtering:
+total reads: 21423162
+total bases: 2851128933
+Q20 bases: 2803480529(98.3288%)
+Q30 bases: 2697858958(94.6242%)
+
+Read2 after filtering:
+total reads: 21423162
+total bases: 2847371357
+Q20 bases: 2784422792(97.7892%)
+Q30 bases: 2655639751(93.2664%)
+
+Filtering result:
+reads passed filter: 42846324
+reads failed due to low quality: 449668
+reads failed due to too many N: 2206
+reads failed due to too short: 285230
+reads with adapter trimmed: 5414823
+bases trimmed due to adapters: 85227280
+reads with polyX in 3' end: 54594
+bases trimmed in polyX tail: 862055
+
+Duplication rate: 52.0068%
+
+Insert size peak (evaluated by paired-end reads): 30
+
+JSON report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-73-TP2.fastp-trim.report.json
+HTML report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-73-TP2.fastp-trim.report.html
+
+/home/shared/fastp --in1 POR-73-TP2_R1_001.fastq.gz --in2 POR-73-TP2_R2_001.fastq.gz --detect_adapter_for_pe --trim_poly_g --trim_poly_x --trim_front1 15 --trim_front2 15 --thread 40 --html /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-73-TP2.fastp-trim.report.html --json /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-73-TP2.fastp-trim.report.json --out1 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-73-TP2_R1_001.fastp-trim.fq.gz --out2 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-73-TP2_R2_001.fastp-trim.fq.gz 
+fastp v0.23.2, time used: 76 seconds
+Detecting adapter sequence for read1...
+>Illumina TruSeq Adapter Read 1
+AGATCGGAAGAGCACACGTCTGAACTCCAGTCA
+
+Detecting adapter sequence for read2...
+CAAGGAGTCTAACATGTGCGCGAGTCTTAGGGTGCTTGAAACCCAGAGGCAGAATGAAAG
+
+WARNING: fastp uses up to 16 threads although you specified 40
+Read1 before filtering:
+total reads: 19415470
+total bases: 2912320500
+Q20 bases: 2856905837(98.0972%)
+Q30 bases: 2739706496(94.073%)
+
+Read2 before filtering:
+total reads: 19415470
+total bases: 2912320500
+Q20 bases: 2829571325(97.1587%)
+Q30 bases: 2684038889(92.1615%)
+
+Read1 after filtering:
+total reads: 19061330
+total bases: 2536753011
+Q20 bases: 2494241283(98.3242%)
+Q30 bases: 2401296835(94.6603%)
+
+Read2 after filtering:
+total reads: 19061330
+total bases: 2532585664
+Q20 bases: 2477534106(97.8263%)
+Q30 bases: 2365297619(93.3946%)
+
+Filtering result:
+reads passed filter: 38122660
+reads failed due to low quality: 426918
+reads failed due to too many N: 2108
+reads failed due to too short: 279254
+reads with adapter trimmed: 4989446
+bases trimmed due to adapters: 77597139
+reads with polyX in 3' end: 37448
+bases trimmed in polyX tail: 633312
+
+Duplication rate: 55.4284%
+
+Insert size peak (evaluated by paired-end reads): 30
+
+JSON report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-73-TP3.fastp-trim.report.json
+HTML report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-73-TP3.fastp-trim.report.html
+
+/home/shared/fastp --in1 POR-73-TP3_R1_001.fastq.gz --in2 POR-73-TP3_R2_001.fastq.gz --detect_adapter_for_pe --trim_poly_g --trim_poly_x --trim_front1 15 --trim_front2 15 --thread 40 --html /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-73-TP3.fastp-trim.report.html --json /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-73-TP3.fastp-trim.report.json --out1 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-73-TP3_R1_001.fastp-trim.fq.gz --out2 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-73-TP3_R2_001.fastp-trim.fq.gz 
+fastp v0.23.2, time used: 62 seconds
+Detecting adapter sequence for read1...
+>Illumina TruSeq Adapter Read 1
+AGATCGGAAGAGCACACGTCTGAACTCCAGTCA
+
+Detecting adapter sequence for read2...
+AAACTCACCAGGTCCAGACATAGTGAGGATTGACAGATTGAGAGCTCTTTCTTGATTCTA
+
+WARNING: fastp uses up to 16 threads although you specified 40
+Read1 before filtering:
+total reads: 18797406
+total bases: 2819610900
+Q20 bases: 2765011907(98.0636%)
+Q30 bases: 2650641975(94.0074%)
+
+Read2 before filtering:
+total reads: 18797406
+total bases: 2819610900
+Q20 bases: 2734173027(96.9699%)
+Q30 bases: 2584430767(91.6591%)
+
+Read1 after filtering:
+total reads: 18417766
+total bases: 2459641441
+Q20 bases: 2418064578(98.3096%)
+Q30 bases: 2327791485(94.6395%)
+
+Read2 after filtering:
+total reads: 18417766
+total bases: 2454747252
+Q20 bases: 2397140622(97.6533%)
+Q30 bases: 2281361018(92.9367%)
+
+Filtering result:
+reads passed filter: 36835532
+reads failed due to low quality: 459772
+reads failed due to too many N: 2252
+reads failed due to too short: 297256
+reads with adapter trimmed: 3748959
+bases trimmed due to adapters: 57398201
+reads with polyX in 3' end: 59688
+bases trimmed in polyX tail: 1099323
+
+Duplication rate: 50.3839%
+
+Insert size peak (evaluated by paired-end reads): 30
+
+JSON report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-73-TP4.fastp-trim.report.json
+HTML report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-73-TP4.fastp-trim.report.html
+
+/home/shared/fastp --in1 POR-73-TP4_R1_001.fastq.gz --in2 POR-73-TP4_R2_001.fastq.gz --detect_adapter_for_pe --trim_poly_g --trim_poly_x --trim_front1 15 --trim_front2 15 --thread 40 --html /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-73-TP4.fastp-trim.report.html --json /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-73-TP4.fastp-trim.report.json --out1 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-73-TP4_R1_001.fastp-trim.fq.gz --out2 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-73-TP4_R2_001.fastp-trim.fq.gz 
+fastp v0.23.2, time used: 67 seconds
+Detecting adapter sequence for read1...
+>Illumina TruSeq Adapter Read 1
+AGATCGGAAGAGCACACGTCTGAACTCCAGTCA
+
+Detecting adapter sequence for read2...
+No adapter detected for read2
+
+WARNING: fastp uses up to 16 threads although you specified 40
+Read1 before filtering:
+total reads: 18332488
+total bases: 2749873200
+Q20 bases: 2695007611(98.0048%)
+Q30 bases: 2581719496(93.885%)
+
+Read2 before filtering:
+total reads: 18332488
+total bases: 2749873200
+Q20 bases: 2673672337(97.2289%)
+Q30 bases: 2539096995(92.3351%)
+
+Read1 after filtering:
+total reads: 18010881
+total bases: 2403394966
+Q20 bases: 2360905099(98.2321%)
+Q30 bases: 2270053655(94.452%)
+
+Read2 after filtering:
+total reads: 18010881
+total bases: 2403654946
+Q20 bases: 2351718846(97.8393%)
+Q30 bases: 2246756070(93.4725%)
+
+Filtering result:
+reads passed filter: 36021762
+reads failed due to low quality: 407032
+reads failed due to too many N: 2158
+reads failed due to too short: 234024
+reads with adapter trimmed: 3686478
+bases trimmed due to adapters: 53631594
+reads with polyX in 3' end: 75342
+bases trimmed in polyX tail: 1036969
+
+Duplication rate: 44.0152%
+
+Insert size peak (evaluated by paired-end reads): 30
+
+JSON report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-74-TP1.fastp-trim.report.json
+HTML report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-74-TP1.fastp-trim.report.html
+
+/home/shared/fastp --in1 POR-74-TP1_R1_001.fastq.gz --in2 POR-74-TP1_R2_001.fastq.gz --detect_adapter_for_pe --trim_poly_g --trim_poly_x --trim_front1 15 --trim_front2 15 --thread 40 --html /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-74-TP1.fastp-trim.report.html --json /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-74-TP1.fastp-trim.report.json --out1 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-74-TP1_R1_001.fastp-trim.fq.gz --out2 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-74-TP1_R2_001.fastp-trim.fq.gz 
+fastp v0.23.2, time used: 72 seconds
+Detecting adapter sequence for read1...
+>Illumina TruSeq Adapter Read 1
+AGATCGGAAGAGCACACGTCTGAACTCCAGTCA
+
+Detecting adapter sequence for read2...
+CAAGGAGTCTAACATGTGCGCGAGTCTTAGGGTGCTTGAAACCCAGAGGCAGAATGAAAG
+
+WARNING: fastp uses up to 16 threads although you specified 40
+Read1 before filtering:
+total reads: 18048084
+total bases: 2707212600
+Q20 bases: 2653721048(98.0241%)
+Q30 bases: 2541452481(93.8771%)
+
+Read2 before filtering:
+total reads: 18048084
+total bases: 2707212600
+Q20 bases: 2628288546(97.0847%)
+Q30 bases: 2488862209(91.9345%)
+
+Read1 after filtering:
+total reads: 17719989
+total bases: 2359249793
+Q20 bases: 2318013251(98.2521%)
+Q30 bases: 2228650996(94.4644%)
+
+Read2 after filtering:
+total reads: 17719989
+total bases: 2355192341
+Q20 bases: 2302296470(97.7541%)
+Q30 bases: 2194555477(93.1795%)
+
+Filtering result:
+reads passed filter: 35439978
+reads failed due to low quality: 403358
+reads failed due to too many N: 2002
+reads failed due to too short: 250830
+reads with adapter trimmed: 4542370
+bases trimmed due to adapters: 70013046
+reads with polyX in 3' end: 42233
+bases trimmed in polyX tail: 649602
+
+Duplication rate: 50.8181%
+
+Insert size peak (evaluated by paired-end reads): 30
+
+JSON report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-74-TP2.fastp-trim.report.json
+HTML report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-74-TP2.fastp-trim.report.html
+
+/home/shared/fastp --in1 POR-74-TP2_R1_001.fastq.gz --in2 POR-74-TP2_R2_001.fastq.gz --detect_adapter_for_pe --trim_poly_g --trim_poly_x --trim_front1 15 --trim_front2 15 --thread 40 --html /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-74-TP2.fastp-trim.report.html --json /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-74-TP2.fastp-trim.report.json --out1 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-74-TP2_R1_001.fastp-trim.fq.gz --out2 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-74-TP2_R2_001.fastp-trim.fq.gz 
+fastp v0.23.2, time used: 61 seconds
+Detecting adapter sequence for read1...
+>Illumina TruSeq Adapter Read 1
+AGATCGGAAGAGCACACGTCTGAACTCCAGTCA
+
+Detecting adapter sequence for read2...
+AAGGAGTCTAACATGTGCGCGAGTCTTAGGGTGCTTGAAACCCAGAGGCAGAATGAAAGT
+
+WARNING: fastp uses up to 16 threads although you specified 40
+Read1 before filtering:
+total reads: 22139966
+total bases: 3320994900
+Q20 bases: 3256093987(98.0457%)
+Q30 bases: 3118147607(93.892%)
+
+Read2 before filtering:
+total reads: 22139966
+total bases: 3320994900
+Q20 bases: 3212525591(96.7338%)
+Q30 bases: 3018630809(90.8954%)
+
+Read1 after filtering:
+total reads: 21702245
+total bases: 2885715852
+Q20 bases: 2836795477(98.3047%)
+Q30 bases: 2728509453(94.5523%)
+
+Read2 after filtering:
+total reads: 21702245
+total bases: 2882222418
+Q20 bases: 2808931869(97.4572%)
+Q30 bases: 2658059006(92.2225%)
+
+Filtering result:
+reads passed filter: 43404490
+reads failed due to low quality: 538022
+reads failed due to too many N: 2086
+reads failed due to too short: 335334
+reads with adapter trimmed: 5740437
+bases trimmed due to adapters: 89776540
+reads with polyX in 3' end: 80132
+bases trimmed in polyX tail: 1830077
+
+Duplication rate: 46.4107%
+
+Insert size peak (evaluated by paired-end reads): 30
+
+JSON report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-74-TP3.fastp-trim.report.json
+HTML report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-74-TP3.fastp-trim.report.html
+
+/home/shared/fastp --in1 POR-74-TP3_R1_001.fastq.gz --in2 POR-74-TP3_R2_001.fastq.gz --detect_adapter_for_pe --trim_poly_g --trim_poly_x --trim_front1 15 --trim_front2 15 --thread 40 --html /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-74-TP3.fastp-trim.report.html --json /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-74-TP3.fastp-trim.report.json --out1 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-74-TP3_R1_001.fastp-trim.fq.gz --out2 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-74-TP3_R2_001.fastp-trim.fq.gz 
+fastp v0.23.2, time used: 83 seconds
+Detecting adapter sequence for read1...
+>Illumina TruSeq Adapter Read 1
+AGATCGGAAGAGCACACGTCTGAACTCCAGTCA
+
+Detecting adapter sequence for read2...
+No adapter detected for read2
+
+WARNING: fastp uses up to 16 threads although you specified 40
+Read1 before filtering:
+total reads: 19686031
+total bases: 2952904650
+Q20 bases: 2894209784(98.0123%)
+Q30 bases: 2770709105(93.83%)
+
+Read2 before filtering:
+total reads: 19686031
+total bases: 2952904650
+Q20 bases: 2866439728(97.0719%)
+Q30 bases: 2711125514(91.8122%)
+
+Read1 after filtering:
+total reads: 19340555
+total bases: 2569512762
+Q20 bases: 2524542022(98.2498%)
+Q30 bases: 2426795402(94.4457%)
+
+Read2 after filtering:
+total reads: 19340555
+total bases: 2569813100
+Q20 bases: 2510507124(97.6922%)
+Q30 bases: 2389322450(92.9765%)
+
+Filtering result:
+reads passed filter: 38681110
+reads failed due to low quality: 426910
+reads failed due to too many N: 2110
+reads failed due to too short: 261932
+reads with adapter trimmed: 5286938
+bases trimmed due to adapters: 80881104
+reads with polyX in 3' end: 40326
+bases trimmed in polyX tail: 622569
+
+Duplication rate: 52.1418%
+
+Insert size peak (evaluated by paired-end reads): 30
+
+JSON report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-74-TP4.fastp-trim.report.json
+HTML report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-74-TP4.fastp-trim.report.html
+
+/home/shared/fastp --in1 POR-74-TP4_R1_001.fastq.gz --in2 POR-74-TP4_R2_001.fastq.gz --detect_adapter_for_pe --trim_poly_g --trim_poly_x --trim_front1 15 --trim_front2 15 --thread 40 --html /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-74-TP4.fastp-trim.report.html --json /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-74-TP4.fastp-trim.report.json --out1 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-74-TP4_R1_001.fastp-trim.fq.gz --out2 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-74-TP4_R2_001.fastp-trim.fq.gz 
+fastp v0.23.2, time used: 69 seconds
+Detecting adapter sequence for read1...
+>Illumina TruSeq Adapter Read 1
+AGATCGGAAGAGCACACGTCTGAACTCCAGTCA
+
+Detecting adapter sequence for read2...
+No adapter detected for read2
+
+WARNING: fastp uses up to 16 threads although you specified 40
+Read1 before filtering:
+total reads: 18220049
+total bases: 2733007350
+Q20 bases: 2680071981(98.0631%)
+Q30 bases: 2570021745(94.0364%)
+
+Read2 before filtering:
+total reads: 18220049
+total bases: 2733007350
+Q20 bases: 2650753475(96.9904%)
+Q30 bases: 2509306911(91.8149%)
+
+Read1 after filtering:
+total reads: 17837770
+total bases: 2368808253
+Q20 bases: 2329173421(98.3268%)
+Q30 bases: 2243446856(94.7078%)
+
+Read2 after filtering:
+total reads: 17837770
+total bases: 2368981918
+Q20 bases: 2315897574(97.7592%)
+Q30 bases: 2208812175(93.2389%)
+
+Filtering result:
+reads passed filter: 35675540
+reads failed due to low quality: 458234
+reads failed due to too many N: 2104
+reads failed due to too short: 304220
+reads with adapter trimmed: 4892868
+bases trimmed due to adapters: 76583270
+reads with polyX in 3' end: 63056
+bases trimmed in polyX tail: 867530
+
+Duplication rate: 43.7232%
+
+Insert size peak (evaluated by paired-end reads): 30
+
+JSON report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-83-TP1.fastp-trim.report.json
+HTML report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-83-TP1.fastp-trim.report.html
+
+/home/shared/fastp --in1 POR-83-TP1_R1_001.fastq.gz --in2 POR-83-TP1_R2_001.fastq.gz --detect_adapter_for_pe --trim_poly_g --trim_poly_x --trim_front1 15 --trim_front2 15 --thread 40 --html /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-83-TP1.fastp-trim.report.html --json /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-83-TP1.fastp-trim.report.json --out1 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-83-TP1_R1_001.fastp-trim.fq.gz --out2 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-83-TP1_R2_001.fastp-trim.fq.gz 
+fastp v0.23.2, time used: 69 seconds
+Detecting adapter sequence for read1...
+>Illumina TruSeq Adapter Read 1
+AGATCGGAAGAGCACACGTCTGAACTCCAGTCA
+
+Detecting adapter sequence for read2...
+GGGGAAACTCACCAGGTCCAGACATAGTGAGGATTGACAGATTGAGAGCTCTTTCTTGAT
+
+WARNING: fastp uses up to 16 threads although you specified 40
+Read1 before filtering:
+total reads: 19283722
+total bases: 2892558300
+Q20 bases: 2837476857(98.0958%)
+Q30 bases: 2722164633(94.1092%)
+
+Read2 before filtering:
+total reads: 19283722
+total bases: 2892558300
+Q20 bases: 2812018028(97.2156%)
+Q30 bases: 2668380821(92.2499%)
+
+Read1 after filtering:
+total reads: 18950291
+total bases: 2527746865
+Q20 bases: 2485396127(98.3246%)
+Q30 bases: 2393576381(94.6921%)
+
+Read2 after filtering:
+total reads: 18950291
+total bases: 2523836951
+Q20 bases: 2468890721(97.8229%)
+Q30 bases: 2357184313(93.3969%)
+
+Filtering result:
+reads passed filter: 37900582
+reads failed due to low quality: 407916
+reads failed due to too many N: 2330
+reads failed due to too short: 256616
+reads with adapter trimmed: 4219076
+bases trimmed due to adapters: 63778778
+reads with polyX in 3' end: 61957
+bases trimmed in polyX tail: 1130320
+
+Duplication rate: 46.8222%
+
+Insert size peak (evaluated by paired-end reads): 30
+
+JSON report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-83-TP2.fastp-trim.report.json
+HTML report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-83-TP2.fastp-trim.report.html
+
+/home/shared/fastp --in1 POR-83-TP2_R1_001.fastq.gz --in2 POR-83-TP2_R2_001.fastq.gz --detect_adapter_for_pe --trim_poly_g --trim_poly_x --trim_front1 15 --trim_front2 15 --thread 40 --html /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-83-TP2.fastp-trim.report.html --json /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-83-TP2.fastp-trim.report.json --out1 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-83-TP2_R1_001.fastp-trim.fq.gz --out2 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-83-TP2_R2_001.fastp-trim.fq.gz 
+fastp v0.23.2, time used: 72 seconds
+Detecting adapter sequence for read1...
+>Illumina TruSeq Adapter Read 1
+AGATCGGAAGAGCACACGTCTGAACTCCAGTCA
+
+Detecting adapter sequence for read2...
+CAAGGAGTCTAACATGTGCGCGAGTCTTAGGGTGCTTGAAACCCAGAGGCAGAATGAAAG
+
+WARNING: fastp uses up to 16 threads although you specified 40
+Read1 before filtering:
+total reads: 18981608
+total bases: 2847241200
+Q20 bases: 2794386991(98.1437%)
+Q30 bases: 2683420336(94.2463%)
+
+Read2 before filtering:
+total reads: 18981608
+total bases: 2847241200
+Q20 bases: 2765905130(97.1433%)
+Q30 bases: 2623838116(92.1537%)
+
+Read1 after filtering:
+total reads: 18612942
+total bases: 2479916465
+Q20 bases: 2439893821(98.3861%)
+Q30 bases: 2352497228(94.862%)
+
+Read2 after filtering:
+total reads: 18612942
+total bases: 2476487016
+Q20 bases: 2422366961(97.8146%)
+Q30 bases: 2312945251(93.3962%)
+
+Filtering result:
+reads passed filter: 37225884
+reads failed due to low quality: 437382
+reads failed due to too many N: 2294
+reads failed due to too short: 297656
+reads with adapter trimmed: 4455091
+bases trimmed due to adapters: 68857544
+reads with polyX in 3' end: 42228
+bases trimmed in polyX tail: 764628
+
+Duplication rate: 52.8555%
+
+Insert size peak (evaluated by paired-end reads): 30
+
+JSON report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-83-TP3.fastp-trim.report.json
+HTML report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-83-TP3.fastp-trim.report.html
+
+/home/shared/fastp --in1 POR-83-TP3_R1_001.fastq.gz --in2 POR-83-TP3_R2_001.fastq.gz --detect_adapter_for_pe --trim_poly_g --trim_poly_x --trim_front1 15 --trim_front2 15 --thread 40 --html /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-83-TP3.fastp-trim.report.html --json /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-83-TP3.fastp-trim.report.json --out1 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-83-TP3_R1_001.fastp-trim.fq.gz --out2 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-83-TP3_R2_001.fastp-trim.fq.gz 
+fastp v0.23.2, time used: 66 seconds
+Detecting adapter sequence for read1...
+>Illumina TruSeq Adapter Read 1
+AGATCGGAAGAGCACACGTCTGAACTCCAGTCA
+
+Detecting adapter sequence for read2...
+GGGGAAACTCACCAGGTCCAGACATAGTGAGGATTGACAGATTGAGAGCTCTTTCTTGAT
+
+WARNING: fastp uses up to 16 threads although you specified 40
+Read1 before filtering:
+total reads: 23548689
+total bases: 3532303350
+Q20 bases: 3460099207(97.9559%)
+Q30 bases: 3304421220(93.5486%)
+
+Read2 before filtering:
+total reads: 23548689
+total bases: 3532303350
+Q20 bases: 3438766248(97.352%)
+Q30 bases: 3269310047(92.5546%)
+
+Read1 after filtering:
+total reads: 23207558
+total bases: 3091367442
+Q20 bases: 3034019320(98.1449%)
+Q30 bases: 2907212062(94.0429%)
+
+Read2 after filtering:
+total reads: 23207558
+total bases: 3086427716
+Q20 bases: 3021464896(97.8952%)
+Q30 bases: 2887335965(93.5494%)
+
+Filtering result:
+reads passed filter: 46415116
+reads failed due to low quality: 446014
+reads failed due to too many N: 2114
+reads failed due to too short: 234134
+reads with adapter trimmed: 5643123
+bases trimmed due to adapters: 86579595
+reads with polyX in 3' end: 67847
+bases trimmed in polyX tail: 1274578
+
+Duplication rate: 52.1991%
+
+Insert size peak (evaluated by paired-end reads): 231
+
+JSON report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-83-TP4.fastp-trim.report.json
+HTML report: /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-83-TP4.fastp-trim.report.html
+
+/home/shared/fastp --in1 POR-83-TP4_R1_001.fastq.gz --in2 POR-83-TP4_R2_001.fastq.gz --detect_adapter_for_pe --trim_poly_g --trim_poly_x --trim_front1 15 --trim_front2 15 --thread 40 --html /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-83-TP4.fastp-trim.report.html --json /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-83-TP4.fastp-trim.report.json --out1 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-83-TP4_R1_001.fastp-trim.fq.gz --out2 /home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/POR-83-TP4_R2_001.fastp-trim.fq.gz 
+fastp v0.23.2, time used: 80 seconds
