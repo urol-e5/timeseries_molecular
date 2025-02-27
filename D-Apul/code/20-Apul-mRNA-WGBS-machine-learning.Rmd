@@ -504,8 +504,11 @@ predicted_matrix <- sapply(models, function(m) predict(m, as.matrix(wgbs_pcs), s
 # Ensure matrices are the same size
 predicted_matrix <- predicted_matrix[, colnames(gene_pcs), drop = FALSE]  # Align columns
 
+# remove 0 variance columns
+predicted_matrix <- predicted_matrix[, apply(predicted_matrix, 2, function(col) sd(col, na.rm = TRUE) > 0)]
+
 # Compute correlation matrix, handling missing values
-cor_matrix <- cor(predicted_matrix, as.matrix(gene_pcs), use = "pairwise.complete.obs")
+cor_matrix <- cor(predicted_matrix, as.matrix(gene_pcs), use = "complete.obs")
 
 # Replace NA or Inf values with zero
 cor_matrix[is.na(cor_matrix) | is.infinite(cor_matrix)] <- 0  
@@ -513,6 +516,8 @@ cor_matrix[is.na(cor_matrix) | is.infinite(cor_matrix)] <- 0
 # Plot heatmap
 pheatmap(cor_matrix, color = colorRampPalette(c("blue", "white", "red"))(100),
          main = "Correlation Between Actual and Predicted Gene Expression PCs",
+         cluster_rows = FALSE,
+         cluster_cols = FALSE,
          fontsize = 10)
 
 
