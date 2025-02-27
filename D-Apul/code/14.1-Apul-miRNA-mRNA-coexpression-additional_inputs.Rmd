@@ -104,7 +104,7 @@ Check
 pcc_results <- read.csv("../output/14.1-Apul-miRNA-mRNA-coexpression-additional_inputs/Apul-PCC_miRNA_mRNA-full.csv")
 
 # Use this code to download the PCC results if needed 
-#pcc_results <- read.csv()
+#pcc_results <- read.csv("https://gannet.fish.washington.edu/kdurkin1/ravenbackups/timeseries_molecular/D-Apul/output/14.1-Apul-miRNA-mRNA-coexpression-additional_inputs/Apul-PCC_miRNA_mRNA-full.csv")
 
 nrow(pcc_results)
 nrow(pcc_results%>% filter(abs(PCC.cor) > 0.90))
