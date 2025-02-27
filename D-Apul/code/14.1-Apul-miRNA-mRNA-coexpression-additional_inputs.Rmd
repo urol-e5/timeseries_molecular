@@ -4,6 +4,11 @@ author: "Kathleen Durkin"
 date: "2025-02-26"
 always_allow_html: true
 output: 
+  github_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+    html_preview: true 
   bookdown::html_document2:
     theme: cosmo
     toc: true
@@ -11,23 +16,15 @@ output:
     number_sections: true
     code_folding: show
     code_download: true
-  github_document:
-    toc: true
-    toc_depth: 3
-    number_sections: true
-    html_preview: true 
-editor_options: 
-  markdown: 
-    wrap: 72
 ---
 
 ```{r}
 library(energy)
 library(tidyr)
 library(dplyr)
+library(readr)
 library(ggplot2)
 ```
-
 
 Now that we've found putative interactions, including those with high complementarity, in `07.1-Apul-miRNA-mRNA-miRanda-additional_inputs` we need to validate miRNA function by examining patterns of coexpression. We'd expect a putatively-interacting miRNA-mRNA pair to be highly coexpressed, and we'd expect a negative relationship to indicate target cleavage or translational repression.
 
@@ -135,46 +132,17 @@ ggplot(pcc_results[pcc_results$p_value < 0.05,], aes(x = abs(PCC.cor))) +
   theme_minimal()
 ```
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Still need to update below code once the mRNA and 5UTR miRandas are done
-
+# Incorporate miRanda target prediction results
 
 ## full mRNA
 
 ```{r}
 # miRNA-mRNA_full miRanda output
-miRNA_mRNA_miRanda <- read_delim("../output/24-Apul-miRanda-input-comparisons/Apul-miRanda-mRNA_full-strict-parsed.txt", col_names=FALSE)
+miRNA_mRNA_miRanda <- read_delim("../output/07.1-Apul-miRNA-mRNA-miRanda-additional_inputs/Apul-miRanda-mRNA_full-strict-parsed.txt", col_names=FALSE)
 colnames(miRNA_mRNA_miRanda) <- c("mirna", "Target", "Score", "Energy_Kcal_Mol", "Query_Aln", "Subject_Aln", "Al_Len", "Subject_Identity", "Query_Identity")
 
 # format miRNA and mRNA names
-geneIDs <- read_delim("../output/15-Apul-annotate-UTRs/Apul-mRNA-FUNids.txt", col_names=FALSE)
+geneIDs <- read_delim("../output/05-Apul-annotate-UTRs/Apul-mRNA-FUNids.txt", col_names=FALSE)
 geneIDs$X4 <- gsub("Parent=", "", geneIDs$X4)
 
 miRNA_mRNA_miRanda$mirna <- gsub(">", "", miRNA_mRNA_miRanda$mirna)
@@ -203,7 +171,7 @@ nrow(target_21bp %>% filter(p_value < 0.05))
 nrow(target_21bp_3mis %>% filter(p_value < 0.05))
 ```
 
-For miRNA binding to the mRNA CDS, miRanda predicts 617,982 putative interactions. Of these, 24,936 have significant PCCs; 4,300 are \>21bp and have signficant PCCs; and 7 are \>21bp with \<=3 mismatches and have significant PCCs.
+For miRNA binding to the mRNA CDS, miRanda predicts 814,426 putative interactions. Of these, 99,958 have significant PCCs; 17,425 are \>21bp and have signficant PCCs; and 26 are \>21bp with \<=3 mismatches and have significant PCCs.
 
 ## 3'UTR
 
@@ -211,18 +179,29 @@ For miRNA binding to the mRNA CDS, miRanda predicts 617,982 putative interaction
 # Read in data
 
 # miRNA-mRNA_full miRanda output
-miRNA_3UTR_miRanda <- read_delim("../output/09-Apul-mRNA-miRNA-interactions/miranda_strict_all_1kb_parsed_apul_updated.txt", col_names=FALSE)
+miRNA_3UTR_miRanda <- read_delim("../output/07-Apul-miRNA-mRNA-miRanda/Apul-miRanda-3UTR-strict-parsed.txt", col_names=FALSE)
 colnames(miRNA_3UTR_miRanda) <- c("mirna", "Target", "Score", "Energy_Kcal_Mol", "Query_Aln", "Subject_Aln", "Al_Len", "Subject_Identity", "Query_Identity")
+
+# format miRNA and mRNA names
+geneIDs <- read_delim("../output/05-Apul-annotate-UTRs/Apul-3UTR-FUNids.txt", col_names=FALSE)
+geneIDs$X4 <- gsub("Parent=", "", geneIDs$X4)
 
 miRNA_3UTR_miRanda$mirna <- gsub(">", "", miRNA_3UTR_miRanda$mirna)
 miRNA_3UTR_miRanda$mirna <- gsub("\\..*", "", miRNA_3UTR_miRanda$mirna)
-miRNA_3UTR_miRanda$Target <- gsub("::.*", "", miRNA_3UTR_miRanda$Target)
+#miRNA_3UTR_miRanda$Target <- gsub("::.*", "", miRNA_3UTR_miRanda$Target)
+
+miRNA_3UTR_miRanda <- left_join(miRNA_3UTR_miRanda, geneIDs, by=c("Target" = "X1"))
+miRNA_3UTR_miRanda <- select(miRNA_3UTR_miRanda, -X2,-X3,-X5)
+
+# Somehow ended up with a many-to-many relationship, so remove duplicate rows
+miRNA_3UTR_miRanda <- miRNA_3UTR_miRanda[!duplicated(miRNA_3UTR_miRanda), ]
 
 # Finally, create a column that conatins both the miRNA and interacting mRNA
-miRNA_3UTR_miRanda$interaction <- paste(miRNA_3UTR_miRanda$mirna, "_", miRNA_3UTR_miRanda$Target)
+miRNA_3UTR_miRanda$interaction <- paste(miRNA_3UTR_miRanda$mirna, "_", miRNA_3UTR_miRanda$X4)
 
 # Annotate w PCC info 
 miRNA_3UTR_miRanda <- left_join(miRNA_3UTR_miRanda, pcc_results, by="interaction")
+
 ```
 
 ```{r}
@@ -237,17 +216,17 @@ nrow(target_3UTR_21bp %>% filter(p_value < 0.05))
 nrow(target_3UTR_21bp_3mis %>% filter(p_value < 0.05))
 ```
 
-For miRNA binding to the 3'UTR, miRanda predicts 6,109 putative interactions. Of these, 266 have significant PCCs; 86 are \>21bp and have signficant PCCs; and 1 is \>21bp with \<=3 mismatches and has a significant PCC.
+For miRNA binding to the 3'UTR, miRanda predicts 123,123 putative interactions. Of these, 11,693 have significant PCCs; 2,142 are \>21bp and have signficant PCCs; and 3 are \>21bp with \<=3 mismatches and have a significant PCC.
 
 ## 5'UTR
 
 ```{r}
 # miRNA-5'UTR miRanda output
-miRNA_5UTR_miRanda <- read_delim("../output/24-Apul-miRanda-input-comparisons/Apul-miRanda-5UTR_1kb-strict-parsed.txt", col_names=FALSE)
+miRNA_5UTR_miRanda <- read_delim("../output/07.1-Apul-miRNA-mRNA-miRanda-additional_inputs/Apul-miRanda-5UTR_1kb-strict-parsed.txt", col_names=FALSE)
 colnames(miRNA_5UTR_miRanda) <- c("mirna", "Target", "Score", "Energy_Kcal_Mol", "Query_Aln", "Subject_Aln", "Al_Len", "Subject_Identity", "Query_Identity")
 
 # format miRNA and mRNA names
-geneIDs <- read_delim("../output/15-Apul-annotate-UTRs/Apul-5UTR-FUNids.txt", col_names=FALSE)
+geneIDs <- read_delim("../output/05-Apul-annotate-UTRs/Apul-5UTR-FUNids.txt", col_names=FALSE)
 geneIDs$X4 <- gsub("Parent=", "", geneIDs$X4)
 
 miRNA_5UTR_miRanda$mirna <- gsub(">", "", miRNA_5UTR_miRanda$mirna)
@@ -279,32 +258,31 @@ nrow(target_5UTR_21bp %>% filter(p_value < 0.05))
 nrow(target_5UTR_21bp_3mis %>% filter(p_value < 0.05))
 ```
 
-For miRNA binding to the 5'UTR, miRanda predicts 87,830 putative interactions. Of these, 3,426 have significant PCCs; 596 are \>21bp and have signficant PCCs; and 0 are \>21bp with \<=3 mismatches and have significant PCCs.
+For miRNA binding to the 5'UTR, miRanda predicts 115,265 putative interactions. Of these, 10,623 have significant PCCs; 1,775 are \>21bp and have signficant PCCs; and 3 are \>21bp with \<=3 mismatches and have significant PCCs.
 
 # Summary
 
 How does different input and/or complementarity filtering affect \# putative interactions:
 
+Reminder summary of miRanda results:
+
 | Input     | unfiltered | filtered for complementarity | \% retained |
 |-----------|------------|------------------------------|-------------|
-| 3'UTR     | 6109       | 13                           | 0.213 %     |
-| full mRNA | 617982     | 143                          | 0.0231 %    |
-| 5'UTR     | 87830      | 12                           | 0.0137 %    |
+| full mRNA | 814426     | 181                          | 0.0222 %    |
+| 5'UTR     | 115265     | 20                           | 0.0174 %    |
+| 3'UTR     | 123123     | 33                           | 0.0268 %    |
 
 For different filters, how many putative interactions ***also show significant coexpression*** (PCC pval \< 0.05)?
 
-| Input     | All   | 21bp | 21bp, \>=3 mismatch |
-|-----------|-------|------|---------------------|
-| 3'UTR     | 266   | 86   | 1                   |
-| full mRNA | 24936 | 4300 | 7                   |
-| 5'UTR     | 3426  | 596  | 0                   |
+| Input     | All   | 21bp  | 21bp, \>=3 mismatch |
+|-----------|-------|-------|---------------------|
+| full mRNA | 99958 | 17425 | 26                  |
+| 5'UTR     | 10623 | 1775  | 3                   |
+| 3'UTR     | 11693 | 2142  | 3                   |
 
-Note that, in general, only \~1/3 of significant coexpressions have a *negative* relationship (which would support functional target cleavage or translational repression)
+Note that some putative interactions indicated by miRanda are not present in the counts data (i.e. the miRNA and/or mRNA had 0 counts inour RNAseq data), and are thus excluded from the PCC-filtered data
 
-Note also that some putative interactions indicated by miRanda are not present in the counts data (i.e. the miRNA and/or mRNA had 0 counts in our RNAseq data), and are thus excluded from the PCC-filtered data
-
-
-Is there a clear "cutoff" for what complementarity parameters are most associated with significant coexpression?
+Is there a clear "cutoff" for what complementarity parameters are mostassociated with significant coexpression?
 
 ```{r}
 
@@ -336,4 +314,11 @@ ggplot(significant_df, aes(x = Al_Len,
   theme_minimal()
 ```
 
-Interesting... there are signifcant coexpressions happening across both metrics of complementarity. Also interesting, there are notably more significant coexpressions from using 5'UTR inputs than using 3'UTRs -- we were expecting more in the 3UTr because that would be the binding location for translational repression.
+Interesting... there are signifcant coexpressions happening across both metrics of complementarity.
+
+```{r}
+# Save putative interactions with significantly correlated coexpression for visualization
+# (e.g. creating an interaction network plot in Cytoscape)
+write.csv(combined_df[combined_df$p_value < 0.05,], "../output/14.1-Apul-miRNA-mRNA-coexpression-additional_inputs/miRanda-PCC-significant-mRNA_3UTR_5UTR.csv", row.names = FALSE)
+
+```
