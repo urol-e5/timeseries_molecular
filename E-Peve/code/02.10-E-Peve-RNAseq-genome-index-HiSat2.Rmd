@@ -3,6 +3,9 @@ title: "02.10-E-Peve-RNAseq-genome-index-HiSat2"
 author: "Sam White"
 date: "2025-03-06"
 output: 
+  github_document:
+    toc: true
+    number_sections: true
   bookdown::html_document2:
     theme: cosmo
     toc: true
@@ -10,9 +13,6 @@ output:
     number_sections: true
     code_folding: show
     code_download: true
-  github_document:
-    toc: true
-    number_sections: true
   html_document:
     theme: cosmo
     toc: true
@@ -22,6 +22,15 @@ output:
     code_download: true
 bibliography: references.bib
 ---
+
+# Background
+
+This notebook will build an index of the *P.evermanni* genome using [HISAT2](https://github.com/DaehwanKimLab/hisat2) [@kim2019]. It utilizes the GTF file created in [`00-genome-GFF-formatting.Rmd`](https://github.com/urol-e5/timeseries_molecular/blob/99f0563a067ca9d010cb206dfd44b36d8f77de00/E-Peve/code/00.00-genome-GFF-formatting.Rmd).
+
+Due to the large file sizes of the outputs HISAT2 index files (`*.ht2`), they cannot be added to GitHub. As such, they are available for download from here:
+
+- [https://gannet.fish.washington.edu/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/02.10-E-Peve-RNAseq-genome-index-HiSat2](https://gannet.fish.washington.edu/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/02.10-E-Peve-RNAseq-genome-index-HiSat2)
+
 
 ```{r setup, include=FALSE}
 library(knitr)
@@ -34,7 +43,6 @@ knitr::opts_chunk$set(
 )
 ```
 
-This notebook will build an index of the *P.evermanni* genome using [HISAT2](https://github.com/DaehwanKimLab/hisat2) [@kim2019]. It utilizes the GTF file created in [`00-genome-GFF-formatting.Rmd`](https://github.com/urol-e5/timeseries_molecular/blob/99f0563a067ca9d010cb206dfd44b36d8f77de00/E-Peve/code/00.00-genome-GFF-formatting.Rmd).
 
 # Create a Bash variables file
 
@@ -54,10 +62,10 @@ echo ""
 echo "# Input/output files"
 echo 'export genome_index_name="Porites_evermanni_v1"'
 echo 'export exons="${output_dir_top}/Porites_evermanni_v1_hisat2_exons.tab"'
-echo 'export genome_gff="${genome_dir}/Porites_evermanni_v1.gff"'
+echo 'export genome_gff="${genome_dir}/Porites_evermanni_validated.gff3"'
 echo 'export genome_fasta="${genome_dir}/Porites_evermanni_v1.fa"'
 echo 'export splice_sites="${output_dir_top}/Porites_evermanni_v1_hisat2_splice_sites.tab"'
-echo 'export transcripts_gtf="${genome_dir}/Porites_evermanni_v1.gtf"'
+echo 'export transcripts_gtf="${genome_dir}/Porites_evermanni_validated.gtf"'
 
 echo "# Paths to programs"
 echo 'export programs_dir="/home/shared"'
@@ -123,7 +131,7 @@ head "${splice_sites}"
 
 # Build HISAT2 genome index
 
-```{r build-hisat2-index, engine='bash', eval=FALSE}
+```{r build-hisat2-index, engine='bash', eval=TRUE}
 # Load bash variables into memory
 source .bashvars
 
@@ -141,6 +149,9 @@ cd "${output_dir_top}"
 
 ls -lh
 ```
+
+
+# List Hisat2 index files
 ```{r list-hisat2-index-output, engine='bash', eval=TRUE}
 # Load bash variables into memory
 source .bashvars
