@@ -3,6 +3,9 @@ title: "02.20-E-Peve-RNAseq-alignment-HiSat2"
 author: "Sam White"
 date: "2025-03-07"
 output: 
+  github_document:
+    toc: true
+    number_sections: true
   bookdown::html_document2:
     theme: cosmo
     toc: true
@@ -10,9 +13,6 @@ output:
     number_sections: true
     code_folding: show
     code_download: true
-  github_document:
-    toc: true
-    number_sections: true
   html_document:
     theme: cosmo
     toc: true
@@ -23,18 +23,7 @@ output:
 bibliography: references.bib
 ---
 
-```{r setup, include=FALSE}
-library(knitr)
-knitr::opts_chunk$set(
-  echo = TRUE,         # Display code chunks
-  eval = FALSE,        # Evaluate code chunks
-  warning = FALSE,     # Hide warnings
-  message = FALSE,     # Hide messages
-  comment = ""         # Prevents appending '##' to beginning of lines in code output
-)
-```
-
-# INTRODUCTION
+# Background
 
 This notebook will align trimmed *P.evermanni* RNA-seq data to the *P.evermanni* genome using [HISAT2](https://github.com/DaehwanKimLab/hisat2) [@kim2019]. Follwed by [StringTie](https://ccb.jhu.edu/software/stringtie/index.shtml?t=manual) [@pertea2015; @pertea2016] for transcript assembly/identification and count matrices for downstream expression analysis with [DESeq2](https://github.com/thelovelab/DESeq2) and/or [Ballgown](<https://github.com/alyssafrazee/ballgown>.
 
@@ -94,6 +83,18 @@ Each subdirectory is labelled based on sample name and each contains individual 
   - `<sample_name>_hisat2.stats`: HISAT2 assembly stats. 
   
   - `input_fastqs_checksums.md5`: MD5 checksums of files used as input for assembly. Primarily serves as documentation to track/verify which files were actually used.
+
+```{r setup, include=FALSE}
+library(knitr)
+knitr::opts_chunk$set(
+  echo = TRUE,         # Display code chunks
+  eval = FALSE,        # Evaluate code chunks
+  warning = FALSE,     # Hide warnings
+  message = FALSE,     # Hide messages
+  comment = ""         # Prevents appending '##' to beginning of lines in code output
+)
+```
+
 
 # Create a Bash variables file
 
@@ -435,3 +436,5 @@ cd "${output_dir_top}"
 find . -maxdepth 1 -type f -exec md5sum {} + \
 | tee --append checksums.md5
 ```
+
+# References
