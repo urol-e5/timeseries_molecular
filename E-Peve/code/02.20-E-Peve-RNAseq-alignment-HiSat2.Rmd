@@ -346,7 +346,9 @@ source .bashvars
 # Change to ouput directory
 cd "${output_dir_top}"
 
-${programs_array[multiqc]} .
+${programs_array[multiqc]} \
+--interactive \
+.
 
 ```
 
