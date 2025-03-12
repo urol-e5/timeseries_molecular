@@ -455,12 +455,14 @@ moduleColors <- labels2colors(netwk_Apul$colors)
 ```
 
 
-```{r}
+```{r, eval=FALSE}
 # Get Module Eigengenes per cluster
-MEs0_Apul <- moduleEigengenes(datExpr, mergedColors)$eigengenes
+# MEs0_Apul <- moduleEigengenes(datExpr, mergedColors)$eigengenes
+mME_Apul <- moduleEigengenes(datExpr, mergedColors)$eigengenes
 
 # Add treatment names
-MEs0_Apul$sample = row.names(MEs0_Apul)
+# MEs0_Apul$sample = row.names(MEs0_Apul)
+mME_Apul$sample = row.names(mME_Apul)
 
 # Join metadata to add timepoint to mME_Apul
 mME_Apul <- mME_Apul %>%
@@ -472,7 +474,11 @@ mME_Apul <- mME_Apul %>%
   mutate(sample = factor(sample, levels = metadata$Sample[order(match(metadata$Timepoint, timepoint_order))]))
 
 # Plot heatmap
-mME_Apul %>% ggplot(., aes(x = sample, y = name, fill = value)) +
+mME_Apul %>% 
+  pivot_longer(cols = -c(sample, Timepoint), # Ensure only eigengenes are reshaped
+               names_to = "module",
+               values_to = "value") %>%
+  ggplot(., aes(x = sample, y = name, fill = value)) +
   geom_tile() +
   theme_bw() +
   scale_fill_gradient2(
@@ -531,60 +537,36 @@ datTraits<-traits%>%select(!Sample)
 ```
 
 
-
-
-From this tutorial: https://alexslemonade.github.io/refinebio-examples/04-advanced-topics/network-analysis_rnaseq_01_wgcna.html#410_Which_modules_have_biggest_differences_across_treatment_groups
+Add in temperature and light information for each time point from physiology manuscript. Note these have already been standardized for use in WGCNA.
 
 ```{r}
-# Create the design matrix from the `time_point` variable
-des_mat <- model.matrix(~ datTraits$site)
+env<-read_csv("https://github.com/urol-e5/timeseries/raw/refs/heads/master/time_series_analysis/Output/environment_characteristics_RDA.csv") %>%
+  select(mean_Temp_mean, mean_solar_rad_kwpm2_mean, cumulative_rainfall_mm_mean, timepoint) %>%
+  mutate(timepoint=if_else(timepoint=="timepoint1", "1",
+                           if_else(timepoint=="timepoint2", "2",
+                                   if_else(timepoint=="timepoint3", "3", "4")))) %>%
+  mutate(timepoint=as.numeric(timepoint))
 
-# lmFit() needs a transposed version of the matrix
-fit <- limma::lmFit(t(MEs), design = des_mat)
+#merge into datTraits
 
-# Apply empirical Bayes to smooth standard errors
-fit <- limma::eBayes(fit)
+datTraits<-left_join(datTraits, env)
+rownames(datTraits)<-traits$Sample
 
-stats_df <- limma::topTable(fit, number = ncol(MEs)) %>%
-  tibble::rownames_to_column("module")
-
-head(stats_df)
+str(datTraits)
 ```
 
+Finally, we want to identify modules that are significantly correlated with timepoint. Since correlation analysis wouldn't identify non-linear relationships, we need to encode timepoint as 4 separate binomial variables (timepoint1 -- yes/no?, timepoint2 -- yes/no?, etc.)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Add in temperature and light information for each time point from physiology manuscript. 
 ```{r}
-# env<-read_csv("https://github.com/urol-e5/timeseries/raw/refs/heads/master/time_series_analysis/Output/environment_characteristics_RDA.csv")%>%select(mean_Temp_mean, mean_solar_rad_kwpm2_mean, timepoint)%>%
-#   mutate(timepoint=if_else(timepoint=="timepoint1", "1", 
-#                            if_else(timepoint=="timepoint2", "2", 
-#                                    if_else(timepoint=="timepont3", "3", "4"))))%>%
-#   mutate(timepoint=as.numeric(timepoint))%>%
-#   select(!timepoint)
-# 
-# #merge into datTraits
-# 
-# datTraits<-left_join(datTraits, env)
-# rownames(datTraits)<-traits$Sample
-# 
-# str(datTraits)
-# 
-# datTraits<-datTraits%>%select(!timepoint)
+datTraits <- datTraits %>%
+  mutate(
+    timepoint1 = as.integer(timepoint == 1),
+    timepoint2 = as.integer(timepoint == 2),
+    timepoint3 = as.integer(timepoint == 3),
+    timepoint4 = as.integer(timepoint == 4)
+  ) %>% select(!timepoint)
 ```
+
 
 ```{r}
 nGenes = ncol(datExpr)
@@ -615,6 +597,7 @@ plot(moduleTraitTree)
 ```
 
 Correlations of genes with eigengenes. Calculate correlations between ME's and lifestages. 
+
 ```{r}
 moduleGeneCor=cor(MEs,datExpr)
 moduleGenePvalue = corPvalueStudent(moduleGeneCor, nSamples);
@@ -634,7 +617,7 @@ Generate a complex heatmap of module-trait relationships.
 #dendrogram with WGCNA MEtree cut-off
 #colored y-axis
 
-#Create list of pvalues for eigengene correlation with specific life stages
+#Create list of pvalues for eigengene correlation with specific physiology traits or environmental conditions
 heatmappval <- signif(moduleTraitPvalue, 1)
 
 #Make list of heatmap row colors
@@ -677,6 +660,22 @@ Heatmap(moduleTraitCor, name = "Eigengene", row_title = "Gene Module", column_ti
 ```
 
 This plot is cool, but I'm a little skeptical of the results. No modules show significant relationship with timepoint, despite the PCAs showing a pretty clear clustering by timepoint...
+
+Update 3/5/25:
+Cleared up why timepoint isn't showing significant relationship, has to do with timepoint being a categorical variable that is encoded numerically (1-4) and this correlation analysis not picking up non-linear relationships. However, incorporation of environmental variables (temp, solar, etc.) for each timepoint essentially provides a set of time-dependent continuous variables, and these *are* showing significant relationships! mean temperature in particular shows significant correlation with *12* modules, including several *highly* significant correlations! Super cool!
+
+Update 3/11/25:
+Encoded timepoints as 4 separate binomial columns, so that should take care of the original issue with numerically encoding timepoint. Interestingly, timepoints 2 and 3 have significantly correlated modules, but timepoints 1 and 4 don't. This suggests the influence of timepoint stems largely from the temperature conditions, since a) timepoints 2 and 3 have the most "extreme" temperatures (in comparison to annual mean), and b) many of their correlated modules are also significantly correlated with temperature. Interestingly, timepoints 2 and 3 (March and September 2020) are actually extreme in opposite directios. March 2020 was the warmest timepoint and September was the coolest. If the two are correlated with very similar sets of gene modules, that suggests very similar expression pathways are used in response to both heat stress and cold stress in A.pulchra!
+
+
+```{r}
+# Extract modules with significant correlations
+heatmappval_df <- as.data.frame(heatmappval) 
+
+# For mean temp
+MEs_signif_temp <- rownames(heatmappval_df[heatmappval_df$mean_Temp_mean < 0.05,])
+```
+
 
 # Plot eigengene values 
 
@@ -722,7 +721,41 @@ expression_plots<-plot_MEs%>%
   ggplot(aes(x=mean_Temp_mean, y=Mean)) +
   facet_wrap(~ Module)+
   geom_point()+
-  geom_smooth(method="lm")+
+  # geom_smooth(method="lm")+
+  # The loess method can capture nonlinear trends
+  geom_smooth(method="loess")+
+  #ylim(-0.5,1) +
+  geom_hline(yintercept = 0, linetype="dashed", color = "grey")+
+  theme_bw() + 
+  theme(axis.text.x=element_text(angle = 45, hjust=1, size = 12), #set x-axis label size
+        axis.title.x=element_text(size = 14), #set x-axis title size
+        axis.ticks.x=element_blank(), #No x-label ticks
+        #axis.title.y=element_blank(), #No y-axis title
+        axis.text.y=element_text(size = 14), #set y-axis label size, 
+        panel.border = element_rect(color = "black", fill = NA, size = 1), #set border
+        panel.grid.major = element_blank(), #Set major gridlines
+        panel.grid.minor = element_blank(), #Set minor gridlines
+        axis.line = element_line(colour = "black"), #Set axes color
+        plot.background=element_blank(),
+        plot.title = element_text(size=22)); expression_plots
+```
+
+
+```{r}
+# Now just plot the modules that are significantly correlated with temp
+plot_MEs_signif_temp <- plot_MEs %>%
+    filter(Module %in% MEs_signif_temp)
+
+
+expression_plots<-plot_MEs_signif_temp%>%
+  group_by(Module) %>%
+  
+  ggplot(aes(x=mean_Temp_mean, y=Mean)) +
+  facet_wrap(~ Module)+
+  geom_point()+
+  # geom_smooth(method="lm")+
+  # the loess method can capture nonlinear trends
+  geom_smooth(method="loess")+
   #ylim(-0.5,1) +
   geom_hline(yintercept = 0, linetype="dashed", color = "grey")+
   theme_bw() + 
@@ -742,46 +775,67 @@ expression_plots<-plot_MEs%>%
 
 
 
-
 # Export to Cytoscape
 
 Export modules of interest for network visualization
 
 ```{r}
-mods_interest <- c("26", "9", "2", "50", "27", 
-                   "10", "5", "38", "16", "14", 
-                   "11", "6", "1", "49", "8", 
-                   "31", "10", "39", "41", "51", 
-                   "29", "11", "45", "21")
+MEs_signif_temp
 ```
 
 Note that, due to the size of many modules, it's probably most practical to export modules individually (unless interested in in connections between modules)
 
 ```{r}
-# Recalculate topological overlap if needed
-TOM = TOMsimilarityFromExpr(datExpr, power = 5);
-# Read in the annotation file
-annot = datTraits;
-# Select modules
-modules = c("50");
-# Select module probes
-probes = names(datExpr)
-inModule = is.finite(match(moduleLabels, modules));
-modProbes = probes[inModule];
-# modGenes = annot$gene_symbol[match(modProbes, annot$substanceBXH)];
-# Select the corresponding Topological Overlap
-modTOM = TOM[inModule, inModule];
-dimnames(modTOM) = list(modProbes, modProbes)
-# Export the network into edge and node list files Cytoscape can read
-cyt = exportNetworkToCytoscape(modTOM,
-  edgeFile = paste("CytoscapeInput-edges-", paste(modules, collapse="-"), ".txt", sep=""),
-  nodeFile = paste("CytoscapeInput-nodes-", paste(modules, collapse="-"), ".txt", sep=""),
-  weighted = TRUE,
-  threshold = 0.02,
-  nodeNames = modProbes,
-  # altNodeNames = modGenes,
-  nodeAttr = moduleLabels[inModule]);
+# # Recalculate topological overlap if needed
+# TOM = TOMsimilarityFromExpr(datExpr, power = 5);
+#   # Read in the annotation file
+# annot = datTraits;
+# for(i in seq_along(MEs_signif_temp)) {
 
+#   # Select modules
+#   modules = MEs_signif_temp[i];
+#   # Select module probes
+#   probes = names(datExpr)
+#   inModule = is.finite(match(moduleLabels, modules));
+#   modProbes = probes[inModule];
+#   # modGenes = annot$gene_symbol[match(modProbes, annot$substanceBXH)];
+#   # Select the corresponding Topological Overlap
+#   modTOM = TOM[inModule, inModule];
+#   dimnames(modTOM) = list(modProbes, modProbes)
+#   # Export the network into edge and node list files Cytoscape can read
+#   cyt = exportNetworkToCytoscape(modTOM,
+#     edgeFile = paste("CytoscapeInput-edges-", paste(modules, collapse="-"), ".txt", sep=""),
+#     nodeFile = paste("CytoscapeInput-nodes-", paste(modules, collapse="-"), ".txt", sep=""),
+#     weighted = TRUE,
+#     threshold = 0.02,
+#     nodeNames = modProbes,
+#     # altNodeNames = modGenes,
+#     nodeAttr = moduleLabels[inModule]);
+# }
+
+# Recalculate topological overlap if needed
+  TOM = TOMsimilarityFromExpr(datExpr, power = 5);
+  # Read in the annotation file
+  annot = datTraits;
+  # Select modules
+  modules = "45";
+  # Select module probes
+  probes = names(datExpr)
+  inModule = is.finite(match(moduleLabels, modules));
+  modProbes = probes[inModule];
+  # modGenes = annot$gene_symbol[match(modProbes, annot$substanceBXH)];
+  # Select the corresponding Topological Overlap
+  modTOM = TOM[inModule, inModule];
+  dimnames(modTOM) = list(modProbes, modProbes)
+  # Export the network into edge and node list files Cytoscape can read
+  cyt = exportNetworkToCytoscape(modTOM,
+    edgeFile = paste("CytoscapeInput-edges-", paste(modules, collapse="-"), ".txt", sep=""),
+    nodeFile = paste("CytoscapeInput-nodes-", paste(modules, collapse="-"), ".txt", sep=""),
+    weighted = TRUE,
+    threshold = 0.02,
+    nodeNames = modProbes,
+    # altNodeNames = modGenes,
+    nodeAttr = moduleLabels[inModule]);
 
 
 ```
