@@ -25,7 +25,6 @@ bibliography: references.bib
 
 To-Do/Questions:
 
-- why am I getting no significant module correlation with timepoint, but clear PCA clustering by timepoint?
 
 - Correct formatting of WGCNA input data. This code currently performs count + pOverA filtering separately on raw gene counts and raw miRNA counts (filtered from all sRNA counts)), then combines for DESeq2 variance stabilization and WGCNA. I think it'd be better to separately variance stabilize counts since the two data sets were generated using different sequencing and alignment methods. Also think, if doing separate variance stabilization, may need tovariance stabilize full sRNA dataset before filtering down to miRNAs, since the miRNAs are a tiny subset of the full sRNA data.
 
@@ -66,7 +65,7 @@ library(dendsort)
 library(ComplexHeatmap)
 ```
 
-# Load data
+# Load and prep data
 
 Load in count matrices for RNAseq. 
 
@@ -134,7 +133,7 @@ nrow(Apul_miRNA)
 
 Removing genes with only 0 counts reduced number from 44371 to 35869. Retained all 51 miRNAs.
 
-# Physiology filtering
+## Physiology filtering
 
 Run PCA on physiology data to see if there are phys outliers 
 
@@ -197,7 +196,7 @@ metadata <- metadata %>%
 
 
 
-# pOverA filtering
+## pOverA filtering
 
 *pOverA*: Specifying the minimum count for a proportion of samples for each gene. Here, we are using a pOverA of 0.1. This is because we have 40 samples with a minimum of n=4 samples per timepoint per site. Therefore, we will accept genes that are present in 4/40 = 0.1 of the samples because we expect different expression by life stage. We are further setting the minimum count of genes and miRNA to 10, such that 12.5% of the samples must have a gene count of >10 in order for the gene to remain in the data set.
 
@@ -256,29 +255,12 @@ nrow(Apul_miRNA_filt) #After
 
 Of our original 51 miRNAs, 43 are retained.
 
-# Combine counts data
 
-```{r}
-# combine gene counts and miRNA counts
-# make sure column names in both are in the same order
-Apul_miRNA_filt <- Apul_miRNA_filt[, colnames(Apul_genes_filt)]
-
-# Combine by rows
-Apul_g_mi_filt <- rbind(Apul_genes_filt, Apul_miRNA_filt)
-```
-
-
-# Assign metadata and arrange order of columns 
-
-Display current order of metadata and gene count matrix.  
-```{r}
-metadata$Sample
-colnames(Apul_g_mi_filt)
-```
+## Assign metadata and arrange order of columns 
 
 Order metadata the same as the column order in the gene matrix.  
 ```{r}
-list<-colnames(Apul_g_mi_filt)
+list<-colnames(Apul_genes_filt)
 list<-as.factor(list)
 
 metadata$Sample<-as.factor(metadata$Sample)
@@ -288,65 +270,140 @@ metadata$Sample <- factor(as.character(metadata$Sample), levels=list)
 # Re-order the data.frame
 metadata_ordered <- metadata[order(metadata$Sample),]
 metadata_ordered$Sample
+
+# Make sure the miRNA colnames are also in the same order as the gene colnames
+Apul_miRNA_filt <- Apul_miRNA_filt[, colnames(Apul_genes_filt)]
 ```
 
 Metadata and gene count matrix are now ordered the same. 
 
-# Conduct variance stabilized transformation 
+## Conduct variance stabilized transformation 
+
+VST should be performed on our two input datasets (gene counts and miRNA counts) separately
+
+### Genes:
 
 ```{r}
 #Set DESeq2 design
-dds <- DESeqDataSetFromMatrix(countData = Apul_g_mi_filt,
+dds_genes <- DESeqDataSetFromMatrix(countData = Apul_genes_filt,
                               colData = metadata_ordered,
                               design = ~Timepoint+ColonyID)
 ```
 
 Check size factors. 
 ```{r}
-SF.dds <- estimateSizeFactors(dds) #estimate size factors to determine if we can use vst  to transform our data. Size factors should be less than 4 for us to use vst
-print(sizeFactors(SF.dds)) #View size factors
+SF.dds_genes <- estimateSizeFactors(dds_genes) #estimate size factors to determine if we can use vst  to transform our data. Size factors should be less than 4 for us to use vst
+print(sizeFactors(SF.dds_genes)) #View size factors
 
-all(sizeFactors(SF.dds)) < 4
+all(sizeFactors(SF.dds_genes)) < 4
 ```
 
 All size factors are less than 4, so we can use VST transformation.  
 
 ```{r}
-vsd <- vst(dds, blind=FALSE) #apply a variance stabilizing transformation to minimize effects of small counts and normalize with respect to library size
-head(assay(vsd), 3) #view transformed gene count data for the first three genes in the dataset.  
+vsd_genes <- vst(dds_genes, blind=FALSE) #apply a variance stabilizing transformation to minimize effects of small counts and normalize with respect to library size
+head(assay(vsd_genes), 3) #view transformed gene count data for the first three genes in the dataset.  
 ```
 
-# PCA
+#### PCA
 
 Keep in mind this is of both the genes and miRNAs. since there are vastly more genes than miRNAs, the PCA will be dictated by genes. for miRNas alone, see `03.10`.
 ```{r}
-plotPCA(vsd, intgroup = c("ColonyID"))
-plotPCA(vsd, intgroup = c("Timepoint"))
+plotPCA(vsd_genes, intgroup = c("ColonyID"))
+plotPCA(vsd_genes, intgroup = c("Timepoint"))
 ```
 
-# Sample clustering
+#### Sample clustering
 
 ```{r}
-sampleDists <- dist(t(assay(vsd))) #calculate distance matrix
-sampleDistMatrix <- as.matrix(sampleDists) #distance matrix
-rownames(sampleDistMatrix) <- colnames(vsd) #assign row names
-colnames(sampleDistMatrix) <- NULL #assign col names
+sampleDists_genes <- dist(t(assay(vsd_genes))) #calculate distance matrix
+sampleDistMatrix_genes <- as.matrix(sampleDists_genes) #distance matrix
+rownames(sampleDistMatrix_genes) <- colnames(vsd_genes) #assign row names
+colnames(sampleDistMatrix_genes) <- NULL #assign col names
 colors <- colorRampPalette( rev(brewer.pal(9, "Blues")) )(255) #assign colors
 
-pht <- pheatmap(sampleDistMatrix, #plot matrix
-         clustering_distance_rows=sampleDists, #cluster rows
-         clustering_distance_cols=sampleDists, #cluster columns
+pht_genes <- pheatmap(sampleDistMatrix_genes, #plot matrix
+         clustering_distance_rows=sampleDists_genes, #cluster rows
+         clustering_distance_cols=sampleDists_genes, #cluster columns
          col=colors) #set colors
 
-print(pht)
+print(pht_genes)
 ```
+
+
+### miRNA
+
+```{r}
+#Set DESeq2 design
+dds_miRNA <- DESeqDataSetFromMatrix(countData = Apul_miRNA_filt,
+                              colData = metadata_ordered,
+                              design = ~Timepoint+ColonyID)
+```
+
+Check size factors. 
+```{r}
+SF.dds_miRNA <- estimateSizeFactors(dds_miRNA) #estimate size factors to determine if we can use vst  to transform our data. Size factors should be less than 4 for us to use vst
+print(sizeFactors(SF.dds_miRNA)) #View size factors
+
+all(sizeFactors(SF.dds_miRNA)) < 4
+```
+
+All size factors are less than 4, so we can use VST transformation.  
+
+```{r}
+vsd_miRNA <- varianceStabilizingTransformation(dds_miRNA, blind=FALSE) #apply a variance stabilizing transformation to minimize effects of small counts and normalize with respect to library size. Using varianceStabilizingTransformation() instead of vst() because few input genes
+head(assay(vsd_miRNA), 3) #view transformed gene count data for the first three genes in the dataset.  
+```
+
+#### PCA
+
+Keep in mind this is of both the genes and miRNAs. since there are vastly more genes than miRNAs, the PCA will be dictated by genes. for miRNas alone, see `03.10`.
+```{r}
+plotPCA(vsd_miRNA, intgroup = c("ColonyID"))
+plotPCA(vsd_miRNA, intgroup = c("Timepoint"))
+```
+
+#### Sample clustering
+
+```{r}
+sampleDists_miRNA <- dist(t(assay(vsd_miRNA))) #calculate distance matrix
+sampleDistMatrix_miRNA <- as.matrix(sampleDists_miRNA) #distance matrix
+rownames(sampleDistMatrix_miRNA) <- colnames(vsd_miRNA) #assign row names
+colnames(sampleDistMatrix_miRNA) <- NULL #assign col names
+colors <- colorRampPalette( rev(brewer.pal(9, "Blues")) )(255) #assign colors
+
+pht_miRNA <- pheatmap(sampleDistMatrix_miRNA, #plot matrix
+         clustering_distance_rows=sampleDists_miRNA, #cluster rows
+         clustering_distance_cols=sampleDists_miRNA, #cluster columns
+         col=colors) #set colors
+
+print(pht_miRNA)
+```
+
+
+
+
+
+## Combine counts data
+
+```{r}
+# Extract variance stabilized counts as dataframes
+datExpr_genes <- as.data.frame(t(assay(vsd_genes)))
+datExpr_miRNA <- as.data.frame(t(assay(vsd_miRNA)))
+
+# Double check the row names (sample names) are in same order
+rownames(datExpr_genes) == rownames(datExpr_miRNA)
+
+# Combine vst gene counts and vst miRNA counts by rows (sample names)
+datExpr <- cbind(datExpr_genes, datExpr_miRNA)
+
+```
+
 
 # Outlier checks
 
 Look for outliers by examining tree of samples  
 ```{r}
-datExpr <- as.data.frame(t(assay(vsd)))
-
 sampleTree = hclust(dist(datExpr), method = "average");
 plot(sampleTree, main = "Sample clustering to detect outliers: genes", sub="", xlab="", cex.lab = 1.5, cex.axis = 1.5, cex.main = 2)
 ```
@@ -446,7 +503,7 @@ length(table(netwk_Apul$unmergedColors))
 length(table(netwk_Apul$colors))
 ```
 
-There are 54 modules before merging to 85% similarity and 52 after. 
+There are 56 modules before merging to 85% similarity and 54 after. 
 
 ```{r}
 MEs<-netwk_Apul$MEs
@@ -493,8 +550,17 @@ mME_Apul %>%
 ```
 
 
+# Characterize gene/miRNA composition of modules
 
+```{r}
+# Grab gene names and corresponding module colors
+module_info <- data.frame(
+  gene = colnames(datExpr),
+  module = moduleLabels
+)
 
+head(module_info)
+```
 
 
 # Correlate to traits 
@@ -596,7 +662,7 @@ plot(moduleTraitTree)
 # dev.off()
 ```
 
-Correlations of genes with eigengenes. Calculate correlations between ME's and lifestages. 
+Correlations of genes with eigengenes. Calculate correlations between ME's and physiology/environmental variables. 
 
 ```{r}
 moduleGeneCor=cor(MEs,datExpr)
@@ -662,10 +728,10 @@ Heatmap(moduleTraitCor, name = "Eigengene", row_title = "Gene Module", column_ti
 This plot is cool, but I'm a little skeptical of the results. No modules show significant relationship with timepoint, despite the PCAs showing a pretty clear clustering by timepoint...
 
 Update 3/5/25:
-Cleared up why timepoint isn't showing significant relationship, has to do with timepoint being a categorical variable that is encoded numerically (1-4) and this correlation analysis not picking up non-linear relationships. However, incorporation of environmental variables (temp, solar, etc.) for each timepoint essentially provides a set of time-dependent continuous variables, and these *are* showing significant relationships! mean temperature in particular shows significant correlation with *12* modules, including several *highly* significant correlations! Super cool!
+Cleared up why timepoint isn't showing significant relationship, has to do with timepoint being a categorical variable that is encoded numerically (1-4) and this correlation analysis not picking up non-linear relationships. However, incorporation of environmental variables (temp, solar, etc.) for each timepoint essentially provides a set of time-dependent continuous variables, and these *are* showing significant relationships! mean temperature in particular shows significant correlation with *10* modules, including several *highly* significant correlations! Super cool!
 
 Update 3/11/25:
-Encoded timepoints as 4 separate binomial columns, so that should take care of the original issue with numerically encoding timepoint. Interestingly, timepoints 2 and 3 have significantly correlated modules, but timepoints 1 and 4 don't. This suggests the influence of timepoint stems largely from the temperature conditions, since a) timepoints 2 and 3 have the most "extreme" temperatures (in comparison to annual mean), and b) many of their correlated modules are also significantly correlated with temperature. Interestingly, timepoints 2 and 3 (March and September 2020) are actually extreme in opposite directios. March 2020 was the warmest timepoint and September was the coolest. If the two are correlated with very similar sets of gene modules, that suggests very similar expression pathways are used in response to both heat stress and cold stress in A.pulchra!
+Encoded timepoints as 4 separate binomial columns, so that should take care of the original issue with numerically encoding timepoint. Interestingly, timepoints 2 and 3 have significantly correlated modules, but timepoints 1 and 4 don't. This suggests the influence of timepoint stems largely from the temperature conditions, since a) timepoints 2 and 3 have the most "extreme" temperatures (in comparison to annual mean), and b) many of their correlated modules are also significantly correlated with temperature. Interestingly, timepoints 2 and 3 (March and September 2020) are actually extreme in opposite directions. March 2020 was the warmest timepoint and September was the coolest. If the two are correlated with very similar sets of gene modules, that suggests very similar expression pathways are used in response to both heat stress and cold stress in A.pulchra!
 
 
 ```{r}
