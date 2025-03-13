@@ -1452,7 +1452,7 @@ htmap.colors <- gsub("ME", "", htmap.colors)
 row_dend = dendsort(hclust(dist(moduleTraitCor)))
 col_dend = dendsort(hclust(dist(t(moduleTraitCor))))
 
-pdf(file = "../output/12-Apul-miRNA-mRNA-WGCNA/Module-trait-relationship-heatmap.pdf", height = 14, width = 8)
+#pdf(file = "../output/12-Apul-miRNA-mRNA-WGCNA/Module-trait-relationship-heatmap.pdf", height = 14, width = 8)
 Heatmap(moduleTraitCor, name = "Eigengene", row_title = "Gene Module", column_title = "Module-Trait Eigengene Correlation", 
         col = blueWhiteRed(50), 
         row_names_side = "left", 
@@ -1479,6 +1479,11 @@ Heatmap(moduleTraitCor, name = "Eigengene", row_title = "Gene Module", column_ti
         column_names_gp =  gpar(fontsize = 12, border=FALSE),
         column_names_rot = 35,
         row_names_gp = gpar(fontsize = 12, alpha = 0.75, border = FALSE))
+```
+
+![](12-Apul-miRNA-mRNA-WGCNA_files/figure-gfm/unnamed-chunk-44-1.png)<!-- -->
+
+``` r
 #draw(ht)
 #dev.off()
 ```
