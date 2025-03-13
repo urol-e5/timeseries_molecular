@@ -3,13 +3,9 @@ title: "12-Apul-miRNA-mRNA-WGCNA"
 author: "Kathleen Durkin"
 date: "2025-01-01"
 output: 
-  bookdown::html_document2:
-    theme: cosmo
+  github_document:
     toc: true
-    toc_float: true
     number_sections: true
-    code_folding: show
-    code_download: true
   html_document:
     theme: cosmo
     toc: true
@@ -17,9 +13,13 @@ output:
     number_sections: true
     code_folding: show
     code_download: true
-  github_document:
+  bookdown::html_document2:
+    theme: cosmo
     toc: true
+    toc_float: true
     number_sections: true
+    code_folding: show
+    code_download: true
 bibliography: references.bib
 ---
 
@@ -679,18 +679,32 @@ network <- graph_from_data_frame(edge_list, directed = FALSE)
 # 
 # V(apul_network)$prop_mrna <- module_mRNA_proportion$module_mRNA_proportion[match(V(apul_network)$name, rownames(module_mRNA_proportion))]
 
+# Add miRNA presence/absence to the network nodes
+V(network)$has_miRNA <- ifelse(
+  module_miRNA_count_df$module %in% V(network)$name & module_miRNA_count_df$module_miRNA_count > 0, 
+  "Yes", "No"
+)
+
 ```
 
 Plot
 ```{r}
 plot1<-ggraph(network, layout = "fr") +  # Force-directed layout
-  geom_edge_link(aes(edge_alpha = correlation), show.legend = TRUE, width=2) +
+  geom_edge_link(aes(edge_color = correlation), width = 2, show.legend = TRUE) +
+  #geom_edge_link(aes(edge_alpha = correlation), show.legend = TRUE, width=2) +
   #geom_node_point(aes(colour=prop_mrna), size = 5) +
   #scale_colour_gradient(name="Prop. mRNA", low = "purple", high = "cyan3")+
+  geom_node_point(aes(color = has_miRNA), size = 3) +  # Color nodes based on miRNA presence
+  scale_edge_color_gradient2(low = "red", mid = "yellow", high = "blue", midpoint = 0, name = "Correlation") +  
+  scale_color_manual(values = c("Yes" = "black", "No" = "grey"), name = "miRNA Present") +
   geom_node_text(aes(label = name), repel = TRUE, size = 4) +
   theme_void() +
   labs(title = "A. pulchra mRNA-CpG Network");plot1
 ```
+
+Cool! In the above interaction network plot, each module is shown as a node. Modules that contain miRNA are black nodes, while gene-only modules are in grey. A line between two modules indicates the module eigengenes are significantly correlated, with a correlation coefficient magnitude of at least 0.7. Blue shading indicates positive correlation and red indicates negative correlation.
+
+To look for potential miRNA-target mRNA interactions we're looking for negative correlations where at least one module contains miRNA. I count roughly 20 of these!
 
 
 # Correlate to traits 
@@ -762,7 +776,6 @@ datTraits <- datTraits %>%
     timepoint4 = as.integer(timepoint == 4)
   ) %>% select(!timepoint)
 ```
-
 
 ```{r}
 nGenes = ncol(datExpr)
@@ -872,6 +885,8 @@ heatmappval_df <- as.data.frame(heatmappval)
 MEs_signif_temp <- rownames(heatmappval_df[heatmappval_df$mean_Temp_mean < 0.05,])
 ```
 
+We can also compare to our module interaction plot to find modules that are both correlated with temperature and potentially involved in miRNA-mRNA interactions! 
+Modules 19, 42, 1, 6, 15, 7, 2, are both significantly correlated with temperature *and* have negative module-module interactions that involve at least 1 module that contains miRNA.
 
 # Plot eigengene values 
 
