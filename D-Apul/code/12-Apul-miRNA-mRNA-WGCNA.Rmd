@@ -3,13 +3,9 @@ title: "12-Apul-miRNA-mRNA-WGCNA"
 author: "Kathleen Durkin"
 date: "2025-01-01"
 output: 
-  bookdown::html_document2:
-    theme: cosmo
+  github_document:
     toc: true
-    toc_float: true
     number_sections: true
-    code_folding: show
-    code_download: true
   html_document:
     theme: cosmo
     toc: true
@@ -17,21 +13,15 @@ output:
     number_sections: true
     code_folding: show
     code_download: true
-  github_document:
+  bookdown::html_document2:
+    theme: cosmo
     toc: true
+    toc_float: true
     number_sections: true
+    code_folding: show
+    code_download: true
 bibliography: references.bib
 ---
-
-To-Do/Questions:
-
-- why am I getting no significant module correlation with timepoint, but clear PCA clustering by timepoint?
-
-- Correct formatting of WGCNA input data. This code currently performs count + pOverA filtering separately on raw gene counts and raw miRNA counts (filtered from all sRNA counts)), then combines for DESeq2 variance stabilization and WGCNA. I think it'd be better to separately variance stabilize counts since the two data sets were generated using different sequencing and alignment methods. Also think, if doing separate variance stabilization, may need tovariance stabilize full sRNA dataset before filtering down to miRNAs, since the miRNAs are a tiny subset of the full sRNA data.
-
-- How to make useful visualizations in Cytoscvape? Was able to import file, but had trouble working with the network
-
-
 
 
 Running Weighted Gene Correlation Network Analysis (WGCNA) to assess patterns of miRNA-mRNA coexpression in A.pulchra. 
@@ -64,9 +54,12 @@ library(factoextra)
 library(vegan)
 library(dendsort)
 library(ComplexHeatmap)
+library(psych)
+library(igraph)
+library(ggraph)
 ```
 
-# Load data
+# Load and prep data
 
 Load in count matrices for RNAseq. 
 
@@ -134,7 +127,7 @@ nrow(Apul_miRNA)
 
 Removing genes with only 0 counts reduced number from 44371 to 35869. Retained all 51 miRNAs.
 
-# Physiology filtering
+## Physiology filtering
 
 Run PCA on physiology data to see if there are phys outliers 
 
@@ -197,7 +190,7 @@ metadata <- metadata %>%
 
 
 
-# pOverA filtering
+## pOverA filtering
 
 *pOverA*: Specifying the minimum count for a proportion of samples for each gene. Here, we are using a pOverA of 0.1. This is because we have 40 samples with a minimum of n=4 samples per timepoint per site. Therefore, we will accept genes that are present in 4/40 = 0.1 of the samples because we expect different expression by life stage. We are further setting the minimum count of genes and miRNA to 10, such that 12.5% of the samples must have a gene count of >10 in order for the gene to remain in the data set.
 
@@ -256,29 +249,12 @@ nrow(Apul_miRNA_filt) #After
 
 Of our original 51 miRNAs, 43 are retained.
 
-# Combine counts data
 
-```{r}
-# combine gene counts and miRNA counts
-# make sure column names in both are in the same order
-Apul_miRNA_filt <- Apul_miRNA_filt[, colnames(Apul_genes_filt)]
-
-# Combine by rows
-Apul_g_mi_filt <- rbind(Apul_genes_filt, Apul_miRNA_filt)
-```
-
-
-# Assign metadata and arrange order of columns 
-
-Display current order of metadata and gene count matrix.  
-```{r}
-metadata$Sample
-colnames(Apul_g_mi_filt)
-```
+## Assign metadata and arrange order of columns 
 
 Order metadata the same as the column order in the gene matrix.  
 ```{r}
-list<-colnames(Apul_g_mi_filt)
+list<-colnames(Apul_genes_filt)
 list<-as.factor(list)
 
 metadata$Sample<-as.factor(metadata$Sample)
@@ -288,65 +264,140 @@ metadata$Sample <- factor(as.character(metadata$Sample), levels=list)
 # Re-order the data.frame
 metadata_ordered <- metadata[order(metadata$Sample),]
 metadata_ordered$Sample
+
+# Make sure the miRNA colnames are also in the same order as the gene colnames
+Apul_miRNA_filt <- Apul_miRNA_filt[, colnames(Apul_genes_filt)]
 ```
 
 Metadata and gene count matrix are now ordered the same. 
 
-# Conduct variance stabilized transformation 
+## Conduct variance stabilized transformation 
+
+VST should be performed on our two input datasets (gene counts and miRNA counts) separately
+
+### Genes:
 
 ```{r}
 #Set DESeq2 design
-dds <- DESeqDataSetFromMatrix(countData = Apul_g_mi_filt,
+dds_genes <- DESeqDataSetFromMatrix(countData = Apul_genes_filt,
                               colData = metadata_ordered,
                               design = ~Timepoint+ColonyID)
 ```
 
 Check size factors. 
 ```{r}
-SF.dds <- estimateSizeFactors(dds) #estimate size factors to determine if we can use vst  to transform our data. Size factors should be less than 4 for us to use vst
-print(sizeFactors(SF.dds)) #View size factors
+SF.dds_genes <- estimateSizeFactors(dds_genes) #estimate size factors to determine if we can use vst  to transform our data. Size factors should be less than 4 for us to use vst
+print(sizeFactors(SF.dds_genes)) #View size factors
 
-all(sizeFactors(SF.dds)) < 4
+all(sizeFactors(SF.dds_genes)) < 4
 ```
 
 All size factors are less than 4, so we can use VST transformation.  
 
 ```{r}
-vsd <- vst(dds, blind=FALSE) #apply a variance stabilizing transformation to minimize effects of small counts and normalize with respect to library size
-head(assay(vsd), 3) #view transformed gene count data for the first three genes in the dataset.  
+vsd_genes <- vst(dds_genes, blind=FALSE) #apply a variance stabilizing transformation to minimize effects of small counts and normalize with respect to library size
+head(assay(vsd_genes), 3) #view transformed gene count data for the first three genes in the dataset.  
 ```
 
-# PCA
+#### PCA
 
 Keep in mind this is of both the genes and miRNAs. since there are vastly more genes than miRNAs, the PCA will be dictated by genes. for miRNas alone, see `03.10`.
 ```{r}
-plotPCA(vsd, intgroup = c("ColonyID"))
-plotPCA(vsd, intgroup = c("Timepoint"))
+plotPCA(vsd_genes, intgroup = c("ColonyID"))
+plotPCA(vsd_genes, intgroup = c("Timepoint"))
 ```
 
-# Sample clustering
+#### Sample clustering
 
 ```{r}
-sampleDists <- dist(t(assay(vsd))) #calculate distance matrix
-sampleDistMatrix <- as.matrix(sampleDists) #distance matrix
-rownames(sampleDistMatrix) <- colnames(vsd) #assign row names
-colnames(sampleDistMatrix) <- NULL #assign col names
+sampleDists_genes <- dist(t(assay(vsd_genes))) #calculate distance matrix
+sampleDistMatrix_genes <- as.matrix(sampleDists_genes) #distance matrix
+rownames(sampleDistMatrix_genes) <- colnames(vsd_genes) #assign row names
+colnames(sampleDistMatrix_genes) <- NULL #assign col names
 colors <- colorRampPalette( rev(brewer.pal(9, "Blues")) )(255) #assign colors
 
-pht <- pheatmap(sampleDistMatrix, #plot matrix
-         clustering_distance_rows=sampleDists, #cluster rows
-         clustering_distance_cols=sampleDists, #cluster columns
+pht_genes <- pheatmap(sampleDistMatrix_genes, #plot matrix
+         clustering_distance_rows=sampleDists_genes, #cluster rows
+         clustering_distance_cols=sampleDists_genes, #cluster columns
          col=colors) #set colors
 
-print(pht)
+print(pht_genes)
 ```
+
+
+### miRNA
+
+```{r}
+#Set DESeq2 design
+dds_miRNA <- DESeqDataSetFromMatrix(countData = Apul_miRNA_filt,
+                              colData = metadata_ordered,
+                              design = ~Timepoint+ColonyID)
+```
+
+Check size factors. 
+```{r}
+SF.dds_miRNA <- estimateSizeFactors(dds_miRNA) #estimate size factors to determine if we can use vst  to transform our data. Size factors should be less than 4 for us to use vst
+print(sizeFactors(SF.dds_miRNA)) #View size factors
+
+all(sizeFactors(SF.dds_miRNA)) < 4
+```
+
+All size factors are less than 4, so we can use VST transformation.  
+
+```{r}
+vsd_miRNA <- varianceStabilizingTransformation(dds_miRNA, blind=FALSE) #apply a variance stabilizing transformation to minimize effects of small counts and normalize with respect to library size. Using varianceStabilizingTransformation() instead of vst() because few input genes
+head(assay(vsd_miRNA), 3) #view transformed gene count data for the first three genes in the dataset.  
+```
+
+#### PCA
+
+Keep in mind this is of both the genes and miRNAs. since there are vastly more genes than miRNAs, the PCA will be dictated by genes. for miRNas alone, see `03.10`.
+```{r}
+plotPCA(vsd_miRNA, intgroup = c("ColonyID"))
+plotPCA(vsd_miRNA, intgroup = c("Timepoint"))
+```
+
+#### Sample clustering
+
+```{r}
+sampleDists_miRNA <- dist(t(assay(vsd_miRNA))) #calculate distance matrix
+sampleDistMatrix_miRNA <- as.matrix(sampleDists_miRNA) #distance matrix
+rownames(sampleDistMatrix_miRNA) <- colnames(vsd_miRNA) #assign row names
+colnames(sampleDistMatrix_miRNA) <- NULL #assign col names
+colors <- colorRampPalette( rev(brewer.pal(9, "Blues")) )(255) #assign colors
+
+pht_miRNA <- pheatmap(sampleDistMatrix_miRNA, #plot matrix
+         clustering_distance_rows=sampleDists_miRNA, #cluster rows
+         clustering_distance_cols=sampleDists_miRNA, #cluster columns
+         col=colors) #set colors
+
+print(pht_miRNA)
+```
+
+
+
+
+
+## Combine counts data
+
+```{r}
+# Extract variance stabilized counts as dataframes
+datExpr_genes <- as.data.frame(t(assay(vsd_genes)))
+datExpr_miRNA <- as.data.frame(t(assay(vsd_miRNA)))
+
+# Double check the row names (sample names) are in same order
+rownames(datExpr_genes) == rownames(datExpr_miRNA)
+
+# Combine vst gene counts and vst miRNA counts by rows (sample names)
+datExpr <- cbind(datExpr_genes, datExpr_miRNA)
+
+```
+
 
 # Outlier checks
 
 Look for outliers by examining tree of samples  
 ```{r}
-datExpr <- as.data.frame(t(assay(vsd)))
-
 sampleTree = hclust(dist(datExpr), method = "average");
 plot(sampleTree, main = "Sample clustering to detect outliers: genes", sub="", xlab="", cex.lab = 1.5, cex.axis = 1.5, cex.main = 2)
 ```
@@ -446,7 +497,7 @@ length(table(netwk_Apul$unmergedColors))
 length(table(netwk_Apul$colors))
 ```
 
-There are 54 modules before merging to 85% similarity and 52 after. 
+There are 56 modules before merging to 85% similarity and 54 after. 
 
 ```{r}
 MEs<-netwk_Apul$MEs
@@ -455,12 +506,14 @@ moduleColors <- labels2colors(netwk_Apul$colors)
 ```
 
 
-```{r}
+```{r, eval=FALSE}
 # Get Module Eigengenes per cluster
-MEs0_Apul <- moduleEigengenes(datExpr, mergedColors)$eigengenes
+# MEs0_Apul <- moduleEigengenes(datExpr, mergedColors)$eigengenes
+mME_Apul <- moduleEigengenes(datExpr, mergedColors)$eigengenes
 
 # Add treatment names
-MEs0_Apul$sample = row.names(MEs0_Apul)
+# MEs0_Apul$sample = row.names(MEs0_Apul)
+mME_Apul$sample = row.names(mME_Apul)
 
 # Join metadata to add timepoint to mME_Apul
 mME_Apul <- mME_Apul %>%
@@ -472,7 +525,11 @@ mME_Apul <- mME_Apul %>%
   mutate(sample = factor(sample, levels = metadata$Sample[order(match(metadata$Timepoint, timepoint_order))]))
 
 # Plot heatmap
-mME_Apul %>% ggplot(., aes(x = sample, y = name, fill = value)) +
+mME_Apul %>% 
+  pivot_longer(cols = -c(sample, Timepoint), # Ensure only eigengenes are reshaped
+               names_to = "module",
+               values_to = "value") %>%
+  ggplot(., aes(x = sample, y = name, fill = value)) +
   geom_tile() +
   theme_bw() +
   scale_fill_gradient2(
@@ -487,8 +544,167 @@ mME_Apul %>% ggplot(., aes(x = sample, y = name, fill = value)) +
 ```
 
 
+# Characterize gene/miRNA composition of modules
+
+```{r}
+# Grab gene names and corresponding module colors
+module_info <- data.frame(
+  gene = colnames(datExpr),
+  module = moduleLabels
+)
+#Add ME to all the names
+module_info$module <- paste0("ME", module_info$module)
+
+head(module_info)
+```
+
+```{r}
+# Function to calculate the proportion of mRNAs (genes with "FUN" in ID)
+calculate_mRNA_proportion <- function(genes) {
+  total_genes <- length(genes)
+  mRNA_count <- sum(grepl("FUN", genes))
+  
+  # Proportion of mRNAs
+  proportion_mRNA <- mRNA_count / total_genes
+  return(proportion_mRNA)
+}
+
+# Since there are so few miRNA, it may be more appropriate to calculate # of miRNA contained in a given module
+calculate_miRNA_num <- function(genes) {
+  total_genes <- length(genes)
+  miRNA_count <- sum(grepl("Cluster", genes))
+  return(miRNA_count)
+}
+
+# Apply the functions to each module
+module_mRNA_proportion <- tapply(module_info$gene, 
+                                 module_info$module, 
+                                 calculate_mRNA_proportion)
+
+module_miRNA_count <- tapply(module_info$gene,
+                             module_info$module,
+                             calculate_miRNA_num)
+
+# View the proportions
+
+length(module_miRNA_count[module_miRNA_count > 0])
+
+module_miRNA_count
+
+```
+19 of the 54 modules contain miRNA.
+
+Module 0 contains almost half of the miRNA that were retained post-filtering (18/43). Keep in mind that the smaller the module number, the more genes it contains, so ME0 is one of the largest modules of coexpressed genes, and likely represents housekeeping function. It's thus not surprising that many miRNAs also grouped there!
+
+The remaining 25 miRNA were quite spread out, most were the only miRNA in their module, with a handful of modules containing 2-3 coexpressed miRNA.
+
+Plot
+```{r}
+# Make df of module sizes
+module_sizes_df<-as.data.frame(labels)
+colnames(module_sizes_df) <- c("module", "size")
+module_sizes_df$module<-paste0("ME", module_sizes_df$module)
+
+# df of num. miRNA in each module
+module_miRNA_count_df <- as.data.frame(module_miRNA_count)
+module_miRNA_count_df$module <- rownames(module_miRNA_count_df)
+
+# Combine and add column for num of genes in each module
+module_composition <- left_join(module_sizes_df, module_miRNA_count_df, by="module")
+module_composition$module_gene_count <- module_composition$size - module_composition$module_miRNA_count
+
+# order by module size
+module_composition <- module_composition %>%
+  arrange(desc(size)) %>%
+  mutate(module = factor(module, levels = module))
+
+# Convert to long format for stacking
+module_composition_long <- module_composition %>%
+  pivot_longer(cols = c(module_gene_count, module_miRNA_count), 
+               names_to = "type", 
+               values_to = "count") %>%
+  mutate(type = factor(type, levels = c("module_gene_count", "module_miRNA_count")))  # Order for stacking
+module_composition$type <- ""
+
+# Plot
+ggplot(module_composition_long, aes(x = module, y = count, fill = type)) +
+  geom_bar(stat = "identity") +
+  geom_text(data = module_composition, aes(x = module, y = size + 60, 
+                                     label = module_miRNA_count), size = 3) +  # Label miRNA count
+  scale_fill_manual(values = c("module_gene_count" = "steelblue", "module_miRNA_count" = "orange"),
+                    labels = c("Genes", "miRNAs")) +
+  labs(x = "Module", y = "Total Module Size", title = "Stacked Barplot of Genes and miRNAs") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.title = element_blank())
+```
+
+Larger modules seem to be more likely to contain miRNA, which makes sense intuitively. However, the low number of total miRNA in comparison to the number of genes present means that miRNA don't make up an appreciable proportion of any module.
 
 
+# Correlate modules to each other
+
+miRNAs are expected to either facilitate mRNA degradation or repress mRNA translation, both of which would result in a negative miRNA-mRNA relationship (more of an miRNA means less of its target mRNA(s)). WGCNA modules only group genes with similar expression patterns, so these inverse relationships would not be present within a single module. Instead, we need to find modules that are inversely related (have a strong, negative correlation). 
+
+Compute correlations between modules
+
+  - which correlation coefficient to use? I think WGCNA is based off of Pearson's correlation coefficient...
+  
+```{r}
+btwn_module_cor <- corr.test(MEs, method = "pearson", adjust = "BH")
+
+# Extract correlation values and p-values
+btwn_module_cor_matrix <- btwn_module_cor$r  # Correlation coefficients
+btwn_module_p_matrix <- btwn_module_cor$p  # Adjusted p-values
+```
+
+Construct network
+```{r}
+# Set correlation and significance thresholds
+cor_threshold <- 0.7  # Adjust based on desired stringency
+p_threshold <- 0.05
+
+# Convert correlation matrix into an edge list
+significant_edges <- which(abs(btwn_module_cor_matrix) > cor_threshold & btwn_module_p_matrix < p_threshold, arr.ind = TRUE)
+
+edge_list <- data.frame(
+  module_A = rownames(btwn_module_cor_matrix)[significant_edges[,1]],
+  module_B = colnames(btwn_module_cor_matrix)[significant_edges[,2]],
+  correlation = btwn_module_cor_matrix[significant_edges]
+)
+
+# Construct network graph
+network <- graph_from_data_frame(edge_list, directed = FALSE)
+
+# module_mRNA_proportion<-as.data.frame(module_mRNA_proportion)
+# 
+# V(apul_network)$prop_mrna <- module_mRNA_proportion$module_mRNA_proportion[match(V(apul_network)$name, rownames(module_mRNA_proportion))]
+
+# Add miRNA presence/absence to the network nodes
+V(network)$has_miRNA <- ifelse(
+  module_miRNA_count_df$module %in% V(network)$name & module_miRNA_count_df$module_miRNA_count > 0, 
+  "Yes", "No"
+)
+
+```
+
+Plot
+```{r}
+plot1<-ggraph(network, layout = "fr") +  # Force-directed layout
+  geom_edge_link(aes(edge_color = correlation), width = 2, show.legend = TRUE) +
+  #geom_edge_link(aes(edge_alpha = correlation), show.legend = TRUE, width=2) +
+  #geom_node_point(aes(colour=prop_mrna), size = 5) +
+  #scale_colour_gradient(name="Prop. mRNA", low = "purple", high = "cyan3")+
+  geom_node_point(aes(color = has_miRNA), size = 3) +  # Color nodes based on miRNA presence
+  scale_edge_color_gradient2(low = "red", mid = "yellow", high = "blue", midpoint = 0, name = "Correlation") +  
+  scale_color_manual(values = c("Yes" = "black", "No" = "grey"), name = "miRNA Present") +
+  geom_node_text(aes(label = name), repel = TRUE, size = 4) +
+  theme_void() +
+  labs(title = "A. pulchra mRNA-CpG Network");plot1
+```
+
+Cool! In the above interaction network plot, each module is shown as a node. Modules that contain miRNA are black nodes, while gene-only modules are in grey. A line between two modules indicates the module eigengenes are significantly correlated, with a correlation coefficient magnitude of at least 0.7. Blue shading indicates positive correlation and red indicates negative correlation.
+
+To look for potential miRNA-target mRNA interactions we're looking for negative correlations where at least one module contains miRNA. I count roughly 20 of these!
 
 
 # Correlate to traits 
@@ -531,59 +747,34 @@ datTraits<-traits%>%select(!Sample)
 ```
 
 
-
-
-From this tutorial: https://alexslemonade.github.io/refinebio-examples/04-advanced-topics/network-analysis_rnaseq_01_wgcna.html#410_Which_modules_have_biggest_differences_across_treatment_groups
+Add in temperature and light information for each time point from physiology manuscript. Note these have already been standardized for use in WGCNA.
 
 ```{r}
-# Create the design matrix from the `time_point` variable
-des_mat <- model.matrix(~ datTraits$site)
+env<-read_csv("https://github.com/urol-e5/timeseries/raw/refs/heads/master/time_series_analysis/Output/environment_characteristics_RDA.csv") %>%
+  select(mean_Temp_mean, mean_solar_rad_kwpm2_mean, cumulative_rainfall_mm_mean, timepoint) %>%
+  mutate(timepoint=if_else(timepoint=="timepoint1", "1",
+                           if_else(timepoint=="timepoint2", "2",
+                                   if_else(timepoint=="timepoint3", "3", "4")))) %>%
+  mutate(timepoint=as.numeric(timepoint))
 
-# lmFit() needs a transposed version of the matrix
-fit <- limma::lmFit(t(MEs), design = des_mat)
+#merge into datTraits
 
-# Apply empirical Bayes to smooth standard errors
-fit <- limma::eBayes(fit)
+datTraits<-left_join(datTraits, env)
+rownames(datTraits)<-traits$Sample
 
-stats_df <- limma::topTable(fit, number = ncol(MEs)) %>%
-  tibble::rownames_to_column("module")
-
-head(stats_df)
+str(datTraits)
 ```
 
+Finally, we want to identify modules that are significantly correlated with timepoint. Since correlation analysis wouldn't identify non-linear relationships, we need to encode timepoint as 4 separate binomial variables (timepoint1 -- yes/no?, timepoint2 -- yes/no?, etc.)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Add in temperature and light information for each time point from physiology manuscript. 
 ```{r}
-# env<-read_csv("https://github.com/urol-e5/timeseries/raw/refs/heads/master/time_series_analysis/Output/environment_characteristics_RDA.csv")%>%select(mean_Temp_mean, mean_solar_rad_kwpm2_mean, timepoint)%>%
-#   mutate(timepoint=if_else(timepoint=="timepoint1", "1", 
-#                            if_else(timepoint=="timepoint2", "2", 
-#                                    if_else(timepoint=="timepont3", "3", "4"))))%>%
-#   mutate(timepoint=as.numeric(timepoint))%>%
-#   select(!timepoint)
-# 
-# #merge into datTraits
-# 
-# datTraits<-left_join(datTraits, env)
-# rownames(datTraits)<-traits$Sample
-# 
-# str(datTraits)
-# 
-# datTraits<-datTraits%>%select(!timepoint)
+datTraits <- datTraits %>%
+  mutate(
+    timepoint1 = as.integer(timepoint == 1),
+    timepoint2 = as.integer(timepoint == 2),
+    timepoint3 = as.integer(timepoint == 3),
+    timepoint4 = as.integer(timepoint == 4)
+  ) %>% select(!timepoint)
 ```
 
 ```{r}
@@ -614,7 +805,8 @@ plot(moduleTraitTree)
 # dev.off()
 ```
 
-Correlations of genes with eigengenes. Calculate correlations between ME's and lifestages. 
+Correlations of genes with eigengenes. Calculate correlations between ME's and physiology/environmental variables. 
+
 ```{r}
 moduleGeneCor=cor(MEs,datExpr)
 moduleGenePvalue = corPvalueStudent(moduleGeneCor, nSamples);
@@ -634,7 +826,7 @@ Generate a complex heatmap of module-trait relationships.
 #dendrogram with WGCNA MEtree cut-off
 #colored y-axis
 
-#Create list of pvalues for eigengene correlation with specific life stages
+#Create list of pvalues for eigengene correlation with specific physiology traits or environmental conditions
 heatmappval <- signif(moduleTraitPvalue, 1)
 
 #Make list of heatmap row colors
@@ -644,7 +836,7 @@ htmap.colors <- gsub("ME", "", htmap.colors)
 row_dend = dendsort(hclust(dist(moduleTraitCor)))
 col_dend = dendsort(hclust(dist(t(moduleTraitCor))))
 
-pdf(file = "../output/12-Apul-miRNA-mRNA-WGCNA/Module-trait-relationship-heatmap.pdf", height = 14, width = 8)
+#pdf(file = "../output/12-Apul-miRNA-mRNA-WGCNA/Module-trait-relationship-heatmap.pdf", height = 14, width = 8)
 Heatmap(moduleTraitCor, name = "Eigengene", row_title = "Gene Module", column_title = "Module-Trait Eigengene Correlation", 
         col = blueWhiteRed(50), 
         row_names_side = "left", 
@@ -677,6 +869,24 @@ Heatmap(moduleTraitCor, name = "Eigengene", row_title = "Gene Module", column_ti
 ```
 
 This plot is cool, but I'm a little skeptical of the results. No modules show significant relationship with timepoint, despite the PCAs showing a pretty clear clustering by timepoint...
+
+Update 3/5/25:
+Cleared up why timepoint isn't showing significant relationship, has to do with timepoint being a categorical variable that is encoded numerically (1-4) and this correlation analysis not picking up non-linear relationships. However, incorporation of environmental variables (temp, solar, etc.) for each timepoint essentially provides a set of time-dependent continuous variables, and these *are* showing significant relationships! mean temperature in particular shows significant correlation with *10* modules, including several *highly* significant correlations! Super cool!
+
+Update 3/11/25:
+Encoded timepoints as 4 separate binomial columns, so that should take care of the original issue with numerically encoding timepoint. Interestingly, timepoints 2 and 3 have significantly correlated modules, but timepoints 1 and 4 don't. This suggests the influence of timepoint stems largely from the temperature conditions, since a) timepoints 2 and 3 have the most "extreme" temperatures (in comparison to annual mean), and b) many of their correlated modules are also significantly correlated with temperature. Interestingly, timepoints 2 and 3 (March and September 2020) are actually extreme in opposite directions. March 2020 was the warmest timepoint and September was the coolest. If the two are correlated with very similar sets of gene modules, that suggests very similar expression pathways are used in response to both heat stress and cold stress in A.pulchra!
+
+
+```{r}
+# Extract modules with significant correlations
+heatmappval_df <- as.data.frame(heatmappval) 
+
+# For mean temp
+MEs_signif_temp <- rownames(heatmappval_df[heatmappval_df$mean_Temp_mean < 0.05,])
+```
+
+We can also compare to our module interaction plot to find modules that are both correlated with temperature and potentially involved in miRNA-mRNA interactions! 
+Modules 19, 42, 1, 6, 15, 7, 2, are both significantly correlated with temperature *and* have negative module-module interactions that involve at least 1 module that contains miRNA.
 
 # Plot eigengene values 
 
@@ -722,7 +932,41 @@ expression_plots<-plot_MEs%>%
   ggplot(aes(x=mean_Temp_mean, y=Mean)) +
   facet_wrap(~ Module)+
   geom_point()+
-  geom_smooth(method="lm")+
+  # geom_smooth(method="lm")+
+  # The loess method can capture nonlinear trends
+  geom_smooth(method="loess")+
+  #ylim(-0.5,1) +
+  geom_hline(yintercept = 0, linetype="dashed", color = "grey")+
+  theme_bw() + 
+  theme(axis.text.x=element_text(angle = 45, hjust=1, size = 12), #set x-axis label size
+        axis.title.x=element_text(size = 14), #set x-axis title size
+        axis.ticks.x=element_blank(), #No x-label ticks
+        #axis.title.y=element_blank(), #No y-axis title
+        axis.text.y=element_text(size = 14), #set y-axis label size, 
+        panel.border = element_rect(color = "black", fill = NA, size = 1), #set border
+        panel.grid.major = element_blank(), #Set major gridlines
+        panel.grid.minor = element_blank(), #Set minor gridlines
+        axis.line = element_line(colour = "black"), #Set axes color
+        plot.background=element_blank(),
+        plot.title = element_text(size=22)); expression_plots
+```
+
+
+```{r}
+# Now just plot the modules that are significantly correlated with temp
+plot_MEs_signif_temp <- plot_MEs %>%
+    filter(Module %in% MEs_signif_temp)
+
+
+expression_plots<-plot_MEs_signif_temp%>%
+  group_by(Module) %>%
+  
+  ggplot(aes(x=mean_Temp_mean, y=Mean)) +
+  facet_wrap(~ Module)+
+  geom_point()+
+  # geom_smooth(method="lm")+
+  # the loess method can capture nonlinear trends
+  geom_smooth(method="loess")+
   #ylim(-0.5,1) +
   geom_hline(yintercept = 0, linetype="dashed", color = "grey")+
   theme_bw() + 
@@ -742,46 +986,67 @@ expression_plots<-plot_MEs%>%
 
 
 
-
 # Export to Cytoscape
 
 Export modules of interest for network visualization
 
 ```{r}
-mods_interest <- c("26", "9", "2", "50", "27", 
-                   "10", "5", "38", "16", "14", 
-                   "11", "6", "1", "49", "8", 
-                   "31", "10", "39", "41", "51", 
-                   "29", "11", "45", "21")
+MEs_signif_temp
 ```
 
 Note that, due to the size of many modules, it's probably most practical to export modules individually (unless interested in in connections between modules)
 
 ```{r}
-# Recalculate topological overlap if needed
-TOM = TOMsimilarityFromExpr(datExpr, power = 5);
-# Read in the annotation file
-annot = datTraits;
-# Select modules
-modules = c("50");
-# Select module probes
-probes = names(datExpr)
-inModule = is.finite(match(moduleLabels, modules));
-modProbes = probes[inModule];
-# modGenes = annot$gene_symbol[match(modProbes, annot$substanceBXH)];
-# Select the corresponding Topological Overlap
-modTOM = TOM[inModule, inModule];
-dimnames(modTOM) = list(modProbes, modProbes)
-# Export the network into edge and node list files Cytoscape can read
-cyt = exportNetworkToCytoscape(modTOM,
-  edgeFile = paste("CytoscapeInput-edges-", paste(modules, collapse="-"), ".txt", sep=""),
-  nodeFile = paste("CytoscapeInput-nodes-", paste(modules, collapse="-"), ".txt", sep=""),
-  weighted = TRUE,
-  threshold = 0.02,
-  nodeNames = modProbes,
-  # altNodeNames = modGenes,
-  nodeAttr = moduleLabels[inModule]);
+# # Recalculate topological overlap if needed
+# TOM = TOMsimilarityFromExpr(datExpr, power = 5);
+#   # Read in the annotation file
+# annot = datTraits;
+# for(i in seq_along(MEs_signif_temp)) {
 
+#   # Select modules
+#   modules = MEs_signif_temp[i];
+#   # Select module probes
+#   probes = names(datExpr)
+#   inModule = is.finite(match(moduleLabels, modules));
+#   modProbes = probes[inModule];
+#   # modGenes = annot$gene_symbol[match(modProbes, annot$substanceBXH)];
+#   # Select the corresponding Topological Overlap
+#   modTOM = TOM[inModule, inModule];
+#   dimnames(modTOM) = list(modProbes, modProbes)
+#   # Export the network into edge and node list files Cytoscape can read
+#   cyt = exportNetworkToCytoscape(modTOM,
+#     edgeFile = paste("CytoscapeInput-edges-", paste(modules, collapse="-"), ".txt", sep=""),
+#     nodeFile = paste("CytoscapeInput-nodes-", paste(modules, collapse="-"), ".txt", sep=""),
+#     weighted = TRUE,
+#     threshold = 0.02,
+#     nodeNames = modProbes,
+#     # altNodeNames = modGenes,
+#     nodeAttr = moduleLabels[inModule]);
+# }
+
+# Recalculate topological overlap if needed
+  TOM = TOMsimilarityFromExpr(datExpr, power = 5);
+  # Read in the annotation file
+  annot = datTraits;
+  # Select modules
+  modules = "45";
+  # Select module probes
+  probes = names(datExpr)
+  inModule = is.finite(match(moduleLabels, modules));
+  modProbes = probes[inModule];
+  # modGenes = annot$gene_symbol[match(modProbes, annot$substanceBXH)];
+  # Select the corresponding Topological Overlap
+  modTOM = TOM[inModule, inModule];
+  dimnames(modTOM) = list(modProbes, modProbes)
+  # Export the network into edge and node list files Cytoscape can read
+  cyt = exportNetworkToCytoscape(modTOM,
+    edgeFile = paste("CytoscapeInput-edges-", paste(modules, collapse="-"), ".txt", sep=""),
+    nodeFile = paste("CytoscapeInput-nodes-", paste(modules, collapse="-"), ".txt", sep=""),
+    weighted = TRUE,
+    threshold = 0.02,
+    nodeNames = modProbes,
+    # altNodeNames = modGenes,
+    nodeAttr = moduleLabels[inModule]);
 
 
 ```
