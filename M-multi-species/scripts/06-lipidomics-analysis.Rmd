@@ -12,6 +12,10 @@ editor_options:
   chunk_output_type: console
 --- 
 
+Next steps: 
+
+- Use SAM and Random Forest models to test for lipids that are different across time in each species (lipid species data sets)
+
 # Set Up    
 
 ```{r setup, include=FALSE}
@@ -21,6 +25,8 @@ knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
 Load libraries. 
 
 ```{r}
+library(mixOmics)
+library("RVAideMemoire")
 library(tidyverse)
 library(ggplot2)
 library(readxl)
@@ -29,6 +35,11 @@ library(factoextra)
 library(ggfortify)
 library(ComplexHeatmap)
 library(viridis)
+library(lme4)
+library(lmerTest)
+library(emmeans)
+library(broom.mixed)
+library(broom)
 ```
 
 # 1. Lipid species absolute concentrations
@@ -516,7 +527,55 @@ plot1<-data %>%
         legend.position="none");plot1
 ```
 
-There is variation in total lipid concentration across samples. Since this is a subset of lipids measured, we may not use this as a proxy for total lipids.  
+There is variation in total lipid concentration across samples. 
+
+```{r}
+plot1a<-data %>%
+  group_by(species, colony, timepoint)%>%
+  summarise(total_lipid=sum(nmol.g_plasma.ug_protein))%>%
+  
+  ggplot(aes(x = timepoint, y = total_lipid, colour=species)) +
+  geom_boxplot(outliers=FALSE)+
+  geom_point(position=position_dodge(0.8)) +
+  labs(x = "Species", y = "Total Lipid (nmol per ug protein)", title = "Total lipid content") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+        legend.position="right");plot1a
+
+plot1b<-data %>%
+  group_by(species, colony, timepoint)%>%
+  summarise(total_lipid=sum(nmol.g_plasma.ug_protein))%>%
+  
+  ggplot(aes(x = species, y = total_lipid, colour=timepoint)) +
+  geom_boxplot(outliers=FALSE)+
+  geom_point(position=position_dodge(0.8)) +
+  labs(x = "Species", y = "Total Lipid (nmol per ug protein)", title = "Total lipid content") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+        legend.position="right");plot1b
+```
+
+Run a model. 
+
+```{r}
+model<-data%>%
+  group_by(species, colony, timepoint)%>%
+  summarise(total_lipid=sum(nmol.g_plasma.ug_protein))%>%
+  
+  lmer(total_lipid ~ species * timepoint + (1|colony), data=.)
+
+anova(model)
+
+emm<-emmeans(model, ~timepoint|species)
+pairs(emm)
+
+emm<-emmeans(model, ~species|timepoint)
+pairs(emm)
+```
+
+There is a significant effect of species and there is a change over time in Pocillopora (decreases with time). Porites and Acropora total lipid is stable over time.  
+
+Pocillopora has more lipid that Acropora and Porites at TP1. Values are not different during other time points.  
 
 ## Plot PCA of species effects  
 
@@ -757,6 +816,151 @@ extracted_lipids3
 
 Composed of TGs, some LPCs, and CEs.  
 
+## Examine differential lipids with a PLSDA and VIP scores 
+
+Generate a PLSDA supervised model to examine lipids that 1) drive separation between species and 2) then those that differentiate time points within species.  
+
+### PLSDA and VIPs between species 
+
+Generate a PLS-DA and plot.  
+```{r, results=FALSE}
+#assigning datasets 
+X_lipids <- data_wide
+
+levels(as.factor(X_lipids$species))
+
+Y_lipids <- as.factor(X_lipids$species) #select treatment names
+Y_lipids
+
+X_lipids<-X_lipids[6:360] #pull only data columns
+
+# run PLSDA 
+MyResult.plsda <- plsda(X_lipids,Y_lipids) # 1 Run the method
+
+species_cols<-c("darkgray", "orange", "purple") 
+            
+plotIndiv(MyResult.plsda, col=species_cols, ind.names = FALSE, legend=TRUE, legend.title = "Lipid Concentration - Species", ellipse = FALSE, title="", style = "graphics", centroid=FALSE, point.lwd = 2, cex=2)
+```
+
+View the VIP lipids that are most highly differentiating lipids between species 
+
+```{r}
+#extract
+lipid_VIP <- PLSDA.VIP(MyResult.plsda)
+lipid_VIP_df <- as.data.frame(lipid_VIP[["tab"]])
+lipid_VIP_df
+
+# Converting row names to column
+VIP_table <- rownames_to_column(lipid_VIP_df, var = "Lipid")
+
+#filter for VIP > 1
+VIP_1 <- VIP_table %>% 
+  filter(VIP >= 1)
+
+#plot
+VIP_list_plot<-VIP_1 %>%
+            arrange(VIP) %>%
+  
+  ggplot( aes(x = VIP, y = reorder(Lipid,VIP,sum))) +
+  geom_point() +
+  ylab("Lipid") +
+  xlab("VIP Score") +
+  ggtitle("Lipid Concentration VIP - Species") +
+  theme_bw() + theme(panel.border = element_rect(linetype = "solid", color = "black"), panel.grid.major = element_blank(), #Makes background theme white
+                     panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"));VIP_list_plot
+```
+
+There are a lot of TGs and some FFAs that are strong VIPs between species.  
+
+### PLSDA and VIPs between time points within species 
+
+Pocillopora was the only species that showed a multivariate difference in lipid concentration across time. 
+
+#### Pocillopora 
+
+Generate a PLS-DA and plot.  
+```{r, results=FALSE}
+#assigning datasets 
+X_lipids <- data_wide%>%filter(species=="Pocillopora")
+
+levels(as.factor(X_lipids$timepoint))
+
+Y_lipids <- as.factor(X_lipids$timepoint) #select treatment names
+Y_lipids
+
+X_lipids<-X_lipids[6:360] #pull only data columns
+
+# run PLSDA 
+MyResult.plsda <- plsda(X_lipids,Y_lipids) # 1 Run the method
+
+timepoint_cols<-c("darkgray", "blue", "purple") 
+            
+plotIndiv(MyResult.plsda, col=timepoint_cols, ind.names = FALSE, legend=TRUE, legend.title = "POC Lipid Concentration - Timepoint", ellipse = FALSE, title="", style = "graphics", centroid=FALSE, point.lwd = 2, cex=2)
+```
+
+View the VIP lipids that are most highly differentiating lipids between timepoints.  
+
+```{r}
+#extract
+lipid_VIP <- PLSDA.VIP(MyResult.plsda)
+lipid_VIP_df <- as.data.frame(lipid_VIP[["tab"]])
+lipid_VIP_df
+
+# Converting row names to column
+VIP_table <- rownames_to_column(lipid_VIP_df, var = "Lipid")
+
+#filter for VIP > 1
+VIP_1 <- VIP_table %>% 
+  filter(VIP >= 1)
+
+#plot
+VIP_list_plot<-VIP_1 %>%
+            arrange(VIP) %>%
+  
+  ggplot( aes(x = VIP, y = reorder(Lipid,VIP,sum))) +
+  geom_point() +
+  ylab("Lipid") +
+  xlab("VIP Score") +
+  ggtitle("POC Lipid Concentration VIP - Timepoint") +
+  theme_bw() + theme(panel.border = element_rect(linetype = "solid", color = "black"), panel.grid.major = element_blank(), #Makes background theme white
+                     panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"));VIP_list_plot
+```
+
+There are some LCPs, FAs, TGs, and DGs contributing to differences in time point. TGs account for most VIPs. 
+
+Filter dataframe by VIP lipids and plot presence in each time point.  
+```{r}
+vip_list<-c(VIP_1$Lipid)
+
+vip_lipids<-data%>%
+  filter(lipid %in% vip_list)%>%
+  filter(species=="Pocillopora")
+```
+
+Plot abundance of these metabolites in each sample. 
+
+```{r}
+vip_abund_plot<-vip_lipids%>%
+  
+  ggplot(aes(x=timepoint, y=nmol.g_plasma.ug_protein, color=timepoint, group=timepoint))+
+  facet_wrap(~lipid, scales="free")+
+  geom_boxplot(aes(group=interaction(lipid, timepoint)),position=position_dodge(0.9))+
+  geom_point(position=position_jitterdodge(0.2))+
+  scale_color_manual(values=c("darkgray", "blue", "purple"), name="Timepoint")+
+  ylab("abundance")+
+  xlab("Timepoint")+
+  ggtitle("VIP Abundance - POC")+
+  theme_classic()+
+  theme(
+    axis.text=element_text(color="black", size=12), 
+    axis.text.x=element_text(angle=45, hjust=1), 
+    axis.title=element_text(color="black", face="bold", size=12),
+    plot.margin=margin(1,1,1,1, "cm"),
+    legend.text=element_text(size=12),
+    legend.title=element_text(size=12, face="bold")
+  );vip_abund_plot
+```
+
 # 2. Lipid species as percent composition of respective lipid class
 
 ## Calculations 
@@ -803,7 +1007,7 @@ There are 6 classes detected.
 
 View a basic plot for total lipids via a stacked bar plot. 
 
-FAs - polyunsaturated (":2" or more)
+### FAs - polyunsaturated (":2" or more)
 ```{r}
 fa_pufa<-lipid_comp_long %>%
   filter(class=="FA")
@@ -832,7 +1036,55 @@ fa_plot1b<-fa_pufa%>%
         legend.position="right");fa_plot1b
 ```
 
-FAs - monounsaturated (":1")
+Run a model. 
+
+```{r}
+model<-fa_pufa%>%
+  
+  lmer(percent_composition ~ species * lipid + (1|colony:species) + (1|timepoint), data=.)
+
+anova(model)
+```
+
+Significant differences in PUFA lipids between species.  
+
+Run by time for each species.  
+
+```{r}
+model<-fa_pufa%>%
+  filter(species=="Acropora")%>%
+  
+  lmer(percent_composition ~ timepoint * lipid + (1|colony), data=.)
+
+anova(model)
+```
+
+Significant differences in PUFA lipids over time in Acropora. 
+
+```{r}
+model<-fa_pufa%>%
+  filter(species=="Pocillopora")%>%
+  
+  lmer(percent_composition ~ timepoint * lipid + (1|colony), data=.)
+
+anova(model)
+```
+
+Significant differences in PUFA lipids over time in Pocillopora.  
+
+```{r}
+model<-fa_pufa%>%
+  filter(species=="Porites")%>%
+  
+  lmer(percent_composition ~ timepoint * lipid + (1|colony), data=.)
+
+anova(model)
+```
+
+Significant differences in PUFA lipids over time in Porites.   
+
+### FAs - monounsaturated (":1")
+
 ```{r}
 fa_mufa<-lipid_comp_long %>%
   filter(class=="FA")
@@ -861,7 +1113,54 @@ fa_plot2b<-fa_mufa%>%
         legend.position="right");fa_plot2b
 ```
 
-FAs - saturated (":0")
+Run a model. 
+
+```{r}
+model<-fa_mufa%>%
+  
+  lmer(percent_composition ~ species * lipid + (1|colony:species) + (1|timepoint), data=.)
+
+anova(model)
+```
+
+Significant differences in MUFA lipids between species.  
+
+Run by time for each species.  
+
+```{r}
+model<-fa_mufa%>%
+  filter(species=="Acropora")%>%
+  
+  lmer(percent_composition ~ timepoint * lipid + (1|colony), data=.)
+
+anova(model)
+```
+
+No change in MUFA lipids over time in Acropora.  
+
+```{r}
+model<-fa_mufa%>%
+  filter(species=="Pocillopora")%>%
+  
+  lmer(percent_composition ~ timepoint * lipid+ (1|colony), data=.)
+
+anova(model)
+```
+
+No change in MUFA lipids over time in Pocillopora.    
+
+```{r}
+model<-fa_mufa%>%
+  filter(species=="Porites")%>%
+  
+  lmer(percent_composition ~ timepoint * lipid + (1|colony), data=.)
+
+anova(model)
+```
+
+No change in MUFA lipids over time in Porites.    
+
+### FAs - saturated (":0")
 ```{r}
 fa_sat<-lipid_comp_long %>%
   filter(class=="FA")
@@ -889,6 +1188,56 @@ fa_plot3b<-fa_sat%>%
   theme(axis.text.x = element_text(angle = 45, hjust = 1), 
         legend.position="right");fa_plot3b
 ```
+
+Run a model. 
+
+```{r}
+model<-fa_sat%>%
+  
+  lmer(percent_composition ~ species * lipid + (1|colony:species) + (1|timepoint), data=.)
+
+anova(model)
+
+emm<-emmeans(model, ~species)
+pairs(emm)
+```
+
+There are significant differences in SFAs between species.     
+
+Run by time for each species.  
+
+```{r}
+model<-fa_sat%>%
+  filter(species=="Acropora")%>%
+  
+  lmer(percent_composition ~ timepoint * lipid + (1|colony), data=.)
+
+anova(model)
+```
+
+There are significant differences in SFAs over time in Acropora.  
+
+```{r}
+model<-fa_sat%>%
+  filter(species=="Pocillopora")%>%
+  
+  lmer(percent_composition ~ timepoint * lipid + (1|colony), data=.)
+
+anova(model)
+```
+
+There are significant differences in SFAs over time in Pocillopora (but barely).    
+
+```{r}
+model<-fa_sat%>%
+  filter(species=="Porites")%>%
+  
+  lmer(percent_composition ~ timepoint * lipid + (1|colony), data=.)
+
+anova(model)
+```
+
+There are significant differences in SFAs over time in Porites. 
 
 ## Plot composition of TGs 
 
@@ -931,6 +1280,53 @@ tg_plot1b<-tg_sat%>%
 
 Lower saturated fatty acids in TGs in Porites. 
 
+Run a model. 
+
+```{r}
+model<-tg_sat%>%
+  
+  lmer(percent_composition ~ species * lipid + (1|colony:species) + (1|timepoint), data=.)
+
+anova(model)
+```
+
+This model didn't run, return to this.     
+
+Run by time for each species.  
+
+```{r}
+model<-tg_sat%>%
+  filter(species=="Acropora")%>%
+  
+  lmer(percent_composition ~ timepoint * lipid + (1|colony), data=.)
+
+anova(model)
+```
+
+No significant difference in Saturated TGs over time in Acropora. 
+
+```{r}
+model<-tg_sat%>%
+  filter(species=="Pocillopora")%>%
+  
+  lmer(percent_composition ~ timepoint * lipid + (1|colony), data=.)
+
+anova(model)
+```
+
+No significant difference in Saturated TGs over time in Pocillopora.      
+
+```{r}
+model<-tg_sat%>%
+  filter(species=="Porites")%>%
+  
+  lmer(percent_composition ~ timepoint * lipid + (1|colony), data=.)
+
+anova(model)
+```
+
+No significant difference in Saturated TGs over time in Porites
+
 Mono Unsaturated FA in TG
 ```{r}
 tg_MUFA<-lipid_comp_long %>%
@@ -960,6 +1356,53 @@ tg_plot2b<-tg_MUFA%>%
         legend.position="none"); tg_plot2b 
 ```
 
+Run a model. 
+
+```{r}
+model<-tg_MUFA%>%
+  
+  lmer(percent_composition ~ species * lipid + (1|colony:species) + (1|timepoint), data=.)
+
+anova(model)
+```
+
+There are significant differences in TG lipids between species.       
+
+Run by time for each species.  
+
+```{r}
+model<-tg_MUFA%>%
+  filter(species=="Acropora")%>%
+  
+  lmer(percent_composition ~ timepoint * lipid + (1|colony), data=.)
+
+anova(model)
+```
+
+No significant difference in MUFA TGs over time in Acropora. 
+
+```{r}
+model<-tg_MUFA%>%
+  filter(species=="Pocillopora")%>%
+  
+  lmer(percent_composition ~ timepoint * lipid + (1|colony), data=.)
+
+anova(model)
+```
+
+There are significant differences in MUFA TGs over time in Pocillopora with total MUFA TGs changing over time.      
+
+```{r}
+model<-tg_MUFA%>%
+  filter(species=="Porites")%>%
+  
+  lmer(percent_composition ~ timepoint * lipid + (1|colony), data=.)
+
+anova(model)
+```
+
+No significant difference in MUFA TGs over time in Porites. 
+
 Poly Unsaturated FA in TG
 ```{r}
 tg_PUFA<-lipid_comp_long %>%
@@ -988,6 +1431,53 @@ tg_plot3b<-tg_PUFA%>%
   theme(axis.text.x = element_text(angle = 45, hjust = 1), 
         legend.position="none"); tg_plot3b 
 ```
+
+Run a model. 
+
+```{r}
+model<-tg_PUFA%>%
+  
+  lmer(percent_composition ~ species * lipid + (1|colony:species) + (1|timepoint), data=.)
+
+anova(model)
+```
+
+There are significant differences in PUFA TG lipids between species.       
+
+Run by time for each species.  
+
+```{r}
+model<-tg_PUFA%>%
+  filter(species=="Acropora")%>%
+  
+  lmer(percent_composition ~ timepoint * lipid + (1|colony), data=.)
+
+anova(model)
+```
+
+No significant difference in PUFA TGs over time in Acropora. 
+
+```{r}
+model<-tg_PUFA%>%
+  filter(species=="Pocillopora")%>%
+  
+  lmer(percent_composition ~ timepoint * lipid + (1|colony), data=.)
+
+anova(model)
+```
+
+No significant difference in PUFA TGs over time in Pocillopora.       
+
+```{r}
+model<-tg_PUFA%>%
+  filter(species=="Porites")%>%
+  
+  lmer(percent_composition ~ timepoint * lipid + (1|colony), data=.)
+
+anova(model)
+```
+
+No significant difference in PUFA TGs over time in Porites.  
 
 ## Plot PCA of samples 
 
@@ -1025,6 +1515,128 @@ pca2<-ggplot2::autoplot(scaled.pca, data=lipid_comp_wide, loadings=FALSE,  colou
         legend.title = element_text(size=18, face="bold"), 
         axis.text = element_text(size=18), 
         axis.title = element_text(size=18,  face="bold"));pca2
+```
+
+## Plot PCA of time effects within species   
+
+### Acropora 
+
+Generate wide data. 
+```{r}
+acr_wide<-lipid_comp_long%>%
+  select(!class)%>%
+  filter(!lipid=="Cer d18:1/16:0")%>%
+  filter(species=="Acropora")%>%
+  ungroup()%>%
+  pivot_wider(names_from=lipid, values_from=percent_composition)
+```
+
+```{r}
+scaled.pca.acr<-prcomp(acr_wide%>%select(where(is.numeric)), scale=TRUE, center=TRUE) 
+```
+
+Prepare a PCA plot
+```{r}
+# scale data
+vegan_acr <- scale(acr_wide%>%select(where(is.numeric)))
+
+# PerMANOVA 
+permanova<-adonis2(vegan_acr ~ timepoint, data = acr_wide, method='eu')
+permanova
+```
+
+No effect of time in Acropora.  
+
+```{r}
+pca3<-ggplot2::autoplot(scaled.pca.acr, data=acr_wide, loadings=FALSE,  colour="timepoint", loadings.label.colour="black", loadings.colour="black", loadings.label=FALSE, frame=TRUE, loadings.label.size=5, loadings.label.vjust=-1, size=5) + 
+  theme_classic()+
+   theme(legend.text = element_text(size=18), 
+         legend.position="right",
+        plot.background = element_blank(),
+        legend.title = element_text(size=18, face="bold"), 
+        axis.text = element_text(size=18), 
+        axis.title = element_text(size=18,  face="bold"));pca3
+
+```
+
+### Pocillopora
+
+Generate wide data. 
+```{r}
+poc_wide<-lipid_comp_long%>%
+  filter(species=="Pocillopora")%>%
+  select(!class)%>%
+  filter(!lipid=="Cer d18:1/16:0")%>%
+  ungroup()%>%
+  pivot_wider(names_from=lipid, values_from=percent_composition)
+```
+
+```{r}
+scaled.pca.poc<-prcomp(poc_wide%>%select(where(is.numeric)), scale=TRUE, center=TRUE) 
+```
+
+Prepare a PCA plot
+```{r}
+# scale data
+vegan_poc <- scale(poc_wide%>%select(where(is.numeric)))
+
+# PerMANOVA 
+permanova<-adonis2(vegan_poc ~ timepoint, data = poc_wide, method='eu')
+permanova
+```
+
+No effect of time in Pocillopora  
+
+```{r}
+pca4<-ggplot2::autoplot(scaled.pca.poc, data=poc_wide, loadings=FALSE,  colour="timepoint", loadings.label.colour="black", loadings.colour="black", loadings.label=FALSE, frame=TRUE, loadings.label.size=5, loadings.label.vjust=-1, size=5) + 
+  theme_classic()+
+   theme(legend.text = element_text(size=18), 
+         legend.position="right",
+        plot.background = element_blank(),
+        legend.title = element_text(size=18, face="bold"), 
+        axis.text = element_text(size=18), 
+        axis.title = element_text(size=18,  face="bold"));pca4
+
+```
+
+### Porites 
+
+Generate wide data. 
+```{r}
+por_wide<-lipid_comp_long%>%
+  filter(species=="Porites")%>%
+  select(!class)%>%
+  filter(!lipid=="Cer d18:1/16:0")%>%
+  ungroup()%>%
+  pivot_wider(names_from=lipid, values_from=percent_composition)
+```
+
+```{r}
+scaled.pca.por<-prcomp(por_wide%>%select(where(is.numeric)), scale=TRUE, center=TRUE) 
+```
+
+Prepare a PCA plot
+```{r}
+# scale data
+vegan_por <- scale(por_wide%>%select(where(is.numeric)))
+
+# PerMANOVA 
+permanova<-adonis2(vegan_por ~ timepoint, data = por_wide, method='eu')
+permanova
+```
+
+No effect of time in Porites  
+
+```{r}
+pca5<-ggplot2::autoplot(scaled.pca.por, data=por_wide, loadings=FALSE,  colour="timepoint", loadings.label.colour="black", loadings.colour="black", loadings.label=FALSE, frame=TRUE, loadings.label.size=5, loadings.label.vjust=-1, size=5) + 
+  theme_classic()+
+   theme(legend.text = element_text(size=18), 
+         legend.position="right",
+        plot.background = element_blank(),
+        legend.title = element_text(size=18, face="bold"), 
+        axis.text = element_text(size=18), 
+        axis.title = element_text(size=18,  face="bold"));pca5
+
 ```
 
 ## Plot a heatmap of lipid composition for each species (scaled to z score)
@@ -1090,27 +1702,67 @@ extracted_lipids3
 extracted_lipids4
 ```
 
+## Examine differential lipids with a PLSDA and VIP scores 
 
+Generate a PLSDA supervised model to examine lipids that 1) drive separation between species and 2) then those that differentiate time points within species.  
 
+### PLSDA and VIPs between species 
 
+Generate a PLS-DA and plot.  
+```{r, results=FALSE}
+#assigning datasets 
+X_lipids <- lipid_comp_wide
 
+levels(as.factor(X_lipids$species))
 
+Y_lipids <- as.factor(X_lipids$species) #select treatment names
+Y_lipids
 
+X_lipids<-X_lipids[4:357] #pull only data columns
 
+# run PLSDA 
+MyResult.plsda <- plsda(X_lipids,Y_lipids) # 1 Run the method
 
+species_cols<-c("darkgray", "orange", "purple") 
+            
+plotIndiv(MyResult.plsda, col=species_cols, ind.names = FALSE, legend=TRUE, legend.title = "Lipid Composition - Species", ellipse = FALSE, title="", style = "graphics", centroid=FALSE, point.lwd = 2, cex=2)
+```
 
+View the VIP lipids that are most highly differentiating lipids between species 
 
+```{r}
+#extract
+lipid_VIP <- PLSDA.VIP(MyResult.plsda)
+lipid_VIP_df <- as.data.frame(lipid_VIP[["tab"]])
+lipid_VIP_df
 
+# Converting row names to column
+VIP_table <- rownames_to_column(lipid_VIP_df, var = "Lipid")
 
+#filter for VIP > 1
+VIP_1 <- VIP_table %>% 
+  filter(VIP >= 1)
 
+#plot
+VIP_list_plot<-VIP_1 %>%
+            arrange(VIP) %>%
+  
+  ggplot( aes(x = VIP, y = reorder(Lipid,VIP,sum))) +
+  geom_point() +
+  ylab("Lipid") +
+  xlab("VIP Score") +
+  ggtitle("Lipid Composition VIP - Species") +
+  theme_bw() + theme(panel.border = element_rect(linetype = "solid", color = "black"), panel.grid.major = element_blank(), #Makes background theme white
+                     panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"));VIP_list_plot
+```
 
+There are many strong VIPs between species. Most are TG lipids.  
 
+Species did not show a change over time in multivariate responses. We will use a different model to look at differential lipids across time. 
 
+# 3. Class absolute concentration
 
-
-# 3. AH LEFT OFF HERE: Class concentration
-
-## Load and prepare data from first batch
+## Load and prepare data (first 5 samples from first batch)
 
 ```{r}
 class_quant<-read_xlsx("M-multi-species/data/lipidomics/2025-02-05_Roberts_Test_Coral.xlsx", sheet="Class Quant")%>%
@@ -1167,9 +1819,23 @@ class_quant_long<-class_quant_long%>%
                                  if_else(sample=="L67", "Acropora", 
                                          if_else(sample=="L80", "Porites", 
                                                  if_else(sample=="L84", "Pocillopora", NA))))))%>%
+  
+  mutate(timepoint=if_else(sample=="L26", "TP4", 
+                         if_else(sample=="L39", "TP2", 
+                                 if_else(sample=="L67", "TP1", 
+                                         if_else(sample=="L80", "TP2", 
+                                                 if_else(sample=="L84", "TP3", NA))))))%>%
+  
+  mutate(colony=if_else(sample=="L26", "ACR-229", 
+                         if_else(sample=="L39", "POR-216", 
+                                 if_else(sample=="L67", "ACR-150", 
+                                         if_else(sample=="L80", "POR-83", 
+                                                 if_else(sample=="L84", "POC-52", NA))))))%>%
+  
   mutate(type=if_else(sample=="prepared_blank_01", "blank", 
                       if_else(sample=="QC_01", "QC", 
                           if_else(sample=="QC_02", "QC", "sample"))))%>%
+  
   mutate(protein.ug=if_else(sample=="L26", 340, 
                          if_else(sample=="L39", 139, 
                                  if_else(sample=="L67", 7, 
@@ -1264,53 +1930,328 @@ class_quant_long<-class_quant_long%>%
   select(!protein.ug)%>%
   select(!nmol.g_plasma)%>%
   select(!nmol.g_plasma.corr)%>%
-  select(!mean_blank)%>%
-  select(!type)
+  select(!mean_blank)
 
 class_quant_long$sample<-as.factor(class_quant_long$sample)
 class_quant_long$species<-as.factor(class_quant_long$species)
 ```
 
+## Load and prepare data (all samples from second batch)
 
+```{r}
+class_quant2<-read_xlsx("M-multi-species/data/lipidomics/2025-02-20_Roberts_QuantLipidData.xlsx", sheet="Class Quant")%>%
+  rename(sample=`Sample ID`)
+```
 
+Remove empty rows and QC rows (QC here is not our PBQC). 
 
+```{r}
+class_quant2<-class_quant2[-c(2, 34, 36, 68, 70, 102, 103, 104) ,]
+```
 
+Remove LacCER  as it is not present in a majority of samples and was not present in the first batch samples. 
 
+```{r}
+class_quant2<-class_quant2%>%
+  select(!LacCER)
+```
 
+There are 18 classes we will analyze. 
 
+Convert to numeric format. 
 
+```{r}
+# Keep the "sample" column unchanged, convert all other columns to numeric
+class_quant_wide2 <- as.data.frame(lapply(names(class_quant2), function(col) {
+  if (col == "sample") {
+    return(class_quant2[[col]])  # Keep the "sample" column as is
+  } else {
+    # Convert other columns to character first, then to numeric
+    return(as.numeric(as.character(class_quant2[[col]])))
+  }
+}))
 
+# Ensure the column names remain unchanged
+colnames(class_quant_wide2) <- names(class_quant2)
 
+str(class_quant_wide2)
+```
 
+Convert to long format. 
 
+```{r}
+class_quant_long2<-class_quant_wide2%>%
+  pivot_longer(names_to="class", values_to="nmol.g_plasma", cols=c(2:20))
+```
 
+Add in metadata.  
+
+```{r}
+class_quant_long2<-class_quant_long2%>%
+
+  mutate(
+    colony = str_extract(sample, "^[^_]+"),  # Extract everything before the underscore
+    timepoint = str_extract(sample, "(?<=_).*"),  # Extract everything after the underscore
+    species = case_when(
+      str_detect(sample, "ACR") ~ "Acropora",
+      str_detect(sample, "POC") ~ "Pocillopora",
+      str_detect(sample, "POR") ~ "Porites",
+      TRUE ~ NA_character_  # Default to NA if no match
+    ), 
+    type = case_when(
+      str_detect(sample, "blank") ~ "blank", 
+      str_detect(sample, "QC_") ~ "QC", 
+      str_detect(sample, "PBQC") ~ "PBQC", 
+      TRUE ~ "sample"
+      
+    )
+  )
+
+#add in protein values from species quantification dataset 
+class_quant_long2$protein.ug<-lipid_quant2$protein.ug[match(class_quant_long2$sample, lipid_quant2$sample)]
+class_quant_long2$protein.ug<-as.numeric(class_quant_long2$protein.ug)
+```
+
+### Filtering and normalizing 
+
+#### Perform blank corrections 
+
+Subtract blank values. Calculate the blank value for each class 
+
+```{r}
+blanks2<-class_quant_long2%>%
+  filter(type=="blank")%>%
+  group_by(class)%>%
+  summarise(mean_blank=mean(nmol.g_plasma, na.rm=TRUE))
+
+#replace NA with 0 for blank value 
+
+blanks2<-blanks2%>%
+  mutate(across(everything(), ~ replace_na(., 0)))
+```
+
+Merge in blank values and subtract from sample value for each lipid. 
+
+```{r}
+class_quant_long2<-left_join(class_quant_long2, blanks2)
+
+class_quant_long2<-class_quant_long2%>%
+  filter(!type=="blank")
+```
+
+Subtract blank values. 
+
+```{r}
+class_quant_long2<-class_quant_long2%>%
+  mutate(nmol.g_plasma.corr=nmol.g_plasma-mean_blank)
+```
+
+#### Remove filters not detected in all samples 
+
+How many lipids do we have now? 
+```{r}
+length(levels(as.factor(class_quant_long2$class)))
+```
+19 total classes
+
+Remove classes where there are NA's in one or more samples. We cannot reliably say that if a lipid was not quantified in a sample that it was truly absent. So we will remove those not quantified here rather than replacing them with "true" 0's.    
+
+```{r}
+class_quant_long2 <- class_quant_long2 %>%
+  group_by(class) %>%
+  filter(!(any(type == "sample" & is.na(nmol.g_plasma.corr)))) %>%
+  ungroup()
+```
+
+How many lipids do we have now? 
+```{r}
+length(levels(as.factor(class_quant_long2$class)))
+```
+8 classes 
+
+Remove classes where there is a value <0 in one or more samples.  
+
+```{r}
+class_quant_long2 <- class_quant_long2 %>%
+  group_by(class) %>%
+  filter(!(any(type == "sample" & nmol.g_plasma.corr<0))) %>%
+  ungroup()
+```
+
+How many classes do we have now? 
+```{r}
+length(levels(as.factor(class_quant_long2$class)))
+levels(as.factor(class_quant_long2$class))
+```
+
+7 classes we can analyze: "CE"        "Cer d18:1" "DG"        "FFA"       "LPC"       "LPE"       "TG" 
+
+#### Normalize to tissue input 
+
+Next, conduct normalization to tissue input and multiply by constants as directed by the UW facility.  
+
+```{r}
+class_quant_long2<-class_quant_long2%>%
+  mutate(nmol.g_plasma.ug_protein=(nmol.g_plasma.corr*25)/protein.ug)
+```
+
+```{r}
+class_quant_long2<-class_quant_long2%>%
+  select(!protein.ug)%>%
+  select(!nmol.g_plasma)%>%
+  select(!nmol.g_plasma.corr)%>%
+  select(!mean_blank)
+
+class_quant_long2$sample<-as.factor(class_quant_long2$sample)
+class_quant_long2$species<-as.factor(class_quant_long2$species)
+```
+
+## Join data together from the first and second batches 
+
+```{r}
+str(class_quant_long2)
+str(class_quant_long)
+
+class_quant_long<-class_quant_long%>%select(sample, class, colony, timepoint, species, type, nmol.g_plasma.ug_protein)
+
+str(class_quant_long2)
+str(class_quant_long)
+
+class_quant_long_all<-rbind(class_quant_long, class_quant_long2)
+
+str(class_quant_long_all)
+```
+
+We now have data for 98 samples.  
+
+## Filtering based on PBQC 
+
+Only keep classes that have a value >0 in all samples and were measured in at least one of the PBQCs.  
+
+```{r}
+length(levels(as.factor(class_quant_long_all$class)))
+
+#turn to wide format to view lipids not present in all samples 
+test<-class_quant_long_all%>%
+  pivot_wider(names_from = class, values_from = nmol.g_plasma.ug_protein)
+
+#make a list of lipids to remove (those that are not measured in all samples)
+na_columns <- test %>%
+  summarise(across(everything(), ~ sum(is.na(.)) > 0)) %>%
+  pivot_longer(everything(), names_to = "column", values_to = "has_NA") %>%
+  filter(has_NA) %>%
+  pull(column)
+
+na_columns <- na_columns[-c(1,2)]
+
+#remove lipids in the list
+class_quant_long_all<-class_quant_long_all%>%
+  filter(!class %in% na_columns)
+
+length(levels(as.factor(class_quant_long_all$class)))
+```
+We have 6 classes in the dataset that are measured in all samples. 
+
+Remove classes not measured in the PBQC (if any)
+
+```{r}
+test <- class_quant_long_all %>%
+  group_by(class) %>%
+  filter((any(type == "PBQC" & nmol.g_plasma.ug_protein==0))) 
+```
+
+All classes were measured in the PBQCs, no filtering needed.  
+
+Remove PBQC samples. 
+
+```{r}
+class_quant_long_all<-class_quant_long_all%>%
+  filter(!type=="PBQC")
+```
+
+Rename dataframe. 
+
+```{r}
+class_data<-class_quant_long_all
+```
 
 ## Plot PCA of samples 
 
 Generate wide data. 
 ```{r}
-class_quant_wide<-class_quant_long%>%
+class_data_wide<-class_data%>%
   ungroup()%>%
   pivot_wider(names_from=class, values_from=nmol.g_plasma.ug_protein)
 ```
 
 ```{r}
-scaled.pca<-prcomp(class_quant_wide%>%select(where(is.numeric)), scale=TRUE, center=TRUE) 
+scaled.pca<-prcomp(class_data_wide%>%select(where(is.numeric)), scale=TRUE, center=TRUE) 
 ```
 
 Prepare a PCA plot
 ```{r}
 # scale data
-vegan <- scale(class_quant_wide%>%select(where(is.numeric)))
+vegan <- scale(class_data_wide%>%select(where(is.numeric)))
 
 # PerMANOVA 
-permanova<-adonis2(vegan ~ sample, data = class_quant_wide, method='eu')
+permanova<-adonis2(vegan ~ species * timepoint, data = class_data_wide, method='eu')
 permanova
 ```
 
+View by species
 ```{r}
-pca3<-ggplot2::autoplot(scaled.pca, data=class_quant_wide, loadings=FALSE,  colour="sample", loadings.label.colour="black", loadings.colour="black", loadings.label=FALSE, frame=FALSE, loadings.label.size=5, loadings.label.vjust=-1, size=5) + 
-  geom_text(aes(x = PC1, y = PC2, label = paste(species)), vjust = -0.5)+
+pca6<-ggplot2::autoplot(scaled.pca, data=class_data_wide, loadings=FALSE,  colour="species", loadings.label.colour="black", loadings.colour="black", loadings.label=FALSE, frame=TRUE, loadings.label.size=5, loadings.label.vjust=-1, size=5) + 
+  theme_classic()+
+   theme(legend.text = element_text(size=18), 
+         legend.position="right",
+        plot.background = element_blank(),
+        legend.title = element_text(size=18, face="bold"), 
+        axis.text = element_text(size=18), 
+        axis.title = element_text(size=18,  face="bold"));pca6
+```
+
+View by timepoint
+```{r}
+pca7<-ggplot2::autoplot(scaled.pca, data=class_data_wide, loadings=FALSE,  colour="timepoint", loadings.label.colour="black", loadings.colour="black", loadings.label=FALSE, frame=TRUE, loadings.label.size=5, loadings.label.vjust=-1, size=5) + 
+  theme_classic()+
+   theme(legend.text = element_text(size=18), 
+         legend.position="right",
+        plot.background = element_blank(),
+        legend.title = element_text(size=18, face="bold"), 
+        axis.text = element_text(size=18), 
+        axis.title = element_text(size=18,  face="bold"));pca7
+```
+
+## Plot PCA of time effects within species   
+
+### Acropora 
+
+Generate wide data. 
+```{r}
+acr_wide<-class_data%>%
+  filter(species=="Acropora")%>%
+  ungroup()%>%
+  pivot_wider(names_from=class, values_from=nmol.g_plasma.ug_protein)
+```
+
+```{r}
+scaled.pca.acr<-prcomp(acr_wide%>%select(where(is.numeric)), scale=TRUE, center=TRUE) 
+```
+
+Prepare a PCA plot
+```{r}
+# scale data
+vegan_acr <- scale(acr_wide%>%select(where(is.numeric)))
+
+# PerMANOVA 
+permanova<-adonis2(vegan_acr ~ timepoint, data = acr_wide, method='eu')
+permanova
+```
+
+No effect of time in Acropora.  
+
+```{r}
+pca3<-ggplot2::autoplot(scaled.pca.acr, data=acr_wide, loadings=FALSE,  colour="timepoint", loadings.label.colour="black", loadings.colour="black", loadings.label=FALSE, frame=TRUE, loadings.label.size=5, loadings.label.vjust=-1, size=5) + 
   theme_classic()+
    theme(legend.text = element_text(size=18), 
          legend.position="right",
@@ -1319,102 +2260,185 @@ pca3<-ggplot2::autoplot(scaled.pca, data=class_quant_wide, loadings=FALSE,  colo
         axis.text = element_text(size=18), 
         axis.title = element_text(size=18,  face="bold"));pca3
 
-#ggsave(pca3, filename="M-multi-species/output/03-test-lipidomics/class_quant_pca.png", width=6, height=4)
 ```
 
-## Plot a heatmap of class concentration (scaled to z score)
+### Pocillopora
 
+Generate wide data. 
 ```{r}
-# Convert concentration to Z-scores
-heat_data <- class_quant_long %>% 
-  group_by(class) %>% 
-  mutate(z_score = scale(nmol.g_plasma.ug_protein)) %>% 
-  group_by(sample, class)%>%
-  summarise(z_score = mean(z_score, na.rm=TRUE))%>%
-  ungroup()
-
-# Pivot data to have metabolites as rows and lifestage as columns
-heatmap_data <- heat_data %>% 
-  dplyr::select(class, sample, z_score) %>%
-  spread(key = sample, value = z_score)
-
-# Convert to matrix and set rownames
-heatmap_matrix <- as.matrix(column_to_rownames(heatmap_data, var = "class"))
-
-# Create the heatmap
-heatmap <- Heatmap(
-  heatmap_matrix,
-  name = "Z-score",
-  col = inferno(10),
-  cluster_rows = TRUE,
-  cluster_columns = FALSE,
-  show_row_names = FALSE,
-  show_column_names = TRUE,
-  row_split=2,
-  row_title = "Lipid Class", 
-  column_names_gp =  gpar(fontsize = 12, border=FALSE),
-  column_names_rot = 45,
-  row_gap = unit(1, "mm"), 
-  border = TRUE,
-  row_names_gp = gpar(fontsize = 12, alpha = 0.75, border = FALSE)
-)
-
-# Draw the heatmap
-draw(heatmap)
-
-clusters<-row_order(heatmap)
-cluster1<-clusters[[1]]
-cluster2<-clusters[[2]]
-
-names<-heatmap@row_names_param$labels
-
-extracted_lipids1 <- lapply(cluster1, function(index) names[[index]])
-extracted_lipids2 <- lapply(cluster2, function(index) names[[index]])
-```
-
-View the classes for each cluster characterizing the groups. 
-
-```{r}
-extracted_lipids1
+poc_wide<-class_data%>%
+  filter(species=="Pocillopora")%>%
+  ungroup()%>%
+  pivot_wider(names_from=class, values_from=nmol.g_plasma.ug_protein)
 ```
 
 ```{r}
-extracted_lipids2
+scaled.pca.poc<-prcomp(poc_wide%>%select(where(is.numeric)), scale=TRUE, center=TRUE) 
+```
+
+Prepare a PCA plot
+```{r}
+# scale data
+vegan_poc <- scale(poc_wide%>%select(where(is.numeric)))
+
+# PerMANOVA 
+permanova<-adonis2(vegan_poc ~ timepoint, data = poc_wide, method='eu')
+permanova
+```
+
+No effect of time in Pocillopora  
+
+```{r}
+pca4<-ggplot2::autoplot(scaled.pca.poc, data=poc_wide, loadings=FALSE,  colour="timepoint", loadings.label.colour="black", loadings.colour="black", loadings.label=FALSE, frame=TRUE, loadings.label.size=5, loadings.label.vjust=-1, size=5) + 
+  theme_classic()+
+   theme(legend.text = element_text(size=18), 
+         legend.position="right",
+        plot.background = element_blank(),
+        legend.title = element_text(size=18, face="bold"), 
+        axis.text = element_text(size=18), 
+        axis.title = element_text(size=18,  face="bold"));pca4
+
+```
+
+### Porites 
+
+Generate wide data. 
+```{r}
+por_wide<-class_data%>%
+  filter(species=="Porites")%>%
+  ungroup()%>%
+  pivot_wider(names_from=class, values_from=nmol.g_plasma.ug_protein)
+```
+
+```{r}
+scaled.pca.por<-prcomp(por_wide%>%select(where(is.numeric)), scale=TRUE, center=TRUE) 
+```
+
+Prepare a PCA plot
+```{r}
+# scale data
+vegan_por <- scale(por_wide%>%select(where(is.numeric)))
+
+# PerMANOVA 
+permanova<-adonis2(vegan_por ~ timepoint, data = por_wide, method='eu')
+permanova
+```
+
+No effect of time in Porites  
+
+```{r}
+pca5<-ggplot2::autoplot(scaled.pca.por, data=por_wide, loadings=FALSE,  colour="timepoint", loadings.label.colour="black", loadings.colour="black", loadings.label=FALSE, frame=TRUE, loadings.label.size=5, loadings.label.vjust=-1, size=5) + 
+  theme_classic()+
+   theme(legend.text = element_text(size=18), 
+         legend.position="right",
+        plot.background = element_blank(),
+        legend.title = element_text(size=18, face="bold"), 
+        axis.text = element_text(size=18), 
+        axis.title = element_text(size=18,  face="bold"));pca5
+
 ```
 
 ## Plot concentration of each class
 
 ```{r}
-class1<-class_quant_long %>%
+class1<-class_data %>%
   
-  ggplot(aes(x = paste(sample, species), y = nmol.g_plasma.ug_protein)) +
-  facet_wrap(~ class)+
-  geom_bar(stat="identity")+
-  labs(x = "Sample", y = "Concentration (nmol per ug protein)", title = "Lipid class concentration") +
-  theme_classic() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
-        legend.position="right");class1
-
-#ggsave(class1, filename="M-multi-species/output/03-test-lipidomics/class_concentration.png", width=9, height=7)
-```
-
-```{r}
-class2<-class_quant_long %>%
-  
-  ggplot(aes(x = paste(sample, species), y = nmol.g_plasma.ug_protein)) +
+  ggplot(aes(x = paste(colony, timepoint), y = nmol.g_plasma.ug_protein, fill=species)) +
   facet_wrap(~ class, scales="free")+
   geom_bar(stat="identity")+
   labs(x = "Sample", y = "Concentration (nmol per ug protein)", title = "Lipid class concentration") +
   theme_classic() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1), 
-        legend.position="right");class2
-
-#ggsave(class2, filename="M-multi-species/output/03-test-lipidomics/class_concentration-free-scales.png", width=9, height=7)
+        legend.position="right");class1
 ```
 
-FFAs and TGs are most abundant followed by PC and PEs as expected in corals. 
+FFAs and TGs are most abundant followed by LPC and DGs, and CEs as expected in corals. 
 
-# 4. Class percent composition 
+Plot summary of change in class concentration across time for each species. 
+
+```{r}
+class2<-class_data %>%
+  group_by(species, timepoint, class)%>%
+  summarise(mean=mean(nmol.g_plasma.ug_protein, na.rm=TRUE), se=sd(nmol.g_plasma.ug_protein, na.rm=TRUE)/sqrt(length(nmol.g_plasma.ug_protein)))%>%
+  
+  ggplot(aes(x = timepoint, y = mean, fill=species, colour=species)) +
+  facet_wrap(~ class, scales="free")+
+  geom_point(position=position_dodge(0.2))+
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se), width=0.1, position=position_dodge(0.2))+
+  geom_line(aes(group=species), position=position_dodge(0.2))+
+  labs(x = "Sample", y = "Concentration (nmol per ug protein)", title = "Lipid class concentration") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+        legend.position="right");class2
+```
+
+## Examine differential lipid classes with linear models 
+
+Run a model for each species.   
+
+```{r}
+levels(as.factor(class_data$class))
+#"CE"        "Cer d18:1" "DG"        "FFA"       "LPC"       "TG"   
+```
+
+Evaluate differential lipid concentration between species.  
+
+```{r}
+model<-class_data%>%
+  
+  lmer(nmol.g_plasma.ug_protein ~ class * species + (1|colony) + (1|timepoint), data=.)
+
+anova(model)
+
+emm<-emmeans(model, ~species|class)
+pairs(emm)
+```
+
+FFAs and TGs concentrations are different between each species. 
+
+Acropora
+
+```{r}
+ACR_model<-class_data%>%
+  filter(species=="Acropora")%>%
+  
+  lmer(nmol.g_plasma.ug_protein ~ class * timepoint + (1|colony), data=.)
+
+anova(ACR_model)
+```
+
+Lipids are stable over time in Acropora.  
+
+Pocillopora
+
+```{r}
+POC_model<-class_data%>%
+  filter(species=="Pocillopora")%>%
+  
+  lmer(nmol.g_plasma.ug_protein ~ class * timepoint + (1|colony), data=.)
+
+anova(POC_model)
+
+emm<-emmeans(POC_model, ~timepoint|class)
+pairs(emm)
+```
+
+Lipid class concentration varies across time in Pocillopora. TGs are significantly higher at TP1 than at TP3 or TP4.   
+
+Porites
+
+```{r}
+POR_model<-class_data%>%
+  filter(species=="Porites")%>%
+  
+  lmer(nmol.g_plasma.ug_protein ~ class * timepoint + (1|colony), data=.)
+
+anova(POR_model)
+```
+
+Lipid class concentration is stable across time in Porites.  
+
+# 4. Class percent composition of total lipid content 
 
 Percent of each class making up the total lipid pool calculated from values in Step 3 above.
 
@@ -1423,10 +2447,10 @@ Percent of each class making up the total lipid pool calculated from values in S
 Calculate percent composition from lipids filtered in step 1 above. 
 
 ```{r}
-class_comp <- class_quant_long %>%
+class_comp <- class_data %>%
   
   # Group by sample_id, prefix, and lipid_id, then summarize total concentration
-  group_by(sample, species, class) %>%
+  group_by(sample, species, colony, timepoint, class) %>%
   summarize(total_class_concentration = sum(nmol.g_plasma.ug_protein), .groups = 'drop') %>%
   
   # Calculate total concentration per sample and prefix
@@ -1440,7 +2464,7 @@ class_comp <- class_quant_long %>%
   ungroup() %>%
   
   # Select only relevant columns
-  select(sample, species, class, total_class_concentration, total_all_concentration, percent_composition)
+  select(sample, species, colony, timepoint, class, total_class_concentration, total_all_concentration, percent_composition)
 ```
 
 View classes detected. 
@@ -1451,7 +2475,7 @@ length(levels(as.factor(class_comp$class)))
 str(class_comp)
 
 class_comp_long<-class_comp%>%
-  select(sample, species, class, percent_composition)
+  select(sample, colony, species, timepoint, class, percent_composition)
 ```
 
 ## Plot class composition  
@@ -1466,37 +2490,38 @@ class3<-class_comp_long %>%
   theme_classic() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1), 
         legend.position="right"); class3
-
-#ggsave(class3, filename="M-multi-species/output/03-test-lipidomics/class_composition_overall.png", width=9, height=7)
 ```
-More TG in Porites, more FFA in ACR and POC. 
 
 ## Plot barplot for each lipid class for each sample 
 
 ```{r}
 class4<-class_comp_long %>%
   
-  ggplot(aes(x = paste(sample, species), y = percent_composition)) +
-  facet_wrap(~ class)+
-  geom_bar(stat="identity")+
-  labs(x = "Sample", y = "Percent Composition", title = "Lipid class composition") +
-  theme_classic() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
-        legend.position="right");class4
-
-#ggsave(class4, filename="M-multi-species/output/03-test-lipidomics/class_composition.png", width=9, height=7)
-
-class5<-class_comp_long %>%
-  
-  ggplot(aes(x = paste(sample, species), y = percent_composition)) +
+  ggplot(aes(x = paste(colony, timepoint), y = percent_composition, fill=species)) +
   facet_wrap(~ class, scales="free")+
   geom_bar(stat="identity")+
   labs(x = "Sample", y = "Percent Composition", title = "Lipid class composition") +
   theme_classic() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1), 
-        legend.position="right");class5
+        legend.position="right");class4
+```
 
-#ggsave(class5, filename="M-multi-species/output/03-test-lipidomics/class_composition-free-scales.png", width=9, height=7)
+Plot summary of change in class composition across time for each species. 
+
+```{r}
+class2<-class_comp_long %>%
+  group_by(species, timepoint, class)%>%
+  summarise(mean=mean(percent_composition, na.rm=TRUE), se=sd(percent_composition, na.rm=TRUE)/sqrt(length(percent_composition)))%>%
+  
+  ggplot(aes(x = timepoint, y = mean, fill=species, colour=species)) +
+  facet_wrap(~ class, scales="free")+
+  geom_point(position=position_dodge(0.2))+
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se), width=0.1, position=position_dodge(0.2))+
+  geom_line(aes(group=species), position=position_dodge(0.2))+
+  labs(x = "Sample", y = "Percent composition", title = "Lipid class composition") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+        legend.position="right");class2
 ```
 
 CE	Cholesterol Ester
@@ -1539,13 +2564,101 @@ Prepare a PCA plot
 vegan <- scale(class_comp_wide%>%select(where(is.numeric)))
 
 # PerMANOVA 
-permanova<-adonis2(vegan ~ sample, data = class_comp_wide, method='eu')
+permanova<-adonis2(vegan ~ species * timepoint, data = class_comp_wide, method='eu')
 permanova
 ```
 
 ```{r}
-pca4<-ggplot2::autoplot(scaled.pca, data=class_comp_wide, loadings=FALSE,  colour="sample", loadings.label.colour="black", loadings.colour="black", loadings.label=FALSE, frame=FALSE, loadings.label.size=5, loadings.label.vjust=-1, size=5) + 
-  geom_text(aes(x = PC1, y = PC2, label = paste(species)), vjust = -0.5)+
+pca8<-ggplot2::autoplot(scaled.pca, data=class_comp_wide, loadings=FALSE,  colour="species", loadings.label.colour="black", loadings.colour="black", loadings.label=FALSE, frame=TRUE, loadings.label.size=5, loadings.label.vjust=-1, size=5) + 
+  theme_classic()+
+   theme(legend.text = element_text(size=18), 
+         legend.position="right",
+        plot.background = element_blank(),
+        legend.title = element_text(size=18, face="bold"), 
+        axis.text = element_text(size=18), 
+        axis.title = element_text(size=18,  face="bold"));pca8
+```
+
+```{r}
+pca9<-ggplot2::autoplot(scaled.pca, data=class_comp_wide, loadings=FALSE,  colour="timepoint", loadings.label.colour="black", loadings.colour="black", loadings.label=FALSE, frame=TRUE, loadings.label.size=5, loadings.label.vjust=-1, size=5) + 
+  theme_classic()+
+   theme(legend.text = element_text(size=18), 
+         legend.position="right",
+        plot.background = element_blank(),
+        legend.title = element_text(size=18, face="bold"), 
+        axis.text = element_text(size=18), 
+        axis.title = element_text(size=18,  face="bold"));pca9
+```
+
+
+## Plot PCA of time effects within species   
+
+### Acropora 
+
+Generate wide data. 
+```{r}
+acr_wide<-class_comp_long%>%
+  filter(species=="Acropora")%>%
+  ungroup()%>%
+  pivot_wider(names_from=class, values_from=percent_composition)
+```
+
+```{r}
+scaled.pca.acr<-prcomp(acr_wide%>%select(where(is.numeric)), scale=TRUE, center=TRUE) 
+```
+
+Prepare a PCA plot
+```{r}
+# scale data
+vegan_acr <- scale(acr_wide%>%select(where(is.numeric)))
+
+# PerMANOVA 
+permanova<-adonis2(vegan_acr ~ timepoint, data = acr_wide, method='eu')
+permanova
+```
+
+No effect of time in Acropora.  
+
+```{r}
+pca3<-ggplot2::autoplot(scaled.pca.acr, data=acr_wide, loadings=FALSE,  colour="timepoint", loadings.label.colour="black", loadings.colour="black", loadings.label=FALSE, frame=TRUE, loadings.label.size=5, loadings.label.vjust=-1, size=5) + 
+  theme_classic()+
+   theme(legend.text = element_text(size=18), 
+         legend.position="right",
+        plot.background = element_blank(),
+        legend.title = element_text(size=18, face="bold"), 
+        axis.text = element_text(size=18), 
+        axis.title = element_text(size=18,  face="bold"));pca3
+
+```
+
+### Pocillopora
+
+Generate wide data. 
+```{r}
+poc_wide<-class_comp_long%>%
+  filter(species=="Pocillopora")%>%
+  ungroup()%>%
+  pivot_wider(names_from=class, values_from=percent_composition)
+```
+
+```{r}
+scaled.pca.poc<-prcomp(poc_wide%>%select(where(is.numeric)), scale=TRUE, center=TRUE) 
+```
+
+Prepare a PCA plot
+```{r}
+# scale data
+vegan_poc <- scale(poc_wide%>%select(where(is.numeric)))
+
+# PerMANOVA 
+permanova<-adonis2(vegan_poc ~ timepoint, data = poc_wide, method='eu')
+permanova
+```
+
+There is an effect of time on class percent compositions in Pocillopora 
+
+```{r}
+pca4<-ggplot2::autoplot(scaled.pca.poc, data=poc_wide, loadings=FALSE,  colour="timepoint", loadings.label.colour="black", loadings.colour="black", loadings.label=FALSE, frame=TRUE, loadings.label.size=5, loadings.label.vjust=-1, size=5) + 
   theme_classic()+
    theme(legend.text = element_text(size=18), 
          legend.position="right",
@@ -1554,73 +2667,134 @@ pca4<-ggplot2::autoplot(scaled.pca, data=class_comp_wide, loadings=FALSE,  colou
         axis.text = element_text(size=18), 
         axis.title = element_text(size=18,  face="bold"));pca4
 
-#ggsave(pca4, filename="M-multi-species/output/03-test-lipidomics/class_composition_pca.png", width=6, height=4)
 ```
 
-Species group more closely.   
+### Porites 
 
-## Plot a heatmap of class composition for each species (scaled to z score)
+Generate wide data. 
+```{r}
+por_wide<-class_comp_long%>%
+  filter(species=="Porites")%>%
+  ungroup()%>%
+  pivot_wider(names_from=class, values_from=percent_composition)
+```
 
 ```{r}
-# Convert concentration to Z-scores
-heat_data <- class_comp_long %>% 
-  group_by(class) %>% 
-  mutate(z_score = scale(percent_composition)) %>% 
-  group_by(sample, class)%>%
-  summarise(z_score = mean(z_score, na.rm=TRUE))%>%
-  ungroup()
-
-# Pivot data to have metabolites as rows and lifestage as columns
-heatmap_data <- heat_data %>% 
-  dplyr::select(class, sample, z_score) %>%
-  spread(key = sample, value = z_score)
-
-# Convert to matrix and set rownames
-heatmap_matrix <- as.matrix(column_to_rownames(heatmap_data, var = "class"))
-
-# Create the heatmap
-heatmap <- Heatmap(
-  heatmap_matrix,
-  name = "Z-score",
-  col = inferno(10),
-  cluster_rows = TRUE,
-  cluster_columns = FALSE,
-  show_row_names = TRUE,
-  show_column_names = TRUE,
-  #row_split=4,
-  row_title = "Class", 
-  column_names_gp =  gpar(fontsize = 12, border=FALSE),
-  column_names_rot = 45,
-  row_gap = unit(1, "mm"), 
-  border = TRUE,
-  row_names_gp = gpar(fontsize = 12, alpha = 0.75, border = FALSE)
-)
-
-# Draw the heatmap
-draw(heatmap)
+scaled.pca.por<-prcomp(por_wide%>%select(where(is.numeric)), scale=TRUE, center=TRUE) 
 ```
 
-# 5. Fatty acid concentration
+Prepare a PCA plot
+```{r}
+# scale data
+vegan_por <- scale(por_wide%>%select(where(is.numeric)))
 
-## Load and prepare data 
+# PerMANOVA 
+permanova<-adonis2(vegan_por ~ timepoint, data = por_wide, method='eu')
+permanova
+```
+
+No effect of time in Porites  
+
+```{r}
+pca5<-ggplot2::autoplot(scaled.pca.por, data=por_wide, loadings=FALSE,  colour="timepoint", loadings.label.colour="black", loadings.colour="black", loadings.label=FALSE, frame=TRUE, loadings.label.size=5, loadings.label.vjust=-1, size=5) + 
+  theme_classic()+
+   theme(legend.text = element_text(size=18), 
+         legend.position="right",
+        plot.background = element_blank(),
+        legend.title = element_text(size=18, face="bold"), 
+        axis.text = element_text(size=18), 
+        axis.title = element_text(size=18,  face="bold"));pca5
+
+```
+
+
+## Examine differential lipid classes with linear models 
+
+Run a model for each species.   
+
+```{r}
+levels(as.factor(class_comp_long$class))
+#"CE"        "Cer d18:1" "DG"        "FFA"       "LPC"       "TG"   
+```
+
+Evaluate differential lipid composition between species.  
+
+```{r}
+model<-class_comp_long%>%
+  
+  lmer(percent_composition ~ class * species + (1|colony) + (1|timepoint), data=.)
+
+anova(model)
+
+emm<-emmeans(model, ~species|class)
+pairs(emm)
+```
+
+FFAs and TGs are different between each species. 
+
+Acropora
+
+```{r}
+ACR_model<-class_comp_long%>%
+  filter(species=="Acropora")%>%
+  
+  lmer(percent_composition ~ class * timepoint + (1|colony), data=.)
+
+anova(ACR_model)
+
+emm<-emmeans(ACR_model, ~timepoint|class)
+pairs(emm)
+```
+
+Percent composition of lipid classes varies across time in Acropora. TGs are higher in TP1 than in TP3 and TP4. FFAs are lower at TP1 than at TP3 and TP4. There is a shift in energy storage (TGs) and free fatty acids between TP1 and TP3/TP4. FFAs are 50-60% of total lipids while TGs are 20-40% of total lipids in Acropora.  
+
+Pocillopora
+
+```{r}
+POC_model<-class_comp_long%>%
+  filter(species=="Pocillopora")%>%
+  
+  lmer(percent_composition ~ class * timepoint + (1|colony), data=.)
+
+anova(POC_model)
+
+emm<-emmeans(POC_model, ~timepoint|class)
+pairs(emm)
+```
+
+Percent composition of lipid classes varies across time in Pocillopora. TGs are higher in TP1 than in TP3 and TP4. FFAs are lower at TP1 than at TP3 and TP4. There is a shift in energy storage (TGs) and free fatty acids between TP1 and TP3/TP4. FFAs are 30-50% of total lipids while TGs are 40-60% of total lipids in Pocillopora.   
+
+Porites
+
+```{r}
+POR_model<-class_comp_long%>%
+  filter(species=="Porites")%>%
+  
+  lmer(percent_composition ~ class * timepoint + (1|colony), data=.)
+
+anova(POR_model)
+
+emm<-emmeans(POR_model, ~timepoint|class)
+pairs(emm)
+```
+
+Percent composition of lipid classes vary across time in Porites. TGs are higher at TP1 than TP3 and are higher at TP2 than TP3. TGs are higher at TP2 than TP4, but are lower at TP3 than TP4. TGs are higher during warmer periods, and lower during cooler periods, especially at TP3. FFAs are lower at TP1 and TP2 than at TP3. TP2 was also ower than TP4. FFAs are lower in the warm period and higher in the cool period.  
+
+
+# 5. Fatty acid species absolute concentration
+
+## Load and prepare data (first 5 samples from first batch)
 
 ```{r}
 fa_quant<-read_xlsx("M-multi-species/data/lipidomics/2025-02-05_Roberts_Test_Coral.xlsx", sheet="FattyAcid Quant")%>%
   rename(sample=`Sample ID`)
 ```
 
-Replace periods with NAs. 
+Remove empty rows and QC rows (QC here is not our PBQC). 
 
 ```{r}
-fa_quant[fa_quant == "."] <- NA
-
-fa_quant%>%
-    select_if(~ any(is.na(.)))
-
-str(fa_quant)
+fa_quant<-fa_quant[-c(2,8) ,]
 ```
-
-Values missing or not quantified are now NA. 
 
 Convert to numeric format. 
 
@@ -1645,7 +2819,7 @@ Convert to long format.
 
 ```{r}
 fa_quant_long<-fa_quant_wide%>%
-  pivot_longer(names_to="fa", values_to="nmol.g_plasma", cols=c(2:328))
+  pivot_longer(names_to="lipid", values_to="nmol.g_plasma", cols=c(2:328))
 ```
 
 Add in metadata manually. 
@@ -1657,9 +2831,23 @@ fa_quant_long<-fa_quant_long%>%
                                  if_else(sample=="L67", "Acropora", 
                                          if_else(sample=="L80", "Porites", 
                                                  if_else(sample=="L84", "Pocillopora", NA))))))%>%
+  
+  mutate(timepoint=if_else(sample=="L26", "TP4", 
+                         if_else(sample=="L39", "TP2", 
+                                 if_else(sample=="L67", "TP1", 
+                                         if_else(sample=="L80", "TP2", 
+                                                 if_else(sample=="L84", "TP3", NA))))))%>%
+  
+  mutate(colony=if_else(sample=="L26", "ACR-229", 
+                         if_else(sample=="L39", "POR-216", 
+                                 if_else(sample=="L67", "ACR-150", 
+                                         if_else(sample=="L80", "POR-83", 
+                                                 if_else(sample=="L84", "POC-52", NA))))))%>%
+  
   mutate(type=if_else(sample=="prepared_blank_01", "blank", 
                       if_else(sample=="QC_01", "QC", 
                           if_else(sample=="QC_02", "QC", "sample"))))%>%
+  
   mutate(protein.ug=if_else(sample=="L26", 340, 
                          if_else(sample=="L39", 139, 
                                  if_else(sample=="L67", 7, 
@@ -1667,29 +2855,16 @@ fa_quant_long<-fa_quant_long%>%
                                                  if_else(sample=="L84", 186, NA))))))
 ```
 
-## Filtering and normalizing 
+### Filtering and normalizing 
 
-How many lipids do we have currently? 
-```{r}
-length(levels(as.factor(fa_quant_long$fa)))
-```
-327 total fatty acids 
+#### Perform blank corrections 
 
-Remove QC, these are human QC samples used by the facility. We will submit our own PBQC's in the full analysis. 
-
-```{r}
-fa_quant_long<-fa_quant_long%>%
-  filter(!type=="QC")
-```
-
-### Blank subtraction 
-
-Subtract blank values. Calculate the blank value for each lipid. 
+Subtract blank values. Calculate the blank value for each class 
 
 ```{r}
 blanks<-fa_quant_long%>%
   filter(type=="blank")%>%
-  group_by(fa)%>%
+  group_by(lipid)%>%
   summarise(mean_blank=mean(nmol.g_plasma, na.rm=TRUE))
 
 #replace NA with 0 for blank value 
@@ -1714,47 +2889,46 @@ fa_quant_long<-fa_quant_long%>%
   mutate(nmol.g_plasma.corr=nmol.g_plasma-mean_blank)
 ```
 
-### Remove filters not detected in all samples 
+#### Remove filters not detected in all samples 
 
 How many lipids do we have now? 
 ```{r}
-length(levels(as.factor(fa_quant_long$fa)))
+length(levels(as.factor(fa_quant_long$lipid)))
 ```
-327 total lipids
+327 total fatty acids
 
 Remove fatty acids where there are NA's in one or more samples. We cannot reliably say that if a lipid was not quantified in a sample that it was truly absent. So we will remove those not quantified here rather than replacing them with "true" 0's.    
 
 ```{r}
 fa_quant_long <- fa_quant_long %>%
-  group_by(fa) %>%
+  group_by(lipid) %>%
   filter(!(any(type == "sample" & is.na(nmol.g_plasma.corr)))) %>%
   ungroup()
 ```
 
 How many lipids do we have now? 
 ```{r}
-length(levels(as.factor(fa_quant_long$fa)))
+length(levels(as.factor(fa_quant_long$lipid)))
 ```
-166 total fatty acids
+166 fatty acids 
 
 Remove fatty acids where there is a value <0 in one or more samples.  
 
 ```{r}
 fa_quant_long <- fa_quant_long %>%
-  group_by(fa) %>%
+  group_by(lipid) %>%
   filter(!(any(type == "sample" & nmol.g_plasma.corr<0))) %>%
   ungroup()
 ```
 
-How many lipids do we have now? 
+How many classes do we have now? 
 ```{r}
-length(levels(as.factor(fa_quant_long$fa)))
+length(levels(as.factor(fa_quant_long$lipid)))
 ```
-140 total fatty acids 
 
-We now have 140 fatty acids that pass filtering. I used very stringent filtering, so we can return back to these choices later.   
+140 fatty acids  
 
-### Normalize to tissue input 
+#### Normalize to tissue input 
 
 Next, conduct normalization to tissue input and multiply by constants as directed by the UW facility.  
 
@@ -1765,85 +2939,430 @@ fa_quant_long<-fa_quant_long%>%
 
 ```{r}
 fa_quant_long<-fa_quant_long%>%
-  select(!type)%>%
-  select(!protein.ug)%>%
-  select(!nmol.g_plasma)%>%
-  select(!nmol.g_plasma.corr)%>%
-  select(!mean_blank)
+  dplyr::select(!protein.ug)%>%
+  dplyr::select(!nmol.g_plasma)%>%
+  dplyr::select(!nmol.g_plasma.corr)%>%
+  dplyr::select(!mean_blank)
 
 fa_quant_long$sample<-as.factor(fa_quant_long$sample)
 fa_quant_long$species<-as.factor(fa_quant_long$species)
 ```
 
-## Plot total fatty acids  
+## Load and prepare data (all samples from second batch)
 
-View a basic plot for total lipids via a stacked bar plot. 
 ```{r}
-fa_quant_long %>%
-  
-  ggplot(aes(x = paste(sample, species), y = nmol.g_plasma.ug_protein, fill = fa)) +
-  geom_bar(stat = "identity") +
-  labs(x = "Sample", y = "Total FA (nmol per ug protein)", title = "Fatty acid concentration") +
-  theme_classic() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
-        legend.position="none")  
+fa_quant2<-read_xlsx("M-multi-species/data/lipidomics/2025-02-20_Roberts_QuantLipidData.xlsx", sheet="FattyAcid Quant")%>%
+  rename(sample=`Sample ID`)
 ```
 
-There is variation in total lipid concentration across samples. 
+Remove empty rows and QC rows (QC here is not our PBQC). 
+
+```{r}
+fa_quant2<-fa_quant2[-c(2, 34, 36, 68, 70, 102) ,]
+```
+
+Convert to numeric format. 
+
+```{r}
+# Keep the "sample" column unchanged, convert all other columns to numeric
+fa_quant_wide2 <- as.data.frame(lapply(names(fa_quant2), function(col) {
+  if (col == "sample") {
+    return(fa_quant2[[col]])  # Keep the "sample" column as is
+  } else {
+    # Convert other columns to character first, then to numeric
+    return(as.numeric(as.character(fa_quant2[[col]])))
+  }
+}))
+
+# Ensure the column names remain unchanged
+colnames(fa_quant_wide2) <- names(fa_quant2)
+
+str(fa_quant_wide2)
+```
+
+Convert to long format. 
+
+```{r}
+fa_quant_long2<-fa_quant_wide2%>%
+  pivot_longer(names_to="lipid", values_to="nmol.g_plasma", cols=c(2:337))
+```
+
+Add in metadata.  
+
+```{r}
+fa_quant_long2<-fa_quant_long2%>%
+
+  mutate(
+    colony = str_extract(sample, "^[^_]+"),  # Extract everything before the underscore
+    timepoint = str_extract(sample, "(?<=_).*"),  # Extract everything after the underscore
+    species = case_when(
+      str_detect(sample, "ACR") ~ "Acropora",
+      str_detect(sample, "POC") ~ "Pocillopora",
+      str_detect(sample, "POR") ~ "Porites",
+      TRUE ~ NA_character_  # Default to NA if no match
+    ), 
+    type = case_when(
+      str_detect(sample, "blank") ~ "blank", 
+      str_detect(sample, "QC_") ~ "QC", 
+      str_detect(sample, "PBQC") ~ "PBQC", 
+      TRUE ~ "sample"
+      
+    )
+  )
+
+#add in protein values from species quantification dataset 
+fa_quant_long2$protein.ug<-lipid_quant2$protein.ug[match(fa_quant_long2$sample, lipid_quant2$sample)]
+fa_quant_long2$protein.ug<-as.numeric(fa_quant_long2$protein.ug)
+```
+
+### Filtering and normalizing 
+
+#### Perform blank corrections 
+
+Subtract blank values. Calculate the blank value for each class 
+
+```{r}
+blanks2<-fa_quant_long2%>%
+  filter(type=="blank")%>%
+  group_by(lipid)%>%
+  summarise(mean_blank=mean(nmol.g_plasma, na.rm=TRUE))
+
+#replace NA with 0 for blank value 
+
+blanks2<-blanks2%>%
+  mutate(across(everything(), ~ replace_na(., 0)))
+```
+
+Merge in blank values and subtract from sample value for each lipid. 
+
+```{r}
+fa_quant_long2<-left_join(fa_quant_long2, blanks2)
+
+fa_quant_long2<-fa_quant_long2%>%
+  filter(!type=="blank")
+```
+
+Subtract blank values. 
+
+```{r}
+fa_quant_long2<-fa_quant_long2%>%
+  mutate(nmol.g_plasma.corr=nmol.g_plasma-mean_blank)
+```
+
+#### Remove filters not detected in all samples 
+
+How many fatty acids do we have now? 
+```{r}
+length(levels(as.factor(fa_quant_long2$lipid)))
+```
+336 total fatty acids 
+
+Remove fatty acids where there are NA's in one or more samples. We cannot reliably say that if a lipid was not quantified in a sample that it was truly absent. So we will remove those not quantified here rather than replacing them with "true" 0's.    
+
+```{r}
+fa_quant_long2 <- fa_quant_long2 %>%
+  group_by(lipid) %>%
+  filter(!(any(type == "sample" & is.na(nmol.g_plasma.corr)))) %>%
+  ungroup()
+```
+
+How many lipids do we have now? 
+```{r}
+length(levels(as.factor(fa_quant_long2$lipid)))
+```
+91 fatty acids 
+
+Remove classes where there is a value <0 in one or more samples.  
+
+```{r}
+fa_quant_long2 <- fa_quant_long2 %>%
+  group_by(lipid) %>%
+  filter(!(any(type == "sample" & nmol.g_plasma.corr<0))) %>%
+  ungroup()
+```
+
+How many classes do we have now? 
+```{r}
+length(levels(as.factor(fa_quant_long2$lipid)))
+levels(as.factor(fa_quant_long2$lipid))
+```
+
+76 fatty acids  
+
+#### Normalize to tissue input 
+
+Next, conduct normalization to tissue input and multiply by constants as directed by the UW facility.  
+
+```{r}
+fa_quant_long2<-fa_quant_long2%>%
+  mutate(nmol.g_plasma.ug_protein=(nmol.g_plasma.corr*25)/protein.ug)
+```
+
+```{r}
+fa_quant_long2<-fa_quant_long2%>%
+  dplyr::select(!protein.ug)%>%
+  dplyr::select(!nmol.g_plasma)%>%
+  dplyr::select(!nmol.g_plasma.corr)%>%
+  dplyr::select(!mean_blank)
+
+fa_quant_long2$sample<-as.factor(fa_quant_long2$sample)
+fa_quant_long2$species<-as.factor(fa_quant_long2$species)
+```
+
+## Join data together from the first and second batches 
+
+```{r}
+str(fa_quant_long2)
+str(fa_quant_long)
+
+fa_quant_long<-fa_quant_long%>%dplyr::select(sample, lipid, colony, timepoint, species, type, nmol.g_plasma.ug_protein)
+
+str(fa_quant_long2)
+str(fa_quant_long)
+
+fa_quant_long_all<-rbind(fa_quant_long, fa_quant_long2)
+
+str(fa_quant_long_all)
+```
+
+We now have data for 98 samples.  
+
+## Filtering based on PBQC 
+
+Only keep classes that have a value >0 in all samples and were measured in at least one of the PBQCs.  
+
+```{r}
+length(levels(as.factor(fa_quant_long_all$lipid)))
+
+#turn to wide format to view lipids not present in all samples 
+test<-fa_quant_long_all%>%
+  pivot_wider(names_from = lipid, values_from = nmol.g_plasma.ug_protein)
+
+#make a list of lipids to remove (those that are not measured in all samples)
+na_columns <- test %>%
+  summarise(across(everything(), ~ sum(is.na(.)) > 0)) %>%
+  pivot_longer(everything(), names_to = "column", values_to = "has_NA") %>%
+  filter(has_NA) %>%
+  pull(column)
+
+na_columns <- na_columns[-c(1,2)]
+
+#remove lipids in the list
+fa_quant_long_all<-fa_quant_long_all%>%
+  filter(!lipid %in% na_columns)
+
+length(levels(as.factor(fa_quant_long_all$lipid)))
+```
+We have 72 fatty acids measured in all samples.  
+
+Remove classes not measured in the PBQC (if any)
+
+```{r}
+test <- fa_quant_long_all %>%
+  group_by(lipid) %>%
+  filter((any(type == "PBQC" & nmol.g_plasma.ug_protein==0))) 
+```
+
+All fatty acids were measured in the PBQCs, no filtering needed.  
+
+Remove PBQC samples. 
+
+```{r}
+fa_quant_long_all<-fa_quant_long_all%>%
+  filter(!type=="PBQC")
+```
+
+Rename dataframe. 
+
+```{r}
+fa_data<-fa_quant_long_all
+```
 
 ## Plot PCA of samples 
 
 Generate wide data. 
 ```{r}
-fa_quant_wide<-fa_quant_long%>%
+fa_data_wide<-fa_data%>%
   ungroup()%>%
-  pivot_wider(names_from=fa, values_from=nmol.g_plasma.ug_protein)
+  pivot_wider(names_from=lipid, values_from=nmol.g_plasma.ug_protein)
 ```
 
 ```{r}
-scaled.pca<-prcomp(fa_quant_wide%>%select(where(is.numeric)), scale=TRUE, center=TRUE) 
+scaled.pca<-prcomp(fa_data_wide%>%dplyr::select(where(is.numeric)), scale=TRUE, center=TRUE) 
 ```
 
 Prepare a PCA plot
 ```{r}
 # scale data
-vegan <- scale(fa_quant_wide%>%select(where(is.numeric)))
+vegan <- scale(fa_data_wide%>%dplyr::select(where(is.numeric)))
 
 # PerMANOVA 
-permanova<-adonis2(vegan ~ sample, data = fa_quant_wide, method='eu')
+permanova<-adonis2(vegan ~ species * timepoint, data = fa_data_wide, method='eu')
 permanova
 ```
 
+There is a significant effect of species and time on fatty acid composition.  
+
+View by species
 ```{r}
-pca1<-ggplot2::autoplot(scaled.pca, data=fa_quant_wide, loadings=FALSE,  colour="sample", loadings.label.colour="black", loadings.colour="black", loadings.label=FALSE, frame=FALSE, loadings.label.size=5, loadings.label.vjust=-1, size=5) + 
-  geom_text(aes(x = PC1, y = PC2, label = paste(species, sample)), vjust = -0.5)+
+pca10<-ggplot2::autoplot(scaled.pca, data=fa_data_wide, loadings=FALSE,  colour="species", loadings.label.colour="black", loadings.colour="black", loadings.label=FALSE, frame=TRUE, loadings.label.size=5, loadings.label.vjust=-1, size=5) + 
   theme_classic()+
    theme(legend.text = element_text(size=18), 
-         legend.position="none",
+         legend.position="right",
         plot.background = element_blank(),
         legend.title = element_text(size=18, face="bold"), 
         axis.text = element_text(size=18), 
-        axis.title = element_text(size=18,  face="bold"));pca1
+        axis.title = element_text(size=18,  face="bold"));pca10
 ```
 
-## Plot a heatmap of lipid concentration (scaled to z score)
+View by timepoint
+```{r}
+pca11<-ggplot2::autoplot(scaled.pca, data=fa_data_wide, loadings=FALSE,  colour="timepoint", loadings.label.colour="black", loadings.colour="black", loadings.label=FALSE, frame=TRUE, loadings.label.size=5, loadings.label.vjust=-1, size=5) + 
+  theme_classic()+
+   theme(legend.text = element_text(size=18), 
+         legend.position="right",
+        plot.background = element_blank(),
+        legend.title = element_text(size=18, face="bold"), 
+        axis.text = element_text(size=18), 
+        axis.title = element_text(size=18,  face="bold"));pca11
+```
+
+## Plot PCA of time effects within species   
+
+### Acropora 
+
+Generate wide data. 
+```{r}
+acr_wide<-fa_data%>%
+  filter(species=="Acropora")%>%
+  ungroup()%>%
+  pivot_wider(names_from=lipid, values_from=nmol.g_plasma.ug_protein)
+```
+
+```{r}
+scaled.pca.acr<-prcomp(acr_wide%>%dplyr::select(where(is.numeric)), scale=TRUE, center=TRUE) 
+```
+
+Prepare a PCA plot
+```{r}
+# scale data
+vegan_acr <- scale(acr_wide%>%dplyr::select(where(is.numeric)))
+
+# PerMANOVA 
+permanova<-adonis2(vegan_acr ~ timepoint, data = acr_wide, method='eu')
+permanova
+```
+
+No effect of time on fatty acid composition in Acropora.  
+
+```{r}
+pca12<-ggplot2::autoplot(scaled.pca.acr, data=acr_wide, loadings=FALSE,  colour="timepoint", loadings.label.colour="black", loadings.colour="black", loadings.label=FALSE, frame=TRUE, loadings.label.size=5, loadings.label.vjust=-1, size=5) + 
+  theme_classic()+
+   theme(legend.text = element_text(size=18), 
+         legend.position="right",
+        plot.background = element_blank(),
+        legend.title = element_text(size=18, face="bold"), 
+        axis.text = element_text(size=18), 
+        axis.title = element_text(size=18,  face="bold"));pca12
+
+```
+
+### Pocillopora
+
+Generate wide data. 
+```{r}
+poc_wide<-fa_data%>%
+  filter(species=="Pocillopora")%>%
+  ungroup()%>%
+  pivot_wider(names_from=lipid, values_from=nmol.g_plasma.ug_protein)
+```
+
+```{r}
+scaled.pca.poc<-prcomp(poc_wide%>%dplyr::select(where(is.numeric)), scale=TRUE, center=TRUE) 
+```
+
+Prepare a PCA plot
+```{r}
+# scale data
+vegan_poc <- scale(poc_wide%>%dplyr::select(where(is.numeric)))
+
+# PerMANOVA 
+permanova<-adonis2(vegan_poc ~ timepoint, data = poc_wide, method='eu')
+permanova
+```
+
+There is no effect of time point on fatty acid composition in Pocillopora.   
+
+```{r}
+pca13<-ggplot2::autoplot(scaled.pca.poc, data=poc_wide, loadings=FALSE,  colour="timepoint", loadings.label.colour="black", loadings.colour="black", loadings.label=FALSE, frame=TRUE, loadings.label.size=5, loadings.label.vjust=-1, size=5) + 
+  theme_classic()+
+   theme(legend.text = element_text(size=18), 
+         legend.position="right",
+        plot.background = element_blank(),
+        legend.title = element_text(size=18, face="bold"), 
+        axis.text = element_text(size=18), 
+        axis.title = element_text(size=18,  face="bold"));pca13
+
+```
+
+May be driven by one sample in TP1.  
+
+### Porites 
+
+Generate wide data. 
+```{r}
+por_wide<-fa_data%>%
+  filter(species=="Porites")%>%
+  ungroup()%>%
+  pivot_wider(names_from=lipid, values_from=nmol.g_plasma.ug_protein)
+```
+
+```{r}
+scaled.pca.por<-prcomp(por_wide%>%dplyr::select(where(is.numeric)), scale=TRUE, center=TRUE) 
+```
+
+Prepare a PCA plot
+```{r}
+# scale data
+vegan_por <- scale(por_wide%>%dplyr::select(where(is.numeric)))
+
+# PerMANOVA 
+permanova<-adonis2(vegan_por ~ timepoint, data = por_wide, method='eu')
+permanova
+```
+
+No effect of time on fatty acid composition in Porites.   
+
+```{r}
+pca14<-ggplot2::autoplot(scaled.pca.por, data=por_wide, loadings=FALSE,  colour="timepoint", loadings.label.colour="black", loadings.colour="black", loadings.label=FALSE, frame=TRUE, loadings.label.size=5, loadings.label.vjust=-1, size=5) + 
+  theme_classic()+
+   theme(legend.text = element_text(size=18), 
+         legend.position="right",
+        plot.background = element_blank(),
+        legend.title = element_text(size=18, face="bold"), 
+        axis.text = element_text(size=18), 
+        axis.title = element_text(size=18,  face="bold"));pca14
+
+```
+
+## Plot a heatmap of fatty acid concentration (scaled to z score) by species 
 
 ```{r}
 # Convert concentration to Z-scores
-heat_data <- fa_quant_long %>% 
-  group_by(fa) %>% 
+heat_data <- fa_data %>% 
+  group_by(lipid) %>% 
   mutate(z_score = scale(nmol.g_plasma.ug_protein)) %>% 
-  group_by(sample, fa)%>%
+  group_by(species, lipid)%>%
   summarise(z_score = mean(z_score, na.rm=TRUE))%>%
   ungroup()
 
 # Pivot data to have metabolites as rows and lifestage as columns
 heatmap_data <- heat_data %>% 
-  dplyr::select(fa, sample, z_score) %>%
-  spread(key = sample, value = z_score)
+  dplyr::select(lipid, species, z_score) %>%
+  spread(key = species, value = z_score)
 
 # Convert to matrix and set rownames
-heatmap_matrix <- as.matrix(column_to_rownames(heatmap_data, var = "fa"))
+heatmap_matrix <- as.matrix(column_to_rownames(heatmap_data, var = "lipid"))
 
 # Create the heatmap
 heatmap <- Heatmap(
@@ -1878,176 +3397,678 @@ extracted_lipids2 <- lapply(cluster2, function(index) names[[index]])
 extracted_lipids3 <- lapply(cluster3, function(index) names[[index]])
 ```
 
+View the lipids for each cluster characterizing the different species. 
+
+Cluster 1: higher in Pocillopora
 ```{r}
 extracted_lipids1
 ```
+Composed of many Free fatty acids and TG fatty acids.  
 
+Cluster 2: Higher in Porites
 ```{r}
 extracted_lipids2
 ```
+Composed of some CE and TG fatty acids.    
 
+Cluster 3: Higher in Acropora 
 ```{r}
 extracted_lipids3
 ```
 
-# 6. Fatty acid percent composition 
+Composed of FA, DG, and LPC fatty acids.    
+
+## Examine differential lipids with a PLSDA and VIP scores 
+
+Generate a PLSDA supervised model to examine fatty acids that 1) drive separation between species and 2) then those that differentiate time points within species.  
+
+### PLSDA and VIPs between species 
+
+Generate a PLS-DA and plot.  
+```{r, results=FALSE}
+#assigning datasets 
+X_lipids <- fa_data_wide
+
+levels(as.factor(X_lipids$species))
+
+Y_lipids <- as.factor(X_lipids$species) #select treatment names
+Y_lipids
+
+X_lipids<-X_lipids[6:77] #pull only data columns
+
+# run PLSDA 
+MyResult.plsda <- plsda(X_lipids,Y_lipids) # 1 Run the method
+
+species_cols<-c("darkgray", "orange", "purple") 
+            
+plotIndiv(MyResult.plsda, col=species_cols, ind.names = FALSE, legend=TRUE, legend.title = "FA Concentration - Species", ellipse = FALSE, title="", style = "graphics", centroid=FALSE, point.lwd = 2, cex=2)
+```
+
+View the VIP lipids that are most highly differentiating lipids between species 
+
+```{r}
+#extract
+lipid_VIP <- PLSDA.VIP(MyResult.plsda)
+lipid_VIP_df <- as.data.frame(lipid_VIP[["tab"]])
+lipid_VIP_df
+
+# Converting row names to column
+VIP_table <- rownames_to_column(lipid_VIP_df, var = "Lipid")
+
+#filter for VIP > 1
+VIP_1 <- VIP_table %>% 
+  filter(VIP >= 1)
+
+#plot
+VIP_list_plot<-VIP_1 %>%
+            arrange(VIP) %>%
+  
+  ggplot( aes(x = VIP, y = reorder(Lipid,VIP,sum))) +
+  geom_point() +
+  ylab("Lipid") +
+  xlab("VIP Score") +
+  ggtitle("Lipid Concentration VIP - Species") +
+  theme_bw() + theme(panel.border = element_rect(linetype = "solid", color = "black"), panel.grid.major = element_blank(), #Makes background theme white
+                     panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"));VIP_list_plot
+```
+
+There are some CE, TG, FA, and LPC fatty acids driving species differences.   
+
+### PLSDA and VIPs between time points within species 
+
+Pocillopora was the only species that showed a multivariate difference in fatty acid concentration across time. 
+
+#### Pocillopora 
+
+Generate a PLS-DA and plot.  
+```{r, results=FALSE}
+#assigning datasets 
+X_lipids <- fa_data_wide%>%filter(species=="Pocillopora")
+
+levels(as.factor(X_lipids$timepoint))
+
+Y_lipids <- as.factor(X_lipids$timepoint) #select treatment names
+Y_lipids
+
+X_lipids<-X_lipids[6:77] #pull only data columns
+
+# run PLSDA 
+MyResult.plsda <- plsda(X_lipids,Y_lipids) # 1 Run the method
+
+timepoint_cols<-c("darkgray", "blue", "purple") 
+            
+plotIndiv(MyResult.plsda, col=timepoint_cols, ind.names = FALSE, legend=TRUE, legend.title = "POC Fatty Acid Concentration - Timepoint", ellipse = FALSE, title="", style = "graphics", centroid=FALSE, point.lwd = 2, cex=2)
+```
+
+View the VIP lipids that are most highly differentiating fatty acids between timepoints.  
+
+```{r}
+#extract
+lipid_VIP <- PLSDA.VIP(MyResult.plsda)
+lipid_VIP_df <- as.data.frame(lipid_VIP[["tab"]])
+lipid_VIP_df
+
+# Converting row names to column
+VIP_table <- rownames_to_column(lipid_VIP_df, var = "Lipid")
+
+#filter for VIP > 1
+VIP_1 <- VIP_table %>% 
+  filter(VIP >= 1)
+
+#plot
+VIP_list_plot<-VIP_1 %>%
+            arrange(VIP) %>%
+  
+  ggplot( aes(x = VIP, y = reorder(Lipid,VIP,sum))) +
+  geom_point() +
+  ylab("Lipid") +
+  xlab("VIP Score") +
+  ggtitle("POC FA Concentration VIP - Timepoint") +
+  theme_bw() + theme(panel.border = element_rect(linetype = "solid", color = "black"), panel.grid.major = element_blank(), #Makes background theme white
+                     panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"));VIP_list_plot
+```
+
+There are some LCP, FA, and DG fatty acids that are driving differences.   
+
+Filter dataframe by VIP lipids and plot presence in each time point.  
+```{r}
+vip_list<-c(VIP_1$Lipid)
+
+vip_lipids<-fa_data%>%
+  filter(lipid %in% vip_list)%>%
+  filter(species=="Pocillopora")
+```
+
+Plot abundance of these metabolites in each sample. 
+
+```{r}
+vip_abund_plot<-vip_lipids%>%
+  
+  ggplot(aes(x=timepoint, y=nmol.g_plasma.ug_protein, color=timepoint, group=timepoint))+
+  facet_wrap(~lipid, scales="free")+
+  geom_boxplot(aes(group=interaction(lipid, timepoint)),position=position_dodge(0.9))+
+  geom_point(position=position_jitterdodge(0.2))+
+  scale_color_manual(values=c("darkgray", "blue", "purple"), name="Timepoint")+
+  ylab("abundance")+
+  xlab("Timepoint")+
+  ggtitle("VIP FA Abundance - POC")+
+  theme_classic()+
+  theme(
+    axis.text=element_text(color="black", size=12), 
+    axis.text.x=element_text(angle=45, hjust=1), 
+    axis.title=element_text(color="black", face="bold", size=12),
+    plot.margin=margin(1,1,1,1, "cm"),
+    legend.text=element_text(size=12),
+    legend.title=element_text(size=12, face="bold")
+  );vip_abund_plot
+```
+
+# 6. Fatty acid species percent composition of total fatty acids in each class 
+
+Percent of each fatty acid making up the total fatty acid pool in its respective class calculated from values in Step 3 above.
 
 ## Calculations 
 
-Calculate percent composition from fa filtered in step 5 above. 
+Calculate percent composition from lipids filtered in step 1 above. 
 
 ```{r}
-fa_comp <- fa_quant_long %>%
-  # Extract the letter prefix (e.g., "FA", "DG") from the lipid_id
-  mutate(class = sub("^(\\D+) .*", "\\1", fa)) %>%
+fa_comp <- fa_data %>%
+  
+  #create a class column
+  mutate(class = sub(" .*", "", lipid))%>%
   
   # Group by sample_id, prefix, and lipid_id, then summarize total concentration
-  group_by(sample, species, class, fa) %>%
-  summarize(total_concentration = sum(nmol.g_plasma.ug_protein), .groups = 'drop') %>%
+  group_by(sample, species, colony, timepoint, class, lipid) %>%
+  summarize(total_class_concentration = sum(nmol.g_plasma.ug_protein), .groups = 'drop') %>%
   
   # Calculate total concentration per sample and prefix
-  group_by(sample, class) %>%
-  mutate(total_class_concentration = sum(total_concentration)) %>%
+  group_by(sample) %>%
+  mutate(total_all_concentration = sum(total_class_concentration)) %>%
   
   # Calculate percent composition for each lipid
-  mutate(percent_composition = (total_concentration / total_class_concentration) * 100) %>%
+  mutate(percent_composition = (total_class_concentration / total_all_concentration) * 100) %>%
   
   # Ungroup to return to the original structure
   ungroup() %>%
   
   # Select only relevant columns
-  select(sample, species, class, fa, total_concentration, total_class_concentration, percent_composition)
+  dplyr::select(sample, species, colony, timepoint, class, lipid, total_class_concentration, total_all_concentration, percent_composition)
 ```
 
-View classes detected. 
+View fatty acids detected. 
 ```{r}
 levels(as.factor(fa_comp$class))
-length(levels(as.factor(fa_comp$class)))
+length(levels(as.factor(fa_comp$lipid)))
 
 str(fa_comp)
 
 fa_comp_long<-fa_comp%>%
-  select(sample, species, class, fa, percent_composition)
+  dplyr::select(sample, colony, species, timepoint, class, lipid, percent_composition)
 ```
 
-There are 16 classes detected. 
+## Plot fatty acid composition  
 
-Remove class CER (only 1 lipid in this class). 
+View a basic plot for total lipids via a stacked bar plot. 
+```{r}
+class3<-fa_comp_long %>%
+  
+  ggplot(aes(x = paste(sample, species), y = percent_composition, fill = class)) +
+  geom_bar(stat = "identity", colour="black") +
+  labs(x = "Sample", y = "Percent Composition", title = "FA class composition") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+        legend.position="right"); class3
+```
+
+Most fatty acids are those incorporated into TG lipids. The next most dominant are those in free fatty acids.  
+
+## Plot barplot for each fatty acid  class for each sample 
 
 ```{r}
-fa_comp_long<-fa_comp_long%>%
-  filter(!class=="Cer")
+class4<-fa_comp_long %>%
+  
+  ggplot(aes(x = paste(colony, timepoint), y = percent_composition, fill=species)) +
+  facet_wrap(~ class, scales="free")+
+  geom_bar(stat="identity")+
+  labs(x = "Sample", y = "Percent Composition", title = "FA class composition") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+        legend.position="right");class4
 ```
+
+Plot summary of change in fatty acid composition across time for each species. 
+
+```{r}
+class2<-fa_comp_long %>%
+  group_by(species, timepoint, class)%>%
+  summarise(mean=mean(percent_composition, na.rm=TRUE), se=sd(percent_composition, na.rm=TRUE)/sqrt(length(percent_composition)))%>%
+  
+  ggplot(aes(x = timepoint, y = mean, fill=species, colour=species)) +
+  facet_wrap(~ class, scales="free")+
+  geom_point(position=position_dodge(0.2))+
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se), width=0.1, position=position_dodge(0.2))+
+  geom_line(aes(group=species), position=position_dodge(0.2))+
+  labs(x = "Sample", y = "Percent composition", title = "Lipid FA composition") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+        legend.position="right");class2
+```
+
+CE	Cholesterol Ester
+Cer d18:0	Ceramides
+Cer d18:1	Ceramides
+DG	Diacylglycerol
+FFA	Free fatty Acids
+HexCER	Hexosylceramides
+LPC	Lysophosphatidylcholine
+LPE	Lysophosphatidylethanolamine
+LPG	Lyso-phosphatidylglycerol
+LPI	Lysophosphatidylinositol
+LPS	Lipopolysaccharides
+LacCER	Lactosylceramide
+PA	Phosphatidic acid
+PC	Phosphatidylcholine
+PE	Phosphatidylethanolamine
+PG	Phosphatidylglycerol
+PI	Phosphoinositides
+PS	Phosphoserine
+SM	Sphingomyelin
+TG	Triacylglycerol
 
 ## Plot PCA of samples 
 
 Generate wide data. 
 ```{r}
 fa_comp_wide<-fa_comp_long%>%
-  select(!class)%>%
+  dplyr::select(!class)%>%
   ungroup()%>%
-  pivot_wider(names_from=fa, values_from=percent_composition)
+  pivot_wider(names_from=lipid, values_from=percent_composition)
 ```
 
 ```{r}
-scaled.pca<-prcomp(fa_comp_wide%>%select(where(is.numeric)), scale=TRUE, center=TRUE) 
+scaled.pca<-prcomp(fa_comp_wide%>%dplyr::select(where(is.numeric)), scale=TRUE, center=TRUE) 
 ```
 
 Prepare a PCA plot
 ```{r}
 # scale data
-vegan <- scale(fa_comp_wide%>%select(where(is.numeric)))
+vegan <- scale(fa_comp_wide%>%dplyr::select(where(is.numeric)))
 
 # PerMANOVA 
-permanova<-adonis2(vegan ~ sample, data = fa_comp_wide, method='eu')
+permanova<-adonis2(vegan ~ species * timepoint, data = fa_comp_wide, method='eu')
 permanova
 ```
 
+There is a significant difference in fatty acid composition between species and across time.  
+
 ```{r}
-pca2<-ggplot2::autoplot(scaled.pca, data=fa_comp_wide, loadings=FALSE,  colour="sample", loadings.label.colour="black", loadings.colour="black", loadings.label=FALSE, frame=FALSE, loadings.label.size=5, loadings.label.vjust=-1, size=5) + 
-  geom_text(aes(x = PC1, y = PC2, label = paste(species, sample)), vjust = -0.5)+
+pca15<-ggplot2::autoplot(scaled.pca, data=fa_comp_wide, loadings=FALSE,  colour="species", loadings.label.colour="black", loadings.colour="black", loadings.label=FALSE, frame=TRUE, loadings.label.size=5, loadings.label.vjust=-1, size=5) + 
   theme_classic()+
    theme(legend.text = element_text(size=18), 
-         legend.position="none",
+         legend.position="right",
         plot.background = element_blank(),
         legend.title = element_text(size=18, face="bold"), 
         axis.text = element_text(size=18), 
-        axis.title = element_text(size=18,  face="bold"));pca2
-```
-
-Species cluster very closely together - great! 
-
-## Plot a heatmap of lipid composition for each species (scaled to z score)
-
-```{r}
-# Convert concentration to Z-scores
-heat_data <- fa_comp_long %>% 
-  group_by(fa) %>% 
-  mutate(z_score = scale(percent_composition)) %>% 
-  group_by(sample, fa)%>%
-  summarise(z_score = mean(z_score, na.rm=TRUE))%>%
-  ungroup()
-
-# Pivot data to have metabolites as rows and lifestage as columns
-heatmap_data <- heat_data %>% 
-  dplyr::select(fa, sample, z_score) %>%
-  spread(key = sample, value = z_score)
-
-# Convert to matrix and set rownames
-heatmap_matrix <- as.matrix(column_to_rownames(heatmap_data, var = "fa"))
-
-# Create the heatmap
-heatmap <- Heatmap(
-  heatmap_matrix,
-  name = "Z-score",
-  col = inferno(10),
-  cluster_rows = TRUE,
-  cluster_columns = FALSE,
-  show_row_names = FALSE,
-  show_column_names = TRUE,
-  row_split=4,
-  row_title = "Fatty Acid", 
-  column_names_gp =  gpar(fontsize = 12, border=FALSE),
-  column_names_rot = 45,
-  row_gap = unit(1, "mm"), 
-  border = TRUE,
-  row_names_gp = gpar(fontsize = 12, alpha = 0.75, border = FALSE)
-)
-
-# Draw the heatmap
-draw(heatmap)
-
-clusters<-row_order(heatmap)
-cluster1<-clusters[[1]]
-cluster2<-clusters[[2]]
-cluster3<-clusters[[3]]
-cluster4<-clusters[[4]]
-
-names<-heatmap@row_names_param$labels
-
-extracted_lipids1 <- lapply(cluster1, function(index) names[[index]])
-extracted_lipids2 <- lapply(cluster2, function(index) names[[index]])
-extracted_lipids3 <- lapply(cluster3, function(index) names[[index]])
-extracted_lipids4 <- lapply(cluster4, function(index) names[[index]])
-```
-
-View the lipids for each cluster characterizing the different species. 
-
-```{r}
-extracted_lipids1
+        axis.title = element_text(size=18,  face="bold"));pca15
 ```
 
 ```{r}
-extracted_lipids2
+pca16<-ggplot2::autoplot(scaled.pca, data=fa_comp_wide, loadings=FALSE,  colour="timepoint", loadings.label.colour="black", loadings.colour="black", loadings.label=FALSE, frame=TRUE, loadings.label.size=5, loadings.label.vjust=-1, size=5) + 
+  theme_classic()+
+   theme(legend.text = element_text(size=18), 
+         legend.position="right",
+        plot.background = element_blank(),
+        legend.title = element_text(size=18, face="bold"), 
+        axis.text = element_text(size=18), 
+        axis.title = element_text(size=18,  face="bold"));pca16
+```
+
+## Plot PCA of time effects within species   
+
+### Acropora 
+
+Generate wide data. 
+```{r}
+acr_wide<-fa_comp_long%>%
+  filter(species=="Acropora")%>%
+  dplyr::select(!class)%>%
+  ungroup()%>%
+  pivot_wider(names_from=lipid, values_from=percent_composition)
 ```
 
 ```{r}
-extracted_lipids3
+scaled.pca.acr<-prcomp(acr_wide%>%dplyr::select(where(is.numeric)), scale=TRUE, center=TRUE) 
+```
+
+Prepare a PCA plot
+```{r}
+# scale data
+vegan_acr <- scale(acr_wide%>%dplyr::select(where(is.numeric)))
+
+# PerMANOVA 
+permanova<-adonis2(vegan_acr ~ timepoint, data = acr_wide, method='eu')
+permanova
+```
+
+No effect of time in Acropora.  
+
+```{r}
+pca17<-ggplot2::autoplot(scaled.pca.acr, data=acr_wide, loadings=FALSE,  colour="timepoint", loadings.label.colour="black", loadings.colour="black", loadings.label=FALSE, frame=TRUE, loadings.label.size=5, loadings.label.vjust=-1, size=5) + 
+  theme_classic()+
+   theme(legend.text = element_text(size=18), 
+         legend.position="right",
+        plot.background = element_blank(),
+        legend.title = element_text(size=18, face="bold"), 
+        axis.text = element_text(size=18), 
+        axis.title = element_text(size=18,  face="bold"));pca17
+
+```
+
+### Pocillopora
+
+Generate wide data. 
+```{r}
+poc_wide<-fa_comp_long%>%
+  filter(species=="Pocillopora")%>%
+  dplyr::select(!class)%>%
+  ungroup()%>%
+  pivot_wider(names_from=lipid, values_from=percent_composition)
 ```
 
 ```{r}
-extracted_lipids4
+scaled.pca.poc<-prcomp(poc_wide%>%dplyr::select(where(is.numeric)), scale=TRUE, center=TRUE) 
 ```
 
-TGs and DGs, PE, PC, LPCs show up in these clusters.  
+Prepare a PCA plot
+```{r}
+# scale data
+vegan_poc <- scale(poc_wide%>%dplyr::select(where(is.numeric)))
 
+# PerMANOVA 
+permanova<-adonis2(vegan_poc ~ timepoint, data = poc_wide, method='eu')
+permanova
+```
+
+There is an effect of time on fatty acid percent compositions in Pocillopora 
+
+```{r}
+pca18<-ggplot2::autoplot(scaled.pca.poc, data=poc_wide, loadings=FALSE,  colour="timepoint", loadings.label.colour="black", loadings.colour="black", loadings.label=FALSE, frame=TRUE, loadings.label.size=5, loadings.label.vjust=-1, size=5) + 
+  theme_classic()+
+   theme(legend.text = element_text(size=18), 
+         legend.position="right",
+        plot.background = element_blank(),
+        legend.title = element_text(size=18, face="bold"), 
+        axis.text = element_text(size=18), 
+        axis.title = element_text(size=18,  face="bold"));pca18
+
+```
+
+### Porites 
+
+Generate wide data. 
+```{r}
+por_wide<-fa_comp_long%>%
+  filter(species=="Porites")%>%
+  dplyr::select(!class)%>%
+  ungroup()%>%
+  pivot_wider(names_from=lipid, values_from=percent_composition)
+```
+
+```{r}
+scaled.pca.por<-prcomp(por_wide%>%dplyr::select(where(is.numeric)), scale=TRUE, center=TRUE) 
+```
+
+Prepare a PCA plot
+```{r}
+# scale data
+vegan_por <- scale(por_wide%>%dplyr::select(where(is.numeric)))
+
+# PerMANOVA 
+permanova<-adonis2(vegan_por ~ timepoint, data = por_wide, method='eu')
+permanova
+```
+
+There is an effect of time on fatty acid composition in Porites.   
+
+```{r}
+pca19<-ggplot2::autoplot(scaled.pca.por, data=por_wide, loadings=FALSE,  colour="timepoint", loadings.label.colour="black", loadings.colour="black", loadings.label=FALSE, frame=TRUE, loadings.label.size=5, loadings.label.vjust=-1, size=5) + 
+  theme_classic()+
+   theme(legend.text = element_text(size=18), 
+         legend.position="right",
+        plot.background = element_blank(),
+        legend.title = element_text(size=18, face="bold"), 
+        axis.text = element_text(size=18), 
+        axis.title = element_text(size=18,  face="bold"));pca19
+
+```
+
+
+## Examine differential lipids with a PLSDA and VIP scores 
+
+Generate a PLSDA supervised model to examine fatty acids that 1) drive separation between species and 2) then those that differentiate time points within species.  
+
+### PLSDA and VIPs between species 
+
+Generate a PLS-DA and plot.  
+```{r, results=FALSE}
+#assigning datasets 
+X_lipids <- fa_comp_wide
+
+levels(as.factor(X_lipids$species))
+
+Y_lipids <- as.factor(X_lipids$species) #select treatment names
+Y_lipids
+
+X_lipids<-X_lipids[6:76] #pull only data columns
+
+# run PLSDA 
+MyResult.plsda <- plsda(X_lipids,Y_lipids) # 1 Run the method
+
+species_cols<-c("darkgray", "orange", "purple") 
+            
+plotIndiv(MyResult.plsda, col=species_cols, ind.names = FALSE, legend=TRUE, legend.title = "FA Composition - Species", ellipse = FALSE, title="", style = "graphics", centroid=FALSE, point.lwd = 2, cex=2)
+```
+
+View the VIP lipids that are most highly differentiating lipids between species 
+
+```{r}
+#extract
+lipid_VIP <- PLSDA.VIP(MyResult.plsda)
+lipid_VIP_df <- as.data.frame(lipid_VIP[["tab"]])
+lipid_VIP_df
+
+# Converting row names to column
+VIP_table <- rownames_to_column(lipid_VIP_df, var = "Lipid")
+
+#filter for VIP > 1
+VIP_1 <- VIP_table %>% 
+  filter(VIP >= 1)
+
+#plot
+VIP_list_plot<-VIP_1 %>%
+            arrange(VIP) %>%
+  
+  ggplot( aes(x = VIP, y = reorder(Lipid,VIP,sum))) +
+  geom_point() +
+  ylab("Lipid") +
+  xlab("VIP Score") +
+  ggtitle("Lipid Composition VIP - Species") +
+  theme_bw() + theme(panel.border = element_rect(linetype = "solid", color = "black"), panel.grid.major = element_blank(), #Makes background theme white
+                     panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"));VIP_list_plot
+```
+
+There are some TG, FA, and LPC fatty acids in the VIP list.     
+
+### PLSDA and VIPs between time points within species 
+
+Pocillopora and Porites were the only species that showed a multivariate difference in fatty acid concentration across time. 
+
+#### Pocillopora 
+
+Generate a PLS-DA and plot.  
+```{r, results=FALSE}
+#assigning datasets 
+X_lipids <- fa_comp_wide%>%filter(species=="Pocillopora")
+
+levels(as.factor(X_lipids$timepoint))
+
+Y_lipids <- as.factor(X_lipids$timepoint) #select treatment names
+Y_lipids
+
+X_lipids<-X_lipids[6:76] #pull only data columns
+
+# run PLSDA 
+MyResult.plsda <- plsda(X_lipids,Y_lipids) # 1 Run the method
+
+timepoint_cols<-c("darkgray", "blue", "purple") 
+            
+plotIndiv(MyResult.plsda, col=timepoint_cols, ind.names = FALSE, legend=TRUE, legend.title = "POC Fatty Acid Composition - Timepoint", ellipse = FALSE, title="", style = "graphics", centroid=FALSE, point.lwd = 2, cex=2)
+```
+
+View the VIP lipids that are most highly differentiating fatty acids between timepoints.  
+
+```{r}
+#extract
+lipid_VIP <- PLSDA.VIP(MyResult.plsda)
+lipid_VIP_df <- as.data.frame(lipid_VIP[["tab"]])
+lipid_VIP_df
+
+# Converting row names to column
+VIP_table <- rownames_to_column(lipid_VIP_df, var = "Lipid")
+
+#filter for VIP > 1
+VIP_1 <- VIP_table %>% 
+  filter(VIP >= 1)
+
+#plot
+VIP_list_plot<-VIP_1 %>%
+            arrange(VIP) %>%
+  
+  ggplot( aes(x = VIP, y = reorder(Lipid,VIP,sum))) +
+  geom_point() +
+  ylab("Lipid") +
+  xlab("VIP Score") +
+  ggtitle("POC FA Composition VIP - Timepoint") +
+  theme_bw() + theme(panel.border = element_rect(linetype = "solid", color = "black"), panel.grid.major = element_blank(), #Makes background theme white
+                     panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"));VIP_list_plot
+```
+
+There are some TG, DG, and FA fatty acids that are driving differences.   
+
+Filter dataframe by VIP lipids and plot presence in each time point.  
+```{r}
+vip_list<-c(VIP_1$Lipid)
+
+vip_lipids<-fa_comp_long%>%
+  filter(lipid %in% vip_list)%>%
+  filter(species=="Pocillopora")
+```
+
+Plot abundance of these metabolites in each sample. 
+
+```{r}
+vip_abund_plot<-vip_lipids%>%
+  
+  ggplot(aes(x=timepoint, y=percent_composition, color=timepoint, group=timepoint))+
+  facet_wrap(~lipid, scales="free")+
+  geom_boxplot(aes(group=interaction(lipid, timepoint)),position=position_dodge(0.9))+
+  geom_point(position=position_jitterdodge(0.2))+
+  scale_color_manual(values=c("darkgray", "blue", "purple"), name="Timepoint")+
+  ylab("percent composition")+
+  xlab("Timepoint")+
+  ggtitle("VIP FA Composition - POC")+
+  theme_classic()+
+  theme(
+    axis.text=element_text(color="black", size=12), 
+    axis.text.x=element_text(angle=45, hjust=1), 
+    axis.title=element_text(color="black", face="bold", size=12),
+    plot.margin=margin(1,1,1,1, "cm"),
+    legend.text=element_text(size=12),
+    legend.title=element_text(size=12, face="bold")
+  );vip_abund_plot
+```
+
+#### Porites 
+
+Generate a PLS-DA and plot.  
+```{r, results=FALSE}
+#assigning datasets 
+X_lipids <- fa_comp_wide%>%filter(species=="Porites")
+
+levels(as.factor(X_lipids$timepoint))
+
+Y_lipids <- as.factor(X_lipids$timepoint) #select treatment names
+Y_lipids
+
+X_lipids<-X_lipids[6:76] #pull only data columns
+
+# run PLSDA 
+MyResult.plsda <- plsda(X_lipids,Y_lipids) # 1 Run the method
+
+timepoint_cols<-c("darkgray", "orange", "blue", "purple") 
+            
+plotIndiv(MyResult.plsda, col=timepoint_cols, ind.names = FALSE, legend=TRUE, legend.title = "POR Fatty Acid Composition - Timepoint", ellipse = FALSE, title="", style = "graphics", centroid=FALSE, point.lwd = 2, cex=2)
+```
+
+View the VIP lipids that are most highly differentiating fatty acids between timepoints.  
+
+```{r}
+#extract
+lipid_VIP <- PLSDA.VIP(MyResult.plsda)
+lipid_VIP_df <- as.data.frame(lipid_VIP[["tab"]])
+lipid_VIP_df
+
+# Converting row names to column
+VIP_table <- rownames_to_column(lipid_VIP_df, var = "Lipid")
+
+#filter for VIP > 1
+VIP_1 <- VIP_table %>% 
+  filter(VIP >= 1)
+
+#plot
+VIP_list_plot<-VIP_1 %>%
+            arrange(VIP) %>%
+  
+  ggplot( aes(x = VIP, y = reorder(Lipid,VIP,sum))) +
+  geom_point() +
+  ylab("Lipid") +
+  xlab("VIP Score") +
+  ggtitle("POR FA Composition VIP - Timepoint") +
+  theme_bw() + theme(panel.border = element_rect(linetype = "solid", color = "black"), panel.grid.major = element_blank(), #Makes background theme white
+                     panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"));VIP_list_plot
+```
+
+There are some LPC, DG, TG, and FA fatty acids that are driving differences.   
+
+Filter dataframe by VIP lipids and plot presence in each time point.  
+```{r}
+vip_list<-c(VIP_1$Lipid)
+
+vip_lipids<-fa_comp_long%>%
+  filter(lipid %in% vip_list)%>%
+  filter(species=="Porites")
+```
+
+Plot abundance of these metabolites in each sample. 
+
+```{r}
+vip_abund_plot<-vip_lipids%>%
+  
+  ggplot(aes(x=timepoint, y=percent_composition, color=timepoint, group=timepoint))+
+  facet_wrap(~lipid, scales="free")+
+  geom_boxplot(aes(group=interaction(lipid, timepoint)),position=position_dodge(0.9))+
+  geom_point(position=position_jitterdodge(0.2))+
+  scale_color_manual(values=c("darkgray", "orange", "blue", "purple"), name="Timepoint")+
+  ylab("percent composition")+
+  xlab("Timepoint")+
+  ggtitle("VIP FA Composition - POR")+
+  theme_classic()+
+  theme(
+    axis.text=element_text(color="black", size=12), 
+    axis.text.x=element_text(angle=45, hjust=1), 
+    axis.title=element_text(color="black", face="bold", size=12),
+    plot.margin=margin(1,1,1,1, "cm"),
+    legend.text=element_text(size=12),
+    legend.title=element_text(size=12, face="bold")
+  );vip_abund_plot
+```
