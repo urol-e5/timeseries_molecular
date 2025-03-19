@@ -788,6 +788,7 @@ nSamples
 Generate labels for module eigengenes as numbers.  
 ```{r}
 MEs0 = moduleEigengenes(datExpr, moduleLabels, softPower=5)$eigengenes
+# Reorder the eigengenes so that similar ones are adjacent
 MEs = orderMEs(MEs0)
 names(MEs)
 ```
@@ -883,6 +884,12 @@ heatmappval_df <- as.data.frame(heatmappval)
 
 # For mean temp
 MEs_signif_temp <- rownames(heatmappval_df[heatmappval_df$mean_Temp_mean < 0.05,])
+# For solar radiation
+MEs_signif_solar <- rownames(heatmappval_df[heatmappval_df$mean_solar_rad_kwpm2_mean < 0.05,])
+# For TP2
+MEs_signif_tp2 <- rownames(heatmappval_df[heatmappval_df$timepoint2 < 0.05,])
+# For TP3
+MEs_signif_tp3 <- rownames(heatmappval_df[heatmappval_df$timepoint3 < 0.05,])
 ```
 
 We can also compare to our module interaction plot to find modules that are both correlated with temperature and potentially involved in miRNA-mRNA interactions! 
@@ -912,7 +919,7 @@ Plot mean module eigengene for each module.
 
 ```{r}
 #convert wide format to long format for plotting  
-str(Eigen_MEs)
+#str(Eigen_MEs)
 
 plot_MEs <- Eigen_MEs %>%
   pivot_longer(
@@ -921,14 +928,13 @@ plot_MEs <- Eigen_MEs %>%
     values_to = "Mean"         # Name for the new column containing the values
   )
 
-str(plot_MEs)
+#str(plot_MEs)
 
 #join with phys data 
 plot_MEs<-left_join(plot_MEs, plotTraits)
 
-expression_plots<-plot_MEs%>%
+plot_MEs %>%
   group_by(Module) %>%
-  
   ggplot(aes(x=mean_Temp_mean, y=Mean)) +
   facet_wrap(~ Module)+
   geom_point()+
@@ -948,41 +954,92 @@ expression_plots<-plot_MEs%>%
         panel.grid.minor = element_blank(), #Set minor gridlines
         axis.line = element_line(colour = "black"), #Set axes color
         plot.background=element_blank(),
-        plot.title = element_text(size=22)); expression_plots
+        plot.title = element_text(size=22))
 ```
 
 
 ```{r}
 # Now just plot the modules that are significantly correlated with temp
-plot_MEs_signif_temp <- plot_MEs %>%
-    filter(Module %in% MEs_signif_temp)
-
-
-expression_plots<-plot_MEs_signif_temp%>%
-  group_by(Module) %>%
+plot_MEs_signif <- function(var.name){
   
-  ggplot(aes(x=mean_Temp_mean, y=Mean)) +
-  facet_wrap(~ Module)+
-  geom_point()+
-  # geom_smooth(method="lm")+
-  # the loess method can capture nonlinear trends
-  geom_smooth(method="loess")+
-  #ylim(-0.5,1) +
-  geom_hline(yintercept = 0, linetype="dashed", color = "grey")+
-  theme_bw() + 
-  theme(axis.text.x=element_text(angle = 45, hjust=1, size = 12), #set x-axis label size
-        axis.title.x=element_text(size = 14), #set x-axis title size
-        axis.ticks.x=element_blank(), #No x-label ticks
-        #axis.title.y=element_blank(), #No y-axis title
-        axis.text.y=element_text(size = 14), #set y-axis label size, 
-        panel.border = element_rect(color = "black", fill = NA, size = 1), #set border
-        panel.grid.major = element_blank(), #Set major gridlines
-        panel.grid.minor = element_blank(), #Set minor gridlines
-        axis.line = element_line(colour = "black"), #Set axes color
-        plot.background=element_blank(),
-        plot.title = element_text(size=22)); expression_plots
+  # Isolate modules that are significantly correlated with input variable
+  MEs_signif <- rownames(heatmappval_df[heatmappval_df[[var.name]] < 0.05,])
+  
+  if (length(MEs_signif) == 0) {
+    output <- cat("There are no modules significantly correlated with", var.name)
+    return(output)
+  } else {
+    # Choose appropriate smoothing method
+    num_x_values <- plot_MEs %>%
+      filter(Module %in% MEs_signif) %>%
+      summarise(unique_x = n_distinct(!!sym(var.name))) %>%
+      pull(unique_x)
+    
+    # loess can capture non-linear trends, but is only appropriate for more than 2 x-values
+    smoothing_method <- ifelse(num_x_values > 2, "loess", "lm")
+    
+    plot_MEs %>%
+      filter(Module %in% MEs_signif)%>%
+      group_by(Module) %>%
+      ggplot(aes_string(x=var.name, y="Mean")) +
+      facet_wrap(~ Module)+
+      geom_point()+
+      geom_smooth(method=smoothing_method)+
+      #ylim(-0.5,1) +
+      geom_hline(yintercept = 0, linetype="dashed", color = "grey")+
+      theme_bw() + 
+      theme(axis.text.x=element_text(angle = 45, hjust=1, size = 12), #set x-axis label size
+            axis.title.x=element_text(size = 14), #set x-axis title size
+            axis.ticks.x=element_blank(), #No x-label ticks
+            #axis.title.y=element_blank(), #No y-axis title
+            axis.text.y=element_text(size = 14), #set y-axis label size, 
+            panel.border = element_rect(color = "black", fill = NA, size = 1), #set border
+            panel.grid.major = element_blank(), #Set major gridlines
+            panel.grid.minor = element_blank(), #Set minor gridlines
+            axis.line = element_line(colour = "black"), #Set axes color
+            plot.background=element_blank(),
+            plot.title = element_text(size=22))
+  }
+}
+
+plot_MEs_signif("mean_Temp_mean")
+# Now just plot the modules that are significantly correlated with solar
+plot_MEs_signif("mean_solar_rad_kwpm2_mean")
+# Now just plot the modules that are significantly correlated with rainfall
+plot_MEs_signif("cumulative_rainfall_mm_mean")
+# Now just plot the modules that are significantly correlated with TP1
+plot_MEs_signif("timepoint1")
+# Now just plot the modules that are significantly correlated with TP2
+plot_MEs_signif("timepoint2")
+# Now just plot the modules that are significantly correlated with TP3
+plot_MEs_signif("timepoint3")
+# Now just plot the modules that are significantly correlated with TP4
+plot_MEs_signif("timepoint4")
+
+
+
 ```
 
+Interesting! Module 18 is the only significantly correlated module for both solar radiation and rainfall, but shwows inverse patterns of eigengene expression for the two. Module 18 is also one of the modules significantly correlated with TP3. Notably, both solar radiation and rainfall hit "extremes" at TP3 (TP3 represents both the maximum recorded solar radiation and minimum recorded rainfall of our 4 timepoints)
+
+
+
+# Save data of interest for future use
+
+```{r}
+# df that shows which WGCNA module each gene/miRNA is grouped with
+write.table(module_info, "../output/12-Apul-miRNA-mRNA-WGCNA/WGCNA-module-membership.tab", quote=FALSE, row.names=FALSE, col.names=TRUE, sep="\t")
+
+# df of physiological/environmental variables
+write.table(plotTraits, "../output/12-Apul-miRNA-mRNA-WGCNA/phys-envir-traits.tab", quote=FALSE, row.names=FALSE, col.names=TRUE, sep="\t")
+
+# df that shows p-values for correlations between each WGCNA module and physiological/environmental variable
+write.table(heatmappval_df, "../output/12-Apul-miRNA-mRNA-WGCNA/pval-cor-WGCNA_module-phys_envir.tab", quote=FALSE, row.names=FALSE, col.names=TRUE, sep="\t")
+
+# df of module eigengenes
+write.table(MEs, "../output/12-Apul-miRNA-mRNA-WGCNA/WGCNA-module-eigengenes.tab", quote=FALSE, row.names=FALSE, col.names=TRUE, sep="\t")
+
+```
 
 
 

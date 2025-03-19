@@ -34,8 +34,11 @@ Kathleen Durkin
   Correlate to traits</a>
 - <a href="#8-plot-eigengene-values" id="toc-8-plot-eigengene-values">8
   Plot eigengene values</a>
-- <a href="#9-export-to-cytoscape" id="toc-9-export-to-cytoscape">9 Export
-  to Cytoscape</a>
+- <a href="#9-save-data-of-interest-for-future-use"
+  id="toc-9-save-data-of-interest-for-future-use">9 Save data of interest
+  for future use</a>
+- <a href="#10-export-to-cytoscape" id="toc-10-export-to-cytoscape">10
+  Export to Cytoscape</a>
 
 Running Weighted Gene Correlation Network Analysis (WGCNA) to assess
 patterns of miRNA-mRNA coexpression in A.pulchra.
@@ -1319,6 +1322,7 @@ Generate labels for module eigengenes as numbers.
 
 ``` r
 MEs0 = moduleEigengenes(datExpr, moduleLabels, softPower=5)$eigengenes
+# Reorder the eigengenes so that similar ones are adjacent
 MEs = orderMEs(MEs0)
 names(MEs)
 ```
@@ -1522,6 +1526,12 @@ heatmappval_df <- as.data.frame(heatmappval)
 
 # For mean temp
 MEs_signif_temp <- rownames(heatmappval_df[heatmappval_df$mean_Temp_mean < 0.05,])
+# For solar radiation
+MEs_signif_solar <- rownames(heatmappval_df[heatmappval_df$mean_solar_rad_kwpm2_mean < 0.05,])
+# For TP2
+MEs_signif_tp2 <- rownames(heatmappval_df[heatmappval_df$timepoint2 < 0.05,])
+# For TP3
+MEs_signif_tp3 <- rownames(heatmappval_df[heatmappval_df$timepoint3 < 0.05,])
 ```
 
 We can also compare to our module interaction plot to find modules that
@@ -1831,67 +1841,8 @@ Plot mean module eigengene for each module.
 
 ``` r
 #convert wide format to long format for plotting  
-str(Eigen_MEs)
-```
+#str(Eigen_MEs)
 
-    'data.frame':   38 obs. of  55 variables:
-     $ ME6             : num  -0.0232 0.1946 -0.1458 0.2877 -0.1598 ...
-     $ ME18            : num  -0.1204 0.0684 -0.0591 0.1759 0.0792 ...
-     $ ME33            : num  -0.0757 0.1147 -0.2139 0.2043 0.1177 ...
-     $ ME35            : num  0.0895 0.0601 -0.242 0.0909 0.1191 ...
-     $ ME38            : num  -0.00272 0.21367 -0.18772 0.22612 0.04895 ...
-     $ ME43            : num  0.0765 0.2511 -0.1629 -0.1101 -0.1483 ...
-     $ ME12            : num  0.000175 0.364176 -0.105111 -0.16514 -0.059132 ...
-     $ ME26            : num  -0.0551 0.42 -0.1291 -0.1924 0.1815 ...
-     $ ME13            : num  0.2027 0.1613 -0.1832 -0.0497 -0.1271 ...
-     $ ME7             : num  0.0748 -0.1802 -0.0343 0.3213 -0.0963 ...
-     $ ME14            : num  0.1915 -0.0734 -0.1314 0.1351 -0.1458 ...
-     $ ME2             : num  0.1233 0.0391 -0.1884 0.2668 -0.1572 ...
-     $ ME23            : num  0.0728 0.2353 -0.2165 0.1145 -0.0873 ...
-     $ ME36            : num  -0.00839 0.05305 -0.10499 -0.15115 -0.07862 ...
-     $ ME15            : num  0.133 -0.169 -0.113 0.144 -0.154 ...
-     $ ME21            : num  0.0921 -0.1329 -0.1251 -0.0496 -0.0907 ...
-     $ ME51            : num  -0.0998 0.0949 0.0472 -0.3888 0.0328 ...
-     $ ME46            : num  0.118 0.158 -0.181 -0.159 -0.189 ...
-     $ ME0             : num  -0.0482 0.317 0.0487 -0.0474 -0.1435 ...
-     $ ME20            : num  0.2099 0.2219 0.0882 -0.1687 -0.1475 ...
-     $ ME47            : num  0.0347 -0.1168 -0.1119 -0.0793 0.3276 ...
-     $ ME41            : num  0.0475 -0.1204 -0.0647 -0.1041 -0.0457 ...
-     $ ME44            : num  0.0728 -0.0521 -0.0777 -0.0324 -0.0726 ...
-     $ ME11            : num  0.6331 -0.0756 -0.0623 -0.0846 -0.1376 ...
-     $ ME16            : num  -0.0404 0.2592 -0.0807 -0.2116 -0.1069 ...
-     $ ME25            : num  0.11595 -0.07508 -0.08723 -0.11017 0.00806 ...
-     $ ME34            : num  -0.0646 -0.0513 0.0119 -0.159 0.4953 ...
-     $ ME49            : num  -0.0747 -0.0885 -0.0758 -0.0117 0.3131 ...
-     $ ME39            : num  0.0638 -0.1691 0.1831 0.2473 -0.1027 ...
-     $ ME48            : num  -0.065878 -0.133688 0.144809 0.340931 -0.000506 ...
-     $ ME52            : num  -0.0873 -0.1954 0.156 0.2233 -0.1361 ...
-     $ ME50            : num  0.0118 -0.0638 -0.092 0.3355 0.3382 ...
-     $ ME31            : num  0.00456 -0.16934 -0.11964 0.21807 0.07405 ...
-     $ ME28            : num  0.0772 -0.084 -0.0858 0.221 0.0373 ...
-     $ ME32            : num  0.1786 -0.0913 -0.1067 0.4814 -0.074 ...
-     $ ME40            : num  -0.0534 0.3758 0.0712 -0.1856 -0.0749 ...
-     $ ME53            : num  -0.036 0.282 0.147 -0.329 0.115 ...
-     $ ME3             : num  -0.135 0.086 0.1288 -0.1011 0.0596 ...
-     $ ME5             : num  -0.22376 0.00778 0.13478 -0.06543 0.22677 ...
-     $ ME19            : num  -0.09198 0.00732 0.10646 -0.28977 0.19866 ...
-     $ ME27            : num  0.0239 0.1609 -0.038 -0.2753 0.0244 ...
-     $ ME45            : num  -0.0116 0.1334 0.032 -0.1935 0.064 ...
-     $ ME22            : num  -0.000274 -0.123185 0.30418 -0.134941 -0.07464 ...
-     $ ME30            : num  -0.0533 -0.1346 0.2427 -0.1849 -0.0816 ...
-     $ ME29            : num  -0.0287 -0.3036 0.1418 0.1434 0.0644 ...
-     $ ME37            : num  -0.1095 -0.1375 0.2414 -0.1832 0.0725 ...
-     $ ME24            : num  0.0192 -0.1615 0.0118 -0.079 0.0228 ...
-     $ ME1             : num  -0.1246 -0.0714 0.2189 -0.2474 0.1746 ...
-     $ ME17            : num  0.0857 -0.1018 0.2017 -0.1247 -0.0523 ...
-     $ ME4             : num  -0.0344 -0.1985 0.1515 -0.1002 0.1058 ...
-     $ ME10            : num  -0.0534 -0.1689 0.3223 -0.0962 0.0237 ...
-     $ ME42            : num  0.000783 -0.194158 0.13132 0.019538 0.138049 ...
-     $ ME8             : num  0.03952 0.03193 0.00387 -0.2411 0.08404 ...
-     $ ME9             : num  0.0122 -0.2088 0.1913 -0.2156 0.0994 ...
-     $ AzentaSampleName: chr  "1A1_ACR-173_TP1" "1A10_ACR-145_TP4" "1A12_ACR-237_TP3" "1A2_ACR-244_TP4" ...
-
-``` r
 plot_MEs <- Eigen_MEs %>%
   pivot_longer(
     cols = where(is.numeric),  # Select only numeric columns
@@ -1899,21 +1850,13 @@ plot_MEs <- Eigen_MEs %>%
     values_to = "Mean"         # Name for the new column containing the values
   )
 
-str(plot_MEs)
-```
+#str(plot_MEs)
 
-    tibble [2,052 × 3] (S3: tbl_df/tbl/data.frame)
-     $ AzentaSampleName: chr [1:2052] "1A1_ACR-173_TP1" "1A1_ACR-173_TP1" "1A1_ACR-173_TP1" "1A1_ACR-173_TP1" ...
-     $ Module          : chr [1:2052] "ME6" "ME18" "ME33" "ME35" ...
-     $ Mean            : num [1:2052] -0.02321 -0.12043 -0.0757 0.08953 -0.00272 ...
-
-``` r
 #join with phys data 
 plot_MEs<-left_join(plot_MEs, plotTraits)
 
-expression_plots<-plot_MEs%>%
+plot_MEs %>%
   group_by(Module) %>%
-  
   ggplot(aes(x=mean_Temp_mean, y=Mean)) +
   facet_wrap(~ Module)+
   geom_point()+
@@ -1933,45 +1876,130 @@ expression_plots<-plot_MEs%>%
         panel.grid.minor = element_blank(), #Set minor gridlines
         axis.line = element_line(colour = "black"), #Set axes color
         plot.background=element_blank(),
-        plot.title = element_text(size=22)); expression_plots
+        plot.title = element_text(size=22))
 ```
 
 ![](12-Apul-miRNA-mRNA-WGCNA_files/figure-gfm/unnamed-chunk-47-1.png)<!-- -->
 
 ``` r
 # Now just plot the modules that are significantly correlated with temp
-plot_MEs_signif_temp <- plot_MEs %>%
-    filter(Module %in% MEs_signif_temp)
-
-
-expression_plots<-plot_MEs_signif_temp%>%
-  group_by(Module) %>%
+plot_MEs_signif <- function(var.name){
   
-  ggplot(aes(x=mean_Temp_mean, y=Mean)) +
-  facet_wrap(~ Module)+
-  geom_point()+
-  # geom_smooth(method="lm")+
-  # the loess method can capture nonlinear trends
-  geom_smooth(method="loess")+
-  #ylim(-0.5,1) +
-  geom_hline(yintercept = 0, linetype="dashed", color = "grey")+
-  theme_bw() + 
-  theme(axis.text.x=element_text(angle = 45, hjust=1, size = 12), #set x-axis label size
-        axis.title.x=element_text(size = 14), #set x-axis title size
-        axis.ticks.x=element_blank(), #No x-label ticks
-        #axis.title.y=element_blank(), #No y-axis title
-        axis.text.y=element_text(size = 14), #set y-axis label size, 
-        panel.border = element_rect(color = "black", fill = NA, size = 1), #set border
-        panel.grid.major = element_blank(), #Set major gridlines
-        panel.grid.minor = element_blank(), #Set minor gridlines
-        axis.line = element_line(colour = "black"), #Set axes color
-        plot.background=element_blank(),
-        plot.title = element_text(size=22)); expression_plots
+  # Isolate modules that are significantly correlated with input variable
+  MEs_signif <- rownames(heatmappval_df[heatmappval_df[[var.name]] < 0.05,])
+  
+  if (length(MEs_signif) == 0) {
+    output <- cat("There are no modules significantly correlated with", var.name)
+    return(output)
+  } else {
+    # Choose appropriate smoothing method
+    num_x_values <- plot_MEs %>%
+      filter(Module %in% MEs_signif) %>%
+      summarise(unique_x = n_distinct(!!sym(var.name))) %>%
+      pull(unique_x)
+    
+    # loess can capture non-linear trends, but is only appropriate for more than 2 x-values
+    smoothing_method <- ifelse(num_x_values > 2, "loess", "lm")
+    
+    plot_MEs %>%
+      filter(Module %in% MEs_signif)%>%
+      group_by(Module) %>%
+      ggplot(aes_string(x=var.name, y="Mean")) +
+      facet_wrap(~ Module)+
+      geom_point()+
+      geom_smooth(method=smoothing_method)+
+      #ylim(-0.5,1) +
+      geom_hline(yintercept = 0, linetype="dashed", color = "grey")+
+      theme_bw() + 
+      theme(axis.text.x=element_text(angle = 45, hjust=1, size = 12), #set x-axis label size
+            axis.title.x=element_text(size = 14), #set x-axis title size
+            axis.ticks.x=element_blank(), #No x-label ticks
+            #axis.title.y=element_blank(), #No y-axis title
+            axis.text.y=element_text(size = 14), #set y-axis label size, 
+            panel.border = element_rect(color = "black", fill = NA, size = 1), #set border
+            panel.grid.major = element_blank(), #Set major gridlines
+            panel.grid.minor = element_blank(), #Set minor gridlines
+            axis.line = element_line(colour = "black"), #Set axes color
+            plot.background=element_blank(),
+            plot.title = element_text(size=22))
+  }
+}
+
+plot_MEs_signif("mean_Temp_mean")
 ```
 
 ![](12-Apul-miRNA-mRNA-WGCNA_files/figure-gfm/unnamed-chunk-48-1.png)<!-- -->
 
-# 9 Export to Cytoscape
+``` r
+# Now just plot the modules that are significantly correlated with solar
+plot_MEs_signif("mean_solar_rad_kwpm2_mean")
+```
+
+![](12-Apul-miRNA-mRNA-WGCNA_files/figure-gfm/unnamed-chunk-48-2.png)<!-- -->
+
+``` r
+# Now just plot the modules that are significantly correlated with rainfall
+plot_MEs_signif("cumulative_rainfall_mm_mean")
+```
+
+![](12-Apul-miRNA-mRNA-WGCNA_files/figure-gfm/unnamed-chunk-48-3.png)<!-- -->
+
+``` r
+# Now just plot the modules that are significantly correlated with TP1
+plot_MEs_signif("timepoint1")
+```
+
+    There are no modules significantly correlated with timepoint1
+
+    NULL
+
+``` r
+# Now just plot the modules that are significantly correlated with TP2
+plot_MEs_signif("timepoint2")
+```
+
+![](12-Apul-miRNA-mRNA-WGCNA_files/figure-gfm/unnamed-chunk-48-4.png)<!-- -->
+
+``` r
+# Now just plot the modules that are significantly correlated with TP3
+plot_MEs_signif("timepoint3")
+```
+
+![](12-Apul-miRNA-mRNA-WGCNA_files/figure-gfm/unnamed-chunk-48-5.png)<!-- -->
+
+``` r
+# Now just plot the modules that are significantly correlated with TP4
+plot_MEs_signif("timepoint4")
+```
+
+    There are no modules significantly correlated with timepoint4
+
+    NULL
+
+Interesting! Module 18 is the only significantly correlated module for
+both solar radiation and rainfall, but shwows inverse patterns of
+eigengene expression for the two. Module 18 is also one of the modules
+significantly correlated with TP3. Notably, both solar radiation and
+rainfall hit “extremes” at TP3 (TP3 represents both the maximum recorded
+solar radiation and minimum recorded rainfall of our 4 timepoints)
+
+# 9 Save data of interest for future use
+
+``` r
+# df that shows which WGCNA module each gene/miRNA is grouped with
+write.table(module_info, "../output/12-Apul-miRNA-mRNA-WGCNA/WGCNA-module-membership.tab", quote=FALSE, row.names=FALSE, col.names=TRUE, sep="\t")
+
+# df of physiological/environmental variables
+write.table(plotTraits, "../output/12-Apul-miRNA-mRNA-WGCNA/phys-envir-traits.tab", quote=FALSE, row.names=FALSE, col.names=TRUE, sep="\t")
+
+# df that shows p-values for correlations between each WGCNA module and physiological/environmental variable
+write.table(heatmappval_df, "../output/12-Apul-miRNA-mRNA-WGCNA/pval-cor-WGCNA_module-phys_envir.tab", quote=FALSE, row.names=FALSE, col.names=TRUE, sep="\t")
+
+# df of module eigengenes
+write.table(MEs, "../output/12-Apul-miRNA-mRNA-WGCNA/WGCNA-module-eigengenes.tab", quote=FALSE, row.names=FALSE, col.names=TRUE, sep="\t")
+```
+
+# 10 Export to Cytoscape
 
 Export modules of interest for network visualization
 
@@ -2080,7 +2108,7 @@ sessioninfo::session_info()
      collate  en_US.UTF-8
      ctype    en_US.UTF-8
      tz       America/Los_Angeles
-     date     2025-03-13
+     date     2025-03-18
      pandoc   2.19.2 @ /usr/lib/rstudio-server/bin/quarto/bin/tools/ (via rmarkdown)
 
     ─ Packages ───────────────────────────────────────────────────────────────────
