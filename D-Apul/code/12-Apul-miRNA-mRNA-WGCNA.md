@@ -1993,7 +1993,7 @@ write.table(module_info, "../output/12-Apul-miRNA-mRNA-WGCNA/WGCNA-module-member
 write.table(plotTraits, "../output/12-Apul-miRNA-mRNA-WGCNA/phys-envir-traits.tab", quote=FALSE, row.names=FALSE, col.names=TRUE, sep="\t")
 
 # df that shows p-values for correlations between each WGCNA module and physiological/environmental variable
-write.table(heatmappval_df, "../output/12-Apul-miRNA-mRNA-WGCNA/pval-cor-WGCNA_module-phys_envir.tab", quote=FALSE, row.names=FALSE, col.names=TRUE, sep="\t")
+write.table(heatmappval_df, "../output/12-Apul-miRNA-mRNA-WGCNA/pval-cor-WGCNA_module-phys_envir.tab", quote=FALSE, row.names=TRUE, col.names=TRUE, sep="\t")
 
 # df of module eigengenes
 write.table(MEs, "../output/12-Apul-miRNA-mRNA-WGCNA/WGCNA-module-eigengenes.tab", quote=FALSE, row.names=FALSE, col.names=TRUE, sep="\t")
@@ -2006,8 +2006,6 @@ Export modules of interest for network visualization
 ``` r
 MEs_signif_temp
 ```
-
-     [1] "ME6"  "ME7"  "ME2"  "ME15" "ME34" "ME19" "ME45" "ME1"  "ME42" "ME8" 
 
 Note that, due to the size of many modules, it’s probably most practical
 to export modules individually (unless interested in in connections
@@ -2043,17 +2041,6 @@ between modules)
 
 # Recalculate topological overlap if needed
   TOM = TOMsimilarityFromExpr(datExpr, power = 5);
-```
-
-    TOM calculation: adjacency..
-    ..will use 48 parallel threads.
-     Fraction of slow calculations: 0.000000
-    ..connectivity..
-    ..matrix multiplication (system BLAS)..
-    ..normalization..
-    ..done.
-
-``` r
   # Read in the annotation file
   annot = datTraits;
   # Select modules
@@ -2108,7 +2095,7 @@ sessioninfo::session_info()
      collate  en_US.UTF-8
      ctype    en_US.UTF-8
      tz       America/Los_Angeles
-     date     2025-03-18
+     date     2025-03-19
      pandoc   2.19.2 @ /usr/lib/rstudio-server/bin/quarto/bin/tools/ (via rmarkdown)
 
     ─ Packages ───────────────────────────────────────────────────────────────────
