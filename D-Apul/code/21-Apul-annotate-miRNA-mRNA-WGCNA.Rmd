@@ -1,0 +1,272 @@
+---
+title: "21-Apul-annotate-miRNA-mRNA-WGCNA"
+author: "Kathleen Durkin"
+date: "2025-03-19"
+output: 
+  github_document:
+    toc: true
+    number_sections: true
+  html_document:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+  bookdown::html_document2:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+bibliography: references.bib
+---
+
+
+After running WGCNA to evaluate modules of mRNA and miRNA with correlated expression, we need to functionally annotate genes to evaluate module function(s).
+
+```{r setup, include=FALSE}
+library(knitr)
+knitr::opts_chunk$set(
+  echo = TRUE,         # Display code chunks
+  eval = TRUE,         # Evaluate code chunks
+  warning = FALSE,     # Hide warnings
+  message = FALSE,     # Hide messages
+  comment = ""         # Prevents appending '##' to beginning of lines in code output
+)
+```
+
+
+# Load packages
+
+```{r}
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+library(topGO)
+```
+
+# Load and format annotation files
+
+Already annotated the A.pulchra genome as part of the `deep-dive expression` project (see [`deep-dive-expression/D-Apul/code/02-Apul-reference-annotation.Rmd`](https://github.com/urol-e5/deep-dive-expression/blob/main/D-Apul/code/02-Apul-reference-annotation.Rmd)), so we'll pull the annotation file from that
+
+```{r, engine='bash'}
+# Can access file stored here if needed
+# https://gannet.fish.washington.edu/kdurkin1/ravenbackups/deep-dive-expression/D-Apul/output/02-Apul-reference-annotation/Apulcra-genome-mRNA-IDmapping-2024_12_12.tab
+cp ../../../deep-dive-expression/D-Apul/output/02-Apul-reference-annotation/Apulcra-genome-mRNA-IDmapping-2024_12_12.tab ../output/21-Apul-annotate-miRNA-mRNA-WGCNA
+```
+
+Read mapping file into R
+```{r}
+IDmapping_dirty <- read.table("../output/21-Apul-annotate-miRNA-mRNA-WGCNA/Apulcra-genome-mRNA-IDmapping-2024_12_12.tab", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+
+# Need to remove quotations surrounding each entry
+IDmapping_locations <- IDmapping_dirty
+IDmapping_locations[] <- lapply(IDmapping_locations, function(x) gsub('^"(.*)"$', '\\1', x))
+# Remove unneeded columns 
+IDmapping_locations <- IDmapping_locations %>% dplyr::select(-X, -V13)
+# Ensure there are no duplicate rows
+IDmapping_locations <- IDmapping_locations %>% distinct()
+
+head(IDmapping_locations)
+# Looks good!
+```
+
+This file shows each gene as it's genomic location. We want to use gene IDs to associate genes, so add gene IDs to this annotation table
+
+Read in file that associates each mRNA genomic location with corresponding gene ID
+```{r}
+mRNA_FUNids <- read.table("../output/05-Apul-annotate-UTRs/Apul-mRNA-FUNids.txt", header=FALSE, col.names=c("location", "type", "mRNA_ID", "gene_ID", "product"), sep="\t")
+
+# Remove unwanted text from parent column
+mRNA_FUNids$gene_ID <- gsub("Parent=", "", mRNA_FUNids$gene_ID)
+# Only need to keep mRNA location and gene ID
+mRNA_FUNids <- mRNA_FUNids %>% dplyr::select(location, gene_ID)
+```
+
+join with annotation file
+```{r}
+IDmapping <- left_join(IDmapping_locations, mRNA_FUNids, by = c("V1" = "location"))
+```
+
+
+# Annotate WGCNA modules
+
+Load file that shows which module each gene/miRNA is in
+```{r}
+module_membership <- read.table("../output/12-Apul-miRNA-mRNA-WGCNA/WGCNA-module-membership.tab", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+```
+
+join with annotation file
+```{r}
+module_FA <- left_join(module_membership, IDmapping, by = c("gene" = "gene_ID"))
+```
+
+Many of the genes don't have available annotations, so reduce to only keep those that are annotated (note this will also remove lncRNA and miRNA).
+```{r}
+module_FA_available <- module_FA[!is.na(module_FA$Gene.Ontology.IDs),]
+module_FA_available <- module_FA_available[module_FA_available$Gene.Ontology.IDs != "",]
+```
+
+
+# Functional Enrichment of modules (topGO)
+
+I want to see whether our modules of coexpressed genes/miRNA represent specific, over-represented functionalities (i.e. does any module contain more metabolism-related genes than expected?)
+
+To do this we'll perform functional enrichment of each module using the R package topGO
+
+## Format Gene Ontology (GO) annotations
+
+Want to isolate a list of GO terms per gene
+```{r}
+gene_to_GO <- IDmapping %>% filter(!is.na(Gene.Ontology.IDs)) %>% dplyr::select(gene_ID, Gene.Ontology.IDs)
+#head(gene_to_GO)
+
+# Needs to be formatted as a named list for use in topGO
+# Convert data frame to a named list
+# gene_to_GO_list <- gene_to_GO %>%
+#   mutate(GO_terms = strsplit(Gene.Ontology.IDs, ";")) %>%
+#   tibble::deframe()
+
+gene_to_GO_list <- setNames(
+  strsplit(as.character(gene_to_GO$Gene.Ontology.IDs), ";"), 
+  gene_to_GO$gene_ID
+)
+```
+
+Note: I think this means genes that had a Uniprot ID but no GO terms are excluded from this analysis
+
+Define reference set. This should be all genes *found in our samples*, NOT all genes in the A.pulchra genome. Some genes (e.g., reproduction pathways) may not be found/expected in our samples for valid biological reasons.
+```{r}
+reference_genes <- module_membership$gene
+length(reference_genes)
+```
+
+## Extract list of significant WGCNA modules
+
+```{r}
+WGCNA_pvals <- read.delim("../output/12-Apul-miRNA-mRNA-WGCNA/pval-cor-WGCNA_module-phys_envir.tab", header=TRUE, sep="\t")
+
+# filter to only keep rows and columns with at least one significant pval
+filtered_rows <- WGCNA_pvals[rowSums(WGCNA_pvals < 0.05, na.rm = TRUE) > 0, ]
+WGCNA_pvals_significant <- filtered_rows[, colSums(filtered_rows < 0.05, na.rm = TRUE) > 0]
+
+# Create list of modules that are significantly correlated with at least one trait
+significant_modules <- row.names(WGCNA_pvals_significant)
+```
+
+
+## topGO function
+
+Create a function to run topGO functional enrichment analysis for an input module (we'll want to use this for many modules of interest)
+```{r}
+module_topGO_FE <- function(module.name) {
+  
+  #Isolate genes in our input module of interest
+  genes_in_module <- module_membership %>%
+    filter(module == module.name) %>%
+    pull(gene)
+  
+  # Create factor for all reference genes, where 1 represents module membership and 0 means the gene is not in module of interest
+  gene_list <- factor(as.integer(reference_genes %in% genes_in_module))
+  names(gene_list) <- reference_genes
+  
+  # Create topGO object
+  GO_BP <- new("topGOdata",
+              description = "Functional Enrichment Analysis", 
+              ontology = "BP", # Biological Process
+              allGenes = gene_list,
+              annot = annFUN.gene2GO, 
+              gene2GO = gene_to_GO_list)
+  
+  # Run GO enrichment test
+  GO_BP_FE <- runTest(GO_BP, algorithm = "weight01", statistic = "fisher")
+  
+  # View the results
+  GO_BP_results <- GenTable(GO_BP, Fisher = GO_BP_FE, orderBy = "Fisher",  topNodes = 100, numChar = 51)
+  
+  # Filter by significant results
+  GO_BP_results$Fisher<-as.numeric(GO_BP_results$Fisher)
+  GO_BP_results_sig<-GO_BP_results[GO_BP_results$Fisher<0.05,]
+
+  # Return
+  print(GO_BP_results_sig)
+}
+```
+
+```{r}
+results <- list()
+
+for(module in significant_modules) {
+  # Run topGo enrichent function
+  module_results <- module_topGO_FE(module)
+  
+  # Only keep results if not empty
+  if (nrow(module_results) > 0) {
+    # note the source column
+    module_results$module <- module
+    # append to results list
+    results[[module]] <- module_results
+  }
+}
+
+# Combine all the resuts data frames into one
+combined_GO_BP_results_sig <- do.call(rbind, results)
+
+# View
+print(combined_GO_BP_results_sig)
+
+```
+
+
+## Heatmap of significant GO terms by trait
+
+```{r}
+
+# Extract significant modules for each trait
+significant_modules_per_trait <- apply(WGCNA_pvals_significant, 2, function(x) rownames(WGCNA_pvals_significant)[x < 0.05])
+
+# Create empty matrix to store values for hetmap
+go_term_counts <- matrix(0, nrow = ncol(WGCNA_pvals_significant), ncol = length(unique(combined_GO_BP_results_sig$Term)))
+rownames(go_term_counts) <- colnames(WGCNA_pvals_significant)  # Trait names
+colnames(go_term_counts) <- unique(combined_GO_BP_results_sig$Term)  # Unique GO terms
+
+# Loop through each trait, calculate the number of significant modules enriched for each GO term
+for (trait in colnames(WGCNA_pvals_significant)) {
+  # Get the significant modules for this trait
+  significant_modules <- significant_modules_per_trait[[trait]]
+  
+  # Check if a module is enriched for each GO term
+  for (go_term in unique(combined_GO_BP_results_sig$Term)) {
+    # Check if the module is in the list of significant modules for the trait and if it's enriched for this GO term
+    enriched_modules <- combined_GO_BP_results_sig %>%
+      filter(Term == go_term & module %in% significant_modules) %>%
+      nrow()  # Count of modules enriched for this GO term
+    
+    # Count number of modules that contain each GO term
+    go_term_counts[trait, go_term] <- enriched_modules
+  }
+}
+
+# Convert matrix to df for plotting
+go_term_counts_df <- as.data.frame(go_term_counts) %>%
+  rownames_to_column("Trait") %>%
+  gather(key = "GO_term", value = "Module_Count", -Trait)
+
+# Truncate GO term names
+#go_term_counts_df$GO_term <- substr(go_term_counts_df$GO_term, 1, 40)
+
+# Plot
+ggplot(go_term_counts_df, aes(x = Trait, y = GO_term, fill = Module_Count)) +
+  geom_tile(color = "grey") +  # Adds grid lines
+  scale_fill_gradient(low = "white", high = "blue") +  # Color gradient from white (low) to blue (high)
+  theme_minimal() +
+  theme(axis.text.x = element_text(size = 8, angle = 45, hjust=0.5, vjust=0.5), 
+        axis.text.y = element_text(size = 8),
+        ) + 
+  labs(fill = "Proportion Enriched", title = "Proportion of Significant Modules Enriched for GO Terms") +
+  theme(legend.position = "bottom")
+ggsave("../output/21-Apul-annotate-miRNA-mRNA-WGCNA/go_term_heatmap.png", width = 12, height = 8, dpi = 300)
+```
+
