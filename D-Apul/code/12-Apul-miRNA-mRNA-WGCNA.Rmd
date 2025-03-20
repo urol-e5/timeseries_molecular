@@ -1030,6 +1030,12 @@ Interesting! Module 18 is the only significantly correlated module for both sola
 # df that shows which WGCNA module each gene/miRNA is grouped with
 write.table(module_info, "../output/12-Apul-miRNA-mRNA-WGCNA/WGCNA-module-membership.tab", quote=FALSE, row.names=FALSE, col.names=TRUE, sep="\t")
 
+# df that shows module-module correlations
+write.table(edge_list, "../output/12-Apul-miRNA-mRNA-WGCNA/WGCNA-modules-correlations.tab", quote=FALSE, row.names=FALSE, col.names=TRUE, sep="\t")
+
+# df that shows how many miRNA each module contains
+write.table(module_miRNA_count_df, "../output/12-Apul-miRNA-mRNA-WGCNA/WGCNA-module-miRNA-count.tab", quote=FALSE, row.names=FALSE, col.names=TRUE, sep="\t")
+
 # df of physiological/environmental variables
 write.table(plotTraits, "../output/12-Apul-miRNA-mRNA-WGCNA/phys-envir-traits.tab", quote=FALSE, row.names=FALSE, col.names=TRUE, sep="\t")
 
