@@ -1034,7 +1034,7 @@ write.table(module_info, "../output/12-Apul-miRNA-mRNA-WGCNA/WGCNA-module-member
 write.table(plotTraits, "../output/12-Apul-miRNA-mRNA-WGCNA/phys-envir-traits.tab", quote=FALSE, row.names=FALSE, col.names=TRUE, sep="\t")
 
 # df that shows p-values for correlations between each WGCNA module and physiological/environmental variable
-write.table(heatmappval_df, "../output/12-Apul-miRNA-mRNA-WGCNA/pval-cor-WGCNA_module-phys_envir.tab", quote=FALSE, row.names=FALSE, col.names=TRUE, sep="\t")
+write.table(heatmappval_df, "../output/12-Apul-miRNA-mRNA-WGCNA/pval-cor-WGCNA_module-phys_envir.tab", quote=FALSE, row.names=TRUE, col.names=TRUE, sep="\t")
 
 # df of module eigengenes
 write.table(MEs, "../output/12-Apul-miRNA-mRNA-WGCNA/WGCNA-module-eigengenes.tab", quote=FALSE, row.names=FALSE, col.names=TRUE, sep="\t")
@@ -1047,13 +1047,13 @@ write.table(MEs, "../output/12-Apul-miRNA-mRNA-WGCNA/WGCNA-module-eigengenes.tab
 
 Export modules of interest for network visualization
 
-```{r}
+```{r, eval=FALSE}
 MEs_signif_temp
 ```
 
 Note that, due to the size of many modules, it's probably most practical to export modules individually (unless interested in in connections between modules)
 
-```{r}
+```{r, eval=FALSE}
 # # Recalculate topological overlap if needed
 # TOM = TOMsimilarityFromExpr(datExpr, power = 5);
 #   # Read in the annotation file
@@ -1108,7 +1108,7 @@ Note that, due to the size of many modules, it's probably most practical to expo
 
 ```
 
-```{r, engine='bash'}
+```{r, engine='bash', eval=FALSE}
 # Move cytoscape files to output directory
 mv ./CytoscapeInput* ../output/12-Apul-miRNA-mRNA-WGCNA
 
