@@ -270,3 +270,191 @@ ggplot(go_term_counts_df, aes(x = Trait, y = GO_term, fill = Module_Count)) +
 ggsave("../output/21-Apul-annotate-miRNA-mRNA-WGCNA/go_term_heatmap.png", width = 12, height = 8, dpi = 300)
 ```
 
+
+# Annotate putative binding
+
+Outline: 
+
+1. Have table module pair and correlation values
+
+## Load module-module correlations
+
+```{r}
+modules_cor <- read.delim("../output/12-Apul-miRNA-mRNA-WGCNA/WGCNA-modules-correlations.tab", header=TRUE, sep="\t")
+# Remove instances where a module is just correlating to itself
+modules_cor <- modules_cor[modules_cor$module_A != modules_cor$module_B,]
+```
+
+## Annotate whether a given module contains miRNA
+
+```{r}
+# Separate module membership into only mRNA and only miRNA
+module_membership_mRNA <- module_membership %>% filter(grepl("FUN", gene))
+module_membership_miRNA <- module_membership %>% filter(grepl("Cluster", gene))
+
+# Expand each miRNA_module to show all contained miRNAa
+modules_cor_miRNA <- left_join(modules_cor, module_membership_miRNA, by = c("module_A" = "module"))
+# Rename columns appropriately
+colnames(modules_cor_miRNA) <- c("miRNA_module", "mRNA_module", "correlation", "miRNA")
+
+# Remove instances where the module_A (miRNA_module) doesn't contain miRNA
+modules_cor_miRNA <- modules_cor_miRNA %>% filter(!is.na(miRNA))
+
+# Expand each mRNA module to show all contained genes
+modules_cor_miRNA_mRNA <- left_join(modules_cor_miRNA, module_membership_mRNA, by = c("mRNA_module" = "module"))
+
+
+```
+
+## ID which miRNA-mRNA pairs putatively bind
+
+Load and format miRanda tables
+
+```{r}
+## Load ##
+miRanda_3UTR <- read.delim("../output/07-Apul-miRNA-mRNA-miRanda/Apul-miRanda-3UTR-strict-parsed-geneIDs.txt", header=FALSE, sep="\t")
+
+miRanda_5UTR <- read.delim("../output/07.1-Apul-miRNA-mRNA-miRanda-additional_inputs/Apul-miRanda-5UTR_1kb-strict-parsed.txt", header=FALSE, sep="\t")
+  
+miRanda_mRNA <- read.delim("../output/07.1-Apul-miRNA-mRNA-miRanda-additional_inputs/Apul-miRanda-mRNA_full-strict-parsed.txt", header=FALSE, sep="\t")
+
+## Format ##
+# Remove superfluous text in miRNA name column
+miRanda_3UTR <- miRanda_3UTR %>% mutate(V1 = str_extract(V1, "Cluster[^.]+"))
+miRanda_5UTR <- miRanda_5UTR %>% mutate(V1 = str_extract(V1, "Cluster[^.]+"))
+miRanda_mRNA <- miRanda_mRNA %>% mutate(V1 = str_extract(V1, "Cluster[^.]+"))
+
+# For 5UTR and mRNA, need to add gene_IDs associated with each genomic location
+# Load and format table of 5UTR geneIDs
+FUNids_5UTR <- read.delim("../output/05-Apul-annotate-UTRs/Apul-5UTR-FUNids.txt", header=FALSE, sep="\t")
+FUNids_5UTR$V4 <- gsub("Parent=", "", FUNids_5UTR$V4)
+FUNids_5UTR <- FUNids_5UTR %>% dplyr::select(V1, V4)
+# Already have table of mRNA geneIDs
+
+# Add gene IDs to the miRanda tables
+miRanda_5UTR <- left_join(miRanda_5UTR, FUNids_5UTR, by=c("V2" = "V1"))
+miRanda_mRNA <- left_join(miRanda_mRNA, mRNA_FUNids, by=c("V2"="location"))
+
+# Ensure no unwanted duplicate rows
+miRanda_3UTR <- miRanda_3UTR %>% distinct()
+miRanda_5UTR <- miRanda_5UTR %>% distinct()
+miRanda_mRNA <- miRanda_mRNA %>% distinct()
+
+# Add column to identify whether putative binding is in 3UTR, 5UTR, or CDS
+miRanda_3UTR$binding_loc <- "3UTR"
+miRanda_5UTR$binding_loc <- "5UTR"
+miRanda_mRNA$binding_loc <- "mRNA"
+
+# Combine into single data frame
+colnames(miRanda_3UTR) <- c("V1", "V2", "V3", "V4", "V5", "V6", "V7", "V8", "V9", "V10", "binding_loc")
+colnames(miRanda_5UTR) <- c("V1", "V2", "V3", "V4", "V5", "V6", "V7", "V8", "V9", "V10", "binding_loc")
+colnames(miRanda_mRNA) <- c("V1", "V2", "V3", "V4", "V5", "V6", "V7", "V8", "V9", "V10", "binding_loc")
+miRanda_combined <- rbind(miRanda_3UTR, miRanda_5UTR, miRanda_mRNA)
+
+head(miRanda_combined)
+```
+
+Join with table of correlating modules and their members to annotate, for each miRNA, which of the mRNAs in its correlated module it may bind to
+```{r}
+# Join 
+modules_cor_miRNA_mRNA_bind <- left_join(modules_cor_miRNA_mRNA, miRanda_combined, by=c("gene" = "V10"))
+# Only keep rows where the full miRNA-mRNA interaction matches, not just the mRNA
+modules_cor_miRNA_mRNA_bind <- modules_cor_miRNA_mRNA_bind[modules_cor_miRNA_mRNA_bind$miRNA == modules_cor_miRNA_mRNA_bind$V1,] %>% distinct()
+```
+
+This is now a table that, for each module that contians miRNA (miRNA_module), shows each module it's correlated with (mRNA_module), the genes in that module, and whether that gene putatively binds with the miRNA. It still includes, though, instances of multiple putative binding positions for the same miRNA-mRNA pair. Since we just care about the high-level miRNA-mRNA pair, let's remove this level of detail
+
+```{r}
+mod_cor_bind <- modules_cor_miRNA_mRNA_bind %>% dplyr::select(miRNA_module, mRNA_module, correlation, miRNA, gene, binding_loc) %>% distinct()
+
+nrow(mod_cor_bind)
+nrow(mod_cor_bind[mod_cor_bind$correlation < 0,])
+```
+
+So there are 41,633 instances of an miRNA putatively binding to a gene that is contained in a correlated module. 21,274 of these (roughly half) are putative binding between modules that are *negatively* correlated with each other, which is the expected behavior for canonical miRNA function.
+
+## Join with FA table to annotate each binding mRNA
+
+```{r}
+mod_cor_bind_FA <- left_join(mod_cor_bind, IDmapping, by=c("gene" = "gene_ID")) %>% distinct()
+
+nrow(mod_cor_bind_FA %>% filter(!is.na(Gene.Ontology.IDs)))
+nrow(mod_cor_bind_FA %>% filter(!is.na(Gene.Ontology.IDs) & correlation < 0))
+```
+Of these 41,633 instances of an miRNA putatively binding to a gene contained in a correlated module, only 12,367 (roughly a quarter) of the putatively bound genes are annotated with GO terms. Roughly half of the annotated genes are associated with negative module correlation.
+
+
+# Functional Enrichment of putative binding
+
+In the above annotation we've functionally annotated all miRNA-mRNA pairs that are in correlated modules *and* putatively bind in the 3UTR, 5UTR and/or coding sequence (based on miRanda). The ultimate goal is to elucidate putative function of our miRNAs by evaluating the functions of the mRNAs they putatively interact with. 
+
+To aid this we can run functional enrichment on the mRNAs that each miRNA putatively interacts with.
+
+```{r}
+# Modify topGO function for use with miRNA names
+
+miRNA_topGO_FE <- function(miRNA.name) {
+  
+  #Isolate genes in our input module of interest
+  interacting_genes <- mod_cor_bind_FA %>%
+    filter(miRNA == miRNA.name) %>%
+    pull(gene)
+  if (length(interacting_genes) > 0) {
+    # Create factor for all reference genes, where 1 represents module membership and 0 means the gene is not in module of interest
+    gene_list <- factor(as.integer(reference_genes %in% interacting_genes))
+    names(gene_list) <- reference_genes
+    
+    str(gene_list)
+    
+    # Create topGO object
+    GO_BP <- new("topGOdata",
+                description = "Functional Enrichment Analysis", 
+                ontology = "BP", # Biological Process
+                allGenes = gene_list,
+                annot = annFUN.gene2GO, 
+                gene2GO = gene_to_GO_list)
+    
+    # Run GO enrichment test
+    GO_BP_FE <- runTest(GO_BP, algorithm = "weight01", statistic = "fisher")
+    
+    # View the results
+    GO_BP_results <- GenTable(GO_BP, Fisher = GO_BP_FE, orderBy = "Fisher",  topNodes = 100, numChar = 51)
+    
+    # Filter by significant results
+    GO_BP_results$Fisher<-as.numeric(GO_BP_results$Fisher)
+    GO_BP_results_sig<-GO_BP_results[GO_BP_results$Fisher<0.05,]
+  
+    # Return
+    print(GO_BP_results_sig)
+  }
+}
+```
+
+```{r}
+interacting_miRNAs <- unique(mod_cor_bind_FA$miRNA) %>% na.omit
+results <- list()
+
+for(miRNA in interacting_miRNAs) {
+  # Run topGo enrichment function
+  miRNA_results <- miRNA_topGO_FE(miRNA)
+  
+  print(miRNA_results)
+  
+  # Only keep results if not empty
+  if (nrow(miRNA_results) > 0) {
+    # note the source column
+    miRNA_results$miRNA <- miRNA
+    # append to results list
+    results[[miRNA]] <- miRNA_results
+  }
+}
+
+# Combine all the resuts data frames into one
+combined_GO_BP_results_miRNA <- do.call(rbind, results)
+
+# View
+print(combined_GO_BP_results_miRNA)
+
+```
+
+
