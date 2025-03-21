@@ -59,6 +59,8 @@ metadata<-read_csv("M-multi-species/data/rna_metadata.csv")%>%select(AzentaSampl
   filter(grepl("ACR", ColonyID))
 
 colonies<-unique(metadata$ColonyID)
+
+unique(paste(metadata$ColonyID, metadata$Timepoint))
 ```
 
 Load physiology data. 
