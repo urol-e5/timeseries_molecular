@@ -45,6 +45,8 @@ library(dplyr)
 library(tidyverse)
 library(ggplot2)
 library(topGO)
+library(igraph)
+library(ggraph)
 ```
 
 # Load and format annotation files
@@ -227,13 +229,17 @@ print(combined_GO_BP_results_sig)
 # Extract significant modules for each trait
 significant_modules_per_trait <- apply(WGCNA_pvals_significant, 2, function(x) rownames(WGCNA_pvals_significant)[x < 0.05])
 
+# Specify traits of interest
+#traits <- colnames(WGCNA_pvals_significant)
+traits <- c("timepoint2", "timepoint3", "mean_Temp_mean", "mean_solar_rad_kwpm2_mean", "cumulative_rainfall_mm_mean")
+
 # Create empty matrix to store values for hetmap
-go_term_counts <- matrix(0, nrow = ncol(WGCNA_pvals_significant), ncol = length(unique(combined_GO_BP_results_sig$Term)))
-rownames(go_term_counts) <- colnames(WGCNA_pvals_significant)  # Trait names
+go_term_counts <- matrix(0, nrow = length(traits), ncol = length(unique(combined_GO_BP_results_sig$Term)))
+rownames(go_term_counts) <- traits  # Trait names
 colnames(go_term_counts) <- unique(combined_GO_BP_results_sig$Term)  # Unique GO terms
 
 # Loop through each trait, calculate the number of significant modules enriched for each GO term
-for (trait in colnames(WGCNA_pvals_significant)) {
+for (trait in traits) {
   # Get the significant modules for this trait
   significant_modules <- significant_modules_per_trait[[trait]]
   
@@ -265,9 +271,46 @@ ggplot(go_term_counts_df, aes(x = Trait, y = GO_term, fill = Module_Count)) +
   theme(axis.text.x = element_text(size = 8, angle = 45, hjust=0.5, vjust=0.5), 
         axis.text.y = element_text(size = 8),
         ) + 
-  labs(fill = "Proportion Enriched", title = "Proportion of Significant Modules Enriched for GO Terms") +
-  theme(legend.position = "bottom")
-ggsave("../output/21-Apul-annotate-miRNA-mRNA-WGCNA/go_term_heatmap.png", width = 12, height = 8, dpi = 300)
+  labs(fill = "# of Enriched Modules", title = "Significant Modules Enriched for GO Terms") +
+  theme(legend.position = "right")
+ggsave("../output/21-Apul-annotate-miRNA-mRNA-WGCNA/go_term_heatmap_envir_traits.png", width = 12, height = 10, dpi = 300)
+```
+
+## Isolate enriched terms by associated trait(s)
+
+Terms enriched in modules correlated with TP2
+```{r}
+modules_TP2 <- significant_modules_per_trait[["timepoint2"]]
+GO_TP2 <- combined_GO_BP_results_sig[combined_GO_BP_results_sig$module %in% modules_TP2,]
+GO_TP2
+```
+
+Terms enriched in modules correlated with TP3
+```{r}
+modules_TP3 <- significant_modules_per_trait[["timepoint3"]]
+GO_TP3 <- combined_GO_BP_results_sig[combined_GO_BP_results_sig$module %in% modules_TP3,]
+GO_TP3
+```
+
+Terms enriched in modules correlated with temp
+```{r}
+modules_temp <- significant_modules_per_trait[["mean_Temp_mean"]]
+GO_temp <- combined_GO_BP_results_sig[combined_GO_BP_results_sig$module %in% modules_temp,]
+GO_temp
+```
+
+Terms enriched in modules correlated with solar
+```{r}
+modules_solar <- significant_modules_per_trait[["mean_solar_rad_kwpm2_mean"]]
+GO_solar <- combined_GO_BP_results_sig[combined_GO_BP_results_sig$module %in% modules_solar,]
+GO_solar
+```
+
+Terms enriched in modules correlated with rain
+```{r}
+modules_rain <- significant_modules_per_trait[["cumulative_rainfall_mm_mean"]]
+GO_rain <- combined_GO_BP_results_sig[combined_GO_BP_results_sig$module %in% modules_rain,]
+GO_rain
 ```
 
 
@@ -456,5 +499,170 @@ combined_GO_BP_results_miRNA <- do.call(rbind, results)
 print(combined_GO_BP_results_miRNA)
 
 ```
+
+
+
+# Summary figures
+
+Bubbleplot showing number of significantly correlated modules for eacvh trait and the total genes represented by those modules
+
+```{r}
+# Example significance threshold
+pval_threshold <- 0.05
+
+# Filter significant modules for each trait
+significant_modules_long <- WGCNA_pvals %>%
+  rownames_to_column("module") %>%
+  pivot_longer(-module, names_to = "Trait", values_to = "Pvalue") %>%
+  filter(Pvalue < 0.05)
+
+# Count the number of significant modules per trait
+module_counts <- significant_modules_long %>%
+  group_by(Trait) %>%
+  summarise(NumModules = n())
+
+# Count the number of genes in significant modules
+gene_counts <- module_membership %>%
+  filter(module %in% significant_modules_long$module) %>%
+  group_by(module) %>%
+  summarise(NumGenes = n()) %>%
+  inner_join(significant_modules_long, by = "module") %>%
+  group_by(Trait) %>%
+  summarise(TotalGenes = sum(NumGenes))
+
+# Merge data
+plot_data <- module_counts %>%
+  left_join(gene_counts, by = "Trait")
+
+# Filter to certain traits if desired
+# traits <- c("timepoint2", "timepoint3", "mean_Temp_mean", "mean_solar_rad_kwpm2_mean", "cumulative_rainfall_mm_mean")
+# plot_data <- plot_data[plot_data$Trait %in% traits,]
+
+# Bubble plot
+ggplot(plot_data, aes(x = Trait, y = 0.5, size = TotalGenes, color = NumModules)) +
+  geom_point(alpha = 0.8) +
+  scale_color_gradient(low = "blue", high = "red") +
+  scale_size_continuous(trans = "log10", range = c(2, 15)) + 
+  ylim(0,1) +
+  theme_classic() +
+  labs(title = "Significant Modules per Trait",
+       x = "Trait",
+       y = "",
+       size = "Total Genes",
+       color = "Num Modules") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        axis.text.y = element_blank(),  # Hide y-axis labels
+        axis.ticks.y = element_blank())
+ggsave("../output/21-Apul-annotate-miRNA-mRNA-WGCNA/bubble_signif_modules.png", width = 12, height = 6, dpi = 300)
+```
+
+
+Interaction network showing, for a variable of interest, all the correlated modules, their genes, and miRNA interactions
+
+1. Which modules are in variable of interest
+WGCNA_pvals[WGCNA_pvals$trait < 0.05,] %>% rownames()
+2. Which genes/miRNA are in each module
+`module_membership`
+3. which genes each miRNA interacts with
+`modules_cor_miRNA_mRNA_bind`
+^includes Correlation between modules
+
+
+```{r}
+trait <- "timepoint"
+
+# Extract correlated modules
+sig_modules <- rownames(WGCNA_pvals[WGCNA_pvals$timepoint2 < 0.05, ])
+
+# Extract genes and miRNA n each module
+module_genes <- module_membership[module_membership$module %in% sig_modules, ]
+
+# Extract miRNA-mRNA interactions for these modules
+miRNA_interactions <- modules_cor_miRNA_mRNA_bind[
+  modules_cor_miRNA_mRNA_bind$miRNA_module %in% sig_modules |
+  modules_cor_miRNA_mRNA_bind$mRNA_module %in% sig_modules, 
+]
+
+# Create edge list for the network
+# edges <- rbind(
+#   data.frame(from = module_genes$gene, to = module_genes$module, type = "gene-module"),
+#   data.frame(from = miRNA_interactions$miRNA, to = miRNA_interactions$mRNA, type = "miRNA-mRNA"),
+#   data.frame(from = miRNA_interactions$miRNA_module, to = miRNA_interactions$mRNA_module, type = "module-module")
+# )
+
+# # Gene-to-Module edges (Genes and miRNAs assigned to modules)
+# edges_genes <- data.frame(
+#   from = module_membership$gene, 
+#   to = module_membership$module, 
+#   type = "gene-module",
+#   correlation = NA  # No correlation needed for membership edges
+# )
+# 
+# # miRNA-Gene interaction edges (including correlation from module correlation)
+# edges_miRNA_gene <- data.frame(
+#   from = modules_cor_miRNA_mRNA_bind$miRNA, 
+#   to = modules_cor_miRNA_mRNA_bind$gene, 
+#   type = "miRNA-gene",
+#   correlation = modules_cor_miRNA_mRNA_bind$correlation  # Assign correlation value
+# )
+# 
+# # Combine all edges into a single dataframe
+# edges <- rbind(edges_genes, edges_miRNA_gene) %>% distinct()
+
+edges <- data.frame(
+  from = modules_cor_miRNA_mRNA_bind$miRNA, 
+  to = modules_cor_miRNA_mRNA_bind$gene, 
+  type = "miRNA-gene",
+  correlation = modules_cor_miRNA_mRNA_bind$correlation  # Correlation between miRNA and gene parent modules
+) %>% na.omit()
+
+# Create node data frame with miRNAs and genes
+miRNA_nodes <- data.frame(
+  name = unique(modules_cor_miRNA_mRNA_bind$miRNA),  # Unique miRNAs
+  module = modules_cor_miRNA_mRNA_bind$miRNA_module[match(unique(modules_cor_miRNA_mRNA_bind$miRNA), modules_cor_miRNA_mRNA_bind$miRNA)],  # Corresponding miRNA module
+  type = "miRNA"
+) %>% na.omit()
+
+
+# Create gene-node dataframe with the filtered module_membership
+gene_nodes <- data.frame(
+  name = unique(modules_cor_miRNA_mRNA_bind$gene),  # Unique genes
+  module = modules_cor_miRNA_mRNA_bind$mRNA_module[match(unique(modules_cor_miRNA_mRNA_bind$gene), modules_cor_miRNA_mRNA_bind$gene)],  # Corresponding gene module
+  type = "gene"
+) %>% na.omit()
+
+# Combine both miRNA and gene nodes
+nodes <- rbind(miRNA_nodes, gene_nodes)
+
+# Plot
+g <- graph_from_data_frame(edges, directed = FALSE, vertices = nodes)
+
+ggraph(g, layout = "fr") +
+  # Nodes colored by their module (categorical)
+  geom_node_point(aes(color = module), size = 5) +
+  
+  # Edges colored by correlation (continuous)
+  geom_edge_link(aes(color = correlation), width = 1) +
+  
+  # Discrete color scale for modules
+  scale_color_manual(values = rainbow(length(unique(V(g)$module)))) +
+  
+  # Continuous gradient color scale for correlation values
+  scale_edge_color_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
+  
+  theme_void() +
+  theme(legend.position = "bottom")
+
+
+```
+
+
+```{r}
+write.csv(edges, "../output/21-Apul-annotate-miRNA-mRNA-WGCNA/edges.csv")
+write.csv(nodes, "../output/21-Apul-annotate-miRNA-mRNA-WGCNA/nodes.csv")
+```
+
+
+
 
 
