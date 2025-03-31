@@ -1,0 +1,524 @@
+---
+title: "22-Apul-miRNA-mRNA-machine-learning"
+author: "Kathleen Durkin"
+date: "2025-03-31"
+output: 
+  github_document:
+    toc: true
+    number_sections: true
+  html_document:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+  bookdown::html_document2:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+bibliography: references.bib
+---
+
+I'd like to see whether phenotype can predict gene and/or miRNA expression, will be testing this using the ML approach Ariana has been trialing (see her mRNA-WGBS ML post here: https://ahuffmyer.github.io/ASH_Putnam_Lab_Notebook/E5-timeseries-molecular-mRNA-WGBS-machine-learning-analysis-Part-1/)
+
+
+Inputs:
+
+-   RNA counts matrix (raw):  `../output/02.20-D-Apul-RNAseq-alignment-HiSat2/apul-gene_count_matrix.csv`
+
+-   sRNA/miRNA counts matrix (raw):  `../output/03.10-D-Apul-sRNAseq-expression-DESeq2/Apul_miRNA_ShortStack_counts_formatted.txt`
+
+-   sample metadata:  `../../M-multi-species/data/rna_metadata.csv`
+
+-   physiological data:  https://github.com/urol-e5/timeseries/raw/refs/heads/master/time_series_analysis/Output/master_timeseries.csv
+
+
+Note that I'll start by using phenotype (e.g. biomass, respiration) as the predictor, which is suitable for understanding *how external factors drive gene expression changes.*
+
+If, instead, we wanted to build some sort of predictive model, where *gene expression could be used to predict phenotype*, we could switch so that gene counts are used as the predictors. 
+
+# Load libraries
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(DESeq2)
+library(igraph)
+library(psych)
+library(tidygraph)
+library(ggraph)
+library(WGCNA)
+library(edgeR)
+library(reshape2)
+library(ggcorrplot)
+library(corrplot)
+library(rvest)
+library(purrr)
+library(pheatmap)
+library(glmnet)
+library(caret)
+library(factoextra)
+library(vegan)
+library(ggfortify)
+```
+
+
+
+# Load and prep data
+
+Load in count matrices for RNAseq. 
+
+```{r load-data}
+# raw gene counts data (will filter and variance stabilize)
+Apul_genes <- read_csv("../output/02.20-D-Apul-RNAseq-alignment-HiSat2/apul-gene_count_matrix.csv")
+Apul_genes <- as.data.frame(Apul_genes)
+
+# format gene IDs as rownames (instead of a column)
+rownames(Apul_genes) <- Apul_genes$gene_id
+Apul_genes <- Apul_genes%>%select(!gene_id)
+
+
+# load and format metadata
+metadata <- read_csv("../../M-multi-species/data/rna_metadata.csv")%>%select(AzentaSampleName, ColonyID, Timepoint) %>%
+  filter(grepl("ACR", ColonyID))
+metadata$Sample <- paste(metadata$AzentaSampleName, metadata$ColonyID, metadata$Timepoint, sep = "_")
+
+colonies <- unique(metadata$ColonyID)
+
+# Load physiological data
+phys<-read_csv("https://github.com/urol-e5/timeseries/raw/refs/heads/master/time_series_analysis/Output/master_timeseries.csv")%>%filter(colony_id_corr %in% colonies)%>%
+  select(colony_id_corr, species, timepoint, site, Host_AFDW.mg.cm2, Sym_AFDW.mg.cm2, Am, AQY, Rd, Ik, Ic, calc.umol.cm2.hr, cells.mgAFDW, prot_mg.mgafdw, Ratio_AFDW.mg.cm2, Total_Chl, Total_Chl_cell, cre.umol.mgafdw)
+# format timepoint
+phys$timepoint <- gsub("timepoint", "TP", phys$timepoint)
+#add column with full sample info
+phys <- merge(phys, metadata, by.x = c("colony_id_corr", "timepoint"), by.y = c("ColonyID", "Timepoint")) %>%
+  select(-AzentaSampleName)
+  
+
+#add site information into metadata 
+metadata$Site<-phys$site[match(metadata$ColonyID, phys$colony_id_corr)]
+
+
+# Rename gene column names to include full sample info (as in miRNA table)
+colnames(Apul_genes) <- metadata$Sample[match(colnames(Apul_genes), metadata$AzentaSampleName)]
+
+# raw miRNA counts (will filter and variance stabilize)
+Apul_miRNA <- read.table(file = "../output/03.10-D-Apul-sRNAseq-expression-DESeq2/Apul_miRNA_ShortStack_counts_formatted.txt", header = TRUE, sep = "\t", check.names = FALSE)
+
+```
+
+
+## Counts filtering 
+
+Ensure there are no genes or miRNAs with 0 counts across all samples.
+
+```{r}
+nrow(Apul_genes)
+
+Apul_genes_filt<-Apul_genes %>%
+     mutate(Total = rowSums(.[, 1:40]))%>%
+    filter(!Total==0)%>%
+    dplyr::select(!Total)
+
+nrow(Apul_genes_filt)
+
+# miRNAs
+nrow(Apul_miRNA)
+
+Apul_miRNA_filt<-Apul_miRNA %>%
+     mutate(Total = rowSums(.[, 1:40]))%>%
+    filter(!Total==0)%>%
+    dplyr::select(!Total)
+
+nrow(Apul_miRNA_filt)
+```
+
+Removing genes with only 0 counts reduced number from 44371 to 35869. Retained all 51 miRNAs.
+
+Will not be performing pOverA filtering for now, since LM should presumabily incorporate sample representation
+
+## Physiology filtering
+
+Run PCA on physiology data to see if there are phys outliers 
+
+Export data for PERMANOVA test.  
+```{r}
+test<-as.data.frame(phys)
+test<-test[complete.cases(test), ]
+```
+
+Build PERMANOVA model.  
+```{r}
+scaled_test <-prcomp(test%>%select(where(is.numeric)), scale=TRUE, center=TRUE)
+fviz_eig(scaled_test)
+
+# scale data
+vegan <- scale(test%>%select(where(is.numeric)))
+
+# PerMANOVA 
+permanova<-adonis2(vegan ~ timepoint*site, data = test, method='eu')
+permanova
+```
+
+```{r}
+pca1<-ggplot2::autoplot(scaled_test, data=test, frame.colour="timepoint", loadings=FALSE,  colour="timepoint", shape="site", loadings.label.colour="black", loadings.colour="black", loadings.label=FALSE, frame=FALSE, loadings.label.size=5, loadings.label.vjust=-1, size=5) + 
+  geom_text(aes(x = PC1, y = PC2, label = paste(colony_id_corr, timepoint)), vjust = -0.5)+
+  theme_classic()+
+   theme(legend.text = element_text(size=18), 
+         legend.position="right",
+        plot.background = element_blank(),
+        legend.title = element_text(size=18, face="bold"), 
+        axis.text = element_text(size=18), 
+        axis.title = element_text(size=18,  face="bold"));pca1
+```
+
+Remove ACR-173, timepoint 3 sample from analysis. This is Azenta sample 1B2. 
+
+```{r}
+Apul_genes_filt <- Apul_genes_filt %>%
+  select(!`1B2_ACR-173_TP3`)
+
+Apul_miRNA_filt <- Apul_miRNA_filt %>%
+  select(!`1B2_ACR-173_TP3`)
+
+metadata <- metadata %>%
+  filter(Sample != "1B2_ACR-173_TP3")
+```
+
+We also do not have phys data for colony 1B9 ACR-265 at TP4, so I'll remove that here as well. 
+
+```{r}
+Apul_genes_filt <- Apul_genes_filt%>%
+  select(!`1B9_ACR-265_TP4`)
+
+Apul_miRNA_filt <- Apul_miRNA_filt%>%
+  select(!`1B9_ACR-265_TP4`)
+
+metadata <- metadata %>%
+  filter(Sample != "1B9_ACR-265_TP4")
+```
+
+
+
+
+## Assign metadata and arrange order of columns 
+
+Order metadata the same as the column order in the gene matrix.  
+```{r}
+list<-colnames(Apul_genes_filt)
+list<-as.factor(list)
+
+metadata$Sample<-as.factor(metadata$Sample)
+
+# Re-order the levels
+metadata$Sample <- factor(as.character(metadata$Sample), levels=list)
+# Re-order the data.frame
+metadata_ordered <- metadata[order(metadata$Sample),]
+metadata_ordered$Sample
+
+# Make sure the miRNA colnames are also in the same order as the gene colnames
+Apul_miRNA_filt <- Apul_miRNA_filt[, colnames(Apul_genes_filt)]
+```
+
+Metadata and gene count matrix are now ordered the same. 
+
+## Conduct variance stabilized transformation 
+
+VST should be performed on our two input datasets (gene counts and miRNA counts) separately
+
+### Genes:
+
+```{r}
+#Set DESeq2 design
+dds_genes <- DESeqDataSetFromMatrix(countData = Apul_genes_filt,
+                              colData = metadata_ordered,
+                              design = ~Timepoint+ColonyID)
+```
+
+Check size factors. 
+```{r}
+SF.dds_genes <- estimateSizeFactors(dds_genes) #estimate size factors to determine if we can use vst  to transform our data. Size factors should be less than 4 for us to use vst
+print(sizeFactors(SF.dds_genes)) #View size factors
+
+all(sizeFactors(SF.dds_genes)) < 4
+```
+
+All size factors are less than 4, so we can use VST transformation.  
+
+```{r}
+vsd_genes <- vst(dds_genes, blind=TRUE) #apply a variance stabilizing transformation to minimize effects of small counts and normalize with respect to library size
+vsd_genes <- assay(vsd_genes)
+head(vsd_genes, 3) #view transformed gene count data for the first three genes in the dataset.  
+```
+
+
+
+
+### miRNA:
+
+```{r}
+#Set DESeq2 design
+dds_miRNA <- DESeqDataSetFromMatrix(countData = Apul_miRNA_filt,
+                              colData = metadata_ordered,
+                              design = ~Timepoint+ColonyID)
+```
+
+Check size factors. 
+```{r}
+SF.dds_miRNA <- estimateSizeFactors(dds_miRNA) #estimate size factors to determine if we can use vst  to transform our data. Size factors should be less than 4 for us to use vst
+print(sizeFactors(SF.dds_miRNA)) #View size factors
+
+all(sizeFactors(SF.dds_miRNA)) < 4
+```
+
+All size factors are less than 4, so we can use VST transformation.  
+
+```{r}
+vsd_miRNA <- varianceStabilizingTransformation(dds_miRNA, blind=TRUE) #apply a variance stabilizing transformation to minimize effects of small counts and normalize with respect to library size. Using varianceStabilizingTransformation() instead of vst() because few input genes
+vsd_miRNA <- assay(vsd_miRNA)
+head(vsd_miRNA, 3) #view transformed gene count data for the first three genes in the dataset.
+
+```
+
+## Combine counts data
+
+```{r}
+# Extract variance stabilized counts as dataframes
+# want samples in rows, genes/miRNAs in columns
+datExpr_genes <- as.data.frame(t(vsd_genes))
+datExpr_miRNA <- as.data.frame(t(vsd_miRNA))
+
+# Double check the row names (sample names) are in same order
+rownames(datExpr_genes) == rownames(datExpr_miRNA)
+
+# Combine vst gene counts and vst miRNA counts by rows (sample names)
+vsd_merged <- cbind(datExpr_genes, datExpr_miRNA)
+
+```
+
+# Feature selection
+
+We have a large number of genes, so we'll reduce dimensionality using PCA. Note that, since we only have a few phenotypes of interest, we don't need to reduce this dataset
+
+First need to remove any genes/miRNA that are invariant
+
+```{r}
+vsd_merged_filt <- vsd_merged[, apply(vsd_merged, 2, var) > 0]
+
+ncol(vsd_merged)
+ncol(vsd_merged_filt)
+
+colnames(vsd_merged[, apply(vsd_merged, 2, var) == 0])
+```
+
+Removed 74 invariant genes. I was worried we lost miRNA, but it looks like everything removed was a gene (prefix "FUN")!
+
+Reduce dimensionality (genes+miRNA)
+
+```{r}
+# Perform PCA on gene+miRNA expression matrix
+pca_merged <- prcomp(vsd_merged_filt, scale. = TRUE)
+
+# Select top PCs that explain most variance (e.g., top 50 PCs)
+explained_var <- summary(pca_merged)$importance[2, ]  # Cumulative variance explained
+num_pcs <- min(which(cumsum(explained_var) > 0.95))  # Keep PCs that explain 95% variance
+
+merged_pcs <- as.data.frame(pca_merged$x[, 1:num_pcs])  # Extract selected PCs
+
+dim(merged_pcs)
+```
+
+We have 27 gene/miRNA expression PCs
+
+Select physiological metrics of interest. For now we'll focus on biomass ("Host_AFDW.mg.cm2"), protein ("prot_mg.mgafdw"), and respiration ("Rd"). These are all metrics of host energy storage and expenditure.
+
+```{r}
+# Assign sample IDs to row names
+rownames(phys) <- phys$Sample
+
+# Select metrics
+phys_selection <- phys %>% select(Host_AFDW.mg.cm2, prot_mg.mgafdw, Rd)
+
+# Make sure the phys rownames are in the same order as the gene/miRNA rownames
+phys_selection <- phys_selection[rownames(merged_pcs),]
+```
+
+
+# The LM 
+
+Train elastic models to predict gene expression PCs from methylation PCs.
+
+```{r}
+train_models <- function(response_pcs, predictor_pcs) {
+  models <- list()
+  
+  for (pc in colnames(response_pcs)) {
+    y <- response_pcs[[pc]]  # Gene expression PC
+    X <- as.matrix(predictor_pcs)  # Methylation PCs as predictors
+    
+    # Train elastic net model (alpha = 0.5 for mix of LASSO & Ridge)
+    model <- cv.glmnet(X, y, alpha = 0.5)
+    
+    models[[pc]] <- model
+  }
+  
+  return(models)
+}
+
+# Train models predicting gene expression PCs from methylation PCs
+models <- train_models(merged_pcs, phys_selection)
+```
+
+Extract feature importance.
+
+```{r}
+get_feature_importance <- function(models) {
+  importance_list <- lapply(models, function(model) {
+    coefs <- as.matrix(coef(model, s = "lambda.min"))[-1, , drop = FALSE]  # Convert to regular matrix & remove intercept
+    
+    # Convert to data frame
+    coefs_df <- data.frame(Feature = rownames(coefs), Importance = as.numeric(coefs))
+    
+    return(coefs_df)
+  })
+  
+  # Combine feature importance across all predicted gene PCs
+  importance_df <- bind_rows(importance_list) %>%
+    group_by(Feature) %>%
+    summarize(MeanImportance = mean(abs(Importance)), .groups = "drop") %>%
+    arrange(desc(MeanImportance))
+  
+  return(importance_df)
+}
+
+feature_importance <- get_feature_importance(models)
+head(feature_importance, 20)  # Top 20 predictive methylation PCs
+```
+
+Evaluate performance.
+
+```{r}
+evaluate_model_performance <- function(models, response_pcs, predictor_pcs) {
+  results <- data.frame(PC = colnames(response_pcs), R2 = NA)
+  
+  for (pc in colnames(response_pcs)) {
+    y <- response_pcs[[pc]]
+    X <- as.matrix(predictor_pcs)
+    
+    model <- models[[pc]]
+    preds <- predict(model, X, s = "lambda.min")
+    
+    R2 <- cor(y, preds)^2  # R-squared metric
+    results[results$PC == pc, "R2"] <- R2
+  }
+  
+  return(results)
+}
+
+performance_results <- evaluate_model_performance(models, merged_pcs, phys_selection)
+summary(performance_results$R2)
+```
+
+# Results
+
+Plot results.
+
+```{r}
+# Select top 20 predictive methylation PCs
+top_features <- feature_importance %>% top_n(20, MeanImportance)
+
+# Plot
+ggplot(top_features, aes(x = reorder(Feature, MeanImportance), y = MeanImportance)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  coord_flip() +  # Flip for readability
+  theme_minimal() +
+  labs(title = "Top 20 Predictive Methylation PCs",
+       x = "Methylation PC",
+       y = "Mean Importance")
+```
+
+```{r}
+ggplot(performance_results, aes(x = PC, y = R2)) +
+  geom_point(color = "darkred", size = 3) +
+  geom_hline(yintercept = mean(performance_results$R2, na.rm = TRUE), linetype = "dashed", color = "blue") +
+  theme_minimal() +
+  labs(title = "Model Performance Across Gene Expression PCs",
+       x = "Gene Expression PC",
+       y = "R² (Variance Explained)") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate labels
+```
+
+Keep in mind that, while we ran the model with physiological predictors, we're really interested in the genes/miRNA associated with these predictors
+
+
+View components associated with gene/miRNA PCs
+
+```{r}
+# Get the PCA rotation (loadings) matrix from the original WGBS PCA
+merged_loadings <- pca_merged$rotation  # Each column corresponds to a PC
+
+# # Identify the top predictive PCs (from feature importance)
+# top_predictive_pcs <- feature_importance$Feature[1:5]  # Select top 5 most predictive PCs
+# 
+# # Extract the loadings for those PCs
+# top_loadings <- wgbs_loadings[, top_predictive_pcs, drop = FALSE]
+
+# Convert to data frame and reshape for plotting
+merged_loadings_df <- as.data.frame(merged_loadings) %>%
+  rownames_to_column(var = "gene_miRNA") %>%
+  pivot_longer(-gene_miRNA, names_to = "Merged_PC", values_to = "Loading")
+
+# View top CpGs contributing most to each PC
+top_genes <- merged_loadings_df %>%
+  group_by(Merged_PC) %>%
+  arrange(desc(abs(Loading))) %>%
+  slice_head(n = 20)  # Select top 10 CpGs per PC
+
+print(top_genes)
+
+```
+
+View top 20 miRNA/genes associated with PC9 (the PC with the highest R^2)
+
+```{r}
+print(top_genes%>%filter(Merged_PC=="PC9"))
+```
+Interesting, there's an miRNA in there!
+
+View predicted vs actual gene expression values to evaluate model.
+
+```{r}
+# Choose a gene expression PC to visualize (e.g., the most predictable one)
+best_pc <- performance_results$PC[which.max(performance_results$R2)]
+
+# Extract actual and predicted values for that PC
+actual_values <- merged_pcs[[best_pc]]
+predicted_values <- predict(models[[best_pc]], as.matrix(phys_selection), s = "lambda.min")
+
+# Create data frame
+prediction_df <- data.frame(
+  Actual = actual_values,
+  Predicted = predicted_values
+)
+
+# Scatter plot with regression line
+ggplot(prediction_df, aes(x = Actual, y = lambda.min)) +
+  geom_point(color = "blue", alpha = 0.7) +
+  geom_smooth(method = "lm", color = "red", se = FALSE) +
+  theme_minimal() +
+  labs(title = paste("Predicted vs. Actual for", best_pc),
+       x = "Actual Gene Expression PC",
+       y = "Predicted Gene Expression PC") +
+  annotate("text", x = min(actual_values), y = max(predicted_values), 
+           label = paste("R² =", round(max(performance_results$R2, na.rm=TRUE), 3)), 
+           hjust = 0, color = "black", size = 5)
+## `geom_smooth()` using formula = 'y ~ x'
+
+```
+
+
+
