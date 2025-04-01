@@ -23,7 +23,7 @@ Kathleen Durkin
     Combine counts data</a>
 - <a href="#3-feature-selection" id="toc-3-feature-selection">3 Feature
   selection</a>
-- <a href="#4-the-lm" id="toc-4-the-lm">4 The LM</a>
+- <a href="#4-the-model" id="toc-4-the-model">4 The model</a>
 - <a href="#5-results" id="toc-5-results">5 Results</a>
 
 I’d like to see whether phenotype can predict gene and/or miRNA
@@ -1010,10 +1010,9 @@ phys_selection <- phys %>% select(Host_AFDW.mg.cm2, prot_mg.mgafdw, Rd)
 phys_selection <- phys_selection[rownames(merged_pcs),]
 ```
 
-# 4 The LM
+# 4 The model
 
-Train elastic models to predict gene expression PCs from methylation
-PCs.
+Train elastic models to predict gene expression PCs from phys data.
 
 ``` r
 train_models <- function(response_pcs, predictor_pcs) {
@@ -1021,7 +1020,7 @@ train_models <- function(response_pcs, predictor_pcs) {
   
   for (pc in colnames(response_pcs)) {
     y <- response_pcs[[pc]]  # Gene expression PC
-    X <- as.matrix(predictor_pcs)  # Methylation PCs as predictors
+    X <- as.matrix(predictor_pcs)  # Phys as predictors
     
     # Train elastic net model (alpha = 0.5 for mix of LASSO & Ridge)
     model <- cv.glmnet(X, y, alpha = 0.5)
@@ -1032,7 +1031,7 @@ train_models <- function(response_pcs, predictor_pcs) {
   return(models)
 }
 
-# Train models predicting gene expression PCs from methylation PCs
+# Train models predicting gene expression PCs from phys data
 models <- train_models(merged_pcs, phys_selection)
 ```
 
@@ -1059,15 +1058,15 @@ get_feature_importance <- function(models) {
 }
 
 feature_importance <- get_feature_importance(models)
-head(feature_importance, 20)  # Top 20 predictive methylation PCs
+head(feature_importance, 20)  # Top predictive phys features
 ```
 
     ## # A tibble: 3 × 2
     ##   Feature          MeanImportance
     ##   <chr>                     <dbl>
-    ## 1 prot_mg.mgafdw             9.84
-    ## 2 Rd                         7.14
-    ## 3 Host_AFDW.mg.cm2           1.83
+    ## 1 Rd                         6.17
+    ## 2 prot_mg.mgafdw             5.57
+    ## 3 Host_AFDW.mg.cm2           1.84
 
 Evaluate performance.
 
@@ -1094,14 +1093,14 @@ summary(performance_results$R2)
 ```
 
     ##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
-    ## 0.03904 0.06835 0.09628 0.10027 0.12634 0.17437      18
+    ## 0.06090 0.08104 0.10599 0.10721 0.12691 0.15641      21
 
 # 5 Results
 
 Plot results.
 
 ``` r
-# Select top 20 predictive methylation PCs
+# Select top 20 predictive phys features
 top_features <- feature_importance %>% top_n(20, MeanImportance)
 
 # Plot
@@ -1109,8 +1108,8 @@ ggplot(top_features, aes(x = reorder(Feature, MeanImportance), y = MeanImportanc
   geom_bar(stat = "identity", fill = "steelblue") +
   coord_flip() +  # Flip for readability
   theme_minimal() +
-  labs(title = "Top 20 Predictive Methylation PCs",
-       x = "Methylation PC",
+  labs(title = "Top 20 Predictive Phys Features",
+       x = "Physiological Metric",
        y = "Mean Importance")
 ```
 
@@ -1127,7 +1126,7 @@ ggplot(performance_results, aes(x = PC, y = R2)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate labels
 ```
 
-    ## Warning: Removed 18 rows containing missing values or values outside the scale range
+    ## Warning: Removed 21 rows containing missing values or values outside the scale range
     ## (`geom_point()`).
 
 ![](22-Apul-miRNA-mRNA-machine-learning_files/figure-gfm/unnamed-chunk-23-1.png)<!-- -->
@@ -1139,14 +1138,8 @@ predictors
 View components associated with gene/miRNA PCs
 
 ``` r
-# Get the PCA rotation (loadings) matrix from the original WGBS PCA
+# Get the PCA rotation (loadings) matrix from the original gene/miRNA PCA
 merged_loadings <- pca_merged$rotation  # Each column corresponds to a PC
-
-# # Identify the top predictive PCs (from feature importance)
-# top_predictive_pcs <- feature_importance$Feature[1:5]  # Select top 5 most predictive PCs
-# 
-# # Extract the loadings for those PCs
-# top_loadings <- wgbs_loadings[, top_predictive_pcs, drop = FALSE]
 
 # Convert to data frame and reshape for plotting
 merged_loadings_df <- as.data.frame(merged_loadings) %>%

@@ -348,9 +348,9 @@ phys_selection <- phys_selection[rownames(merged_pcs),]
 ```
 
 
-# The LM 
+# The model 
 
-Train elastic models to predict gene expression PCs from methylation PCs.
+Train elastic models to predict gene expression PCs from phys data.
 
 ```{r}
 train_models <- function(response_pcs, predictor_pcs) {
@@ -358,7 +358,7 @@ train_models <- function(response_pcs, predictor_pcs) {
   
   for (pc in colnames(response_pcs)) {
     y <- response_pcs[[pc]]  # Gene expression PC
-    X <- as.matrix(predictor_pcs)  # Methylation PCs as predictors
+    X <- as.matrix(predictor_pcs)  # Phys as predictors
     
     # Train elastic net model (alpha = 0.5 for mix of LASSO & Ridge)
     model <- cv.glmnet(X, y, alpha = 0.5)
@@ -369,7 +369,7 @@ train_models <- function(response_pcs, predictor_pcs) {
   return(models)
 }
 
-# Train models predicting gene expression PCs from methylation PCs
+# Train models predicting gene expression PCs from phys data
 models <- train_models(merged_pcs, phys_selection)
 ```
 
@@ -396,7 +396,7 @@ get_feature_importance <- function(models) {
 }
 
 feature_importance <- get_feature_importance(models)
-head(feature_importance, 20)  # Top 20 predictive methylation PCs
+head(feature_importance, 20)  # Top predictive phys features
 ```
 
 Evaluate performance.
@@ -428,7 +428,7 @@ summary(performance_results$R2)
 Plot results.
 
 ```{r}
-# Select top 20 predictive methylation PCs
+# Select top 20 predictive phys features
 top_features <- feature_importance %>% top_n(20, MeanImportance)
 
 # Plot
@@ -436,8 +436,8 @@ ggplot(top_features, aes(x = reorder(Feature, MeanImportance), y = MeanImportanc
   geom_bar(stat = "identity", fill = "steelblue") +
   coord_flip() +  # Flip for readability
   theme_minimal() +
-  labs(title = "Top 20 Predictive Methylation PCs",
-       x = "Methylation PC",
+  labs(title = "Top 20 Predictive Phys Features",
+       x = "Physiological Metric",
        y = "Mean Importance")
 ```
 
@@ -458,14 +458,8 @@ Keep in mind that, while we ran the model with physiological predictors, we're r
 View components associated with gene/miRNA PCs
 
 ```{r}
-# Get the PCA rotation (loadings) matrix from the original WGBS PCA
+# Get the PCA rotation (loadings) matrix from the original gene/miRNA PCA
 merged_loadings <- pca_merged$rotation  # Each column corresponds to a PC
-
-# # Identify the top predictive PCs (from feature importance)
-# top_predictive_pcs <- feature_importance$Feature[1:5]  # Select top 5 most predictive PCs
-# 
-# # Extract the loadings for those PCs
-# top_loadings <- wgbs_loadings[, top_predictive_pcs, drop = FALSE]
 
 # Convert to data frame and reshape for plotting
 merged_loadings_df <- as.data.frame(merged_loadings) %>%
