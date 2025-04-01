@@ -289,18 +289,20 @@ head(vsd_miRNA, 3) #view transformed gene count data for the first three genes i
 ```{r}
 # Extract variance stabilized counts as dataframes
 # want samples in rows, genes/miRNAs in columns
-datExpr_genes <- as.data.frame(t(vsd_genes))
-datExpr_miRNA <- as.data.frame(t(vsd_miRNA))
+vsd_genes <- as.data.frame(t(vsd_genes))
+vsd_miRNA <- as.data.frame(t(vsd_miRNA))
 
 # Double check the row names (sample names) are in same order
-rownames(datExpr_genes) == rownames(datExpr_miRNA)
+rownames(vsd_genes) == rownames(vsd_miRNA)
 
 # Combine vst gene counts and vst miRNA counts by rows (sample names)
-vsd_merged <- cbind(datExpr_genes, datExpr_miRNA)
+vsd_merged <- cbind(vsd_genes, vsd_miRNA)
 
 ```
 
 # Feature selection
+
+## Genes + miRNA
 
 We have a large number of genes, so we'll reduce dimensionality using PCA. Note that, since we only have a few phenotypes of interest, we don't need to reduce this dataset
 
@@ -334,6 +336,39 @@ dim(merged_pcs)
 
 We have 27 gene/miRNA expression PCs
 
+## Genes only
+
+To investigate gene expression separately from miRNA expression, reduce dimensionality of genes alone.
+
+Remove any genes that are invariant
+
+```{r}
+vsd_genes_filt <- vsd_genes[, apply(vsd_genes, 2, var) > 0]
+
+ncol(vsd_genes)
+ncol(vsd_genes_filt)
+```
+
+Removed 74 invariant genes.
+
+Reduce dimensionality
+
+```{r}
+# Perform PCA on gene expression matrix
+pca_genes <- prcomp(vsd_genes_filt, scale. = TRUE)
+
+# Select top PCs that explain most variance (e.g., top 50 PCs)
+explained_var_genes <- summary(pca_genes)$importance[2, ]  # Cumulative variance explained
+num_pcs_genes <- min(which(cumsum(explained_var_genes) > 0.95))  # Keep PCs that explain 95% variance
+
+genes_pcs <- as.data.frame(pca_genes$x[, 1:num_pcs_genes])  # Extract selected PCs
+
+dim(genes_pcs)
+```
+
+
+## Physiological metrics
+
 Select physiological metrics of interest. For now we'll focus on biomass ("Host_AFDW.mg.cm2"), protein ("prot_mg.mgafdw"), and respiration ("Rd"). These are all metrics of host energy storage and expenditure.
 
 ```{r}
@@ -348,7 +383,9 @@ phys_selection <- phys_selection[rownames(merged_pcs),]
 ```
 
 
-# The model 
+# Phenotype to predict gene/miRNA expression
+
+## The model 
 
 Train elastic models to predict gene expression PCs from phys data.
 
@@ -423,7 +460,7 @@ performance_results <- evaluate_model_performance(models, merged_pcs, phys_selec
 summary(performance_results$R2)
 ```
 
-# Results
+## Results
 
 Plot results.
 
@@ -515,4 +552,145 @@ ggplot(prediction_df, aes(x = Actual, y = lambda.min)) +
 ```
 
 
+# miRNA expression to predict gene expression
+
+## The model 
+
+Train elastic models to predict gene expression PCs from phys data.
+
+```{r}
+# Train models predicting gene expression PCs from phys data
+models2 <- train_models(genes_pcs, vsd_miRNA)
+```
+
+Extract feature importance.
+
+```{r}
+feature_importance2 <- get_feature_importance(models2)
+head(feature_importance2, 20)  # Top predictive phys features
+```
+
+Evaluate performance.
+
+```{r}
+performance_results2 <- evaluate_model_performance(models2, genes_pcs, vsd_miRNA)
+summary(performance_results2$R2)
+```
+
+## Results
+
+Plot results.
+
+```{r}
+# Select top 20 predictive phys features
+top_features2 <- feature_importance2 %>% top_n(20, MeanImportance)
+
+# Plot
+ggplot(top_features2, aes(x = reorder(Feature, MeanImportance), y = MeanImportance)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  coord_flip() +  # Flip for readability
+  theme_minimal() +
+  labs(title = "Top 20 Predictive miRNA Features",
+       x = "Gene Expression",
+       y = "Mean Importance")
+```
+
+```{r}
+ggplot(performance_results2, aes(x = PC, y = R2)) +
+  geom_point(color = "darkred", size = 3) +
+  geom_hline(yintercept = mean(performance_results2$R2, na.rm = TRUE), linetype = "dashed", color = "blue") +
+  theme_minimal() +
+  labs(title = "Model Performance Across Gene Expression PCs",
+       x = "Gene Expression PC",
+       y = "R² (Variance Explained)") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate labels
+```
+
+View components associated with gene PCs
+
+```{r}
+# Get the PCA rotation (loadings) matrix from the original gene PCA
+genes_loadings <- pca_genes$rotation  # Each column corresponds to a PC
+
+# Convert to data frame and reshape for plotting
+genes_loadings_df <- as.data.frame(genes_loadings) %>%
+  rownames_to_column(var = "gene") %>%
+  pivot_longer(-gene, names_to = "Genes_PC", values_to = "Loading")
+
+# View top genes contributing most to each PC
+top_genes2 <- genes_loadings_df %>%
+  group_by(Genes_PC) %>%
+  arrange(desc(abs(Loading))) %>%
+  slice_head(n = 20)  # Select top 10 CpGs per PC
+
+print(top_genes2)
+
+```
+
+View top 20 genes associated with PC11 (the most "predictable" PC, with the highest R^2)
+
+```{r}
+print(top_genes2%>%filter(Genes_PC=="PC11"))
+```
+
+
+View predicted vs actual gene expression values to evaluate model.
+
+```{r}
+# Choose a gene expression PC to visualize (e.g., the most predictable one)
+best_pc2 <- performance_results2$PC[which.max(performance_results2$R2)]
+
+# Extract actual and predicted values for that PC
+actual_values2 <- genes_pcs[[best_pc2]]
+predicted_values2 <- predict(models2[[best_pc2]], as.matrix(vsd_miRNA), s = "lambda.min")
+
+# Create data frame
+prediction_df2 <- data.frame(
+  Actual = actual_values2,
+  Predicted = predicted_values2
+)
+
+# Scatter plot with regression line
+ggplot(prediction_df2, aes(x = Actual, y = lambda.min)) +
+  geom_point(color = "blue", alpha = 0.7) +
+  geom_smooth(method = "lm", color = "red", se = FALSE) +
+  theme_minimal() +
+  labs(title = paste("Predicted vs. Actual for", best_pc2),
+       x = "Actual Gene Expression PC",
+       y = "Predicted Gene Expression PC") +
+  annotate("text", x = min(actual_values2), y = max(predicted_values2), 
+           label = paste("R² =", round(max(performance_results2$R2, na.rm=TRUE), 3)), 
+           hjust = 0, color = "black", size = 5)
+## `geom_smooth()` using formula = 'y ~ x'
+
+```
+
+We can also look att which miRNA(s) contributed most to predicting gene PCs of interest
+
+```{r}
+get_feature_importance_for_pc <- function(model) {
+  coefs <- as.matrix(coef(model, s = "lambda.min"))[-1, , drop = FALSE]  # Remove intercept
+  coefs_df <- data.frame(Feature = rownames(coefs), Importance = abs(as.numeric(coefs)))
+  
+  return(coefs_df %>% arrange(desc(Importance)))  # Sort by importance
+}
+
+# Extract feature importance for the most predictable PC
+#best_pc2 <- "PC11"
+best_pc_model2 <- models2[[best_pc2]]
+best_pc_importance2 <- get_feature_importance_for_pc(best_pc_model2)
+
+# View top most important miRNA for predicting this PC
+print(head(best_pc_importance2, 10))
+
+# Plot
+ggplot(best_pc_importance2 %>% head(20), aes(x = reorder(Feature, Importance), y = Importance)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  coord_flip() +
+  theme_minimal() +
+  labs(title = paste("Top miRNA Predictors for", best_pc2),
+       x = "miRNA",
+       y = "Importance Score")
+
+```
 

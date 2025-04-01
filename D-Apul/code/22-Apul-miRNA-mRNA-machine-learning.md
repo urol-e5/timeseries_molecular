@@ -23,8 +23,21 @@ Kathleen Durkin
     Combine counts data</a>
 - <a href="#3-feature-selection" id="toc-3-feature-selection">3 Feature
   selection</a>
-- <a href="#4-the-model" id="toc-4-the-model">4 The model</a>
-- <a href="#5-results" id="toc-5-results">5 Results</a>
+  - <a href="#31-genes--mirna" id="toc-31-genes--mirna">3.1 Genes +
+    miRNA</a>
+  - <a href="#32-genes-only" id="toc-32-genes-only">3.2 Genes only</a>
+  - <a href="#33-physiological-metrics"
+    id="toc-33-physiological-metrics">3.3 Physiological metrics</a>
+- <a href="#4-phenotype-to-predict-genemirna-expression"
+  id="toc-4-phenotype-to-predict-genemirna-expression">4 Phenotype to
+  predict gene/miRNA expression</a>
+  - <a href="#41-the-model" id="toc-41-the-model">4.1 The model</a>
+  - <a href="#42-results" id="toc-42-results">4.2 Results</a>
+- <a href="#5-mirna-expression-to-predict-gene-expression"
+  id="toc-5-mirna-expression-to-predict-gene-expression">5 miRNA
+  expression to predict gene expression</a>
+  - <a href="#51-the-model" id="toc-51-the-model">5.1 The model</a>
+  - <a href="#52-results" id="toc-52-results">5.2 Results</a>
 
 I’d like to see whether phenotype can predict gene and/or miRNA
 expression, will be testing this using the ML approach Ariana has been
@@ -915,11 +928,11 @@ head(vsd_miRNA, 3) #view transformed gene count data for the first three genes i
 ``` r
 # Extract variance stabilized counts as dataframes
 # want samples in rows, genes/miRNAs in columns
-datExpr_genes <- as.data.frame(t(vsd_genes))
-datExpr_miRNA <- as.data.frame(t(vsd_miRNA))
+vsd_genes <- as.data.frame(t(vsd_genes))
+vsd_miRNA <- as.data.frame(t(vsd_miRNA))
 
 # Double check the row names (sample names) are in same order
-rownames(datExpr_genes) == rownames(datExpr_miRNA)
+rownames(vsd_genes) == rownames(vsd_miRNA)
 ```
 
     ##  [1] TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE
@@ -928,10 +941,12 @@ rownames(datExpr_genes) == rownames(datExpr_miRNA)
 
 ``` r
 # Combine vst gene counts and vst miRNA counts by rows (sample names)
-vsd_merged <- cbind(datExpr_genes, datExpr_miRNA)
+vsd_merged <- cbind(vsd_genes, vsd_miRNA)
 ```
 
 # 3 Feature selection
+
+## 3.1 Genes + miRNA
 
 We have a large number of genes, so we’ll reduce dimensionality using
 PCA. Note that, since we only have a few phenotypes of interest, we
@@ -995,6 +1010,48 @@ dim(merged_pcs)
 
 We have 27 gene/miRNA expression PCs
 
+## 3.2 Genes only
+
+To investigate gene expression separately from miRNA expression, reduce
+dimensionality of genes alone.
+
+Remove any genes that are invariant
+
+``` r
+vsd_genes_filt <- vsd_genes[, apply(vsd_genes, 2, var) > 0]
+
+ncol(vsd_genes)
+```
+
+    ## [1] 35869
+
+``` r
+ncol(vsd_genes_filt)
+```
+
+    ## [1] 35795
+
+Removed 74 invariant genes.
+
+Reduce dimensionality
+
+``` r
+# Perform PCA on gene expression matrix
+pca_genes <- prcomp(vsd_genes_filt, scale. = TRUE)
+
+# Select top PCs that explain most variance (e.g., top 50 PCs)
+explained_var_genes <- summary(pca_genes)$importance[2, ]  # Cumulative variance explained
+num_pcs_genes <- min(which(cumsum(explained_var_genes) > 0.95))  # Keep PCs that explain 95% variance
+
+genes_pcs <- as.data.frame(pca_genes$x[, 1:num_pcs_genes])  # Extract selected PCs
+
+dim(genes_pcs)
+```
+
+    ## [1] 38 31
+
+## 3.3 Physiological metrics
+
 Select physiological metrics of interest. For now we’ll focus on biomass
 (“Host_AFDW.mg.cm2”), protein (“prot_mg.mgafdw”), and respiration
 (“Rd”). These are all metrics of host energy storage and expenditure.
@@ -1010,7 +1067,9 @@ phys_selection <- phys %>% select(Host_AFDW.mg.cm2, prot_mg.mgafdw, Rd)
 phys_selection <- phys_selection[rownames(merged_pcs),]
 ```
 
-# 4 The model
+# 4 Phenotype to predict gene/miRNA expression
+
+## 4.1 The model
 
 Train elastic models to predict gene expression PCs from phys data.
 
@@ -1064,9 +1123,9 @@ head(feature_importance, 20)  # Top predictive phys features
     ## # A tibble: 3 × 2
     ##   Feature          MeanImportance
     ##   <chr>                     <dbl>
-    ## 1 Rd                         6.17
-    ## 2 prot_mg.mgafdw             5.57
-    ## 3 Host_AFDW.mg.cm2           1.84
+    ## 1 prot_mg.mgafdw             8.97
+    ## 2 Rd                         7.08
+    ## 3 Host_AFDW.mg.cm2           1.86
 
 Evaluate performance.
 
@@ -1093,9 +1152,9 @@ summary(performance_results$R2)
 ```
 
     ##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
-    ## 0.06090 0.08104 0.10599 0.10721 0.12691 0.15641      21
+    ## 0.04877 0.07057 0.10389 0.10452 0.12691 0.17742      21
 
-# 5 Results
+## 4.2 Results
 
 Plot results.
 
@@ -1113,7 +1172,7 @@ ggplot(top_features, aes(x = reorder(Feature, MeanImportance), y = MeanImportanc
        y = "Mean Importance")
 ```
 
-![](22-Apul-miRNA-mRNA-machine-learning_files/figure-gfm/unnamed-chunk-22-1.png)<!-- -->
+![](22-Apul-miRNA-mRNA-machine-learning_files/figure-gfm/unnamed-chunk-24-1.png)<!-- -->
 
 ``` r
 ggplot(performance_results, aes(x = PC, y = R2)) +
@@ -1129,7 +1188,7 @@ ggplot(performance_results, aes(x = PC, y = R2)) +
     ## Warning: Removed 21 rows containing missing values or values outside the scale range
     ## (`geom_point()`).
 
-![](22-Apul-miRNA-mRNA-machine-learning_files/figure-gfm/unnamed-chunk-23-1.png)<!-- -->
+![](22-Apul-miRNA-mRNA-machine-learning_files/figure-gfm/unnamed-chunk-25-1.png)<!-- -->
 
 Keep in mind that, while we ran the model with physiological predictors,
 we’re really interested in the genes/miRNA associated with these
@@ -1236,8 +1295,246 @@ ggplot(prediction_df, aes(x = Actual, y = lambda.min)) +
 
     ## `geom_smooth()` using formula = 'y ~ x'
 
-![](22-Apul-miRNA-mRNA-machine-learning_files/figure-gfm/unnamed-chunk-26-1.png)<!-- -->
+![](22-Apul-miRNA-mRNA-machine-learning_files/figure-gfm/unnamed-chunk-28-1.png)<!-- -->
 
 ``` r
 ## `geom_smooth()` using formula = 'y ~ x'
 ```
+
+# 5 miRNA expression to predict gene expression
+
+## 5.1 The model
+
+Train elastic models to predict gene expression PCs from phys data.
+
+``` r
+# Train models predicting gene expression PCs from phys data
+models2 <- train_models(genes_pcs, vsd_miRNA)
+```
+
+Extract feature importance.
+
+``` r
+feature_importance2 <- get_feature_importance(models2)
+head(feature_importance2, 20)  # Top predictive phys features
+```
+
+    ## # A tibble: 20 × 2
+    ##    Feature       MeanImportance
+    ##    <chr>                  <dbl>
+    ##  1 Cluster_5517            3.33
+    ##  2 Cluster_17173           3.22
+    ##  3 Cluster_5516            2.73
+    ##  4 Cluster_1836            2.30
+    ##  5 Cluster_14146           2.27
+    ##  6 Cluster_17623           2.21
+    ##  7 Cluster_2746            2.13
+    ##  8 Cluster_9786            2.01
+    ##  9 Cluster_4034            2.00
+    ## 10 Cluster_1950            1.97
+    ## 11 Cluster_17192           1.88
+    ## 12 Cluster_13647           1.87
+    ## 13 Cluster_2372            1.83
+    ## 14 Cluster_9706            1.77
+    ## 15 Cluster_4036            1.75
+    ## 16 Cluster_9420            1.71
+    ## 17 Cluster_17186           1.52
+    ## 18 Cluster_17245           1.46
+    ## 19 Cluster_3109            1.41
+    ## 20 Cluster_10452           1.37
+
+Evaluate performance.
+
+``` r
+performance_results2 <- evaluate_model_performance(models2, genes_pcs, vsd_miRNA)
+summary(performance_results2$R2)
+```
+
+    ##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
+    ##  0.1198  0.6212  0.7909  0.7115  0.8969  0.9957      16
+
+## 5.2 Results
+
+Plot results.
+
+``` r
+# Select top 20 predictive phys features
+top_features2 <- feature_importance2 %>% top_n(20, MeanImportance)
+
+# Plot
+ggplot(top_features2, aes(x = reorder(Feature, MeanImportance), y = MeanImportance)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  coord_flip() +  # Flip for readability
+  theme_minimal() +
+  labs(title = "Top 20 Predictive miRNA Features",
+       x = "Gene Expression",
+       y = "Mean Importance")
+```
+
+![](22-Apul-miRNA-mRNA-machine-learning_files/figure-gfm/unnamed-chunk-32-1.png)<!-- -->
+
+``` r
+ggplot(performance_results2, aes(x = PC, y = R2)) +
+  geom_point(color = "darkred", size = 3) +
+  geom_hline(yintercept = mean(performance_results2$R2, na.rm = TRUE), linetype = "dashed", color = "blue") +
+  theme_minimal() +
+  labs(title = "Model Performance Across Gene Expression PCs",
+       x = "Gene Expression PC",
+       y = "R² (Variance Explained)") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate labels
+```
+
+    ## Warning: Removed 16 rows containing missing values or values outside the scale range
+    ## (`geom_point()`).
+
+![](22-Apul-miRNA-mRNA-machine-learning_files/figure-gfm/unnamed-chunk-33-1.png)<!-- -->
+
+View components associated with gene PCs
+
+``` r
+# Get the PCA rotation (loadings) matrix from the original gene PCA
+genes_loadings <- pca_genes$rotation  # Each column corresponds to a PC
+
+# Convert to data frame and reshape for plotting
+genes_loadings_df <- as.data.frame(genes_loadings) %>%
+  rownames_to_column(var = "gene") %>%
+  pivot_longer(-gene, names_to = "Genes_PC", values_to = "Loading")
+
+# View top genes contributing most to each PC
+top_genes2 <- genes_loadings_df %>%
+  group_by(Genes_PC) %>%
+  arrange(desc(abs(Loading))) %>%
+  slice_head(n = 20)  # Select top 10 CpGs per PC
+
+print(top_genes2)
+```
+
+    ## # A tibble: 760 × 3
+    ## # Groups:   Genes_PC [38]
+    ##    gene       Genes_PC Loading
+    ##    <chr>      <chr>      <dbl>
+    ##  1 FUN_007064 PC1      -0.0129
+    ##  2 FUN_014752 PC1      -0.0129
+    ##  3 FUN_015256 PC1      -0.0129
+    ##  4 FUN_008915 PC1      -0.0129
+    ##  5 FUN_034091 PC1      -0.0129
+    ##  6 FUN_034489 PC1      -0.0129
+    ##  7 FUN_038509 PC1      -0.0129
+    ##  8 FUN_014524 PC1      -0.0129
+    ##  9 FUN_033051 PC1      -0.0129
+    ## 10 FUN_001532 PC1      -0.0129
+    ## # ℹ 750 more rows
+
+View top 20 genes associated with PC11 (the most “predictable” PC, with
+the highest R^2)
+
+``` r
+print(top_genes2%>%filter(Genes_PC=="PC11"))
+```
+
+    ## # A tibble: 20 × 3
+    ## # Groups:   Genes_PC [1]
+    ##    gene       Genes_PC Loading
+    ##    <chr>      <chr>      <dbl>
+    ##  1 FUN_029347 PC11      0.0196
+    ##  2 FUN_001854 PC11     -0.0193
+    ##  3 FUN_025457 PC11      0.0192
+    ##  4 FUN_021609 PC11     -0.0190
+    ##  5 FUN_041974 PC11      0.0190
+    ##  6 FUN_008614 PC11      0.0190
+    ##  7 FUN_001958 PC11      0.0189
+    ##  8 FUN_033958 PC11      0.0189
+    ##  9 FUN_000394 PC11     -0.0188
+    ## 10 FUN_039508 PC11      0.0187
+    ## 11 FUN_016324 PC11     -0.0187
+    ## 12 FUN_001244 PC11     -0.0185
+    ## 13 FUN_016966 PC11     -0.0185
+    ## 14 FUN_004574 PC11      0.0183
+    ## 15 FUN_011795 PC11     -0.0181
+    ## 16 FUN_015171 PC11      0.0181
+    ## 17 FUN_009743 PC11      0.0180
+    ## 18 FUN_039139 PC11      0.0180
+    ## 19 FUN_020597 PC11      0.0180
+    ## 20 FUN_032877 PC11      0.0180
+
+View predicted vs actual gene expression values to evaluate model.
+
+``` r
+# Choose a gene expression PC to visualize (e.g., the most predictable one)
+best_pc2 <- performance_results2$PC[which.max(performance_results2$R2)]
+
+# Extract actual and predicted values for that PC
+actual_values2 <- genes_pcs[[best_pc2]]
+predicted_values2 <- predict(models2[[best_pc2]], as.matrix(vsd_miRNA), s = "lambda.min")
+
+# Create data frame
+prediction_df2 <- data.frame(
+  Actual = actual_values2,
+  Predicted = predicted_values2
+)
+
+# Scatter plot with regression line
+ggplot(prediction_df2, aes(x = Actual, y = lambda.min)) +
+  geom_point(color = "blue", alpha = 0.7) +
+  geom_smooth(method = "lm", color = "red", se = FALSE) +
+  theme_minimal() +
+  labs(title = paste("Predicted vs. Actual for", best_pc2),
+       x = "Actual Gene Expression PC",
+       y = "Predicted Gene Expression PC") +
+  annotate("text", x = min(actual_values2), y = max(predicted_values2), 
+           label = paste("R² =", round(max(performance_results2$R2, na.rm=TRUE), 3)), 
+           hjust = 0, color = "black", size = 5)
+```
+
+    ## `geom_smooth()` using formula = 'y ~ x'
+
+![](22-Apul-miRNA-mRNA-machine-learning_files/figure-gfm/unnamed-chunk-36-1.png)<!-- -->
+
+``` r
+## `geom_smooth()` using formula = 'y ~ x'
+```
+
+We can also look att which miRNA(s) contributed most to predicting gene
+PCs of interest
+
+``` r
+get_feature_importance_for_pc <- function(model) {
+  coefs <- as.matrix(coef(model, s = "lambda.min"))[-1, , drop = FALSE]  # Remove intercept
+  coefs_df <- data.frame(Feature = rownames(coefs), Importance = abs(as.numeric(coefs)))
+  
+  return(coefs_df %>% arrange(desc(Importance)))  # Sort by importance
+}
+
+# Extract feature importance for the most predictable PC
+#best_pc2 <- "PC11"
+best_pc_model2 <- models2[[best_pc2]]
+best_pc_importance2 <- get_feature_importance_for_pc(best_pc_model2)
+
+# View top most important miRNA for predicting this PC
+print(head(best_pc_importance2, 10))
+```
+
+    ##          Feature Importance
+    ## 1   Cluster_4036   32.89142
+    ## 2  Cluster_17173   32.27377
+    ## 3  Cluster_17623   28.88668
+    ## 4  Cluster_12087   23.55512
+    ## 5   Cluster_1836   20.09018
+    ## 6  Cluster_13647   18.79217
+    ## 7   Cluster_3109   15.31504
+    ## 8   Cluster_2372   14.76384
+    ## 9  Cluster_14146   13.51489
+    ## 10 Cluster_17245   13.50697
+
+``` r
+# Plot
+ggplot(best_pc_importance2 %>% head(20), aes(x = reorder(Feature, Importance), y = Importance)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  coord_flip() +
+  theme_minimal() +
+  labs(title = paste("Top miRNA Predictors for", best_pc2),
+       x = "miRNA",
+       y = "Importance Score")
+```
+
+![](22-Apul-miRNA-mRNA-machine-learning_files/figure-gfm/unnamed-chunk-37-1.png)<!-- -->
