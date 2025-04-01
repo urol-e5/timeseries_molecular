@@ -45,6 +45,8 @@ Kathleen Durkin
   Enrichment of putative binding</a>
 - <a href="#7-summary-figures" id="toc-7-summary-figures">7 Summary
   figures</a>
+- <a href="#8-save-gene-sets" id="toc-8-save-gene-sets">8 Save gene
+  sets</a>
 
 After running WGCNA to evaluate modules of mRNA and miRNA with
 correlated expression, we need to functionally annotate genes to
@@ -57,6 +59,8 @@ library(dplyr)
 library(tidyverse)
 library(ggplot2)
 library(topGO)
+library(igraph)
+library(ggraph)
 ```
 
 # 2 Load and format annotation files
@@ -2208,4 +2212,181 @@ ggplot(plot_data, aes(x = Trait, y = 0.5, size = TotalGenes, color = NumModules)
 
 ``` r
 ggsave("../output/21-Apul-annotate-miRNA-mRNA-WGCNA/bubble_signif_modules.png", width = 12, height = 6, dpi = 300)
+```
+
+Interaction network showing, for a variable of interest, all the
+correlated modules, their genes, and miRNA interactions
+
+1.  Which modules are in variable of interest
+    WGCNA_pvals$$WGCNA_pvals\$trait \< 0.05,$$ %\>% rownames()
+2.  Which genes/miRNA are in each module `module_membership`
+3.  which genes each miRNA interacts with `modules_cor_miRNA_mRNA_bind`
+    ^includes Correlation between modules
+
+``` r
+trait <- "timepoint"
+
+# Extract correlated modules
+sig_modules <- rownames(WGCNA_pvals[WGCNA_pvals$timepoint2 < 0.05, ])
+
+# Extract genes and miRNA n each module
+module_genes <- module_membership[module_membership$module %in% sig_modules, ]
+
+# Extract miRNA-mRNA interactions for these modules
+miRNA_interactions <- modules_cor_miRNA_mRNA_bind[
+  modules_cor_miRNA_mRNA_bind$miRNA_module %in% sig_modules |
+  modules_cor_miRNA_mRNA_bind$mRNA_module %in% sig_modules, 
+]
+
+# Create edge list for the network
+# edges <- rbind(
+#   data.frame(from = module_genes$gene, to = module_genes$module, type = "gene-module"),
+#   data.frame(from = miRNA_interactions$miRNA, to = miRNA_interactions$mRNA, type = "miRNA-mRNA"),
+#   data.frame(from = miRNA_interactions$miRNA_module, to = miRNA_interactions$mRNA_module, type = "module-module")
+# )
+
+# # Gene-to-Module edges (Genes and miRNAs assigned to modules)
+# edges_genes <- data.frame(
+#   from = module_membership$gene, 
+#   to = module_membership$module, 
+#   type = "gene-module",
+#   correlation = NA  # No correlation needed for membership edges
+# )
+# 
+# # miRNA-Gene interaction edges (including correlation from module correlation)
+# edges_miRNA_gene <- data.frame(
+#   from = modules_cor_miRNA_mRNA_bind$miRNA, 
+#   to = modules_cor_miRNA_mRNA_bind$gene, 
+#   type = "miRNA-gene",
+#   correlation = modules_cor_miRNA_mRNA_bind$correlation  # Assign correlation value
+# )
+# 
+# # Combine all edges into a single dataframe
+# edges <- rbind(edges_genes, edges_miRNA_gene) %>% distinct()
+
+edges <- data.frame(
+  from = modules_cor_miRNA_mRNA_bind$miRNA, 
+  to = modules_cor_miRNA_mRNA_bind$gene, 
+  type = "miRNA-gene",
+  correlation = modules_cor_miRNA_mRNA_bind$correlation  # Correlation between miRNA and gene parent modules
+) %>% na.omit()
+
+# Create node data frame with miRNAs and genes
+miRNA_nodes <- data.frame(
+  name = unique(modules_cor_miRNA_mRNA_bind$miRNA),  # Unique miRNAs
+  module = modules_cor_miRNA_mRNA_bind$miRNA_module[match(unique(modules_cor_miRNA_mRNA_bind$miRNA), modules_cor_miRNA_mRNA_bind$miRNA)],  # Corresponding miRNA module
+  type = "miRNA"
+) %>% na.omit()
+
+
+# Create gene-node dataframe with the filtered module_membership
+gene_nodes <- data.frame(
+  name = unique(modules_cor_miRNA_mRNA_bind$gene),  # Unique genes
+  module = modules_cor_miRNA_mRNA_bind$mRNA_module[match(unique(modules_cor_miRNA_mRNA_bind$gene), modules_cor_miRNA_mRNA_bind$gene)],  # Corresponding gene module
+  type = "gene"
+) %>% na.omit()
+
+# Combine both miRNA and gene nodes
+nodes <- rbind(miRNA_nodes, gene_nodes)
+
+# Plot
+g <- graph_from_data_frame(edges, directed = FALSE, vertices = nodes)
+
+ggraph(g, layout = "fr") +
+  # Nodes colored by their module (categorical)
+  geom_node_point(aes(color = module), size = 5) +
+  
+  # Edges colored by correlation (continuous)
+  geom_edge_link(aes(color = correlation), width = 1) +
+  
+  # Discrete color scale for modules
+  scale_color_manual(values = rainbow(length(unique(V(g)$module)))) +
+  
+  # Continuous gradient color scale for correlation values
+  scale_edge_color_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
+  
+  theme_void() +
+  theme(legend.position = "bottom")
+```
+
+![](21-Apul-annotate-miRNA-mRNA-WGCNA_files/figure-gfm/unnamed-chunk-29-1.png)<!-- -->
+
+``` r
+write.csv(edges, "../output/21-Apul-annotate-miRNA-mRNA-WGCNA/edges.csv")
+write.csv(nodes, "../output/21-Apul-annotate-miRNA-mRNA-WGCNA/nodes.csv")
+```
+
+# 8 Save gene sets
+
+We’ll likely want to use function-specific gene sets in later analyses,
+so we’ll save those here. Gene sets should be saved as
+
+1)  a df of the genes, the WGCNA module they fall in, and the annotated
+    GO term(s), AND
+2)  raw count matrices, with samples in the columns and genes in the
+    rows.
+
+Sets will be named for the filter applied (e.g. “respiration” for genes
+annotated with respiration-related GO terms). Note that, since these
+gene sets will be used with a functional focus, we’ll exclude miRNAs.
+
+Load raw gene counts
+
+``` r
+Apul_genes <- read_csv("../output/02.20-D-Apul-RNAseq-alignment-HiSat2/apul-gene_count_matrix.csv")
+Apul_genes <- as.data.frame(Apul_genes)
+```
+
+``` r
+# For each trait of interest:
+for (trait in names(significant_modules_per_trait)) {
+  
+  ## a) a df of the genes, the WGCNA module they fall in, and the annotated GO term(s)
+  # Select modules that are significantly correlated with this trait
+  trait_sig_modules <- significant_modules_per_trait[[trait]]
+  # Filter the annotated list of genes to only keep those in selected modules, keep only genes (not miRNA)
+  trait_genes_FA <- module_FA %>%
+    filter(module %in% trait_sig_modules & grepl("FUN", gene))
+  
+  ## b) raw count matrices, with samples in the columns and genes in the rows. 
+  # Filter the raw gene counts to keep only genes in selected modules
+  trait_gene_counts <- Apul_genes %>%
+    filter(gene_id %in% trait_genes_FA$gene)
+  
+  # Set file names
+  file_name_genes_FA <- paste0("../output/21-Apul-annotate-miRNA-mRNA-WGCNA/filtered-gene-sets/", trait, "_genes_FA.tab")
+  file_name_gene_counts <- paste0("../output/21-Apul-annotate-miRNA-mRNA-WGCNA/filtered-gene-sets/", trait, "_gene_counts.tab")
+  # Save
+  write.table(trait_genes_FA, file_name_genes_FA, row.names=FALSE, quote=FALSE, sep="\t")
+  write.table(trait_gene_counts, file_name_gene_counts, row.names=FALSE, quote=FALSE, sep="\t")
+}
+```
+
+We also want to be able to save genes associated with functions (GO
+terms) of interest.
+
+For example, Steven identified a several GO terms related to ATP
+production a [notebook
+post](https://sr320.github.io/tumbling-oysters/posts/41-Apul-GO/): -
+Aerobic respiration (<GO:0009060>) - Oxidative phosphorylation
+(<GO:0006119>) - Canonical glycolysis (<GO:0061621>) - Tricarboxylic
+Acid Cycle (<GO:0006099>)
+
+``` r
+# List GO terms of interest (CHANGE as desired)
+GO_terms_interest <- c("GO:0009060", "GO:0006119", "GO:0061621", "GO:0006099")
+
+# Select genes that have been functionally annotated with at least on of the listed GO terms of interest
+GO_terms_genes_FA <- module_FA %>%
+  filter(sapply(Gene.Ontology.IDs, function(x) any(sapply(GO_terms_interest, grepl, x))))
+# For these selected genes, get raw gene counts
+GO_terms_gene_counts <- Apul_genes %>%
+  filter(gene_id %in% GO_terms_genes_FA$gene)
+
+# Set file name (CHANGE as desired)
+file_name_GO_FA <- paste0("../output/21-Apul-annotate-miRNA-mRNA-WGCNA/filtered-gene-sets/", "ATP_production", "_GO_terms_genes_FA.tab")
+file_name_GO_counts <- paste0("../output/21-Apul-annotate-miRNA-mRNA-WGCNA/filtered-gene-sets/", "ATP_production", "_GO_terms_gene_counts.tab")
+
+write.table(GO_terms_genes_FA, file_name_GO_FA, row.names=FALSE, quote=FALSE, sep="\t")
+write.table(go_term_counts_df, file_name_GO_counts, row.names=FALSE, quote=FALSE, sep="\t")
 ```

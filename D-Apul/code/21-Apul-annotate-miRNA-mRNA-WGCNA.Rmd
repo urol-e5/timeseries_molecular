@@ -664,5 +664,70 @@ write.csv(nodes, "../output/21-Apul-annotate-miRNA-mRNA-WGCNA/nodes.csv")
 
 
 
+# Save gene sets
 
+We'll likely want to use function-specific gene sets in later analyses, so we'll save those here. Gene sets should be saved as 
+
+a) a df of the genes, the WGCNA module they fall in, and the annotated GO term(s), AND 
+b) raw count matrices, with samples in the columns and genes in the rows. 
+
+Sets will be named for the filter applied (e.g. "respiration" for genes annotated with respiration-related GO terms). Note that, since these gene sets will be used with a functional focus, we'll exclude miRNAs.
+
+Load raw gene counts
+```{r}
+Apul_genes <- read_csv("../output/02.20-D-Apul-RNAseq-alignment-HiSat2/apul-gene_count_matrix.csv")
+Apul_genes <- as.data.frame(Apul_genes)
+```
+
+```{r}
+# For each trait of interest:
+for (trait in names(significant_modules_per_trait)) {
+  
+  ## a) a df of the genes, the WGCNA module they fall in, and the annotated GO term(s)
+  # Select modules that are significantly correlated with this trait
+  trait_sig_modules <- significant_modules_per_trait[[trait]]
+  # Filter the annotated list of genes to only keep those in selected modules, keep only genes (not miRNA)
+  trait_genes_FA <- module_FA %>%
+    filter(module %in% trait_sig_modules & grepl("FUN", gene))
+  
+  ## b) raw count matrices, with samples in the columns and genes in the rows. 
+  # Filter the raw gene counts to keep only genes in selected modules
+  trait_gene_counts <- Apul_genes %>%
+    filter(gene_id %in% trait_genes_FA$gene)
+  
+  # Set file names
+  file_name_genes_FA <- paste0("../output/21-Apul-annotate-miRNA-mRNA-WGCNA/filtered-gene-sets/", trait, "_genes_FA.tab")
+  file_name_gene_counts <- paste0("../output/21-Apul-annotate-miRNA-mRNA-WGCNA/filtered-gene-sets/", trait, "_gene_counts.tab")
+  # Save
+  write.table(trait_genes_FA, file_name_genes_FA, row.names=FALSE, quote=FALSE, sep="\t")
+  write.table(trait_gene_counts, file_name_gene_counts, row.names=FALSE, quote=FALSE, sep="\t")
+}
+```
+
+We also want to be able to save genes associated with functions (GO terms) of interest.
+
+For example, Steven identified a several GO terms related to ATP production a [notebook post](https://sr320.github.io/tumbling-oysters/posts/41-Apul-GO/):
+-   Aerobic respiration (GO:0009060)
+-   Oxidative phosphorylation (GO:0006119)
+-   Canonical glycolysis (GO:0061621)
+-   Tricarboxylic Acid Cycle (GO:0006099)
+```{r}
+# List GO terms of interest (CHANGE as desired)
+GO_terms_interest <- c("GO:0009060", "GO:0006119", "GO:0061621", "GO:0006099")
+
+# Select genes that have been functionally annotated with at least on of the listed GO terms of interest
+GO_terms_genes_FA <- module_FA %>%
+  filter(sapply(Gene.Ontology.IDs, function(x) any(sapply(GO_terms_interest, grepl, x))))
+# For these selected genes, get raw gene counts
+GO_terms_gene_counts <- Apul_genes %>%
+  filter(gene_id %in% GO_terms_genes_FA$gene)
+
+# Set file name (CHANGE as desired)
+file_name_GO_FA <- paste0("../output/21-Apul-annotate-miRNA-mRNA-WGCNA/filtered-gene-sets/", "ATP_production", "_GO_terms_genes_FA.tab")
+file_name_GO_counts <- paste0("../output/21-Apul-annotate-miRNA-mRNA-WGCNA/filtered-gene-sets/", "ATP_production", "_GO_terms_gene_counts.tab")
+
+write.table(GO_terms_genes_FA, file_name_GO_FA, row.names=FALSE, quote=FALSE, sep="\t")
+write.table(go_term_counts_df, file_name_GO_counts, row.names=FALSE, quote=FALSE, sep="\t")
+
+```
 
