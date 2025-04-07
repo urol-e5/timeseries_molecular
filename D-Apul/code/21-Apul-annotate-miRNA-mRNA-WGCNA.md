@@ -2388,5 +2388,5 @@ file_name_GO_FA <- paste0("../output/21-Apul-annotate-miRNA-mRNA-WGCNA/filtered-
 file_name_GO_counts <- paste0("../output/21-Apul-annotate-miRNA-mRNA-WGCNA/filtered-gene-sets/", "ATP_production", "_GO_terms_gene_counts.tab")
 
 write.table(GO_terms_genes_FA, file_name_GO_FA, row.names=FALSE, quote=FALSE, sep="\t")
-write.table(go_term_counts_df, file_name_GO_counts, row.names=FALSE, quote=FALSE, sep="\t")
+write.table(GO_terms_gene_counts, file_name_GO_counts, row.names=FALSE, quote=FALSE, sep="\t")
 ```
