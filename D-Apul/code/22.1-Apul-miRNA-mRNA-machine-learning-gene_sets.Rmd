@@ -35,13 +35,6 @@ Inputs:
 
 -   sample metadata:  `../../M-multi-species/data/rna_metadata.csv`
 
--   physiological data:  https://github.com/urol-e5/timeseries/raw/refs/heads/master/time_series_analysis/Output/master_timeseries.csv
-
-
-Note that I'll start by using phenotype (e.g. biomass, respiration) as the predictor, which is suitable for understanding *how external factors drive gene expression changes.*
-
-If, instead, we wanted to build some sort of predictive model, where *gene expression could be used to predict phenotype*, we could switch so that gene counts are used as the predictors. 
-
 # Load libraries
 
 ```{r}
@@ -66,6 +59,7 @@ library(factoextra)
 library(vegan)
 library(ggfortify)
 library(genefilter)
+library(scales)
 ```
 
 
@@ -90,20 +84,6 @@ metadata <- read_csv("../../M-multi-species/data/rna_metadata.csv")%>%select(Aze
 metadata$Sample <- paste(metadata$AzentaSampleName, metadata$ColonyID, metadata$Timepoint, sep = "_")
 
 colonies <- unique(metadata$ColonyID)
-
-# Load physiological data
-phys<-read_csv("https://github.com/urol-e5/timeseries/raw/refs/heads/master/time_series_analysis/Output/master_timeseries.csv")%>%filter(colony_id_corr %in% colonies)%>%
-  select(colony_id_corr, species, timepoint, site, Host_AFDW.mg.cm2, Sym_AFDW.mg.cm2, Am, AQY, Rd, Ik, Ic, calc.umol.cm2.hr, cells.mgAFDW, prot_mg.mgafdw, Ratio_AFDW.mg.cm2, Total_Chl, Total_Chl_cell, cre.umol.mgafdw)
-# format timepoint
-phys$timepoint <- gsub("timepoint", "TP", phys$timepoint)
-#add column with full sample info
-phys <- merge(phys, metadata, by.x = c("colony_id_corr", "timepoint"), by.y = c("ColonyID", "Timepoint")) %>%
-  select(-AzentaSampleName)
-  
-
-#add site information into metadata 
-metadata$Site<-phys$site[match(metadata$ColonyID, phys$colony_id_corr)]
-
 
 # Rename gene column names to include full sample info (as in miRNA table)
 colnames(Apul_genes) <- metadata$Sample[match(colnames(Apul_genes), metadata$AzentaSampleName)]
@@ -201,72 +181,6 @@ setdiff(rownames(Apul_miRNA_red), rownames(Apul_miRNA_filt))
 ```
 
 
-
-
-## Physiology filtering
-
-Run PCA on physiology data to see if there are phys outliers 
-
-Export data for PERMANOVA test.  
-```{r}
-test<-as.data.frame(phys)
-test<-test[complete.cases(test), ]
-```
-
-Build PERMANOVA model.  
-```{r}
-scaled_test <-prcomp(test%>%select(where(is.numeric)), scale=TRUE, center=TRUE)
-fviz_eig(scaled_test)
-
-# scale data
-vegan <- scale(test%>%select(where(is.numeric)))
-
-# PerMANOVA 
-permanova<-adonis2(vegan ~ timepoint*site, data = test, method='eu')
-permanova
-```
-
-```{r}
-pca1<-ggplot2::autoplot(scaled_test, data=test, frame.colour="timepoint", loadings=FALSE,  colour="timepoint", shape="site", loadings.label.colour="black", loadings.colour="black", loadings.label=FALSE, frame=FALSE, loadings.label.size=5, loadings.label.vjust=-1, size=5) + 
-  geom_text(aes(x = PC1, y = PC2, label = paste(colony_id_corr, timepoint)), vjust = -0.5)+
-  theme_classic()+
-   theme(legend.text = element_text(size=18), 
-         legend.position="right",
-        plot.background = element_blank(),
-        legend.title = element_text(size=18, face="bold"), 
-        axis.text = element_text(size=18), 
-        axis.title = element_text(size=18,  face="bold"));pca1
-```
-
-Remove ACR-173, timepoint 3 sample from analysis. This is Azenta sample 1B2. 
-
-```{r}
-Apul_genes_filt <- Apul_genes_filt %>%
-  select(!`1B2_ACR-173_TP3`)
-
-Apul_miRNA_filt <- Apul_miRNA_filt %>%
-  select(!`1B2_ACR-173_TP3`)
-
-metadata <- metadata %>%
-  filter(Sample != "1B2_ACR-173_TP3")
-```
-
-We also do not have phys data for colony 1B9 ACR-265 at TP4, so I'll remove that here as well. 
-
-```{r}
-Apul_genes_filt <- Apul_genes_filt%>%
-  select(!`1B9_ACR-265_TP4`)
-
-Apul_miRNA_filt <- Apul_miRNA_filt%>%
-  select(!`1B9_ACR-265_TP4`)
-
-metadata <- metadata %>%
-  filter(Sample != "1B9_ACR-265_TP4")
-```
-
-
-
-
 ## Assign metadata and arrange order of columns 
 
 Order metadata the same as the column order in the gene matrix.  
@@ -317,8 +231,6 @@ vsd_genes <- assay(vsd_genes)
 head(vsd_genes, 3) #view transformed gene count data for the first three genes in the dataset.  
 ```
 
-
-
 miRNA:
 
 ```{r}
@@ -366,7 +278,7 @@ Isolate filtered counts by gene set
 ```{r}
 vsd_Host_AFDW <- vsd_genes[, colnames(vsd_genes) %in% Host_AFDW$gene_id]
 vsd_Am <- vsd_genes[, colnames(vsd_genes) %in% Am$gene_id]
-#vsd_ATP_production_GO <- vsd_genes[, colnames(vsd_genes_ %in% ATP_production_GO$gene_id)]
+vsd_ATP_production_GO <- vsd_genes[, colnames(vsd_genes) %in% ATP_production_GO$gene_id]
 ```
 
 
@@ -376,7 +288,7 @@ For gene sets that are large we'll need to reduce dimensionality using PCA. Note
 
 ## Host_AFDW
 
-Reduce dimensionality (genes+miRNA)
+Reduce dimensionality
 
 ```{r}
 # Perform PCA on gene+miRNA expression matrix
@@ -384,21 +296,59 @@ pca_Host_AFDW <- prcomp(vsd_Host_AFDW, scale. = TRUE)
 
 # Select top PCs that explain most variance (e.g., top 50 PCs)
 explained_var_Host_AFDW <- summary(pca_Host_AFDW)$importance[2, ]  # Cumulative variance explained
-num_pcs_Host_AFDW <- min(which(cumsum(explained_var_Host_AFDW) > 0.95))  # Keep PCs that explain 95% variance
+num_pcs_Host_AFDW <- min(which(cumsum(explained_var_Host_AFDW) > 0.95))  # Keep PCs that explain 95% cumulative variance
 
 Host_AFDW_pcs <- as.data.frame(pca_Host_AFDW$x[, 1:num_pcs_Host_AFDW])  # Extract selected PCs
 
 dim(Host_AFDW_pcs)
 ```
 
-We have 27 gene/miRNA expression PCs
+29 PCs summarize 95% of the explained variance in genes associated with host biomass (Host AFDW)
+
+## Am
+
+Reduce dimensionality
+
+```{r}
+# Perform PCA on gene+miRNA expression matrix
+pca_Am <- prcomp(vsd_Am, scale. = TRUE)
+
+# Select top PCs that explain most variance (e.g., top 50 PCs)
+explained_var_Am <- summary(pca_Am)$importance[2, ]  # Cumulative variance explained
+num_pcs_Am <- min(which(cumsum(explained_var_Am) > 0.95))  # Keep PCs that explain 95% cumulative variance
+
+Am_pcs <- as.data.frame(pca_Am$x[, 1:num_pcs_Am])  # Extract selected PCs
+
+dim(Am_pcs)
+```
+
+30 PCs summarize 95% of the explained variance in genes associated with symbiont photosynthesis (Am)
+
+## Am
+
+Reduce dimensionality
+
+```{r}
+# Perform PCA on gene+miRNA expression matrix
+pca_ATP_prod_GO <- prcomp(vsd_ATP_production_GO, scale. = TRUE)
+
+# Select top PCs that explain most variance (e.g., top 50 PCs)
+explained_var_ATP_prod_GO <- summary(pca_ATP_prod_GO)$importance[2, ]  # Cumulative variance explained
+num_pcs_ATP_prod_GO <- min(which(cumsum(explained_var_ATP_prod_GO) > 0.95))  # Keep PCs that explain 95% cumulative variance
+
+ATP_prod_GO_pcs <- as.data.frame(pca_ATP_prod_GO$x[, 1:num_pcs_ATP_prod_GO])  # Extract selected PCs
+
+dim(ATP_prod_GO_pcs)
+```
+
+11 PCs summarize 95% of the explained variance in genes associated with symbiont photosynthesis (Am)
 
 
+# Host biomass (Host_AFDW)
 
+## The model
 
-# The model 
-
-Train elastic models to predict gene expression PCs from phys data.
+Train elastic models to predict gene expression PCs from miRNA expression.
 
 ```{r}
 train_models <- function(response_pcs, predictor_pcs) {
@@ -406,7 +356,7 @@ train_models <- function(response_pcs, predictor_pcs) {
   
   for (pc in colnames(response_pcs)) {
     y <- response_pcs[[pc]]  # Gene expression PC
-    X <- as.matrix(predictor_pcs)  # Phys as predictors
+    X <- as.matrix(predictor_pcs)  # miRNA expression as predictors
     
     # Train elastic net model (alpha = 0.5 for mix of LASSO & Ridge)
     model <- cv.glmnet(X, y, alpha = 0.5)
@@ -417,8 +367,8 @@ train_models <- function(response_pcs, predictor_pcs) {
   return(models)
 }
 
-# Train models predicting gene expression PCs from phys data
-models <- train_models(Host_AFDW_pcs, vsd_miRNA)
+# Train models predicting gene expression PCs from miRNA expression
+models_Host_AFDW <- train_models(Host_AFDW_pcs, vsd_miRNA)
 ```
 
 Extract feature importance.
@@ -443,89 +393,91 @@ get_feature_importance <- function(models) {
   return(importance_df)
 }
 
-feature_importance <- get_feature_importance(models)
-head(feature_importance, 20)  # Top predictive phys features
+feature_importance_Host_AFDW <- get_feature_importance(models_Host_AFDW)
+head(feature_importance_Host_AFDW, 20)  # Top predictive miRNA
 ```
 
 Evaluate performance.
 
 ```{r}
+evaluate_model_performance <- function(models, response_pcs, predictor_pcs) {
+  results <- data.frame(PC = colnames(response_pcs), R2 = NA)
+
+  for (pc in colnames(response_pcs)) {
+    y <- response_pcs[[pc]]
+    X <- as.matrix(predictor_pcs)
+
+    model <- models[[pc]]
+    preds <- predict(model, X, s = "lambda.min")
+
+    R2 <- cor(y, preds)^2  # R-squared metric
+    results[results$PC == pc, "R2"] <- R2
+  }
+
+  return(results)
+}
+
+# Function with error warnings:
 # evaluate_model_performance <- function(models, response_pcs, predictor_pcs) {
 #   results <- data.frame(PC = colnames(response_pcs), R2 = NA)
 #   
 #   for (pc in colnames(response_pcs)) {
+#     cat("Processing:", pc, "\n")
+#     
 #     y <- response_pcs[[pc]]
 #     X <- as.matrix(predictor_pcs)
 #     
+#     if (!(pc %in% names(models))) {
+#       cat("Model missing for PC:", pc, "\n")
+#       next
+#     }
+#   
 #     model <- models[[pc]]
 #     preds <- predict(model, X, s = "lambda.min")
 #     
-#     R2 <- cor(y, preds)^2  # R-squared metric
+#     if (any(is.na(preds))) {
+#       cat("NA in predictions for PC:", pc, "\n")
+#     }
+#     
+#     if (var(y) == 0) {
+#       cat("Zero variance in y for PC:", pc, "\n")
+#       next
+#     }
+#   
+#     R2 <- cor(y, preds)^2
 #     results[results$PC == pc, "R2"] <- R2
 #   }
 #   
 #   return(results)
 # }
 
-evaluate_model_performance <- function(models, response_pcs, predictor_pcs) {
-  results <- data.frame(PC = colnames(response_pcs), R2 = NA)
-  
-  for (pc in colnames(response_pcs)) {
-    cat("Processing:", pc, "\n")
-    
-    y <- response_pcs[[pc]]
-    X <- as.matrix(predictor_pcs)
-    
-    if (!(pc %in% names(models))) {
-      cat("Model missing for PC:", pc, "\n")
-      next
-    }
-  
-    model <- models[[pc]]
-    preds <- predict(model, X, s = "lambda.min")
-    
-    if (any(is.na(preds))) {
-      cat("NA in predictions for PC:", pc, "\n")
-    }
-    
-    if (var(y) == 0) {
-      cat("Zero variance in y for PC:", pc, "\n")
-      next
-    }
-  
-    R2 <- cor(y, preds)^2
-    results[results$PC == pc, "R2"] <- R2
-  }
-  
-  return(results)
-}
-
-performance_results <- evaluate_model_performance(models, Host_AFDW_pcs, vsd_miRNA)
-summary(performance_results$R2)
+performance_results_Host_AFDW <- evaluate_model_performance(models_Host_AFDW, Host_AFDW_pcs, vsd_miRNA)
+summary(performance_results_Host_AFDW$R2)
 ```
 
-# Results
+## Results
 
 Plot results.
 
 ```{r}
-# Select top 20 predictive phys features
-top_features <- feature_importance %>% top_n(20, MeanImportance)
+# Select top predictive features
+# few enough miRNA that we can show all
+top_features_Host_AFDW <- feature_importance_Host_AFDW %>% top_n(50, MeanImportance)
 
 # Plot
-ggplot(top_features, aes(x = reorder(Feature, MeanImportance), y = MeanImportance)) +
+ggplot(top_features_Host_AFDW, aes(x = reorder(Feature, MeanImportance), y = MeanImportance)) +
   geom_bar(stat = "identity", fill = "steelblue") +
   coord_flip() +  # Flip for readability
   theme_minimal() +
-  labs(title = "Top 20 Predictive Phys Features",
-       x = "Physiological Metric",
+  labs(title = "miRNA as Predictive Features",
+       x = "miRNA",
        y = "Mean Importance")
 ```
 
 ```{r}
-ggplot(performance_results, aes(x = PC, y = R2)) +
+ggplot(performance_results_Host_AFDW, aes(x = as.factor(PC), y = R2)) +
   geom_point(color = "darkred", size = 3) +
-  geom_hline(yintercept = mean(performance_results$R2, na.rm = TRUE), linetype = "dashed", color = "blue") +
+  geom_hline(yintercept = mean(performance_results_Host_AFDW$R2, na.rm = TRUE), linetype = "dashed", color = "blue") +
   theme_minimal() +
   labs(title = "Model Performance Across Gene Expression PCs",
        x = "Gene Expression PC",
@@ -533,22 +485,19 @@ ggplot(performance_results, aes(x = PC, y = R2)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate labels
 ```
 
-Keep in mind that, while we ran the model with physiological predictors, we're really interested in the genes/miRNA associated with these predictors
-
-
-View components associated with gene/miRNA PCs
+View components associated with gene PCs
 
 ```{r}
-# Get the PCA rotation (loadings) matrix from the original gene/miRNA PCA
-Host_AFDW_loadings <- pca_Host_AFDW$rotation  # Each column corresponds to a PC
+# Get the PCA rotation (loadings) matrix from the original gene PCA
+loadings_Host_AFDW <- pca_Host_AFDW$rotation  # Each column corresponds to a PC
 
 # Convert to data frame and reshape for plotting
-Host_AFDW_loadings_df <- as.data.frame(Host_AFDW_loadings) %>%
+loadings_Host_AFDW_df <- as.data.frame(loadings_Host_AFDW) %>%
   rownames_to_column(var = "gene") %>%
   pivot_longer(-gene, names_to = "Host_AFDW_PC", values_to = "Loading")
 
 # View top CpGs contributing most to each PC
-top_genes_Host_AFDW <- Host_AFDW_loadings_df %>%
+top_genes_Host_AFDW <- loadings_Host_AFDW_df %>%
   group_by(Host_AFDW_PC) %>%
   arrange(desc(abs(Loading))) %>%
   slice_head(n = 20)  # Select top 10 CpGs per PC
@@ -560,51 +509,48 @@ print(top_genes_Host_AFDW)
 View predicted vs actual gene expression values to evaluate model.
 ```{r}
 # Choose a gene expression PC to visualize (e.g., the most predictable one)
-best_pc <- performance_results$PC[which.max(performance_results$R2)]
+best_pc_Host_AFDW <- performance_results_Host_AFDW$PC[which.max(performance_results_Host_AFDW$R2)]
 
 # Extract actual and predicted values for that PC
-actual_values <- Host_AFDW_pcs[[best_pc]]
-predicted_values <- predict(models[[best_pc]], as.matrix(vsd_miRNA), s = "lambda.min")
+actual_values_Host_AFDW <- Host_AFDW_pcs[[best_pc_Host_AFDW]]
+predicted_values_Host_AFDW <- predict(models_Host_AFDW[[best_pc_Host_AFDW]], as.matrix(vsd_miRNA), s = "lambda.min")
 
 # Create data frame
-prediction_df <- data.frame(
-  Actual = actual_values,
-  Predicted = predicted_values
+prediction_df_Host_AFDW <- data.frame(
+  Actual = actual_values_Host_AFDW,
+  Predicted = predicted_values_Host_AFDW
 )
 
 # Scatter plot with regression line
-ggplot(prediction_df, aes(x = Actual, y = lambda.min)) +
+ggplot(prediction_df_Host_AFDW, aes(x = Actual, y = lambda.min)) +
   geom_point(color = "blue", alpha = 0.7) +
   geom_smooth(method = "lm", color = "red", se = FALSE) +
   theme_minimal() +
-  labs(title = paste("Predicted vs. Actual for", best_pc),
+  labs(title = paste("Predicted vs. Actual for", best_pc_Host_AFDW),
        x = "Actual Gene Expression PC",
        y = "Predicted Gene Expression PC") +
-  annotate("text", x = min(actual_values), y = max(predicted_values), 
-           label = paste("R² =", round(max(performance_results$R2, na.rm=TRUE), 3)), 
+  annotate("text", x = min(actual_values_Host_AFDW), y = max(predicted_values_Host_AFDW), 
+           label = paste("R² =", round(max(performance_results_Host_AFDW$R2, na.rm=TRUE), 3)), 
            hjust = 0, color = "black", size = 5)
 ## `geom_smooth()` using formula = 'y ~ x'
 
 ```
 
-View top 20 genes associated with PC5 (the PC with the highest R^2)
+View top 20 genes associated with the PC with the highest R^2
 ```{r}
-print(top_genes_Host_AFDW%>%filter(Host_AFDW_PC==best_pc))
+print(top_genes_Host_AFDW%>%filter(Host_AFDW_PC==best_pc_Host_AFDW))
 ```
 
-
-
 Plot performance for all PCs
-
 ```{r}
-# Select all PCs with R^2 values above line in plot
-all_pcs <- performance_results %>% filter(R2 > 0.75) %>% pull(PC)
+# Select all PCs with R^2 values above 0.75
+all_pcs_Host_AFDW <- performance_results_Host_AFDW %>% filter(R2 > 0.75) %>% pull(PC)
 
-for (pc in all_pcs) {
+for (pc in all_pcs_Host_AFDW) {
   
   # Extract actual and predicted values for that PC
   actual_values <- Host_AFDW_pcs[[pc]]
-  predicted_values <- predict(models[[pc]], as.matrix(vsd_miRNA), s = "lambda.min")
+  predicted_values <- predict(models_Host_AFDW[[pc]], as.matrix(vsd_miRNA), s = "lambda.min")
   
   # Create data frame
   prediction_df <- data.frame(
@@ -621,7 +567,7 @@ for (pc in all_pcs) {
          x = "Actual Gene Expression PC",
          y = "Predicted Gene Expression PC") +
     annotate("text", x = min(actual_values), y = max(predicted_values), 
-             label = paste("R² =", round(max(performance_results[performance_results$PC==pc,2], na.rm=TRUE), 3)), 
+             label = paste("R² =", round(max(performance_results_Host_AFDW[performance_results_Host_AFDW$PC==pc,2], na.rm=TRUE), 3)), 
              hjust = 0, color = "black", size = 5)
   
   print(plot)
@@ -631,7 +577,7 @@ for (pc in all_pcs) {
 ```
 
 
-We can also look att which miRNA(s) contributed most to predicting gene PCs of interest
+We can also look at which miRNA(s) contributed most to predicting gene PCs of interest
 
 ```{r}
 get_feature_importance_for_pc <- function(model) {
@@ -641,9 +587,9 @@ get_feature_importance_for_pc <- function(model) {
   return(coefs_df %>% arrange(desc(Importance)))  # Sort by importance
 }
 
-for (pc in all_pcs) {
+for (pc in all_pcs_Host_AFDW) {
   # Extract feature importance for the most predictable PC
-  best_pc_model <- models[[pc]]
+  best_pc_model <- models_Host_AFDW[[pc]]
   best_pc_importance <- get_feature_importance_for_pc(best_pc_model)
   
   # Plot top most important miRNA for predicting this PC
@@ -661,32 +607,417 @@ for (pc in all_pcs) {
 
 
 
+# Symbiont photsynthesis (Am)
+
+## The model 
+
+Train elastic models to predict gene expression PCs from miRNA expression
+```{r}
+# Train models predicting gene expression PCs from miRNA expression
+models_Am <- train_models(Am_pcs, vsd_miRNA)
+```
+
+Extract feature importance.
+```{r}
+feature_importance_Am <- get_feature_importance(models_Am)
+head(feature_importance_Am, 20)  # Top predictive miRNA
+```
+
+Evaluate performance.
+```{r}
+performance_results_Am <- evaluate_model_performance(models_Am, Am_pcs, vsd_miRNA)
+summary(performance_results_Am$R2)
+```
+
+## Results
+
+Plot results.
+```{r}
+# Select top predictive features
+# few enough miRNA that we can show all
+top_features_Am <- feature_importance_Am %>% top_n(50, MeanImportance)
+
+# Plot
+ggplot(top_features_Am, aes(x = reorder(Feature, MeanImportance), y = MeanImportance)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  coord_flip() +  # Flip for readability
+  theme_minimal() +
+  labs(title = "miRNA as Predictive Features",
+       x = "miRNA",
+       y = "Mean Importance")
+```
+
+```{r}
+ggplot(performance_results_Am, aes(x = as.factor(PC), y = R2)) +
+  geom_point(color = "darkred", size = 3) +
+  geom_hline(yintercept = mean(performance_results_Am$R2, na.rm = TRUE), linetype = "dashed", color = "blue") +
+  theme_minimal() +
+  labs(title = "Model Performance Across Gene Expression PCs",
+       x = "Gene Expression PC",
+       y = "R² (Variance Explained)") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate labels
+```
+
+View components associated with gene PCs
+
+```{r}
+# Get the PCA rotation (loadings) matrix from the original gene PCA
+loadings_Am <- pca_Am$rotation  # Each column corresponds to a PC
+
+# Convert to data frame and reshape for plotting
+loadings_Am_df <- as.data.frame(loadings_Am) %>%
+  rownames_to_column(var = "gene") %>%
+  pivot_longer(-gene, names_to = "Am_PC", values_to = "Loading")
+
+# View top CpGs contributing most to each PC
+top_genes_Am <- loadings_Am_df %>%
+  group_by(Am_PC) %>%
+  arrange(desc(abs(Loading))) %>%
+  slice_head(n = 20)  # Select top 10 CpGs per PC
+
+print(top_genes_Am)
+
+```
+
+View predicted vs actual gene expression values to evaluate model.
+```{r}
+# Choose a gene expression PC to visualize (e.g., the most predictable one)
+best_pc_Am <- performance_results_Am$PC[which.max(performance_results_Am$R2)]
+
+# Extract actual and predicted values for that PC
+actual_values_Am <- Am_pcs[[best_pc_Am]]
+predicted_values_Am <- predict(models_Am[[best_pc_Am]], as.matrix(vsd_miRNA), s = "lambda.min")
+
+# Create data frame
+prediction_df_Am <- data.frame(
+  Actual = actual_values_Am,
+  Predicted = predicted_values_Am
+)
+
+# Scatter plot with regression line
+ggplot(prediction_df_Am, aes(x = Actual, y = lambda.min)) +
+  geom_point(color = "blue", alpha = 0.7) +
+  geom_smooth(method = "lm", color = "red", se = FALSE) +
+  theme_minimal() +
+  labs(title = paste("Predicted vs. Actual for", best_pc_Am),
+       x = "Actual Gene Expression PC",
+       y = "Predicted Gene Expression PC") +
+  annotate("text", x = min(actual_values_Am), y = max(predicted_values_Am), 
+           label = paste("R² =", round(max(performance_results_Am$R2, na.rm=TRUE), 3)), 
+           hjust = 0, color = "black", size = 5)
+## `geom_smooth()` using formula = 'y ~ x'
+
+```
+
+View top 20 genes associated with the PC with the highest R^2
+```{r}
+print(top_genes_Am%>%filter(Am_PC==best_pc_Am))
+```
+
+Plot performance for all PCs
+```{r}
+# Select all PCs with R^2 values above 0.75
+all_pcs_Am <- performance_results_Am %>% filter(R2 > 0.75) %>% pull(PC)
+
+for (pc in all_pcs_Am) {
+  
+  # Extract actual and predicted values for that PC
+  actual_values <- Am_pcs[[pc]]
+  predicted_values <- predict(models_Am[[pc]], as.matrix(vsd_miRNA), s = "lambda.min")
+  
+  # Create data frame
+  prediction_df <- data.frame(
+    Actual = actual_values,
+    Predicted = predicted_values
+  )
+  
+  # Scatter plot with regression line
+  plot <- ggplot(prediction_df, aes(x = Actual, y = lambda.min)) +
+    geom_point(color = "blue", alpha = 0.7) +
+    geom_smooth(method = "lm", color = "red", se = FALSE) +
+    theme_minimal() +
+    labs(title = paste("Predicted vs. Actual for", pc),
+         x = "Actual Gene Expression PC",
+         y = "Predicted Gene Expression PC") +
+    annotate("text", x = min(actual_values), y = max(predicted_values), 
+             label = paste("R² =", round(max(performance_results_Am[performance_results_Am$PC==pc,2], na.rm=TRUE), 3)), 
+             hjust = 0, color = "black", size = 5)
+  
+  print(plot)
+}
+
+
+```
+
+
+We can also look at which miRNA(s) contributed most to predicting gene PCs of interest
+
+```{r}
+get_feature_importance_for_pc <- function(model) {
+  coefs <- as.matrix(coef(model, s = "lambda.min"))[-1, , drop = FALSE]  # Remove intercept
+  coefs_df <- data.frame(Feature = rownames(coefs), Importance = abs(as.numeric(coefs)))
+  
+  return(coefs_df %>% arrange(desc(Importance)))  # Sort by importance
+}
+
+for (pc in all_pcs_Am) {
+  # Extract feature importance for the most predictable PC
+  best_pc_model <- models_Am[[pc]]
+  best_pc_importance <- get_feature_importance_for_pc(best_pc_model)
+  
+  # Plot top most important miRNA for predicting this PC
+  plot <- ggplot(best_pc_importance %>% head(20), aes(x = reorder(Feature, Importance), y = Importance)) +
+    geom_bar(stat = "identity", fill = "steelblue") +
+    coord_flip() +
+    theme_minimal() +
+    labs(title = paste("Top miRNA Predictors for", pc),
+         x = "miRNA",
+         y = "Importance Score")
+  
+  print(plot)
+}
+```
+
+
+# ATP production (GO terms)
+
+## The model 
+
+Train elastic models to predict gene expression PCs from miRNA expression
+```{r}
+# Train models predicting gene expression PCs from miRNA expression
+models_ATP_prod_GO <- train_models(ATP_prod_GO_pcs, vsd_miRNA)
+```
+
+Extract feature importance.
+```{r}
+feature_importance_ATP_prod_GO <- get_feature_importance(models_ATP_prod_GO)
+head(feature_importance_ATP_prod_GO, 20)  # Top predictive miRNA
+```
+
+Evaluate performance.
+```{r}
+performance_results_ATP_prod_GO <- evaluate_model_performance(models_ATP_prod_GO, ATP_prod_GO_pcs, vsd_miRNA)
+summary(performance_results_ATP_prod_GO$R2)
+```
+
+## Results
+
+Plot results.
+```{r}
+# Select top predictive features
+# few enough miRNA that we can show all
+top_features_ATP_prod_GO <- feature_importance_ATP_prod_GO %>% top_n(50, MeanImportance)
+
+# Plot
+ggplot(top_features_ATP_prod_GO, aes(x = reorder(Feature, MeanImportance), y = MeanImportance)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  coord_flip() +  # Flip for readability
+  theme_minimal() +
+  labs(title = "miRNA as Predictive Features",
+       x = "miRNA",
+       y = "Mean Importance")
+```
+
+```{r}
+ggplot(performance_results_ATP_prod_GO, aes(x = as.factor(PC), y = R2)) +
+  geom_point(color = "darkred", size = 3) +
+  geom_hline(yintercept = mean(performance_results_ATP_prod_GO$R2, na.rm = TRUE), linetype = "dashed", color = "blue") +
+  theme_minimal() +
+  labs(title = "Model Performance Across Gene Expression PCs",
+       x = "Gene Expression PC",
+       y = "R² (Variance Explained)") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate labels
+```
+
+View components associated with gene PCs
+
+```{r}
+# Get the PCA rotation (loadings) matrix from the original gene PCA
+loadings_ATP_prod_GO <- pca_ATP_prod_GO$rotation  # Each column corresponds to a PC
+
+# Convert to data frame and reshape for plotting
+loadings_ATP_prod_GO_df <- as.data.frame(loadings_ATP_prod_GO) %>%
+  rownames_to_column(var = "gene") %>%
+  pivot_longer(-gene, names_to = "ATP_prod_GO_PC", values_to = "Loading")
+
+# View top CpGs contributing most to each PC
+top_genes_ATP_prod_GO <- loadings_ATP_prod_GO_df %>%
+  group_by(ATP_prod_GO_PC) %>%
+  arrange(desc(abs(Loading))) %>%
+  slice_head(n = 20)  # Select top 10 CpGs per PC
+
+print(top_genes_ATP_prod_GO)
+
+```
+
+View predicted vs actual gene expression values to evaluate model.
+```{r}
+# Choose a gene expression PC to visualize (e.g., the most predictable one)
+best_pc_ATP_prod_GO <- performance_results_ATP_prod_GO$PC[which.max(performance_results_ATP_prod_GO$R2)]
+
+# Extract actual and predicted values for that PC
+actual_values_ATP_prod_GO <- ATP_prod_GO_pcs[[best_pc_ATP_prod_GO]]
+predicted_values_ATP_prod_GO <- predict(models_ATP_prod_GO[[best_pc_ATP_prod_GO]], as.matrix(vsd_miRNA), s = "lambda.min")
+
+# Create data frame
+prediction_df_ATP_prod_GO <- data.frame(
+  Actual = actual_values_ATP_prod_GO,
+  Predicted = predicted_values_ATP_prod_GO
+)
+
+# Scatter plot with regression line
+ggplot(prediction_df_ATP_prod_GO, aes(x = Actual, y = lambda.min)) +
+  geom_point(color = "blue", alpha = 0.7) +
+  geom_smooth(method = "lm", color = "red", se = FALSE) +
+  theme_minimal() +
+  labs(title = paste("Predicted vs. Actual for", best_pc_ATP_prod_GO),
+       x = "Actual Gene Expression PC",
+       y = "Predicted Gene Expression PC") +
+  annotate("text", x = min(actual_values_ATP_prod_GO), y = max(predicted_values_ATP_prod_GO), 
+           label = paste("R² =", round(max(performance_results_ATP_prod_GO$R2, na.rm=TRUE), 3)), 
+           hjust = 0, color = "black", size = 5)
+## `geom_smooth()` using formula = 'y ~ x'
+
+```
+
+View top 20 genes associated with the PC with the highest R^2
+```{r}
+print(top_genes_ATP_prod_GO%>%filter(ATP_prod_GO_PC==best_pc_ATP_prod_GO))
+```
+
+Plot performance for all PCs
+```{r}
+# Select all PCs with R^2 values above line in plot
+all_pcs_ATP_prod_GO <- performance_results_ATP_prod_GO %>% filter(R2 > 0.75) %>% pull(PC)
+
+for (pc in all_pcs_ATP_prod_GO) {
+  
+  # Extract actual and predicted values for that PC
+  actual_values <- ATP_prod_GO_pcs[[pc]]
+  predicted_values <- predict(models_ATP_prod_GO[[pc]], as.matrix(vsd_miRNA), s = "lambda.min")
+  
+  # Create data frame
+  prediction_df <- data.frame(
+    Actual = actual_values,
+    Predicted = predicted_values
+  )
+  
+  # Scatter plot with regression line
+  plot <- ggplot(prediction_df, aes(x = Actual, y = lambda.min)) +
+    geom_point(color = "blue", alpha = 0.7) +
+    geom_smooth(method = "lm", color = "red", se = FALSE) +
+    theme_minimal() +
+    labs(title = paste("Predicted vs. Actual for", pc),
+         x = "Actual Gene Expression PC",
+         y = "Predicted Gene Expression PC") +
+    annotate("text", x = min(actual_values), y = max(predicted_values), 
+             label = paste("R² =", round(max(performance_results_ATP_prod_GO[performance_results_ATP_prod_GO$PC==pc,2], na.rm=TRUE), 3)), 
+             hjust = 0, color = "black", size = 5)
+  
+  print(plot)
+}
+
+
+```
+
+
+We can also look at which miRNA(s) contributed most to predicting gene PCs of interest
+
+```{r}
+get_feature_importance_for_pc <- function(model) {
+  coefs <- as.matrix(coef(model, s = "lambda.min"))[-1, , drop = FALSE]  # Remove intercept
+  coefs_df <- data.frame(Feature = rownames(coefs), Importance = abs(as.numeric(coefs)))
+  
+  return(coefs_df %>% arrange(desc(Importance)))  # Sort by importance
+}
+
+for (pc in all_pcs_ATP_prod_GO) {
+  # Extract feature importance for the most predictable PC
+  best_pc_model <- models_ATP_prod_GO[[pc]]
+  best_pc_importance <- get_feature_importance_for_pc(best_pc_model)
+  
+  # Plot top most important miRNA for predicting this PC
+  plot <- ggplot(best_pc_importance %>% head(20), aes(x = reorder(Feature, Importance), y = Importance)) +
+    geom_bar(stat = "identity", fill = "steelblue") +
+    coord_flip() +
+    theme_minimal() +
+    labs(title = paste("Top miRNA Predictors for", pc),
+         x = "miRNA",
+         y = "Importance Score")
+  
+  print(plot)
+}
+```
 
 
 
+# Compare
+
+Visualize the relative importance of miRNA in predicting expression for these different gene sets:
+
+```{r}
+# Perfomr min-max normalization on the mean importance of miRNA for each group
+# This will place all along a 0-1 range for comparison purposes
+normalize <- function(x) {
+  (x - min(x)) / (max(x) - min(x))
+}
+
+# Normalize
+top_features_Host_AFDW$MeanImportance_norm <- normalize(top_features_Host_AFDW$MeanImportance)
+top_features_Am$MeanImportance_norm <- normalize(top_features_Am$MeanImportance)
+top_features_ATP_prod_GO$MeanImportance_norm <- normalize(top_features_ATP_prod_GO$MeanImportance)
+
+# Add group labels
+top_features_Host_AFDW <- top_features_Host_AFDW %>% mutate(group = "Host_AFDW")
+top_features_Am <- top_features_Am %>% mutate(group = "Am")
+top_features_ATP_prod_GO <- top_features_ATP_prod_GO %>% mutate(group = "ATP_prod_GO")
+
+# Set rows in same order
+top_features_Am <- top_features_Am[rownames(top_features_Host_AFDW),]
+top_features_ATP_prod_GO <- top_features_ATP_prod_GO[rownames(top_features_Host_AFDW),]
+
+# Combine
+all_gene_sets <- bind_rows(top_features_Host_AFDW, top_features_Am, top_features_ATP_prod_GO)
+# Remove raw mean importance
+all_gene_sets <- all_gene_sets %>% select(!MeanImportance)
+
+# Wide format: rows = miRNAs, columns = groups
+heatmap_df <- all_gene_sets %>%
+  pivot_wider(names_from = group, values_from = MeanImportance_norm)
+
+heatmap_df <- as.data.frame(heatmap_df)
+
+# Melt into long format for ggplot
+heatmap_long <- melt(heatmap_df, id.vars = "Feature")
+
+ggplot(heatmap_long, aes(x = variable, y = Feature, fill = value)) +
+  geom_tile(color = "white") +
+  scale_fill_gradient(low = "white", high = "red") +
+  theme_minimal() +
+  labs(x = "Group", y = "Feature", fill = "Importance") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
 
 
+Cluster by miRNA importance
+```{r}
+# Make Feature column the rownames and convert to matrix
+rownames(heatmap_df) <- heatmap_df$Feature
+heatmap_matrix <- as.matrix(heatmap_df[, -1])  # Removes the 'Feature' column
 
+pheatmap(
+  heatmap_matrix, 
+  cluster_rows = TRUE,  # Clustering miRNAs (rows) by similarity in importance
+  cluster_cols = TRUE,  # Clustering groups (columns)
+  scale = "none",  # No scaling (since data is already normalized)
+  show_rownames = TRUE,  # Show miRNA names
+  show_colnames = TRUE,  # Show group names
+  color = colorRampPalette(c("white", "red"))(100),  # Red gradient for importance
+  main = "miRNAs Importance Across Groups"  # Title of the heatmap
+)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+```
 
 
 
