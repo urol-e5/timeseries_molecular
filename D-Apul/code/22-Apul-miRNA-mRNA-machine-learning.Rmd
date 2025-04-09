@@ -21,7 +21,11 @@ output:
     code_folding: show
     code_download: true
 bibliography: references.bib
+editor_options: 
+  chunk_output_type: console
 ---
+
+Before running, set knit directory to "Project Directory". - Ariana 
 
 I'd like to see whether phenotype can predict gene and/or miRNA expression, will be testing this using the ML approach Ariana has been trialing (see her mRNA-WGBS ML post here: https://ahuffmyer.github.io/ASH_Putnam_Lab_Notebook/E5-timeseries-molecular-mRNA-WGBS-machine-learning-analysis-Part-1/)
 
@@ -74,7 +78,7 @@ Load in count matrices for RNAseq.
 
 ```{r load-data}
 # raw gene counts data (will filter and variance stabilize)
-Apul_genes <- read_csv("../output/02.20-D-Apul-RNAseq-alignment-HiSat2/apul-gene_count_matrix.csv")
+Apul_genes <- read_csv("D-Apul/output/02.20-D-Apul-RNAseq-alignment-HiSat2/apul-gene_count_matrix.csv")
 Apul_genes <- as.data.frame(Apul_genes)
 
 # format gene IDs as rownames (instead of a column)
@@ -83,7 +87,7 @@ Apul_genes <- Apul_genes%>%select(!gene_id)
 
 
 # load and format metadata
-metadata <- read_csv("../../M-multi-species/data/rna_metadata.csv")%>%select(AzentaSampleName, ColonyID, Timepoint) %>%
+metadata <- read_csv("M-multi-species/data/rna_metadata.csv")%>%select(AzentaSampleName, ColonyID, Timepoint) %>%
   filter(grepl("ACR", ColonyID))
 metadata$Sample <- paste(metadata$AzentaSampleName, metadata$ColonyID, metadata$Timepoint, sep = "_")
 
@@ -107,7 +111,7 @@ metadata$Site<-phys$site[match(metadata$ColonyID, phys$colony_id_corr)]
 colnames(Apul_genes) <- metadata$Sample[match(colnames(Apul_genes), metadata$AzentaSampleName)]
 
 # raw miRNA counts (will filter and variance stabilize)
-Apul_miRNA <- read.table(file = "../output/03.10-D-Apul-sRNAseq-expression-DESeq2/Apul_miRNA_ShortStack_counts_formatted.txt", header = TRUE, sep = "\t", check.names = FALSE)
+Apul_miRNA <- read.table(file = "D-Apul/output/03.10-D-Apul-sRNAseq-expression-DESeq2/Apul_miRNA_ShortStack_counts_formatted.txt", header = TRUE, sep = "\t", check.names = FALSE)
 
 ```
 
@@ -139,7 +143,7 @@ nrow(Apul_miRNA_filt)
 
 Removing genes with only 0 counts reduced number from 44371 to 35869. Retained all 51 miRNAs.
 
-Will not be performing pOverA filtering for now, since LM should presumabily incorporate sample representation
+Will not be performing pOverA filtering for now, since LM should presumabily incorporate sample representation (Why? - Ariana)
 
 ## Physiology filtering
 
