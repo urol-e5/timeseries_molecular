@@ -1,0 +1,1364 @@
+Bowtie 2 seems to be working fine (tested command 'bowtie2 --version' [2.5.4])
+Output format is BAM (default)
+Alignments will be written out in BAM format. Samtools found here: '/srlab/programs/samtools-1.20/samtools'
+Reference genome folder provided is ../../data/	(absolute path is '/mmfs1/gscratch/srlab/sr320/github/timeseries_molecular/E-Peve/data/)'
+FastQ format assumed (by default)
+Attention: early reports suggested that high values of -p  to have diminishing returns. Please test different values using a small subset of data for your hardware setting.
+Each Bowtie 2 instance is going to be run with 12 threads. Please monitor performance closely and tune down if necessary!
+
+Input files to be analysed (in current folder '/mmfs1/gscratch/srlab/sr320/github/timeseries_molecular/E-Peve/output/04.3-Peve-bismark-array'):
+../../data/03-Peve-bismark/POR-73-TP2_R1_001.fastp-trim.fq.gz
+../../data/03-Peve-bismark/POR-73-TP2_R2_001.fastp-trim.fq.gz
+Library is assumed to be strand-specific (directional), alignments to strands complementary to the original top or bottom strands will be ignored (i.e. not performed!)
+Output will be written into the directory: /mmfs1/gscratch/srlab/sr320/github/timeseries_molecular/E-Peve/output/04.3-Peve-bismark-array/
+Setting parallelization to single-threaded (default)
+
+Summary of all aligner options:	-q --score-min L,0,-0.6 -p 12 --reorder --ignore-quals --no-mixed --no-discordant --dovetail --maxins 500
+Current working directory is: /mmfs1/gscratch/srlab/sr320/github/timeseries_molecular/E-Peve/output/04.3-Peve-bismark-array
+
+Now reading in and storing sequence information of the genome specified in: /mmfs1/gscratch/srlab/sr320/github/timeseries_molecular/E-Peve/data/
+
+Single-core mode: setting pid to 1
+
+Paired-end alignments will be performed
+=======================================
+
+The provided filenames for paired-end alignments are ../../data/03-Peve-bismark/POR-73-TP2_R1_001.fastp-trim.fq.gz and ../../data/03-Peve-bismark/POR-73-TP2_R2_001.fastp-trim.fq.gz
+Input files are in FastQ format
+Writing a C -> T converted version of the input file POR-73-TP2_R1_001.fastp-trim.fq.gz to POR-73-TP2_R1_001.fastp-trim.fq.gz_C_to_T.fastq
+
+Created C -> T converted version of the FastQ file POR-73-TP2_R1_001.fastp-trim.fq.gz (49167218 sequences in total)
+
+Writing a G -> A converted version of the input file POR-73-TP2_R2_001.fastp-trim.fq.gz to POR-73-TP2_R2_001.fastp-trim.fq.gz_G_to_A.fastq
+
+Created G -> A converted version of the FastQ file POR-73-TP2_R2_001.fastp-trim.fq.gz (49167218 sequences in total)
+
+Input files are POR-73-TP2_R1_001.fastp-trim.fq.gz_C_to_T.fastq and POR-73-TP2_R2_001.fastp-trim.fq.gz_G_to_A.fastq (FastQ)
+Now running 2 instances of Bowtie 2 against the bisulfite genome of /mmfs1/gscratch/srlab/sr320/github/timeseries_molecular/E-Peve/data/ with the specified options: -q --score-min L,0,-0.6 -p 12 --reorder --ignore-quals --no-mixed --no-discordant --dovetail --maxins 500
+
+Now starting a Bowtie 2 paired-end alignment for CTread1GAread2CTgenome (reading in sequences from POR-73-TP2_R1_001.fastp-trim.fq.gz_C_to_T.fastq and POR-73-TP2_R2_001.fastp-trim.fq.gz_G_to_A.fastq, with the options: -q --score-min L,0,-0.6 -p 12 --reorder --ignore-quals --no-mixed --no-discordant --dovetail --maxins 500 --norc))
+Found first alignment:
+LH00652:104:22KG7JLT4:7:1101:7375:1084_1:N:0:TCGGATTC+TAGTTGCG/1	77	*	0	0	*	*	0	0	GTAAATGTTGATGTAGAAATGGGTTATGGGTGGGGAGATTTGGGTGGTGATTAGTAGTGAGGTTGTTTGATAAGAGATTGAAATGTTGGGTTATGTTATTTTAGTTATGAAATATTATTGAATAAG	IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII-IIIIIIIIIIIIIIIIIIIIIIII9IIIIIIIIIIIIII	YT:Z:UP
+LH00652:104:22KG7JLT4:7:1101:7375:1084_2:N:0:TCGGATTC+TAGTTGCG/2	141	*	0	0	*	*	0	0	ACCTTTTCCCTTACTTCCACAAATAAAAAAAACAACCATAAAAACAAAATTAACAATCCCTAATTATTTTCAACAATCAATTAATTTTTCCCTTTATTTTTTTATATTAAACAATCCTAAATAATCCACCCTCTC	IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII9IIIIIIIIIIIIIIIIIIIIIIIIIIIII9III-I9IIIIII	YT:Z:UP
+Now starting a Bowtie 2 paired-end alignment for CTread1GAread2GAgenome (reading in sequences from POR-73-TP2_R1_001.fastp-trim.fq.gz_C_to_T.fastq and POR-73-TP2_R2_001.fastp-trim.fq.gz_G_to_A.fastq, with the options: -q --score-min L,0,-0.6 -p 12 --reorder --ignore-quals --no-mixed --no-discordant --dovetail --maxins 500 --nofw))
+Found first alignment:
+LH00652:104:22KG7JLT4:7:1101:7375:1084_1:N:0:TCGGATTC+TAGTTGCG/1	77	*	0	0	*	*	0	0	GTAAATGTTGATGTAGAAATGGGTTATGGGTGGGGAGATTTGGGTGGTGATTAGTAGTGAGGTTGTTTGATAAGAGATTGAAATGTTGGGTTATGTTATTTTAGTTATGAAATATTATTGAATAAG	IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII-IIIIIIIIIIIIIIIIIIIIIIII9IIIIIIIIIIIIII	YT:Z:UP
+LH00652:104:22KG7JLT4:7:1101:7375:1084_2:N:0:TCGGATTC+TAGTTGCG/2	141	*	0	0	*	*	0	0	ACCTTTTCCCTTACTTCCACAAATAAAAAAAACAACCATAAAAACAAAATTAACAATCCCTAATTATTTTCAACAATCAATTAATTTTTCCCTTTATTTTTTTATATTAAACAATCCTAAATAATCCACCCTCTC	IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII9IIIIIIIIIIIIIIIIIIIIIIIIIIIII9III-I9IIIIII	YT:Z:UP
+
+>>> Writing bisulfite mapping results to POR-73-TP2_pe.bam <<<
+
+
+Reading in the sequence files ../../data/03-Peve-bismark/POR-73-TP2_R1_001.fastp-trim.fq.gz and ../../data/03-Peve-bismark/POR-73-TP2_R2_001.fastp-trim.fq.gz
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1101:44379:21374_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4058	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1105:6809:4363_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391050
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1107:17649:21570_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1109:40803:11005_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2928	58909
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1110:13143:15615_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1111:43578:22677_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2773	63926
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1112:20675:11341_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1113:33498:15783_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2501	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1114:5061:2317_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1114:43319:5694_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4988	18661
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1114:27875:11565_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1879
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1114:19089:18936_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391048
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1116:27487:12882_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7795	2066
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1117:39541:8791_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391089
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1121:45883:24513_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_910	173732
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1122:22042:12504_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1878
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1126:42866:29095_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7652	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1131:1445:4321_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_343	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1131:51457:10262_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1884
+Processed 1000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1132:21549:6913_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4060	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1133:8904:10290_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7669	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1136:35714:25704_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5530	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1137:42558:9253_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5954	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1140:43432:3172_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6187	7086
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1140:24113:18810_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7507	2358
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1141:49030:6591_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391127
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1142:44751:11481_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8125	1905
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1143:32664:19804_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4752	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1143:24760:25788_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_739	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1147:7254:15110_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5208	16148
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1149:26767:1434_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391048
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1149:6979:9954_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7883	2014
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1152:50576:5988_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4508	25218
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1152:40787:11313_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4297	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1152:31969:16273_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_136	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1154:6428:22453_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_761	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1156:4260:21836_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3475	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1158:16759:2401_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391057
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1159:15619:12196_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391097
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1161:44864:9772_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3024	55979
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1161:50292:9786_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1876
+Processed 2000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1162:6089:20239_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1163:10328:19650_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2314	79524
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1165:47477:22649_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391079
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1166:24275:7151_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2703	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1166:24291:7151_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2703	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1166:24307:7151_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2703	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1166:24283:7165_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2703	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1166:20149:29123_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1879
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1167:43667:14732_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1168:39209:14158_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391047
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1169:37987:5288_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7885	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1169:17568:12546_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3217	50904
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1169:3799:27259_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5629	11307
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1169:3807:27273_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5629	11307
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1171:49669:2934_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_469	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1178:44581:24555_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5474	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1182:26168:7207_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5769	9741
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1182:26176:7221_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5769	9741
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1182:46571:21892_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1879
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1183:15651:20996_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_136	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1187:31702:9562_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2421	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1187:11638:10038_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5901	8802
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1188:23806:13541_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7363	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1190:18669:5036_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_980	166604
+Processed 3000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1194:47469:7053_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5385	14227
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1194:26791:7502_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1881
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1196:35383:2065_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2773	63935
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1201:39848:1112_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_298	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1201:7108:20911_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1878
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1202:10360:12784_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1256	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1203:11541:4881_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1882
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1205:36912:13765_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4798	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1206:49669:15405_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3575	42291
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1206:49686:15405_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3575	42291
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1208:25108:6437_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391052
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1208:20092:12518_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1208:15522:26516_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391107
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1211:36992:4909_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2992	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1213:21565:5624_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4513	25124
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1215:31596:9351_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5874	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1215:31613:9351_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5874	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1215:31604:9365_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5874	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1215:46919:9828_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1879
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1215:17212:28941_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4988	18669
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1215:17229:28941_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4988	18669
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1216:25116:5918_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2773	63917
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1217:34420:7235_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_196	383422
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1218:20958:21304_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391048
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1219:1566:11481_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391048
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1220:28312:9379_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391089
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1220:32923:22495_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1092	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1220:44678:28170_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1220:20812:28478_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4988	18667
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1220:20829:28478_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4988	18667
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1222:44322:10318_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1878
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1224:39072:8230_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391133
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1224:8969:13177_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391051
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1224:29056:26614_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1003	1
+Processed 4000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1227:4689:12294_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1653	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1230:29501:7263_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391047
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1230:38894:25886_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3003	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1231:31702:27665_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_325	302222
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1233:29768:6044_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7878	2016
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1233:2092:22453_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1035	159911
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1234:27802:4265_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1877
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1234:46919:5092_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391067
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1236:38570:18908_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4356	27801
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1239:25488:2555_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4154	31050
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1239:47016:4895_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1370	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1240:7739:26180_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3756	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1241:32179:28212_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1242:26039:20603_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7682	2151
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1244:39678:20407_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4647	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1244:39686:20421_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4647	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1245:30051:3452_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4513	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1248:42437:25550_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_606	221734
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1250:16581:14200_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6454	5453
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1250:5870:18655_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7892	2004
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1250:5878:18669_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7892	2004
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1251:15975:1855_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6001	8262
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1253:43440:28072_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391053
+Processed 5000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1258:27697:10865_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391050
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1259:14065:12168_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3966	34461
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1259:20198:14438_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5866	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1259:20189:14452_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5866	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1259:44613:18333_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4255	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1259:36523:24695_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391055
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1262:23256:8917_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1265:27187:20267_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_57	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1269:33142:26797_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2678	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1270:37041:2920_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6030	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1270:49864:5904_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_484	252922
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1272:6970:18067_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1882
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1273:41361:1294_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1884
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1273:43780:15517_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6079	7892
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1273:43772:15531_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6079	7892
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1274:5126:22355_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391048
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1274:45697:24358_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2773	63956
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1275:26613:2037_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2650	67365
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1276:32664:4811_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1279:37575:8272_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7845	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1279:37826:12322_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4513	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1283:29533:22957_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391048
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1285:39476:21262_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1286:9616:11944_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391047
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1287:33473:3046_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_170	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1287:33489:3046_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_170	1
+Processed 6000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1289:23773:10318_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391050
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1294:33538:7670_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1878
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1296:5102:13569_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391054
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1297:33069:4587_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2207	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1297:33061:4601_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2207	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1297:10668:17408_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4143	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1302:30957:14774_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1303:37971:10893_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1303:34703:13779_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1880
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1303:32422:16442_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391112
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1303:36620:28983_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3008	56508
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1304:22625:14382_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_612	221183
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1305:41029:7109_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5501	12756
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1305:41021:7123_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5501	12756
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1305:41037:7123_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5501	12756
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1305:41029:7137_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5501	12756
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1305:45681:9477_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1256	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1305:7998:10963_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1305:32300:14354_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4875	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1306:40382:26951_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5531	12340
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1306:40390:26965_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5531	12340
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1308:18604:3438_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7401	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1308:20788:5512_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391050
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1308:9139:5568_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1879
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1308:38311:24288_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1878
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1311:22236:3228_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1705	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1311:36661:27175_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391048
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1312:27681:19468_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5434	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1313:37445:16624_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1445	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1314:42259:14872_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5987	8302
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1315:40026:19300_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1124	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1316:1809:25045_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2304	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1317:27244:1504_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2299	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1317:20974:9029_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391052
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1318:39161:13933_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391048
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1320:2578:7824_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7507	2349
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1320:2586:7838_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7507	2349
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1320:25626:9632_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_674	210001
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1320:25634:9646_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_674	210001
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1321:42032:24513_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391047
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1321:41312:26993_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Processed 7000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1325:39298:15124_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2757	64373
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1327:27090:7263_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1878
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1327:17981:7740_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6388	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1327:21274:19132_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1408	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1327:21282:19146_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1408	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1327:33651:22131_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1343	134266
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1328:47469:25746_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_626	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1331:28118:20954_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4489	25568
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1334:51878:28058_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1884
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1336:5579:12406_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391047
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1338:12658:7011_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3988	3
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1340:43610:28058_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1229	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1342:1324:24849_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4255	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1344:37089:1939_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391043
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1344:32689:9814_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5616	11453
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1344:32705:9814_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5616	11453
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1344:32697:9828_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5616	11453
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1345:46741:23392_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2640	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1345:46733:23406_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2640	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1346:11048:27595_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4988	18653
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1349:4139:14620_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5541	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1349:8863:23756_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6548	5267
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1349:8880:23756_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6548	5267
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1349:8872:23770_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6548	5267
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1350:10295:5806_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1878
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1350:36839:25437_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_39	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1350:36831:25451_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_39	1
+Processed 8000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1352:23296:27567_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_498	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1353:45406:9001_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391055
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1354:22932:5862_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1354:43642:7880_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391080
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1355:18806:24387_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1370	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1356:40714:25227_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2666	66793
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1356:40706:25241_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2666	66793
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1357:44896:22215_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_373	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1359:37470:5120_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7963	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1359:44184:17478_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_80	595746
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1359:44193:17492_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_80	595746
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1363:47299:29207_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4513	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1364:7464:21892_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1367:31742:9744_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1341	134590
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1368:48318:10711_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4513	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1369:23919:29151_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1371:51101:22173_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1326	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1371:23814:23083_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6365	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1372:43869:6535_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5493	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1375:31087:15475_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1085	155484
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1376:2108:4153_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5724	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1376:15360:21864_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1879
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1377:16824:24961_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2611	69106
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1377:2254:25900_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391047
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1378:47736:11411_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3524	43548
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1379:6946:12924_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1603	116244
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1381:47534:18852_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4465	1
+Processed 9000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1384:17415:23322_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1911	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1385:32041:25451_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2773	63923
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1385:1898:27665_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391046
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1386:2052:14564_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5470	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1388:1534:20085_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_155	419115
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1388:32187:23462_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5437	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1388:32203:23462_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5437	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1388:36604:26965_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1389:11379:9337_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7974	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1389:11388:9351_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7974	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1389:23563:10514_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5205	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1390:33975:27399_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7674	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1390:33983:27413_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7674	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1390:33975:27427_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7674	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1391:48828:7081_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2683	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1392:14793:11019_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1881
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1392:9988:19706_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1883
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1397:35747:8356_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6042	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1397:14632:8609_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5722	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1397:32769:28002_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6066	7970
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1397:32786:28002_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6066	7970
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1397:32794:28016_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6066	7970
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1398:46110:19384_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3942	34975
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1401:41240:26138_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1403:36750:15251_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391053
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1403:44743:28955_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3363	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1403:44751:28969_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3363	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1404:48221:9029_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_136	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1406:24898:25213_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4765	21690
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1407:48666:8006_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_746	196504
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1408:7262:22046_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1886
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1409:31265:16371_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391047
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1410:16371:11902_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391055
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1411:25278:26909_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2773	63922
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1412:32583:4867_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1879
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1415:11873:15068_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2707	65531
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1415:13281:25045_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4379	27315
+Processed 10000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1416:18337:24274_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_749	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1416:18345:24288_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_749	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1418:42971:17170_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2643	67601
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1419:5886:21262_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391050
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1419:39872:23069_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391046
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1421:51789:19076_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_433	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1425:7763:6072_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391050
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1426:27665:18740_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6572	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1427:16420:7193_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1626	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1427:43011:12700_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5895	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1427:12989:19945_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3306	48574
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1428:11744:2429_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7730	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1432:34760:2443_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2136	3
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1434:9826:9169_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5015	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1434:30116:21332_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2773	63905
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1436:20942:17128_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1883
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1436:12124:29459_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391051
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1437:47283:12000_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1514	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1437:25399:28268_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1880
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1441:37284:12336_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_248	339234
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1442:20343:25311_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391047
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1444:20837:24429_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5822	9241
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1445:39986:24863_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2883	60304
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1446:30674:5036_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3302	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1446:6865:8076_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Processed 11000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1447:26904:9800_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1911	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1449:3961:22691_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5874	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1450:39411:1476_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7083	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1450:33473:13639_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391048
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1455:9656:8623_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3991	33954
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1457:23765:9379_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391050
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1458:45649:6647_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391123
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1462:40722:21038_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5757	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1463:40301:8427_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3949	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1467:47744:15321_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_854	3
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1467:14454:16007_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1102	153707
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1467:14462:16021_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1102	153707
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1467:43173:27217_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4830	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1467:43181:27231_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4830	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1468:48019:8763_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4135	31386
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1469:19316:22663_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7507	2348
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1472:22010:25564_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1911	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1473:39411:13583_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1475:9850:9015_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4083	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1475:9867:9015_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4083	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1475:14138:27119_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_129	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1478:42566:8118_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1881
+Processed 12000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1479:7391:17731_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7215	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1482:34104:19833_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1482:20732:24807_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4988	18650
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1486:45438:20771_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4056	32780
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1486:45446:20785_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4056	32780
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1487:33514:6451_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1878
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1487:29453:13233_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3991	33977
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1490:27915:10514_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1510	121583
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:1492:12472:6549_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2994	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2104:2901:25143_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391046
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2106:50754:23420_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5217	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2108:3095:6143_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391093
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2109:31823:14003_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391048
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2111:45568:13765_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_45	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2112:21775:21458_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2113:31281:3032_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7083	4228
+Processed 13000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2114:35132:27525_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1343	134266
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2116:50033:5134_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4626	23700
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2116:50025:5148_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4626	23696
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2117:37623:8889_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2773	63932
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2121:50770:9519_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5264	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2122:6194:26362_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3978	34221
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2128:50940:3452_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_604	222706
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2129:16525:12112_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4752	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2129:32049:20029_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4772	21651
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2130:38505:12630_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_252	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2130:16824:19861_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1226	143695
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2133:3726:10851_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7507	2350
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2134:36636:24555_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_589	3
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2135:27657:9309_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391052
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2137:11557:12784_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_218	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2137:11566:12798_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_218	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2137:11582:12798_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_218	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2140:17285:27749_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_136	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2141:17795:9015_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1881
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2142:24590:18796_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1424	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2143:31831:6227_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_484	252913
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2144:29768:18179_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1993	94020
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2144:20028:27792_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6328	5830
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2144:20044:27792_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6328	5830
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2145:42405:4503_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2691	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2145:42413:4517_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2691	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2145:11962:25395_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4871	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2145:11970:25409_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4871	1
+Processed 14000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2149:41013:21850_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7755	2098
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2149:41005:21864_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7755	2098
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2151:18604:6773_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391051
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2151:43303:12952_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2654	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2151:43278:12966_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2654	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2151:43295:12966_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2654	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2151:43303:12981_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2654	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2152:43869:26713_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7363	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2153:31168:3172_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1499	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2153:31160:3186_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1499	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2153:32850:24919_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5278	15330
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2154:38125:7292_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2171	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2155:20861:21752_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2773	63926
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2160:47064:8342_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3634	41055
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2161:25254:1392_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3033	55720
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2163:30529:4923_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1878
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2164:29590:5764_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2647	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2165:13159:18305_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391052
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2166:3217:16722_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_330	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2166:3225:16736_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_330	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2166:34978:24625_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5117	17098
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2166:35099:28226_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2339	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2167:4649:11607_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2101	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2168:25391:7263_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4513	25132
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2168:27729:7642_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1877
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2169:42356:22074_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_136	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2172:42372:3830_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_867	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2172:6323:4783_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391050
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2176:17738:19286_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2728	64941
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2178:28498:10178_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6635	5134
+Processed 15000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2179:25011:29501_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_589	3
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2179:25027:29501_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_589	3
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2179:25043:29501_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_589	3
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2180:23207:1546_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1083	155726
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2182:34598:3144_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2339	78956
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2188:36216:1294_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2421	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2189:27503:1560_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391064
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2190:25157:27147_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1879
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2195:24671:15881_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2881	60400
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2198:22172:5414_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391098
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2201:24388:2752_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2773	63938
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2202:25982:2317_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1610	115776
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2205:2950:14214_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7003	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2210:44726:4881_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2480	74094
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2214:44427:5064_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5609	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2214:32575:13373_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1164	148273
+Processed 16000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2216:43942:9463_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7083	4242
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2216:10239:23700_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4513	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2218:16703:2275_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7055	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2220:36256:4251_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5890	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2221:17140:5834_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4010	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2223:23401:1883_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4357	27751
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2224:36588:23630_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1877
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2224:45010:24541_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1879
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2227:46733:15391_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7959	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2227:46741:15405_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7959	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2227:46717:15419_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7959	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2227:46733:15419_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7959	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2227:46749:15419_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7959	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2229:29194:23294_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1877
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2231:26128:10809_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1879
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2232:16217:22509_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7418	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2237:6339:17506_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6125	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2239:11744:20085_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2272	80940
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2239:29202:27287_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391048
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2243:21589:19258_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_589	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2243:21112:19748_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5418	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2244:27616:16862_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_589	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2245:38627:8356_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3846	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2245:38635:8370_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3846	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2245:31111:26110_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391051
+Processed 17000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2247:20537:14802_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1880
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2247:31095:27707_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3702	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2248:8613:24807_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391051
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2254:16800:28114_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2783	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2256:45568:7544_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4083	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2256:34104:17114_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2261	81686
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2257:43853:7067_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4513	25126
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2259:11185:17717_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391055
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2260:8758:29347_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3878	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2261:44969:14242_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_87	566097
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2261:47760:19861_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_129	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2266:28441:26979_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2773	63955
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2270:28182:12574_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6387	5630
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2271:45252:17619_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2773	63918
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2273:36103:7039_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_688	207551
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2273:27325:25578_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6702	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2275:10959:17717_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5523	12443
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2279:30075:3550_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391126
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2279:18482:10206_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5915	1
+Processed 18000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2281:51215:16960_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_478	254545
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2287:21913:9113_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2287:43424:20029_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_136	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2291:32413:18249_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7922	1983
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2293:21039:10206_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8010	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2293:21031:10220_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8010	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2295:22956:5344_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2295:13669:11005_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3155	52264
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2298:42016:8342_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5067	17613
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2298:42008:8356_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5067	17613
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2298:42016:8370_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5067	17613
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2298:42024:8384_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5067	17613
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2301:21120:2695_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1880
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2302:5530:11902_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391051
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2302:13362:15265_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7772	2070
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2302:11598:15797_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7144	3384
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2303:14632:2892_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2773	63914
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2304:26548:1673_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2773	63924
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2306:37486:3326_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3297	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2307:4899:18824_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5229	15921
+Processed 19000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2314:32705:15110_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4988	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2316:24728:20351_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7814	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2317:11897:8413_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7689	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2317:4276:18361_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391130
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2317:47752:27161_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2899	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2317:5482:27259_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5071	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2317:5474:27273_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5071	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2320:35164:20463_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3996	33820
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2321:12116:12882_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_871	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2323:37138:28422_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_520	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2324:40253:22411_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4149	31170
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2330:18207:7488_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_56	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2335:24057:7362_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4703	22523
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2335:30634:22761_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3167	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2335:30626:22775_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3167	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2336:30148:15054_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2510	73124
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2336:30140:15068_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2510	73124
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2336:30156:15068_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2510	73124
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2336:51611:21402_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3471	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2340:13313:2962_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_577	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2340:13329:2962_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_577	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2341:10579:1224_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5852	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2342:3678:7824_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2599	69443
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2344:48755:28534_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_658	212375
+Processed 20000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2345:43367:22761_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7720	2117
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2346:30545:11537_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391075
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2347:16250:3088_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1998	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2347:35010:27007_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4574	24404
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2349:17463:16652_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1764	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2349:17479:16652_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1764	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2352:39889:8441_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3334	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2352:32535:24316_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2339	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2352:4147:28170_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_225	358366
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2353:35787:5680_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391050
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2356:13038:6128_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4813	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2357:25545:23672_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4159	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2358:46652:11159_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7467	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2358:6534:11201_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1880
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2359:43739:20827_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3945	34963
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2359:43756:20827_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3945	34963
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2359:26208:23055_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4742	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2360:38788:1659_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2354	78545
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2360:38805:1659_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2354	78545
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2360:47501:21542_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5518	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2360:47518:21542_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5518	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2361:39355:24695_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1880
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2363:49313:26979_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4547	24674
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2363:49313:27007_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4547	24674
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2363:49330:27007_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4547	24674
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2364:40115:20996_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1694	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2369:25950:11621_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391048
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2370:5522:1406_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4827	21019
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2370:11962:16596_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1979	94691
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2372:46175:6577_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5786	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2372:41345:12308_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6495	5376
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2372:41353:12322_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6495	5376
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2373:5959:12252_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1878
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2375:7076:25395_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4391	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2376:19243:3228_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5417	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2376:40722:27763_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7511	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2377:26144:8763_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5114	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2377:47809:11565_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1880
+Processed 21000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2378:10401:7978_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1876
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2379:46854:3550_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4172	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2381:37356:25634_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6079	7892
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2382:39897:22551_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4946	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2383:19073:1224_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1878
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2389:29307:15110_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1305	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2391:33417:8076_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1880
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2393:15513:11005_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1918
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2394:41321:19412_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3216	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2395:4066:25816_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391046
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2397:12625:7964_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1877
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2397:31758:26446_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4827	21025
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2401:13256:10374_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3510	43834
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2402:28409:24092_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391050
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2404:16007:16035_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5236	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2405:6428:18081_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5650	11054
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2405:7974:19776_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4941	19450
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2407:27527:5358_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391048
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2408:6000:29529_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4176	30674
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2409:22042:24443_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391051
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2412:13847:19748_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391096
+Processed 22000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2414:3330:8511_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7372	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2415:46247:9057_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1021	161410
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2415:14955:10458_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4308	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2416:2513:17549_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3438	45231
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2418:37680:1196_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3301	48667
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2422:15829:5582_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_233	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2422:2998:18333_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2773	63917
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2424:22487:2149_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4954	19194
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2424:37971:25129_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2446	74951
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2425:34015:15503_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1459	126529
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2425:34007:15517_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1459	126529
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2426:31151:3116_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2493	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2426:40957:29627_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4988	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2426:40948:29641_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4988	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2427:5013:4839_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7730	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2429:34339:6675_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1232	143239
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2430:30577:22215_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391048
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2432:15368:14312_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2432:14891:19034_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2136	3
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2434:37178:1673_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1646	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2434:28466:29039_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3436	45293
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2435:4074:1673_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391050
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2439:3929:20337_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7685	2141
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2441:22317:19594_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5265	15480
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2442:39104:23420_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4040	33054
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2443:28773:1939_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2773	63916
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2445:6000:19608_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_637	2
+Processed 23000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2447:38190:20323_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2426	75544
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2451:6954:3802_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1056	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2451:9373:25143_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391052
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2452:14138:5064_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_706	204230
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2453:11541:4041_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391048
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2453:27713:7165_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4552	24632
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2454:1461:7432_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391053
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2455:38109:1575_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1877
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2456:36903:3718_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2773	63931
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2456:32025:5890_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2706	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2456:35941:9926_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5845	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2456:35933:9940_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5845	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2460:17342:13387_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4585	24209
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2466:34849:16526_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391051
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2466:32454:23448_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_259	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2466:32413:23462_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_259	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2466:32430:23462_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_259	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2466:32446:23462_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_259	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2466:32422:23476_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_259	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2466:10926:28226_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2773	63933
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2467:4365:26054_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6042	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2467:4382:26054_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6042	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2467:4390:26068_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6042	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2470:16306:17731_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2476:40010:9576_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7855	2029
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2476:48585:12938_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5827	9193
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2476:43667:21654_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7242	2790
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2476:43683:21654_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7242	2790
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2477:14276:8104_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5722	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2477:14292:8104_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5722	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2477:14284:8118_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5722	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2478:19275:13317_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7511	1
+Processed 24000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2484:44961:14228_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_674	210001
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2484:36928:23882_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1887
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2485:40892:5134_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2773	63963
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2485:31216:19903_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391043
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2486:38012:11916_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_589	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:7:2490:42526:17941_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3404	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1102:24615:5526_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7583	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1105:50964:23139_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4199	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1106:24340:11663_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2410	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1106:12188:20015_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_627	218132
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1108:40989:5190_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5164	16591
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1108:40997:5204_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5164	16591
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1108:40989:5218_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5164	16591
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1110:13637:10500_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1835	101794
+Processed 25000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1112:4899:17983_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6737	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1112:4891:17997_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6737	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1113:8896:9660_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5469	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1113:20003:14550_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_885	176503
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1115:15182:15194_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3339	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1115:5053:24695_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1877
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1116:17164:11397_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4069	32488
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1116:16355:20057_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5646	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1116:22786:21192_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391125
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1116:34120:23532_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3036	55609
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1116:34112:23546_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3036	55609
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1117:6598:5708_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391047
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1117:3508:18599_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1877
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1118:27438:25185_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1672	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1119:12455:19973_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7175	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1120:15077:13807_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391054
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1121:38699:4531_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391048
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1124:39314:6297_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391047
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1125:44832:8230_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7013	4560
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1126:12609:8889_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2523	72252
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1126:12601:8903_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2523	72252
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1126:12609:8917_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2523	72252
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1127:21484:10248_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1104	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1127:47388:16245_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_149	425388
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1127:3209:25087_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4392	27110
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1127:3233:25101_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4392	27110
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1127:3209:25115_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4392	27110
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1127:3225:25115_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4392	27110
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1127:14963:28660_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4513	25137
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1128:15190:18992_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391050
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1128:17261:26811_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5271	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1129:14704:20169_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391047
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1131:6954:21262_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2681	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1132:2521:16385_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1878
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1132:24267:22215_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391073
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1133:26014:26026_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6630	5137
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1134:47113:17422_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5245	15632
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1134:47121:17436_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5245	15632
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1136:28482:5022_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2532	71874
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1137:6331:6647_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391051
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1138:27576:13401_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_840	181475
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1138:27592:13401_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_840	181475
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1138:27584:13415_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_840	181475
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1139:30480:28352_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7507	2369
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1139:30488:28366_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7507	2369
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1140:29995:12154_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1764	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1140:30011:12154_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1764	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1140:30003:12168_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1764	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1141:48335:6086_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5935	8537
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1141:48343:6100_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5935	8537
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1141:11703:9590_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_916	173000
+Processed 26000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1145:43408:14592_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_810	186124
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1148:47283:20015_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1977	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1148:19332:28352_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7507	2369
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1149:44791:20071_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391047
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1149:28498:28814_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_170	405263
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1150:33028:21248_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6870	4796
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1151:7747:3522_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2370	77955
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1151:7763:3522_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2370	77955
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1153:1882:2051_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7828	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1158:5005:2836_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7924	1977
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1159:36208:2794_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1006	163133
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1159:36224:2794_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1006	163133
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1159:11226:20701_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1880
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1159:24906:24919_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4960	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1159:45042:28520_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2773	63923
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1161:19914:15208_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3212	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1161:19923:15222_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3212	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1161:37397:26909_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391050
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1164:27212:16357_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1984	94480
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1164:39460:27315_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4513	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1164:39452:27329_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4513	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1164:39468:27329_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4513	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1168:11104:29627_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_29	866016
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1170:29922:1434_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_984	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1172:15004:9926_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3970	34338
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1172:12496:15082_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1919	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1172:12504:15096_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1919	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1172:12512:15110_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1919	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1172:12520:15124_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1919	1
+Processed 27000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1176:26039:13905_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5935	8528
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1176:26047:13919_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5935	8528
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1177:8831:6157_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_665	211137
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1177:7820:28114_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391101
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1178:43197:7446_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2117	87712
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1180:39703:1168_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391047
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1183:2521:15096_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391052
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1183:17657:19286_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_589	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1184:15554:25704_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2773	63933
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1187:40601:8300_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1031	160143
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1187:30755:25522_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2957	57895
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1189:9470:10795_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1190:33635:22859_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_777	192038
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1190:14025:23027_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3580	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1190:14033:23041_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3580	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1193:36547:11761_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1881
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1195:21872:20057_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4513	25121
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1195:21888:20057_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4513	25121
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1195:21880:20071_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4513	25121
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1196:33409:26671_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1998	93837
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1196:33400:26685_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1998	93837
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1201:31418:7193_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391050
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1203:12075:8637_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2249	82314
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1205:28190:10486_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1877
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1206:40334:13359_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4818	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1206:27867:20827_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391050
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1207:50786:6072_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1547	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1207:50802:6072_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1547	1
+Processed 28000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1209:36369:15657_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4988	18652
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1210:47801:24190_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7992	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1211:13070:8006_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7507	2347
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1211:13086:8006_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7507	2347
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1211:19567:8441_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2267	81253
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1211:19575:8455_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2267	81253
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1216:23393:1252_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391050
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1219:17496:14466_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5878	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1219:22115:25802_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391048
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1221:50284:6549_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4257	29442
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1221:50300:6549_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4257	29442
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1222:29800:27147_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391050
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1223:14033:12840_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1226	143695
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1223:6817:14970_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1911	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1224:13523:28969_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2186	84938
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1229:45115:10346_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1231:41935:1757_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5362	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1235:35124:26867_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_733	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1236:35407:22901_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3383	1
+Processed 29000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1239:43327:3354_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1879
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1239:3548:20603_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2773	63935
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1244:38699:2766_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1245:46344:11299_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1383	131508
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1246:38578:2639_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1878
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1246:21047:9239_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7255	2767
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1247:30197:13457_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2069	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1247:24518:13709_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2403	76245
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1247:45446:14144_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391047
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1248:15263:18389_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3079	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1253:7019:9828_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2297	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1254:40843:19454_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_136	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1254:5983:25017_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1879
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1255:26475:5358_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5271	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1255:21629:19636_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391062
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1259:37858:15741_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1592	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1263:31499:10024_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7554	2258
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1265:36297:16960_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4199	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1265:15174:28800_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391048
+Processed 30000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1269:41353:22439_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391050
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1270:25084:11803_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7109	3711
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1272:25966:3830_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2118	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1272:38546:9786_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3339	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1272:38538:9800_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3339	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1272:38554:9800_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3339	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1273:9139:9211_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1274:32624:7992_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7203	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1279:44637:29473_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2773	63938
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1284:44427:22243_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4360	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1286:16331:2387_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_590	226235
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1287:44840:8637_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2773	63938
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1289:40398:21290_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2773	63919
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1290:25739:13527_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2773	63915
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1292:26403:18095_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1901	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1292:16492:26068_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_215	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1296:19939:18445_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1297:11210:13667_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391051
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1298:40609:27848_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2654	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1302:35674:28520_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_547	233729
+Processed 31000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1305:12464:28926_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5854	9064
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1306:39986:1911_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2918	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1306:22430:8497_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391055
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1307:20351:5848_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5054	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1308:21589:5442_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4396	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1309:39258:16792_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1269	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1312:49694:6114_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7391	2476
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1313:5538:7600_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6705	5040
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1314:32624:26376_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_628	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1316:48682:7530_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391131
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1316:30779:22369_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1251	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1317:8532:19594_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6505	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1318:26484:18964_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7564	2250
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1319:31952:17394_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1881
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1320:17787:6367_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4148	31203
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1320:45633:18922_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2991	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1320:45624:18936_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2991	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1323:8977:6829_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7155	3300
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1324:46223:7950_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1325:44233:12602_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1384	131463
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1326:8605:23700_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391050
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1327:16727:14172_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_863	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1327:19211:26292_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_926	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1332:42631:25578_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8079	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1333:28830:17226_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1222	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1334:29283:1420_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Processed 32000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1334:16719:13513_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5952	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1336:23061:5946_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1879
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1336:31920:7081_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_966	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1339:25173:15068_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1339:32357:27315_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_365	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1341:31257:27623_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2322	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1342:51514:2794_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_889	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1342:51530:2794_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_889	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1342:51522:2808_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_889	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1342:18426:8707_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2436	75165
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1346:3985:28450_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4517	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1347:23984:2163_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391047
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1347:47906:13751_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_284	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1347:29558:24877_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5852	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1348:28716:18179_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_92	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1351:19453:25031_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1352:12731:4699_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391092
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1354:39525:25213_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2713	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1356:16225:11173_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2987	56873
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1356:16233:11187_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2987	56873
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1357:36984:21794_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_99	528897
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1358:39816:1617_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5300	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1359:5263:24583_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7561	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1359:27883:26180_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1360:6453:8511_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1362:5361:19510_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7363	2527
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1363:41547:14592_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1879
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1364:23709:16848_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391048
+Processed 33000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1366:25003:1715_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7836	2034
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1374:31661:27455_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391052
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1375:47979:11607_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7382	2482
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1376:29137:24597_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1693	110315
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1376:29153:24597_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1693	110315
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1379:4608:5848_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6798	4916
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1379:18547:15110_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4909	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1379:12132:18571_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3025	55968
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1380:41919:24625_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1882
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1380:51651:29179_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1501	122597
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1383:18305:2639_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1764	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1385:47663:20001_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391095
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1388:38449:11691_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391055
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1388:25497:29277_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391048
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1391:25610:14592_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4908	19919
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1392:23595:14494_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1395:21087:5778_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2574	70404
+Processed 34000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1398:20020:2920_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2197	84469
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1401:28660:24218_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1879
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1406:42008:4573_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_883	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1407:12083:4139_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5257	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1408:40293:7740_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1408:46838:20673_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1879
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1411:2343:9071_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4513	25131
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1413:25901:3438_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391048
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1418:12464:26488_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1420:51368:28772_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5205	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1421:32462:22621_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391132
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1423:1760:13751_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1424:1121:1575_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4858	20777
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1424:48375:26811_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_974	166967
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1425:10449:27371_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4473	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1426:22835:5806_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4601	24019
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1426:22827:5820_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4601	24019
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1428:3265:22579_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6352	5726
+Processed 35000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1430:31160:17254_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391054
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1433:49831:9435_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1878
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1435:47420:26502_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3077	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1435:47429:26516_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3077	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1436:51773:6689_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1370	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1436:49386:26208_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8154	1876
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1438:26702:6451_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1879
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1438:23846:6801_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1876
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1438:30221:10781_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1440:9802:20337_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391098
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1442:11824:8483_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391048
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1443:3281:21206_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391047
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1443:50931:25437_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1879
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1444:12124:13205_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_332	300893
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1444:27462:15419_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5362	3
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1444:8435:15699_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391046
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1446:16128:19748_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1877
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1447:28466:20127_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_904	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1449:7423:18599_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2391	76916
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1449:7440:18599_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2391	76917
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1455:41822:23896_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1881
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1455:41814:23910_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1881
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1456:37025:13737_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2773	63915
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1457:4365:15349_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6165	1
+Processed 36000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1459:42939:20645_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_382	286387
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1460:3888:29067_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2691	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1460:3904:29067_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2691	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1461:26524:29319_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391047
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1464:14260:4125_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391048
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1468:46474:23910_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4954	19177
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1469:12480:5722_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_256	333286
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1470:17366:18726_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1565	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1471:43181:22747_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4833	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1472:23490:6913_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4036	33143
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1473:24979:17282_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8158	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1475:17115:19552_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391047
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1478:21168:17072_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2773	63909
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1479:30294:4097_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_135	448928
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1479:19955:13737_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391051
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1479:35156:14508_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2282	80517
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1480:28182:16357_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391047
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1482:23757:19258_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1879
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1483:41054:6815_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5607	11546
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1484:15675:3971_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391048
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1485:1267:15671_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8	1243686
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1485:12180:18543_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391047
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1486:32308:16694_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391048
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1487:23523:17226_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6001	8251
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1487:23539:17226_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6001	8251
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1488:17673:7179_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3450	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1488:8572:10781_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391050
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1488:14988:16428_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5558	12146
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1490:22560:23770_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391050
+Processed 37000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1493:39104:13387_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1800	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1495:37292:2177_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5762	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1497:32373:12126_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6082	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:1497:32381:12140_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6082	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2103:12779:12966_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391058
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2103:30731:26012_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2773	63925
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2105:35738:2121_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1878
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2105:5037:24723_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4016	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2106:15117:12700_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6734	5010
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2106:25230:25451_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391048
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2107:35075:28884_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5122	16989
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2108:32389:13219_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2773	63949
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2109:19065:1126_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1884
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2109:24510:5484_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391056
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2111:24323:26264_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2773	63957
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2116:48828:5904_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4267	29357
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2117:38004:7278_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391073
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2118:42809:27876_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4988	18660
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2119:12140:29403_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391050
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2120:29461:4167_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1292	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2120:10805:25353_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391054
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2124:46975:21080_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_325	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2124:12423:22355_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391057
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2125:7092:6114_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391047
+Processed 38000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2127:34129:3424_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7170	3201
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2127:34137:3438_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7170	3201
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2127:34129:3452_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7170	3201
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2127:36806:14059_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391050
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2127:26807:21514_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6082	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2129:14923:13485_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2130:24890:25732_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1881
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2132:23749:3887_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3146	52543
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2132:20230:25844_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7058	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2132:29841:26909_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391051
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2133:40261:25227_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5935	8528
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2133:40859:27021_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2550	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2136:26014:1757_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391052
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2137:26791:8230_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5422	13770
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2137:18936:10542_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4301	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2137:15222:11733_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6469	5424
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2137:11938:15573_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5757	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2137:48157:26853_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6452	5466
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2138:29453:20379_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391050
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2138:16670:22873_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2773	63922
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2141:10368:3971_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1877
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2141:8435:11944_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1696	110175
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2141:7610:13681_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2141:45107:18599_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7544	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2141:45099:18613_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7544	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2142:37858:7698_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1878
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2142:23959:9968_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1878	100211
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2144:25213:8188_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2426	75541
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2147:19008:24344_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_384	285986
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2153:38926:8174_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2186	84944
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2153:32713:17422_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4138	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2154:24720:19945_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4742	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2156:37413:13961_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1880
+Processed 39000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2158:11501:23027_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391052
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2159:43117:11145_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1876
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2160:41749:12448_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_638	216495
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2160:41757:12462_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_638	216495
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2161:20481:28632_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391048
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2166:42445:4265_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7325	2619
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2167:50187:28100_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6498	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2173:19300:26110_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1258	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2179:29105:3214_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2181:13491:23980_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7033	4504
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2190:13564:7516_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1104	153220
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2190:10190:26867_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391050
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2191:39161:20463_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1126	151047
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2191:39152:20477_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1126	151047
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2192:9341:9421_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391079
+Processed 40000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2194:21783:4097_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7151	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2195:38295:2177_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4514	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2195:38287:2191_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4514	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2195:11671:5498_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391050
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2195:43691:17829_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3470	44450
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2198:7755:13345_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_933	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2198:27179:15713_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391055
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2201:11064:12378_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6254	6292
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2203:3969:10374_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_526	239011
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2203:16153:20687_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2205:8394:27904_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5856	3
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2207:23895:20197_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3363	3
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2208:8823:8805_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2210:18539:17506_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_981	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2210:15756:25942_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1885
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2212:26225:1953_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2213:40722:29277_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5757	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2216:48877:15489_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391115
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2217:13030:19762_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1057	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2217:12989:27707_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7363	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2220:5288:4699_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391053
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2221:41774:13051_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2773	63930
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2222:42469:10837_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4647	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2222:45778:25143_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1881
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2224:27640:20631_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_719	201886
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2225:39816:15489_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1570	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2226:18094:5554_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7266	1
+Processed 41000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2228:24210:21024_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6566	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2228:24218:21038_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6566	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2231:13531:22845_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4746	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2231:13540:22859_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4746	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2233:49799:24961_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2695	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2234:19243:28366_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_589	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2234:19235:28380_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_589	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2235:10546:10444_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7730	2107
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2236:48691:11860_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2773	63910
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2236:26702:19062_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2186	84933
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2238:41345:18361_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1879
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2239:20667:26040_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391047
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2247:25723:2373_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_752	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2247:16581:24064_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1880
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2251:29792:24134_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2903	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2254:21427:4349_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Processed 42000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2260:22042:5526_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5305	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2260:3128:9057_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391050
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2262:42494:24471_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1881
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2264:13693:23994_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4724	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2265:3298:11005_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2773	63930
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2265:36313:25928_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6441	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2267:32559:20743_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3939	35032
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2268:16824:6016_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2773	63914
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2268:36369:23420_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391082
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2269:16112:18151_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2272:9640:10024_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1878
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2282:13798:27763_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7363	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2283:3217:26446_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_41	762907
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2284:37219:23798_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2957	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2285:9025:24373_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7548	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2286:41887:4755_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1669	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2286:26087:20379_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2287:22948:7404_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1881
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2288:33077:7936_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1879
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2291:48650:3550_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7926	2006
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2291:17657:19734_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1524	120856
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2292:35253:3018_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5151	16718
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2292:4592:12434_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391108
+Processed 43000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2294:35018:15923_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5757	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2296:9130:16512_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_667	210958
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2301:2108:5218_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391050
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2303:32810:20757_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391055
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2303:42979:21304_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5337	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2304:7610:8188_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2304:21767:20968_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_426	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2304:21759:20982_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_426	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2305:14931:17955_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391050
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2307:44783:8623_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1879
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2308:27106:20379_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391050
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2310:29501:9786_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2311:6105:3620_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2160	86152
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2311:22681:7614_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1877
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2316:5425:5078_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2860	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2316:5417:5092_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2860	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2317:9017:3424_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1883
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2319:8103:17170_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6834	4863
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2324:46571:2359_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2613	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2324:29493:2794_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5855	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2324:15958:17745_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1005	163225
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2324:46369:28128_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4175	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2325:17269:6955_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1881
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2327:33708:4153_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3860	36326
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2327:33724:4153_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3860	36326
+Processed 44000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2327:45827:20239_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1877
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2330:34274:14186_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391050
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2332:31249:3873_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7941	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2332:25561:3971_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_149	425388
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2333:12358:25914_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391050
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2341:6089:7207_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4969	18976
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2341:48456:8230_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3475	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2346:45171:7894_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3227	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2348:38109:3957_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_51	706812
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2349:11784:5162_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2623	68401
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2351:23587:8202_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5831	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2355:44015:24471_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1878
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2356:18677:4293_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7926	2006
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2357:35577:25802_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_750	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2357:35569:25816_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_750	1
+Processed 45000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2361:41814:24499_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2421	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2364:29784:18291_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4060	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2368:7957:26278_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_170	405254
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2371:20772:19496_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391047
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2371:47340:23588_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2343	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2373:50268:9800_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5705	10365
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2375:27276:4139_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2640	67686
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2377:13758:4377_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5954	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2379:29525:8567_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391053
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2382:18353:9898_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1877
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2383:33967:5974_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2383:20100:21444_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4513	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2385:39970:1883_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_46	719566
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2386:13540:12995_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2573	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2386:13556:12995_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2573	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2386:13548:13009_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2573	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2386:13564:13009_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2573	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2387:3362:2121_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1878
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2387:1421:2149_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2773	63929
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2393:11598:20841_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4270	1
+Processed 46000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2396:24518:7796_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5757	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2396:24501:7824_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5757	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2396:24518:7824_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5757	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2396:43327:29417_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4724	22242
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2396:43343:29417_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4724	22242
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2401:19769:17983_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1878
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2402:38659:3228_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4513	25126
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2402:38675:3228_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4513	25126
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2402:28652:27651_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5757	3
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2403:5158:23560_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5159	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2404:12981:1518_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2322	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2404:24024:15601_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391071
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2404:36345:25844_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1431	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2407:19623:23728_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2382	77348
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2408:17261:29473_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_5969	8424
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2413:30173:24401_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1857	100784
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2419:2456:23476_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2421:37243:12854_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1897
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2421:2521:18824_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391048
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2422:39743:13905_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7734	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2423:33764:4671_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391100
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2426:43303:6143_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_950	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2426:6898:13289_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2899	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2426:20853:25325_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2427:45940:22257_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2004	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2427:45932:22271_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2004	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2427:18094:29515_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_765	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2428:3265:1140_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2428:6485:15405_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_136	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2429:31168:6423_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7058	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2429:31160:6437_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7058	1
+Processed 47000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2433:27932:18221_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1879
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2434:46919:19020_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391115
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2436:29485:1210_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1919	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2437:10304:1813_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2438:33805:8497_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_424	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2439:20707:3662_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1879
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2439:38044:13065_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7305	2650
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2439:38036:13079_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7305	2650
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2439:38052:13079_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7305	2650
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2439:38044:13093_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7305	2650
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2439:38036:13107_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7305	2650
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2441:41579:2878_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1879
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2442:22722:1603_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391048
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2444:32535:29501_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7108	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2445:47841:4559_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6080	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2445:41935:29417_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_79	598979
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2450:22172:6451_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2450:28975:29305_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_3701	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2451:17034:27595_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2908	59498
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2451:17042:27609_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2908	59498
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2452:25230:18641_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1024	161112
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2453:42793:2037_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1898
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2456:13337:29123_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391051
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2459:9397:1673_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391053
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2460:2691:8805_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6566	1
+Processed 48000000 sequence pairs so far
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2461:12868:4965_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7720	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2464:4090:22018_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_6834	3
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2469:45811:20631_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7363	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2471:5466:7193_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_7087	4191
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2471:3508:9576_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391061
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2471:27737:9618_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4833	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2471:27754:9618_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4833	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2475:45147:7460_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_27	887407
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2477:44686:9632_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8147	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2477:16177:10893_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1878
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2478:15400:6128_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_189	391049
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2478:46425:6619_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8149	1877
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2478:22212:8398_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4920	19692
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2478:45956:9674_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4568	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2480:29121:16834_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_1965	2
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2481:28555:5708_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_2783	1
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2481:35973:20715_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_8094	1893
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2483:42947:29571_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_4659	23182
+Chromosomal sequence could not be extracted for	LH00652:104:22KG7JLT4:8:2489:47922:17450_1:N:0:TCGGATTC+TAGTTGCG	Porites_evermani_scaffold_714	202704
+Processed 49000000 sequence pairs so far
+49167218 reads; of these:
+  49167218 (100.00%) were paired; of these:
+    45288805 (92.11%) aligned concordantly 0 times
+    2094810 (4.26%) aligned concordantly exactly 1 time
+    1783603 (3.63%) aligned concordantly >1 times
+7.89% overall alignment rate
+49167218 reads; of these:
+  49167218 (100.00%) were paired; of these:
+    45277800 (92.09%) aligned concordantly 0 times
+    2099262 (4.27%) aligned concordantly exactly 1 time
+    1790156 (3.64%) aligned concordantly >1 times
+7.91% overall alignment rate
+Processed 49167218 sequences in total
+
+
+Successfully deleted the temporary files POR-73-TP2_R1_001.fastp-trim.fq.gz_C_to_T.fastq and POR-73-TP2_R2_001.fastp-trim.fq.gz_G_to_A.fastq
+
+Final Alignment report
+======================
+Sequence pairs analysed in total:	49167218
+Final Cytosine Methylation Report
+=================================
+Total number of C's analysed:	259940012
+
+Total methylated C's in CpG context:	3363832
+Total methylated C's in CHG context:	207189
+Total methylated C's in CHH context:	834642
+Total methylated C's in Unknown context:	5891
+
+Total unmethylated C's in CpG context:	37487666
+Total unmethylated C's in CHG context:	44930760
+Total unmethylated C's in CHH context:	173115923
+Total unmethylated C's in Unknown context:	409558
+
+C methylated in CpG context:	8.2%
+C methylated in CHG context:	0.5%
+C methylated in CHH context:	0.5%
+C methylated in Unknown context (CN or CHN):	1.4%
+
+
+Bismark completed in 0d 1h 12m 12s
+
+====================
+Bismark run complete
+====================
+

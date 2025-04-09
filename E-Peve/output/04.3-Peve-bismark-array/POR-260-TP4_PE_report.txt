@@ -1,0 +1,42 @@
+Bismark report for: ../../data/03-Peve-bismark/POR-260-TP4_R1_001.fastp-trim.fq.gz and ../../data/03-Peve-bismark/POR-260-TP4_R2_001.fastp-trim.fq.gz (version: v0.24.2)
+Bismark was run with Bowtie 2 against the bisulfite genome of /mmfs1/gscratch/srlab/sr320/github/timeseries_molecular/E-Peve/data/ with the specified options: -q --score-min L,0,-0.6 -p 12 --reorder --ignore-quals --no-mixed --no-discordant --dovetail --maxins 500
+Option '--directional' specified (default mode): alignments to complementary strands (CTOT, CTOB) were ignored (i.e. not performed)
+
+Final Alignment report
+======================
+Sequence pairs analysed in total:	38097600
+Number of paired-end alignments with a unique best hit:	25205264
+Mapping efficiency:	66.2% 
+Sequence pairs with no alignments under any condition:	9753306
+Sequence pairs did not map uniquely:	3139030
+Sequence pairs which were discarded because genomic sequence could not be extracted:	4474
+
+Number of sequence pairs with unique best (first) alignment came from the bowtie output:
+CT/GA/CT:	12611501	((converted) top strand)
+GA/CT/CT:	0	(complementary to (converted) top strand)
+GA/CT/GA:	0	(complementary to (converted) bottom strand)
+CT/GA/GA:	12589289	((converted) bottom strand)
+
+Number of alignments to (merely theoretical) complementary strands being rejected in total:	0
+
+Final Cytosine Methylation Report
+=================================
+Total number of C's analysed:	1286486399
+
+Total methylated C's in CpG context:	18460862
+Total methylated C's in CHG context:	1028555
+Total methylated C's in CHH context:	4023530
+Total methylated C's in Unknown context:	25428
+
+Total unmethylated C's in CpG context:	182907651
+Total unmethylated C's in CHG context:	225322531
+Total unmethylated C's in CHH context:	854743270
+Total unmethylated C's in Unknown context:	1564646
+
+C methylated in CpG context:	9.2%
+C methylated in CHG context:	0.5%
+C methylated in CHH context:	0.5%
+C methylated in Unknown context (CN or CHN):	1.6%
+
+
+Bismark completed in 0d 3h 26m 26s

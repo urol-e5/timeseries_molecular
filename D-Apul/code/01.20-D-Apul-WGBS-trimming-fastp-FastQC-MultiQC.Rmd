@@ -3,6 +3,9 @@ title: "01.20-D-Apul-WGBS-trimming-fastp-FastQC-MultiQC"
 author: "Sam White"
 date: "2025-01-02"
 output: 
+  github_document:
+    toc: true
+    number_sections: true
   bookdown::html_document2:
     theme: cosmo
     toc: true
@@ -10,9 +13,6 @@ output:
     number_sections: true
     code_folding: show
     code_download: true
-  github_document:
-    toc: true
-    number_sections: true
   html_document:
     theme: cosmo
     toc: true
@@ -27,7 +27,7 @@ bibliography: references.bib
 
 This notebook will trim raw WGBS FastQs using [fastp](https://github.com/OpenGene/fastp). Samples which generate an error during trimming will attempt to be repaired using [BBTools `repairl.sh`](https://jgi.doe.gov/data-and-tools/software-tools/bbtools/) (BBMap – Bushnell B. – sourceforge.net/projects/bbmap/). Trimming results will be analyzed with FastQC and summarized by [MultiQC](https://github.com/MultiQC/MultiQC) [@ewels2016].
 
-Based off of the initial FastQC/MultiQC, we trimmed 15bp from each read.
+Based off of the initial FastQC/MultiQC, we trimmed 25bp from each read.
 
 ## Inputs
 
@@ -45,8 +45,6 @@ If one needs to download the raw FastQs, please see [00.20-D-Apul-WGBS-reads-Fas
 The expected outputs will be:
 
 - `*_fastqc.html`: Individual FastQC reports.
-
-- `*_fastqc.zip`: Individual FastQC ZIP files.
 
 - `*fastp-trim*.fq.gz`: Trimmed FastQ files.
 
@@ -137,7 +135,7 @@ Trimming will remove any Illumina sequencing adapters, as well as polyG and poly
 
 Samples generating an error during trimming will attempt to be repaired with BBTools' `repair.sh` script.
 
-```{r fastp-trimming, engine='bash', eval=FALSE}
+```{r fastp-trimming, engine='bash', eval=TRUE}
 # Load bash variables into memory
 source .bashvars
 
@@ -259,7 +257,8 @@ done
 
 
 # FastQC
-```{r fastqc, engine='bash'}
+
+```{r fastqc, engine='bash', eval=TRUE}
 # Load bash variables into memory
 source .bashvars
 
@@ -291,16 +290,25 @@ echo ""
 ############ END FASTQC ############
 ```
 
-
-
 # MultiQC
-```{r multiqc, engine='bash'}
+
+Uses `--cl-config "sp: { fastp: { fn: '*report.json' } }"` to update the
+MultiQC search pattern for the fastp module.
+
+```{r multiqc, engine='bash', eval=TRUE}
 # Load bash variables into memory
 source .bashvars
 
+
 cd "${output_dir_top}"
 
-${multiqc} \
---interactive \
-.
+${multiqc} . \
+--cl-config "sp: { fastp: { fn: '*report.json' } }" \
+--interactive
+
+# Remove zip files
+rm *_fastqc.zip
 ```
+
+
+# References

@@ -1,0 +1,441 @@
+---
+title: "02.20-F-Ptua-RNAseq-alignment-HiSat2"
+author: "Sam White"
+date: "2025-03-07"
+output: 
+  github_document:
+    toc: true
+    number_sections: true
+  bookdown::html_document2:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+  html_document:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+bibliography: references.bib
+---
+
+# Background
+
+This notebook will align trimmed *P.tuahiniensis* RNA-seq data to the *P.tuahiniensis* genome using [HISAT2](https://github.com/DaehwanKimLab/hisat2) [@kim2019]. Follwed by [StringTie](https://ccb.jhu.edu/software/stringtie/index.shtml?t=manual) [@pertea2015; @pertea2016] for transcript assembly/identification and count matrices for downstream expression analysis with [DESeq2](https://github.com/thelovelab/DESeq2) and/or [Ballgown](<https://github.com/alyssafrazee/ballgown>.
+
+Since the BAM files produced by this notebook are too large for GitHub, they can be accessed on our server here:
+
+[https://gannet.fish.washington.edu/Atumefaciens/gitrepos/urol-e5/timeseries_molecular/F-Ptua/output/02.20-F-Ptua-RNAseq-alignment-HiSat2/](https://gannet.fish.washington.edu/Atumefaciens/gitrepos/urol-e5/timeseries_molecular/F-Ptua/output/02.20-F-Ptua-RNAseq-alignment-HiSat2/)
+
+Input(s)
+
+-   Trimmed FastQ files, with format: `<colone_ID>-<timepoint>_*fastp-trim.fq.gz`
+-   HISAT2 genome index: `Pocillopora_meandrina_HIv1.assembly`
+-   Genome GTF: `Porites_evermanni_validated.gtf`
+-   Sample metadata: `M-multi-species/data/rna_metadata.csv`
+
+Outputs:
+
+- Primary:
+  
+  - `checksums.md5`: MD5 checksum for all files in this directory. Excludes subdirectories.
+  
+  - `ptua-gene_count_matrix.csv`: Gene count matrix for use in [DESeq2](https://github.com/thelovelab/DESeq2).
+  
+  - `ptua-transcript_count_matrix.csv`: Transcript count matrix for use in [DESeq2](https://github.com/thelovelab/DESeq2). 
+  
+  - `prepDE-sample_list.txt`: Sample file list provided as input to StringTie for DESeq2 count matrix generation. Also serves as documentation of which files were used   for this step. 
+  
+  - `Pocillopora_meandrina_HIv1.assembly.stringtie.gtf`: Canonical StringTie GTF file compiled from all individual sample GTFs. 
+  
+  - `sorted-bams-merged.bam`: Merged (and sorted) BAM consisting of all individual sample BAMs. 
+  
+  - `sorted-bams-merged.bam.bai`: BAM index file. Useful for visualizing assemblies in IGV. 
+  
+  - `sorted_bams.list`: List file needed for merging of BAMS with samtools. Also serves as documentation of which files were used for this step. 
+  
+  - `multiqc_report.html`: MultiQC report aggregating all individual HISAT2 alignment stats and samtools flagstats. 
+  
+  
+  - `gtf_list.txt`: List file needed for merging of GTF files with StringTie. Also serves as documentation of which files were used for this step. 
+- Individuals:
+
+Each subdirectory is labelled based on sample name and each contains individual HISAT2 alignment and StringTie output files. 
+  
+  - `<sample_name>_checksums.md5`: MD5 checksums for all files in the directory. 
+  
+  - `*.ctab`: Data tables formatted for import into Ballgown. 
+  
+  - `<sample_name>.cov_refs.gtf`: StringTie genome reference sequnce coverage GTF. 
+  
+  - `<sample_name>.gtf`: StringTie GTF. 
+  
+  - `<sample_name>.sorted.bam`: HISAT2 assembly BAM. 
+  
+  - `<sample_name>.sorted.bam.bai`: BAM index file. Useful for visualizing assemblies in IGV. 
+  
+  - `<sample_name>-hisat2_output.flagstat`: samtools flagstat output file. 
+  
+  - `<sample_name>_hisat2.stats`: HISAT2 assembly stats. 
+  
+  - `input_fastqs_checksums.md5`: MD5 checksums of files used as input for assembly. Primarily serves as documentation to track/verify which files were actually used.
+
+```{r setup, include=FALSE}
+library(knitr)
+knitr::opts_chunk$set(
+  echo = TRUE,         # Display code chunks
+  eval = FALSE,        # Evaluate code chunks
+  warning = FALSE,     # Hide warnings
+  message = FALSE,     # Hide messages
+  comment = ""         # Prevents appending '##' to beginning of lines in code output
+)
+```
+
+
+
+# Create a Bash variables file
+
+This allows usage of Bash variables across R Markdown chunks.
+
+```{r save-bash-variables-to-rvars-file, engine='bash', eval=TRUE}
+{
+echo "#### Assign Variables ####"
+echo ""
+
+echo "# Data directories"
+echo 'export timeseries_dir=/home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular'
+echo 'export genome_dir="${timeseries_dir}/F-Ptua/data"'
+echo 'export genome_index_dir="${timeseries_dir}/F-Ptua/output/02.10-F-Ptua-RNAseq-genome-index-HiSat2"'
+echo 'export output_dir_top="${timeseries_dir}/F-Ptua/output/02.20-F-Ptua-RNAseq-alignment-HiSat2"'
+echo 'export trimmed_fastqs_dir="${timeseries_dir}/F-Ptua/output/01.00-F-Ptua-RNAseq-trimming-fastp-FastQC-MultiQC"'
+echo ""
+
+echo "# Location of Hisat2 index files"
+echo "# Must keep variable name formatting, as it's used by HiSat2"
+echo 'export HISAT2_INDEXES="${genome_index_dir}"'
+
+
+echo "# Input files"
+echo 'export genome_index_name="Pocillopora_meandrina_HIv1.assembly"'
+echo 'export genome_gff="${genome_dir}/Pocillopora_meandrina_HIv1.genes-validated.gff3"'
+echo 'export genome_fasta="${genome_dir}/Pocillopora_meandrina_HIv1.assembly.fasta"'
+echo 'export transcripts_gtf="${genome_dir}/Pocillopora_meandrina_HIv1.genes-validated.gtf"'
+
+echo "# Output files"
+echo 'export gtf_list="${output_dir_top}/gtf_list.txt"'
+echo 'export merged_bam="${output_dir_top}/sorted-bams-merged.bam"'
+echo ""
+
+echo "# Paths to programs"
+echo 'export programs_dir="/home/shared"'
+echo 'export hisat2_dir="${programs_dir}/hisat2-2.2.1"'
+
+echo 'export hisat2="${hisat2_dir}/hisat2"'
+
+echo 'export multiqc=/home/sam/programs/mambaforge/bin/multiqc'
+
+echo 'export samtools="${programs_dir}/samtools-1.12/samtools"'
+
+echo 'export prepDE="${programs_dir}/stringtie-2.2.1.Linux_x86_64/prepDE.py3"'
+echo 'export stringtie="${programs_dir}/stringtie-2.2.1.Linux_x86_64/stringtie"'
+
+echo ""
+
+echo "# Set FastQ filename patterns"
+echo "export R1_fastq_pattern='*_R1_*.fq.gz'"
+echo "export R2_fastq_pattern='*_R2_*.fq.gz'"
+echo "export trimmed_fastq_pattern='*fastp-trim.fq.gz'"
+echo ""
+
+echo "# Set number of CPUs to use"
+echo 'export threads=40'
+echo ""
+
+echo "# Set average read length - for StringTie prepDE.py"
+echo 'export read_length=125'
+echo ""
+
+
+echo "## Initialize arrays"
+echo 'export fastq_array_R1=()'
+echo 'export fastq_array_R2=()'
+echo 'export R1_names_array=()'
+echo 'export R2_names_array=()'
+echo "declare -A sample_timepoint_map"
+echo ""
+
+echo "# Programs associative array"
+echo "declare -A programs_array"
+echo "programs_array=("
+echo '[hisat2]="${hisat2}" \'
+echo '[multiqc]="${multiqc}" \'
+echo '[prepDE]="${prepDE}" \'
+echo '[samtools]="${samtools}" \'
+echo '[stringtie]="${stringtie}" \'
+echo ")"
+echo ""
+
+echo "# Print formatting"
+echo 'export line="--------------------------------------------------------"'
+echo ""
+} > .bashvars
+
+cat .bashvars
+```
+
+
+# Align reads using HISAT2
+
+This requires usage of the `rna_metadata.csv`
+
+This step has a lengthy, semi-complex workflow:
+
+1. Parse `rna_metadata.csv` for _P.tuahiniensis_ sample names and time point. This info will be used for downstream file naming and to assing the time point to the read group (`SM:`) in the alignment file.
+2. Loop through all samples and perform individual alignments using HISAT2.
+3. HISAT2 output is piped to through multiple samtools tools: flagstat (stats aggregation), sort (creates/sorts BAM), index (creates BAM index). Piping saves time and disk space, by avoiding the generation of large SAM files.
+4. Loop continues and runs StringTie on sorted BAM file to produce individual GTF file.
+5. Loop continues and adds GTF path/filename to a list file, which will be used downstream.
+
+```{bash hisat2-alignments, engine='bash', eval=FALSE}
+# Load bash variables into memory
+source .bashvars
+
+# Make output directories, if they don't exist
+mkdir --parents "${output_dir_top}"
+
+# Change to ouput directory
+cd "${output_dir_top}"
+
+# Create associative array with sample and timepoint
+metadata="../../../M-multi-species/data/rna_metadata.csv"
+
+# Declare the array
+declare -A sample_timepoint_map
+
+# Read the metadata file line by line
+while IFS=',' read -r sample_number sample_name plate well_number azenta_sample_name colony_id timepoint sample_type species_strain SampleBuffer; do
+    # Check if the species is "Pocillopora tuahiniensis"
+    if [[ "${species_strain}" == "Pocillopora tuahiniensis" ]]; then
+        # Add the Azenta sample name as the key and Timepoint as the value in the associative array
+        sample_timepoint_map["${colony_id}-${timepoint}"]="${timepoint}"
+    fi
+done < <(tail -n +2 "${metadata}") # Skip the header
+
+## Populate trimmed reads arrays
+fastq_array_R1=("${trimmed_fastqs_dir}"/${R1_fastq_pattern})
+fastq_array_R2=("${trimmed_fastqs_dir}"/${R2_fastq_pattern})
+
+############## BEGIN HISAT2 ALIGNMENTS ##############
+
+# Loop through array using sample names (e.g. <colony_ID>-<timepoint>)
+for sample in "${!sample_timepoint_map[@]}"
+do
+
+
+  # Create and switch to dedicated sample directory
+  mkdir --parents "${sample}" && cd "$_"
+
+  # Create HISAT2 list of fastq R1 files
+  # and generated MD5 checksums file.
+  for fastq in "${fastq_array_R1[@]}"
+  do
+    # Parse sample name from FastQ filename
+    fastq_sample=$(echo "${fastq##*/}" | awk -F"[_]" '{print $1}')
+    
+    # Process matching FastQ file, based on sample name
+    if [ "${fastq_sample}" == "${sample}" ]; then
+      
+      # Generate checksum/list of input files used
+      md5sum "${fastq}" >> input_fastqs_checksums.md5
+      
+      # Create comma-separated lists of FastQs for HISAT2
+      printf -v joined_R1 '%s,' "${fastq}"
+      fastq_list_R1=$(echo "${joined_R1%,}")
+    fi
+  done
+
+  # Create HISAT2 list of fastq R1 files
+  # and generated MD5 checksums file.
+  for fastq in "${fastq_array_R2[@]}"
+  do
+    # Parse sample name from FastQ filename
+    fastq_sample=$(echo "${fastq##*/}" | awk -F"[_]" '{print $1}')
+    
+    # Process matching FastQ file, based on sample name
+    if [ "${fastq_sample}" == "${sample}" ]; then
+      
+      # Generate checksum/list of input files used
+      md5sum "${fastq}" >> input_fastqs_checksums.md5
+
+      # Create comma-separated lists of FastQs for HISAT2
+      printf -v joined_R2 '%s,' "${fastq}"
+      fastq_list_R2=$(echo "${joined_R2%,}")
+    fi
+  done
+
+
+
+  # HISAT2 alignments
+  # Sets read group info (RG) using samples array
+  "${programs_array[hisat2]}" \
+  -x "${genome_index_name}" \
+  -1 "${fastq_list_R1}" \
+  -2 "${fastq_list_R2}" \
+  --threads "${threads}" \
+  --rg-id "${sample}" \
+  --rg "SM:""${sample_timepoint_map[$sample]}" \
+  2> "${sample}"_hisat2.stats \
+  | tee >(${programs_array[samtools]} flagstat - > "${sample}"-hisat2_output.flagstat) \
+  | ${programs_array[samtools]} sort - -@ "${threads}" -O BAM \
+  | tee "${sample}".sorted.bam \
+  | ${programs_array[samtools]} index - "${sample}".sorted.bam.bai
+  
+  
+  # Run stringtie on alignments
+  # Uses "-B" option to output tables intended for use in Ballgown
+  # Uses "-e" option; recommended when using "-B" option.
+  # Limits analysis to only reads alignments matching reference.
+  "${programs_array[stringtie]}" "${sample}".sorted.bam \
+  -p "${threads}" \
+  -o "${sample}".gtf \
+  -G "${genome_gff}" \
+  -C "${sample}.cov_refs.gtf" \
+  -B \
+  -e 
+  
+  
+  # Add GTFs to list file, only if non-empty
+  # Identifies GTF files that only have header
+  gtf_lines=$(wc -l < "${sample}".gtf )
+  if [ "${gtf_lines}" -gt 2 ]; then
+    echo "$(pwd)/${sample}.gtf" >> "${gtf_list}"
+  fi 
+
+  # Generate checksums
+  find ./ -type f -not -name "*.md5" -exec md5sum {} \; > ${sample}_checksums.md5
+  # Move up to orig. working directory
+  cd ..
+
+done
+```
+
+## Review HISAT2 Output
+
+View the resulting directory structure of resulting from the HISAT2/StringTie process.
+
+```{r tree-hisat2-output, engine='bash', eval=TRUE}
+# Load bash variables into memory
+source .bashvars
+
+# Change to ouput directory
+cd "${output_dir_top}"
+
+# Display HISAT2 output directory structure
+# with directory (--du) and file sizes (-h)
+tree --du -h
+```
+
+## MultiQC alignment rates
+
+```{r multiqc-alignment-rates, engine='bash', eval=FALSE}
+# Load bash variables into memory
+source .bashvars
+
+# Change to ouput directory
+cd "${output_dir_top}"
+
+${programs_array[multiqc]} \
+--interactive \
+.
+
+```
+
+# Merge sorted BAMs
+
+Merge all BAMs to singular BAM for use in transcriptome assembly later, if needed.
+
+```{r merge-sorted-BAMS, engine='bash', eval=FALSE}
+# Load bash variables into memory
+source .bashvars
+
+# Change to ouput directory
+cd "${output_dir_top}"
+
+
+## Create list of sorted BAMs for merging
+find . -name "*sorted.bam" > sorted_bams.list
+
+## Merge sorted BAMs
+${programs_array[samtools]} merge \
+-b sorted_bams.list \
+${merged_bam} \
+--threads ${threads}
+
+## Index merged BAM
+${programs_array[samtools]} index ${merged_bam}
+```
+
+# Create combined GTF
+
+```{r combine-GTFs, engine='bash', eval=FALSE}
+# Load bash variables into memory
+source .bashvars
+
+# Change to ouput directory
+cd "${output_dir_top}"
+
+
+# Create singular transcript file, using GTF list file
+"${programs_array[stringtie]}" --merge \
+"${gtf_list}" \
+-p "${threads}" \
+-G "${genome_gff}" \
+-o "${genome_index_name}".stringtie.gtf
+```
+
+# Create DESeq2 Count Matrices
+
+```{r DESeq2-matrices, engine='bash', eval=FALSE}
+# Load bash variables into memory
+source .bashvars
+
+# Change to ouput directory
+cd "${output_dir_top}"
+
+# Create file list for prepDE.py
+while read -r line
+do
+  sample_no_path=${line##*/}
+  sample=${sample_no_path%.*}
+  echo ${sample} ${line}
+done < gtf_list.txt >> prepDE-sample_list.txt
+
+# Create count matrices for genes and transcripts
+# Compatible with import to DESeq2
+python3 "${programs_array[prepDE]}" \
+--input=prepDE-sample_list.txt \
+-g ptua-gene_count_matrix.csv \
+-t ptua-transcript_count_matrix.csv \
+--length=${read_length}
+```
+
+# Generate checksums
+
+```{r generate-checksums, engine='bash', eval=FALSE}
+# Load bash variables into memory
+source .bashvars
+
+# Change to ouput directory
+cd "${output_dir_top}"
+
+# Uses find command to avoid passing
+# directory names to the md5sum command.
+find . -maxdepth 1 -type f -exec md5sum {} + \
+| tee --append checksums.md5
+```
+
+# References
