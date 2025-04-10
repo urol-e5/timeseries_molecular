@@ -41,22 +41,22 @@ knitr::opts_chunk$set(
 ```
 
 
-Apul new genome 
+Apul 
 
-# genes 
-https://gannet.fish.washington.edu/seashell/bu-github/deep-dive-expression/D-Apul/output/07-Apul-Hisat/genes.fasta
+# proteins 
+https://raw.githubusercontent.com/urol-e5/deep-dive-expression/main/D-Apul/data/Apulchra-genome.pep.faa
 
-pulled via gff
+
 
 ```{bash}
 cd ../data
-curl -o Apul-genes.fasta https://gannet.fish.washington.edu/seashell/bu-github/deep-dive-expression/D-Apul/output/07-Apul-Hisat/genes.fasta
+curl -o Apulchra-genome.pep.faa https://raw.githubusercontent.com/urol-e5/deep-dive-expression/main/D-Apul/data/Apulchra-genome.pep.faa
 
 ```
 
 
 ```{bash}
-head ../data/Apul-genes.fasta
+head ../data/Apulchra-genome.pep.faa
 ```
 
 
@@ -64,36 +64,36 @@ head ../data/Apul-genes.fasta
 ---
 
 ```{bash}
-mkdir ../output/25-Apul-epimods-blast/
 
 /home/shared/ncbi-blast-2.15.0+/bin/makeblastdb \
--in ../data/Apul-genes.fasta \
--dbtype nucl \
--out ../output/25-Apul-epimods-blast/Apul-genes
+-in ../data/Apulchra-genome.pep.faa \
+-dbtype prot \
+-out ../output/25-Apul-epimods-blast/Apul-proteins
 ```
 
-
+```{bash}
+head ../data/Machinery.fasta
+```
 
 
 ```{bash}
 fasta="../data/Machinery.fasta"
 
-/home/shared/ncbi-blast-2.15.0+/bin/tblastn \
+/home/shared/ncbi-blast-2.15.0+/bin/blastp \
 -query $fasta \
--db ../output/25-Apul-epimods-blast/Apul-genes \
--out ../output/25-Apul-epimods-blast/Mach-tblastn-Apul_out.tab \
+-db ../output/25-Apul-epimods-blast/Apul-proteins \
+-out ../output/25-Apul-epimods-blast/Mach-blastp-Apul_out.tab \
 -evalue 1E-05 \
 -num_threads 48 \
 -max_target_seqs 1 \
 -max_hsps 1 \
--outfmt 6 \
-2>/dev/null
+-outfmt 6
 ```
 
 ```{r, engine='bash', eval=TRUE}       
-wc -l ../output/25-Apul-epimods-blast/Mach-tblastn-Apul_out.tab
+wc -l ../output/25-Apul-epimods-blast/Mach-blastp-Apul_out.tab
 ```
 
 ```{r, engine='bash', eval=TRUE}        
-head ../output/25-Apul-epimods-blast/Mach-tblastn-Apul_out.tab
+head ../output/25-Apul-epimods-blast/Mach-blastp-Apul_out.tab
 ```
