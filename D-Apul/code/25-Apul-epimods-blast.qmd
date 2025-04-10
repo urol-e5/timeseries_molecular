@@ -1,26 +1,99 @@
 ---
-title: "25-Apul-epimods-blast"
-format: html
-editor: visual
+title: "Apul epiMOD Annotation"
+author: "Steven Roberts"
+date: "`r format(Sys.time(), '%d %B, %Y')`"  
+output: 
+  github_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+    html_preview: true
+  html_document:
+    theme: readable
+    highlight: zenburn
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+editor_options: 
+  markdown: 
+    wrap: sentence
 ---
 
-## Quarto
-
-Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
-
-## Running Code
-
-When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
-
-```{r}
-1 + 1
+```{r setup, include=FALSE}
+library(knitr)
+library(tidyverse)
+library(kableExtra)
+library(DT)
+library(Biostrings)
+library(tm)
+knitr::opts_chunk$set(
+  echo = TRUE,         # Display code chunks
+  eval = FALSE,         # Evaluate code chunks
+  warning = FALSE,     # Hide warnings
+  message = FALSE,     # Hide messages
+  fig.width = 6,       # Set plot width in inches
+  fig.height = 4,      # Set plot height in inches
+  fig.align = "center", # Align plots to the center
+  comment = ""         # Prevents appending '##' to beginning of lines in code output
+)
 ```
 
-You can add options to executable code like this
 
-```{r}
-#| echo: false
-2 * 2
+Apul new genome 
+
+# genes 
+https://gannet.fish.washington.edu/seashell/bu-github/deep-dive-expression/D-Apul/output/07-Apul-Hisat/genes.fasta
+
+pulled via gff
+
+```{bash}
+cd ../data
+curl -o Apul-genes.fasta https://gannet.fish.washington.edu/seashell/bu-github/deep-dive-expression/D-Apul/output/07-Apul-Hisat/genes.fasta
+
 ```
 
-The `echo: false` option disables the printing of code (only output is displayed).
+
+```{bash}
+head ../data/Apul-genes.fasta
+```
+
+
+
+---
+
+```{bash}
+mkdir ../output/25-Apul-epimods-blast/
+
+/home/shared/ncbi-blast-2.15.0+/bin/makeblastdb \
+-in ../data/Apul-genes.fasta \
+-dbtype nucl \
+-out ../output/25-Apul-epimods-blast/Apul-genes
+```
+
+
+
+
+```{bash}
+fasta="../data/Machinery.fasta"
+
+/home/shared/ncbi-blast-2.15.0+/bin/tblastn \
+-query $fasta \
+-db ../output/25-Apul-epimods-blast/Apul-genes \
+-out ../output/25-Apul-epimods-blast/Mach-tblastn-Apul_out.tab \
+-evalue 1E-05 \
+-num_threads 48 \
+-max_target_seqs 1 \
+-max_hsps 1 \
+-outfmt 6 \
+2>/dev/null
+```
+
+```{r, engine='bash', eval=TRUE}       
+wc -l ../output/25-Apul-epimods-blast/Mach-tblastn-Apul_out.tab
+```
+
+```{r, engine='bash', eval=TRUE}        
+head ../output/25-Apul-epimods-blast/Mach-tblastn-Apul_out.tab
+```
