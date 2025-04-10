@@ -320,3 +320,7 @@ echo "Number of hits"
 
 wc -l "${OUT_DIR}"Apul_blastp-GO:"${GO}"_out.tab
 ```
+
+```{r, engine='bash', eval=TRUE}
+wc -l "${OUT_DIR}"*tab
+```
