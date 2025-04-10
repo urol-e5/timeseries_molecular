@@ -1,0 +1,326 @@
+---
+title: "24 GO Annoations"
+author: "Steven Roberts"
+date: "`r format(Sys.time(), '%d %B, %Y')`"  
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    html-math-method: katex
+    css: styles.css
+    theme: sandstone
+editor: 
+  markdown: 
+    wrap: 72
+---
+
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,         # Display code chunks
+  eval = FALSE,         # Evaluate code chunks
+  warning = FALSE,     # Hide warnings
+  message = FALSE,     # Hide messages
+  fig.width = 6,       # Set plot width in inches
+  fig.height = 4,      # Set plot height in inches
+  fig.align = "center", # Align plots to the center
+  comment = ""         # Prevents appending '##' to beginning of lines in code output
+)
+```
+
+
+Grabbing GOs 
+
+- Glycolysis GO:0006096
+- Gluconeogenesis GO:0006094
+- Lipolysis/lipid catabolism GO:0016042
+- Fatty acid beta oxidation GO:0006635
+- Starvation GO:0042594
+- Lipid biosynthesis GO:0008610
+- Protein catabolic process GO:0030163
+
+
+#Variables
+
+```{r}
+# Global R options
+knitr::opts_chunk$set(echo = TRUE)
+
+# Define key paths and tool directories
+ 
+OUT_DIR <- "../output/24-Apul-energy-GO-40/"
+evalue <- "1E-40"
+fasta <- "../data/Apulchra-genome.pep.faa"
+
+# Export these as environment variables for bash chunks.
+Sys.setenv(
+  OUT_DIR = OUT_DIR,
+  evalue = evalue,
+  fasta =fasta
+)
+```
+
+
+# Glycolysis GO:0006096
+
+```{bash}
+GO="0006096"
+
+curl -H "Accept: text/plain" "https://rest.uniprot.org/uniprotkb/stream?format=fasta&query=%28%28go%3A"${GO}"%29%29+AND+%28reviewed%3Atrue%29" -o "${OUT_DIR}"SwissProt-GO:"${GO}".fa
+
+head "${OUT_DIR}"SwissProt-GO:"${GO}".fa
+
+echo "Number of Proteins"
+grep -c ">" "${OUT_DIR}"SwissProt-GO:"${GO}".fa
+
+/home/shared/ncbi-blast-2.15.0+/bin/makeblastdb \
+-in "${OUT_DIR}"SwissProt-GO:"${GO}".fa \
+-dbtype prot \
+-out "${OUT_DIR}"SwissProt-GO:"${GO}"
+
+
+/home/shared/ncbi-blast-2.15.0+/bin/blastp \
+-query $fasta \
+-db "${OUT_DIR}"SwissProt-GO:"${GO}" \
+-out "${OUT_DIR}"Apul_blastp-GO:"${GO}"_out.tab \
+-evalue "${evalue}" \
+-num_threads 42 \
+-max_target_seqs 1 \
+-max_hsps 1 \
+-outfmt 6 \
+2> "${OUT_DIR}"blast_warnings"${GO}".txt
+
+head "${OUT_DIR}"Apul_blastp-GO:"${GO}"_out.tab
+
+echo "Number of hits"
+
+wc -l "${OUT_DIR}"Apul_blastp-GO:"${GO}"_out.tab
+```
+
+
+# Gluconeogenesis GO:0006094
+
+```{bash}
+GO="0006094"
+
+curl -H "Accept: text/plain" "https://rest.uniprot.org/uniprotkb/stream?format=fasta&query=%28%28go%3A"${GO}"%29%29+AND+%28reviewed%3Atrue%29" -o "${OUT_DIR}"SwissProt-GO:"${GO}".fa
+
+head "${OUT_DIR}"SwissProt-GO:"${GO}".fa
+
+echo "Number of Proteins"
+grep -c ">" "${OUT_DIR}"SwissProt-GO:"${GO}".fa
+
+/home/shared/ncbi-blast-2.15.0+/bin/makeblastdb \
+-in "${OUT_DIR}"SwissProt-GO:"${GO}".fa \
+-dbtype prot \
+-out "${OUT_DIR}"SwissProt-GO:"${GO}"
+
+
+/home/shared/ncbi-blast-2.15.0+/bin/blastp \
+-query $fasta \
+-db "${OUT_DIR}"SwissProt-GO:"${GO}" \
+-out "${OUT_DIR}"Apul_blastp-GO:"${GO}"_out.tab \
+-evalue "${evalue}" \
+-num_threads 42 \
+-max_target_seqs 1 \
+-max_hsps 1 \
+-outfmt 6 \
+2> "${OUT_DIR}"blast_warnings"${GO}".txt
+
+head "${OUT_DIR}"Apul_blastp-GO:"${GO}"_out.tab
+
+echo "Number of hits"
+
+wc -l "${OUT_DIR}"Apul_blastp-GO:"${GO}"_out.tab
+```
+
+
+# Lipolysis/lipid catabolism GO:0016042
+
+```{bash}
+GO="0016042"
+
+curl -H "Accept: text/plain" "https://rest.uniprot.org/uniprotkb/stream?format=fasta&query=%28%28go%3A"${GO}"%29%29+AND+%28reviewed%3Atrue%29" -o "${OUT_DIR}"SwissProt-GO:"${GO}".fa
+
+head "${OUT_DIR}"SwissProt-GO:"${GO}".fa
+
+echo "Number of Proteins"
+grep -c ">" "${OUT_DIR}"SwissProt-GO:"${GO}".fa
+
+/home/shared/ncbi-blast-2.15.0+/bin/makeblastdb \
+-in "${OUT_DIR}"SwissProt-GO:"${GO}".fa \
+-dbtype prot \
+-out "${OUT_DIR}"SwissProt-GO:"${GO}"
+
+
+/home/shared/ncbi-blast-2.15.0+/bin/blastp \
+-query $fasta \
+-db "${OUT_DIR}"SwissProt-GO:"${GO}" \
+-out "${OUT_DIR}"Apul_blastp-GO:"${GO}"_out.tab \
+-evalue "${evalue}" \
+-num_threads 42 \
+-max_target_seqs 1 \
+-max_hsps 1 \
+-outfmt 6 \
+2> "${OUT_DIR}"blast_warnings"${GO}".txt
+
+head "${OUT_DIR}"Apul_blastp-GO:"${GO}"_out.tab
+
+echo "Number of hits"
+
+wc -l "${OUT_DIR}"Apul_blastp-GO:"${GO}"_out.tab
+```
+
+
+# Fatty acid beta oxidation GO:0006635
+
+```{bash}
+GO="0006635"
+
+curl -H "Accept: text/plain" "https://rest.uniprot.org/uniprotkb/stream?format=fasta&query=%28%28go%3A"${GO}"%29%29+AND+%28reviewed%3Atrue%29" -o "${OUT_DIR}"SwissProt-GO:"${GO}".fa
+
+head "${OUT_DIR}"SwissProt-GO:"${GO}".fa
+
+echo "Number of Proteins"
+grep -c ">" "${OUT_DIR}"SwissProt-GO:"${GO}".fa
+
+/home/shared/ncbi-blast-2.15.0+/bin/makeblastdb \
+-in "${OUT_DIR}"SwissProt-GO:"${GO}".fa \
+-dbtype prot \
+-out "${OUT_DIR}"SwissProt-GO:"${GO}"
+
+
+/home/shared/ncbi-blast-2.15.0+/bin/blastp \
+-query $fasta \
+-db "${OUT_DIR}"SwissProt-GO:"${GO}" \
+-out "${OUT_DIR}"Apul_blastp-GO:"${GO}"_out.tab \
+-evalue "${evalue}" \
+-num_threads 42 \
+-max_target_seqs 1 \
+-max_hsps 1 \
+-outfmt 6 \
+2> "${OUT_DIR}"blast_warnings"${GO}".txt
+
+head "${OUT_DIR}"Apul_blastp-GO:"${GO}"_out.tab
+
+echo "Number of hits"
+
+wc -l "${OUT_DIR}"Apul_blastp-GO:"${GO}"_out.tab
+```
+
+# Starvation GO:0042594
+
+```{bash}
+GO="0042594"
+
+curl -H "Accept: text/plain" "https://rest.uniprot.org/uniprotkb/stream?format=fasta&query=%28%28go%3A"${GO}"%29%29+AND+%28reviewed%3Atrue%29" -o "${OUT_DIR}"SwissProt-GO:"${GO}".fa
+
+head "${OUT_DIR}"SwissProt-GO:"${GO}".fa
+
+echo "Number of Proteins"
+grep -c ">" "${OUT_DIR}"SwissProt-GO:"${GO}".fa
+
+/home/shared/ncbi-blast-2.15.0+/bin/makeblastdb \
+-in "${OUT_DIR}"SwissProt-GO:"${GO}".fa \
+-dbtype prot \
+-out "${OUT_DIR}"SwissProt-GO:"${GO}"
+
+
+/home/shared/ncbi-blast-2.15.0+/bin/blastp \
+-query $fasta \
+-db "${OUT_DIR}"SwissProt-GO:"${GO}" \
+-out "${OUT_DIR}"Apul_blastp-GO:"${GO}"_out.tab \
+-evalue "${evalue}" \
+-num_threads 42 \
+-max_target_seqs 1 \
+-max_hsps 1 \
+-outfmt 6 \
+2> "${OUT_DIR}"blast_warnings"${GO}".txt
+
+head "${OUT_DIR}"Apul_blastp-GO:"${GO}"_out.tab
+
+echo "Number of hits"
+
+wc -l "${OUT_DIR}"Apul_blastp-GO:"${GO}"_out.tab
+```
+
+
+# Lipid biosynthesis GO:0008610
+
+```{bash}
+GO="0008610"
+
+curl -H "Accept: text/plain" "https://rest.uniprot.org/uniprotkb/stream?format=fasta&query=%28%28go%3A"${GO}"%29%29+AND+%28reviewed%3Atrue%29" -o "${OUT_DIR}"SwissProt-GO:"${GO}".fa
+
+head "${OUT_DIR}"SwissProt-GO:"${GO}".fa
+
+echo "Number of Proteins"
+grep -c ">" "${OUT_DIR}"SwissProt-GO:"${GO}".fa
+
+/home/shared/ncbi-blast-2.15.0+/bin/makeblastdb \
+-in "${OUT_DIR}"SwissProt-GO:"${GO}".fa \
+-dbtype prot \
+-out "${OUT_DIR}"SwissProt-GO:"${GO}"
+
+
+/home/shared/ncbi-blast-2.15.0+/bin/blastp \
+-query $fasta \
+-db "${OUT_DIR}"SwissProt-GO:"${GO}" \
+-out "${OUT_DIR}"Apul_blastp-GO:"${GO}"_out.tab \
+-evalue "${evalue}" \
+-num_threads 42 \
+-max_target_seqs 1 \
+-max_hsps 1 \
+-outfmt 6 \
+2> "${OUT_DIR}"blast_warnings"${GO}".txt
+
+head "${OUT_DIR}"Apul_blastp-GO:"${GO}"_out.tab
+
+echo "Number of hits"
+
+wc -l "${OUT_DIR}"Apul_blastp-GO:"${GO}"_out.tab
+```
+
+
+
+# Protein catabolic process GO:0030163
+
+```{bash}
+GO="0030163"
+
+curl -H "Accept: text/plain" "https://rest.uniprot.org/uniprotkb/stream?format=fasta&query=%28%28go%3A"${GO}"%29%29+AND+%28reviewed%3Atrue%29" -o "${OUT_DIR}"SwissProt-GO:"${GO}".fa
+
+head "${OUT_DIR}"SwissProt-GO:"${GO}".fa
+
+echo "Number of Proteins"
+grep -c ">" "${OUT_DIR}"SwissProt-GO:"${GO}".fa
+
+/home/shared/ncbi-blast-2.15.0+/bin/makeblastdb \
+-in "${OUT_DIR}"SwissProt-GO:"${GO}".fa \
+-dbtype prot \
+-out "${OUT_DIR}"SwissProt-GO:"${GO}"
+
+
+/home/shared/ncbi-blast-2.15.0+/bin/blastp \
+-query $fasta \
+-db "${OUT_DIR}"SwissProt-GO:"${GO}" \
+-out "${OUT_DIR}"Apul_blastp-GO:"${GO}"_out.tab \
+-evalue "${evalue}" \
+-num_threads 42 \
+-max_target_seqs 1 \
+-max_hsps 1 \
+-outfmt 6 \
+2> "${OUT_DIR}"blast_warnings"${GO}".txt
+
+head "${OUT_DIR}"Apul_blastp-GO:"${GO}"_out.tab
+
+echo "Number of hits"
+
+wc -l "${OUT_DIR}"Apul_blastp-GO:"${GO}"_out.tab
+```
+
+```{r, engine='bash', eval=TRUE}
+wc -l "${OUT_DIR}"*tab
+```
