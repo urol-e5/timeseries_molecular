@@ -1,5 +1,5 @@
 ---
-title: "Peve epiMOD Annotation"
+title: "Ptua epiMOD Annotation"
 author: "Steven Roberts"
 date: "`r format(Sys.time(), '%d %B, %Y')`"  
 output: 
@@ -44,19 +44,19 @@ knitr::opts_chunk$set(
 Peve
 
 # proteins 
-https://gannet.fish.washington.edu/seashell/snaps/Porites_evermanni_v1.annot.pep.fa
+https://gannet.fish.washington.edu/seashell/snaps/Pocillopora_meandrina_HIv1.genes.pep.faa
 
 
 
 ```{bash}
 cd ../data
-curl -o Porites_evermanni_v1.annot.pep.fa https://gannet.fish.washington.edu/seashell/snaps/Porites_evermanni_v1.annot.pep.fa
+curl -o Pocillopora_meandrina_HIv1.genes.pep.faa https://gannet.fish.washington.edu/seashell/snaps/Pocillopora_meandrina_HIv1.genes.pep.faa
 
 ```
 
 
 ```{bash}
-head ../data/Porites_evermanni_v1.annot.pep.fa
+head ../data/Pocillopora_meandrina_HIv1.genes.pep.faa
 ```
 
 
@@ -64,12 +64,12 @@ head ../data/Porites_evermanni_v1.annot.pep.fa
 ---
 
 ```{bash}
-mkdir ../output/06-Peve-epimods-blast/
+mkdir ../output/03-Ptua-epimods-blast/
 
 /home/shared/ncbi-blast-2.15.0+/bin/makeblastdb \
--in ../data/Porites_evermanni_v1.annot.pep.fa \
+-in ../data/Pocillopora_meandrina_HIv1.genes.pep.faa \
 -dbtype prot \
--out ../output/06-Peve-epimods-blast/Porites_evermanni_v1.annot.pep
+-out ../output/03-Ptua-epimods-blast/Pocillopora_meandrina_HIv1.genes.pep
 ```
 
 
@@ -81,8 +81,8 @@ fasta="../data/Machinery.fasta"
 
 /home/shared/ncbi-blast-2.15.0+/bin/blastp \
 -query $fasta \
--db ../output/06-Peve-epimods-blast/Porites_evermanni_v1.annot.pep \
--out ../output/06-Peve-epimods-blast/Mach-blastp-Peve_out.tab \
+-db ../output/03-Ptua-epimods-blast/Pocillopora_meandrina_HIv1.genes.pep \
+-out ../output/03-Ptua-epimods-blast/Mach-blastp-Ptua_out.tab \
 -evalue 1E-05 \
 -num_threads 48 \
 -max_target_seqs 1 \
@@ -91,9 +91,9 @@ fasta="../data/Machinery.fasta"
 ```
 
 ```{r, engine='bash', eval=TRUE}       
-wc -l ../output/06-Peve-epimods-blast/Mach-blastp-Peve_out.tab
+wc -l ../output/03-Ptua-epimods-blast/Mach-blastp-Ptua_out.tab
 ```
 
 ```{r, engine='bash', eval=TRUE}        
-head ../output/06-Peve-epimods-blast/Mach-blastp-Peve_out.tab
+head ../output/03-Ptua-epimods-blast/Mach-blastp-Ptua_out.tab
 ```
