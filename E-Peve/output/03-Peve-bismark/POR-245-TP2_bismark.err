@@ -1,0 +1,114 @@
+Bowtie 2 seems to be working fine (tested command '/home/shared/bowtie2-2.4.4-linux-x86_64/bowtie2 --version' [2.4.4])
+Output format is BAM (default)
+Alignments will be written out in BAM format. Samtools found here: '/usr/bin/samtools'
+Reference genome folder provided is ../data/	(absolute path is '/home/shared/8TB_HDD_03/sr320/github/timeseries_molecular/E-Peve/data/)'
+FastQ format assumed (by default)
+Processing sequences up to read no. 10000 from the input file
+Attention: using more than 4 cores per alignment thread has been reported to have diminishing returns. If possible try to limit -p to a value of 4
+Each Bowtie 2 instance is going to be run with 8 threads. Please monitor performance closely and tune down if necessary!
+
+Input files to be analysed (in current folder '/home/shared/8TB_HDD_03/sr320/github/timeseries_molecular/E-Peve/code'):
+../data/03-Peve-bismark/POR-245-TP2_R1_001.fastp-trim.fq.gz
+../data/03-Peve-bismark/POR-245-TP2_R2_001.fastp-trim.fq.gz
+Library is assumed to be strand-specific (directional), alignments to strands complementary to the original top or bottom strands will be ignored (i.e. not performed!)
+Output will be written into the directory: /home/shared/8TB_HDD_03/sr320/github/timeseries_molecular/E-Peve/output/03-Peve-bismark/
+Setting parallelization to single-threaded (default)
+
+Summary of all aligner options:	-q --score-min L,0,-0.6 -p 8 --reorder --ignore-quals --no-mixed --no-discordant --dovetail --maxins 500
+Current working directory is: /home/shared/8TB_HDD_03/sr320/github/timeseries_molecular/E-Peve/code
+
+Now reading in and storing sequence information of the genome specified in: /home/shared/8TB_HDD_03/sr320/github/timeseries_molecular/E-Peve/data/
+
+Single-core mode: setting pid to 1
+
+Paired-end alignments will be performed
+=======================================
+
+The provided filenames for paired-end alignments are ../data/03-Peve-bismark/POR-245-TP2_R1_001.fastp-trim.fq.gz and ../data/03-Peve-bismark/POR-245-TP2_R2_001.fastp-trim.fq.gz
+Input files are in FastQ format
+Processing reads up to sequence no. 10000 from ../data/03-Peve-bismark/POR-245-TP2_R1_001.fastp-trim.fq.gz
+Writing a C -> T converted version of the input file POR-245-TP2_R1_001.fastp-trim.fq.gz to POR-245-TP2_R1_001.fastp-trim.fq.gz_C_to_T.fastq
+
+Created C -> T converted version of the FastQ file POR-245-TP2_R1_001.fastp-trim.fq.gz (10001 sequences in total)
+
+
+gzip: stdout: Broken pipe
+Processing reads up to sequence no. 10000 from ../data/03-Peve-bismark/POR-245-TP2_R2_001.fastp-trim.fq.gz
+Writing a G -> A converted version of the input file POR-245-TP2_R2_001.fastp-trim.fq.gz to POR-245-TP2_R2_001.fastp-trim.fq.gz_G_to_A.fastq
+
+Created G -> A converted version of the FastQ file POR-245-TP2_R2_001.fastp-trim.fq.gz (10001 sequences in total)
+
+Input files are POR-245-TP2_R1_001.fastp-trim.fq.gz_C_to_T.fastq and POR-245-TP2_R2_001.fastp-trim.fq.gz_G_to_A.fastq (FastQ)
+Now running 2 instances of Bowtie 2 against the bisulfite genome of /home/shared/8TB_HDD_03/sr320/github/timeseries_molecular/E-Peve/data/ with the specified options: -q --score-min L,0,-0.6 -p 8 --reorder --ignore-quals --no-mixed --no-discordant --dovetail --maxins 500
+
+Now starting a Bowtie 2 paired-end alignment for CTread1GAread2CTgenome (reading in sequences from POR-245-TP2_R1_001.fastp-trim.fq.gz_C_to_T.fastq and POR-245-TP2_R2_001.fastp-trim.fq.gz_G_to_A.fastq, with the options: -q --score-min L,0,-0.6 -p 8 --reorder --ignore-quals --no-mixed --no-discordant --dovetail --maxins 500 --norc))
+Found first alignment:
+LH00526:197:22KFKVLT4:3:1101:40191:1070_1:N:0:CTGTACCA+AGTCTGTG/1	77	*	0	0	*	*	0	0	TTGATTTAATTGAAGTAGTATGTTTTAAATTTGATGTTGTAATTTTATAAATTGGTATTAATGATTTTATATGTTGTTGGTTTTTTTTAGTATTTGTTGGTTTTGTTATTGAGGATTTGGTTTGTTTATTTTATA	IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII9IIIIIIIIIIIII9IIIIIIIIIIIIIIIIIIIIIII99IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII9IIIIIII	YT:Z:UP
+LH00526:197:22KFKVLT4:3:1101:40191:1070_2:N:0:CTGTACCA+AGTCTGTG/2	141	*	0	0	*	*	0	0	TTAATTTAACCAAAATAACACATTTTAAACTTAATATTATAATTTTACAAATCAATACTAACAACCTCACACCCCATACTCATTATAAAATAAACAAACCAAATCCTCAATAACAAAACCAACAAATACTAAAAA	IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII9IIIIIIIIIIIIIIIIIIIIIIIIIII	YT:Z:UP
+Now starting a Bowtie 2 paired-end alignment for CTread1GAread2GAgenome (reading in sequences from POR-245-TP2_R1_001.fastp-trim.fq.gz_C_to_T.fastq and POR-245-TP2_R2_001.fastp-trim.fq.gz_G_to_A.fastq, with the options: -q --score-min L,0,-0.6 -p 8 --reorder --ignore-quals --no-mixed --no-discordant --dovetail --maxins 500 --nofw))
+Found first alignment:
+LH00526:197:22KFKVLT4:3:1101:40191:1070_1:N:0:CTGTACCA+AGTCTGTG/1	77	*	0	0	*	*	0	0	TTGATTTAATTGAAGTAGTATGTTTTAAATTTGATGTTGTAATTTTATAAATTGGTATTAATGATTTTATATGTTGTTGGTTTTTTTTAGTATTTGTTGGTTTTGTTATTGAGGATTTGGTTTGTTTATTTTATA	IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII9IIIIIIIIIIIII9IIIIIIIIIIIIIIIIIIIIIII99IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII9IIIIIII	YT:Z:UP
+LH00526:197:22KFKVLT4:3:1101:40191:1070_2:N:0:CTGTACCA+AGTCTGTG/2	141	*	0	0	*	*	0	0	TTAATTTAACCAAAATAACACATTTTAAACTTAATATTATAATTTTACAAATCAATACTAACAACCTCACACCCCATACTCATTATAAAATAAACAAACCAAATCCTCAATAACAAAACCAACAAATACTAAAAA	IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII9IIIIIIIIIIIIIIIIIIIIIIIIIII	YT:Z:UP
+
+>>> Writing bisulfite mapping results to POR-245-TP2_R1_001.fastp-trim_bismark_bt2_pe.bam <<<
+
+
+Reading in the sequence files ../data/03-Peve-bismark/POR-245-TP2_R1_001.fastp-trim.fq.gz and ../data/03-Peve-bismark/POR-245-TP2_R2_001.fastp-trim.fq.gz
+Chromosomal sequence could not be extracted for	LH00526:197:22KFKVLT4:3:1101:34995:9811_1:N:0:CTGTACCA+AGTCTGTG	Porites_evermani_scaffold_6033	8087
+Chromosomal sequence could not be extracted for	LH00526:197:22KFKVLT4:3:1101:39341:10497_1:N:0:CTGTACCA+AGTCTGTG	Porites_evermani_scaffold_3742	1
+10000 reads; of these:
+  10000 (100.00%) were paired; of these:
+    5495 (54.95%) aligned concordantly 0 times
+    2480 (24.80%) aligned concordantly exactly 1 time
+    2025 (20.25%) aligned concordantly >1 times
+45.05% overall alignment rate
+10000 reads; of these:
+  10000 (100.00%) were paired; of these:
+    5445 (54.45%) aligned concordantly 0 times
+    2528 (25.28%) aligned concordantly exactly 1 time
+    2027 (20.27%) aligned concordantly >1 times
+45.55% overall alignment rate
+Processed 10000 sequences in total
+
+Failed to close filehandle AMBIG_1: Bad file descriptor at /home/shared/Bismark-0.24.0/bismark line 2641, <IN2> line 40004.
+Failed to close filehandle AMBIG_2: Bad file descriptor at /home/shared/Bismark-0.24.0/bismark line 2642, <IN2> line 40004.
+Failed to close filehandle UNMAPPED_1: Bad file descriptor at /home/shared/Bismark-0.24.0/bismark line 2643, <IN2> line 40004.
+Failed to close filehandle UNMAPPED_2: Bad file descriptor at /home/shared/Bismark-0.24.0/bismark line 2644, <IN2> line 40004.
+
+Successfully deleted the temporary files POR-245-TP2_R1_001.fastp-trim.fq.gz_C_to_T.fastq and POR-245-TP2_R2_001.fastp-trim.fq.gz_G_to_A.fastq
+
+Final Alignment report
+======================
+Sequence pairs analysed in total:	10000
+Final Cytosine Methylation Report
+=================================
+Total number of C's analysed:	311247
+
+Total methylated C's in CpG context:	3883
+Total methylated C's in CHG context:	250
+Total methylated C's in CHH context:	1180
+Total methylated C's in Unknown context:	10
+
+Total unmethylated C's in CpG context:	46065
+Total unmethylated C's in CHG context:	53694
+Total unmethylated C's in CHH context:	206175
+Total unmethylated C's in Unknown context:	442
+
+C methylated in CpG context:	7.8%
+C methylated in CHG context:	0.5%
+C methylated in CHH context:	0.6%
+C methylated in unknown context (CN or CHN):	2.2%
+
+
+Bismark completed in 0d 0h 0m 16s
+
+====================
+Bismark run complete
+====================
+
+
+gzip: stdout: Broken pipe
+
+gzip: stdout: Broken pipe
+
+gzip: stdout: Broken pipe
