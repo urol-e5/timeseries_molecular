@@ -2354,10 +2354,10 @@ for (trait in names(significant_modules_per_trait)) {
     filter(gene_id %in% trait_genes_FA$gene)
   
   # Set file names
-  file_name_genes_FA <- paste0("../output/21-Apul-annotate-miRNA-mRNA-WGCNA/filtered-gene-sets/", trait, "_genes_FA.tab")
+  file_name_genes_FA <- paste0("../output/21-Apul-annotate-miRNA-mRNA-WGCNA/filtered-gene-sets/", trait, "_genes_FA.csv")
   file_name_gene_counts <- paste0("../output/21-Apul-annotate-miRNA-mRNA-WGCNA/filtered-gene-sets/", trait, "_gene_counts.tab")
   # Save
-  write.table(trait_genes_FA, file_name_genes_FA, row.names=FALSE, quote=FALSE, sep="\t")
+  write.csv(trait_genes_FA, file_name_genes_FA, row.names=FALSE)
   write.table(trait_gene_counts, file_name_gene_counts, row.names=FALSE, quote=FALSE, sep="\t")
 }
 ```
@@ -2372,9 +2372,33 @@ Aerobic respiration (<GO:0009060>) - Oxidative phosphorylation
 (<GO:0006119>) - Canonical glycolysis (<GO:0061621>) - Tricarboxylic
 Acid Cycle (<GO:0006099>)
 
+Or, prompting ChatGPT 4.o for a list of terms related to energy usage
+and/or storage yields:
+
+- Glycolysis (<GO:0006096>)
+- Generation of precursor metabolites and energy (<GO:0006091>)
+- Tricarboxylic acid cycle (<GO:0006099>)
+- Oxidative phosphorylation (<GO:0006119>)
+- Fatty acid beta-oxidation (<GO:0006635>)
+- Purine nucleotide biosynthetic process (<GO:0009150>)
+- Protein catabolic process (<GO:0030163>)
+- Lipid biosynthetic process (<GO:0008610>)
+- Positive regulation of lipid biosynthetic process (<GO:0045721>)
+- Membrane lipid catabolic process (<GO:0046467>)
+- Lipid catabolic process (<GO:0016042>)
+- Carbohydrate metabolic process (<GO:0005975>)
+- Positive regulation of carbohydrate metabolic process (<GO:0045722>)
+- Response to starvation (<GO:0042594>)
+- ATP metabolic process (<GO:0046034>)
+- Gluconeogenesis (<GO:0006094>)
+- Lipid metabolic process (<GO:0006629>)
+- Regulation of fatty acid biosynthetic process (<GO:0032869>)
+- Glucose metabolic process (<GO:0006006>)
+
 ``` r
 # List GO terms of interest (CHANGE as desired)
-GO_terms_interest <- c("GO:0009060", "GO:0006119", "GO:0061621", "GO:0006099")
+#GO_terms_interest <- c("GO:0009060", "GO:0006119", "GO:0061621", "GO:0006099")
+GO_terms_interest <- c("GO:0006096", "GO:0006091", "GO:0006099", "GO:0006119", "GO:0006635", "GO:0009150", "GO:0030163", "GO:0008610", "GO:0045721", "GO:0046467", "GO:0016042", "GO:0005975", "GO:0045722", "GO:0042594", "GO:0046034", "GO:0006094", "GO:0006629", "GO:0032869", "GO:0006006")
 
 # Select genes that have been functionally annotated with at least on of the listed GO terms of interest
 GO_terms_genes_FA <- module_FA %>%
@@ -2384,9 +2408,11 @@ GO_terms_gene_counts <- Apul_genes %>%
   filter(gene_id %in% GO_terms_genes_FA$gene)
 
 # Set file name (CHANGE as desired)
-file_name_GO_FA <- paste0("../output/21-Apul-annotate-miRNA-mRNA-WGCNA/filtered-gene-sets/", "ATP_production", "_GO_terms_genes_FA.tab")
-file_name_GO_counts <- paste0("../output/21-Apul-annotate-miRNA-mRNA-WGCNA/filtered-gene-sets/", "ATP_production", "_GO_terms_gene_counts.tab")
+# file_name_GO_FA <- paste0("../output/21-Apul-annotate-miRNA-mRNA-WGCNA/filtered-gene-sets/", "ATP_production", "_GO_terms_genes_FA.csv")
+# file_name_GO_counts <- paste0("../output/21-Apul-annotate-miRNA-mRNA-WGCNA/filtered-gene-sets/", "ATP_production", "_GO_terms_gene_counts.tab")
+file_name_GO_FA <- paste0("../output/21-Apul-annotate-miRNA-mRNA-WGCNA/filtered-gene-sets/", "energy_usage_storage", "_GO_terms_genes_FA.csv")
+file_name_GO_counts <- paste0("../output/21-Apul-annotate-miRNA-mRNA-WGCNA/filtered-gene-sets/", "energy_usage_storage", "_GO_terms_gene_counts.tab")
 
-write.table(GO_terms_genes_FA, file_name_GO_FA, row.names=FALSE, quote=FALSE, sep="\t")
+write.csv(GO_terms_genes_FA, file_name_GO_FA, row.names=FALSE)
 write.table(GO_terms_gene_counts, file_name_GO_counts, row.names=FALSE, quote=FALSE, sep="\t")
 ```
