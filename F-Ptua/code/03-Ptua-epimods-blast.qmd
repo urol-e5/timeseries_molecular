@@ -1,0 +1,99 @@
+---
+title: "Ptua epiMOD Annotation"
+author: "Steven Roberts"
+date: "`r format(Sys.time(), '%d %B, %Y')`"  
+output: 
+  github_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+    html_preview: true
+  html_document:
+    theme: readable
+    highlight: zenburn
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+editor_options: 
+  markdown: 
+    wrap: sentence
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+library(tidyverse)
+library(kableExtra)
+library(DT)
+library(Biostrings)
+library(tm)
+knitr::opts_chunk$set(
+  echo = TRUE,         # Display code chunks
+  eval = FALSE,         # Evaluate code chunks
+  warning = FALSE,     # Hide warnings
+  message = FALSE,     # Hide messages
+  fig.width = 6,       # Set plot width in inches
+  fig.height = 4,      # Set plot height in inches
+  fig.align = "center", # Align plots to the center
+  comment = ""         # Prevents appending '##' to beginning of lines in code output
+)
+```
+
+
+Peve
+
+# proteins 
+https://gannet.fish.washington.edu/seashell/snaps/Pocillopora_meandrina_HIv1.genes.pep.faa
+
+
+
+```{bash}
+cd ../data
+curl -o Pocillopora_meandrina_HIv1.genes.pep.faa https://gannet.fish.washington.edu/seashell/snaps/Pocillopora_meandrina_HIv1.genes.pep.faa
+
+```
+
+
+```{bash}
+head ../data/Pocillopora_meandrina_HIv1.genes.pep.faa
+```
+
+
+
+---
+
+```{bash}
+mkdir ../output/03-Ptua-epimods-blast/
+
+/home/shared/ncbi-blast-2.15.0+/bin/makeblastdb \
+-in ../data/Pocillopora_meandrina_HIv1.genes.pep.faa \
+-dbtype prot \
+-out ../output/03-Ptua-epimods-blast/Pocillopora_meandrina_HIv1.genes.pep
+```
+
+
+
+
+
+```{bash}
+fasta="../data/Machinery.fasta"
+
+/home/shared/ncbi-blast-2.15.0+/bin/blastp \
+-query $fasta \
+-db ../output/03-Ptua-epimods-blast/Pocillopora_meandrina_HIv1.genes.pep \
+-out ../output/03-Ptua-epimods-blast/Mach-blastp-Ptua_out.tab \
+-evalue 1E-05 \
+-num_threads 48 \
+-max_target_seqs 1 \
+-max_hsps 1 \
+-outfmt 6
+```
+
+```{r, engine='bash', eval=TRUE}       
+wc -l ../output/03-Ptua-epimods-blast/Mach-blastp-Ptua_out.tab
+```
+
+```{r, engine='bash', eval=TRUE}        
+head ../output/03-Ptua-epimods-blast/Mach-blastp-Ptua_out.tab
+```

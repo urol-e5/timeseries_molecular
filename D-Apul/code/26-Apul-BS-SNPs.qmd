@@ -1,0 +1,69 @@
+---
+title: "26-Apul-BS-SNPs"
+author: "Steven Roberts"
+date: "`r format(Sys.time(), '%d %B, %Y')`"  
+output: 
+  github_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+    html_preview: true
+  html_document:
+    theme: readable
+    highlight: zenburn
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+editor_options: 
+  markdown: 
+    wrap: sentence
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+library(tidyverse)
+library(kableExtra)
+library(DT)
+library(Biostrings)
+library(tm)
+knitr::opts_chunk$set(
+  echo = TRUE,         # Display code chunks
+  eval = FALSE,         # Evaluate code chunks
+  warning = FALSE,     # Hide warnings
+  message = FALSE,     # Hide messages
+  fig.width = 6,       # Set plot width in inches
+  fig.height = 4,      # Set plot height in inches
+  fig.align = "center", # Align plots to the center
+  comment = ""         # Prevents appending '##' to beginning of lines in code output
+)
+```
+
+
+```{r, engine='bash'}
+
+/home/shared/samtools-1.12/samtools merge \
+../output/26-Apul-BS-SNPs/Apul_merged.bam \
+../data*.sorted.bam
+
+perl /gscratch/srlab/programs/BS-Snper-master/BS-Snper.pl \
+Pg_merged.bam \
+--fa Panopea-generosa-v1.0.fa \
+--output snp.candidate.out \
+--methcg meth.cg \
+--methchg meth.chg \
+--methchh meth.chh \
+--minhetfreq 0.1 \
+--minhomfreq 0.85 \
+--minquali 15 \
+--mincover 10 \
+--maxcover 1000 \
+--minread2 2 \
+--errorate 0.02 \
+--mapvalue 20 \
+>SNP.vcf 2>SNP.log
+
+
+grep $'C\tG' output/SNP.vcf > output/CT-SNP.vcf
+wc -l output/CT-SNP.vcf
