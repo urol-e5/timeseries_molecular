@@ -19,7 +19,7 @@ output:
 ---
 
 ```{r}
-library(energy)
+#library(energy)
 library(tidyr)
 library(dplyr)
 library(readr)
@@ -142,26 +142,61 @@ Mean of the absolute value of correlation for significant correlation coefficien
 
 ## full lncRNA
 
+I realized that the lncRNA counts matrix includes some duplicate lncRNA, where two or more distinct lncRNA IDs share the exact same genomic coordinates. As far as I can tell all of the duplicate lncRNAs have counts of 0 across all samples, so it was likely just a naming error. This also means the duplicates didn't affect the correlation calculations above, since I filtered out lncRNAs that had all-0 counts before PCC.
+
+I'll need to filter then out though to facilitate joining.
+
+```{r}
+# Create mapping table that shows the full genomic location for each lncRNA
+lncRNA_mapping <- data.frame(
+  lncRNA = lncRNA_counts_full$Geneid,
+  location = paste0(lncRNA_counts_full$Chr, ":", (lncRNA_counts_full$Start-1), "-", lncRNA_counts_full$End)
+)
+
+# Isolate lncRNA that have been repeated
+repeats <- lncRNA_mapping[duplicated(lncRNA_mapping$location) | duplicated(lncRNA_mapping$location, fromLast = TRUE), ]
+
+# Isolate the repeated lncRNA counts
+repeats_counts <- lncRNA_counts_full %>% filter(Geneid %in% repeats$lncRNA)
+
+nrow(lncRNA_mapping)
+length(unique(lncRNA_mapping$location))
+nrow(lncRNA_mapping) - length(unique(lncRNA_mapping$location))
+head(repeats_counts)
+```
+
+There are 399 duplicate lncRNAs in the counts data
+
+Since I'll be using `lncRNA_mapping` for joining purposes, it must contain only unique genomic locations.
+
+Deduplicate `lncRNA_mapping`:
+
+```{r}
+unique_mapping <- lncRNA_mapping[!duplicated(lncRNA_mapping$location), ]
+
+nrow(lncRNA_mapping) - nrow(unique_mapping)
+```
+
+Great! Now that we have a mapping file of only our unique lncRNAs, we can proceed to incorporating the miRanda output.
+
 ```{r}
 # miRNA-lncRNA_full miRanda output
 miRNA_lncRNA_miRanda <- read_delim("../output/10-Apul-lncRNA-miRNA-miRanda/Apul-miRanda-lncRNA-strict-parsed.txt", col_names=FALSE)
 colnames(miRNA_lncRNA_miRanda) <- c("mirna", "Target", "Score", "Energy_Kcal_Mol", "Query_Aln", "Subject_Aln", "Al_Len", "Subject_Identity", "Query_Identity")
 
-# format miRNA and lncRNA names
-geneIDs <- read_delim("../output/05-Apul-annotate-UTRs/Apul-lncRNA-FUNids.txt", col_names=FALSE)
-geneIDs$X4 <- gsub("Parent=", "", geneIDs$X4)
 
+# format miRNA names
 miRNA_lncRNA_miRanda$mirna <- gsub(">", "", miRNA_lncRNA_miRanda$mirna)
 miRNA_lncRNA_miRanda$mirna <- gsub("\\..*", "", miRNA_lncRNA_miRanda$mirna)
 
-miRNA_lncRNA_miRanda <- left_join(miRNA_lncRNA_miRanda, geneIDs, by=c("Target" = "X1"))
-miRNA_lncRNA_miRanda <- select(miRNA_lncRNA_miRanda, -X2,-X3,-X5)
+# Join with mapping file to annote miRanda results with lncRNA IDs
+miRNA_lncRNA_miRanda <- left_join(miRNA_lncRNA_miRanda, unique_mapping, by=c("Target" = "location"))
 
-# Finally, create a column that conatins both the miRNA and interacting lncRNA
-pcc_results$interaction <- paste(pcc_results$miRNA, "_", pcc_results$lncRNA)
-miRNA_lncRNA_miRanda$interaction <- paste(miRNA_lncRNA_miRanda$mirna, "_", miRNA_lncRNA_miRanda$X4)
+# Create a columns that contains both the miRNA and interacting lncRNA
+pcc_results$interaction <- paste0(pcc_results$miRNA, ":", pcc_results$lncRNA)
+miRNA_lncRNA_miRanda$interaction <- paste0(miRNA_lncRNA_miRanda$mirna, ":", miRNA_lncRNA_miRanda$lncRNA)
 
-# Annotate w PCC info 
+# Annotate miRanda results w PCC info 
 miRNA_lncRNA_miRanda <- left_join(miRNA_lncRNA_miRanda, pcc_results, by="interaction")
 ```
 
@@ -172,99 +207,13 @@ target_21bp_3mis <- target_21bp[target_21bp$Subject_Identity>85,]
 
 # How many w significant correlation?
 nrow(miRNA_lncRNA_miRanda)
+nrow(miRNA_lncRNA_miRanda %>% filter(!is.na(PCC.cor)))
 nrow(miRNA_lncRNA_miRanda %>% filter(p_value < 0.05))
 nrow(target_21bp %>% filter(p_value < 0.05))
 nrow(target_21bp_3mis %>% filter(p_value < 0.05))
 ```
 
-For miRNA binding to the lncRNA CDS, miRanda predicts 814,426 putative interactions. Of these, 99,958 have significant PCCs; 17,425 are \>21bp and have signficant PCCs; and 26 are \>21bp with \<=3 mismatches and have significant PCCs.
-
-## 3'UTR
-
-```{r}
-# Read in data
-
-# miRNA-lncRNA_full miRanda output
-miRNA_3UTR_miRanda <- read_delim("../output/07-Apul-miRNA-lncRNA-miRanda/Apul-miRanda-3UTR-strict-parsed.txt", col_names=FALSE)
-colnames(miRNA_3UTR_miRanda) <- c("mirna", "Target", "Score", "Energy_Kcal_Mol", "Query_Aln", "Subject_Aln", "Al_Len", "Subject_Identity", "Query_Identity")
-
-# format miRNA and lncRNA names
-geneIDs <- read_delim("../output/05-Apul-annotate-UTRs/Apul-3UTR-FUNids.txt", col_names=FALSE)
-geneIDs$X4 <- gsub("Parent=", "", geneIDs$X4)
-
-miRNA_3UTR_miRanda$mirna <- gsub(">", "", miRNA_3UTR_miRanda$mirna)
-miRNA_3UTR_miRanda$mirna <- gsub("\\..*", "", miRNA_3UTR_miRanda$mirna)
-#miRNA_3UTR_miRanda$Target <- gsub("::.*", "", miRNA_3UTR_miRanda$Target)
-
-miRNA_3UTR_miRanda <- left_join(miRNA_3UTR_miRanda, geneIDs, by=c("Target" = "X1"))
-miRNA_3UTR_miRanda <- select(miRNA_3UTR_miRanda, -X2,-X3,-X5)
-
-# Somehow ended up with a many-to-many relationship, so remove duplicate rows
-miRNA_3UTR_miRanda <- miRNA_3UTR_miRanda[!duplicated(miRNA_3UTR_miRanda), ]
-
-# Finally, create a column that conatins both the miRNA and interacting lncRNA
-miRNA_3UTR_miRanda$interaction <- paste(miRNA_3UTR_miRanda$mirna, "_", miRNA_3UTR_miRanda$X4)
-
-# Annotate w PCC info 
-miRNA_3UTR_miRanda <- left_join(miRNA_3UTR_miRanda, pcc_results, by="interaction")
-
-```
-
-```{r}
-# Filter to high complementarity putative targets
-target_3UTR_21bp <- miRNA_3UTR_miRanda[miRNA_3UTR_miRanda$Al_Len > 20,]
-target_3UTR_21bp_3mis <- target_3UTR_21bp[target_3UTR_21bp$Subject_Identity>85,]
-
-# How many w significant correlation?
-nrow(miRNA_3UTR_miRanda)
-nrow(miRNA_3UTR_miRanda %>% filter(p_value < 0.05))
-nrow(target_3UTR_21bp %>% filter(p_value < 0.05))
-nrow(target_3UTR_21bp_3mis %>% filter(p_value < 0.05))
-```
-
-For miRNA binding to the 3'UTR, miRanda predicts 123,123 putative interactions. Of these, 11,693 have significant PCCs; 2,142 are \>21bp and have signficant PCCs; and 3 are \>21bp with \<=3 mismatches and have a significant PCC.
-
-## 5'UTR
-
-```{r}
-# miRNA-5'UTR miRanda output
-miRNA_5UTR_miRanda <- read_delim("../output/07.1-Apul-miRNA-lncRNA-miRanda-additional_inputs/Apul-miRanda-5UTR_1kb-strict-parsed.txt", col_names=FALSE)
-colnames(miRNA_5UTR_miRanda) <- c("mirna", "Target", "Score", "Energy_Kcal_Mol", "Query_Aln", "Subject_Aln", "Al_Len", "Subject_Identity", "Query_Identity")
-
-# format miRNA and lncRNA names
-geneIDs <- read_delim("../output/05-Apul-annotate-UTRs/Apul-5UTR-FUNids.txt", col_names=FALSE)
-geneIDs$X4 <- gsub("Parent=", "", geneIDs$X4)
-
-miRNA_5UTR_miRanda$mirna <- gsub(">", "", miRNA_5UTR_miRanda$mirna)
-miRNA_5UTR_miRanda$mirna <- gsub("\\..*", "", miRNA_5UTR_miRanda$mirna)
-
-miRNA_5UTR_miRanda <- left_join(miRNA_5UTR_miRanda, geneIDs, by=c("Target" = "X1"))
-miRNA_5UTR_miRanda <- select(miRNA_5UTR_miRanda, -X2,-X3,-X5)
-
-# Somehow ended up with a many-to-many relationship, so remove duplicate rows
-miRNA_5UTR_miRanda <- miRNA_5UTR_miRanda[!duplicated(miRNA_5UTR_miRanda), ]
-
-# Finally, create a column that contains both the miRNA and interacting lncRNA
-pcc_results$interaction <- paste(pcc_results$miRNA, "_", pcc_results$lncRNA)
-miRNA_5UTR_miRanda$interaction <- paste(miRNA_5UTR_miRanda$mirna, "_", miRNA_5UTR_miRanda$X4)
-
-# Annotate w PCC info 
-miRNA_5UTR_miRanda <- left_join(miRNA_5UTR_miRanda, pcc_results, by="interaction")
-```
-
-```{r}
-# Filter to high complementarity putative targets
-target_5UTR_21bp <- miRNA_5UTR_miRanda[miRNA_5UTR_miRanda$Al_Len > 20,]
-target_5UTR_21bp_3mis <- target_5UTR_21bp[target_5UTR_21bp$Subject_Identity>85,]
-
-# How many w significant correlation?
-nrow(miRNA_5UTR_miRanda)
-nrow(miRNA_5UTR_miRanda %>% filter(p_value < 0.05))
-nrow(target_5UTR_21bp %>% filter(p_value < 0.05))
-nrow(target_5UTR_21bp_3mis %>% filter(p_value < 0.05))
-```
-
-For miRNA binding to the 5'UTR, miRanda predicts 115,265 putative interactions. Of these, 10,623 have significant PCCs; 1,775 are \>21bp and have signficant PCCs; and 3 are \>21bp with \<=3 mismatches and have significant PCCs.
+For miRNA binding to lncRNA, miRanda predicts 178,148 putative interactions. Of these, 115,512 yield a correlation value (indicating the lncRNA is actually present in our counts data); 9,677 have significant PCCs; 1,396 are \>21bp and have signficant PCCs; and 0 are \>21bp with \<=3 mismatches and have significant PCCs.
 
 # Summary
 
@@ -272,59 +221,43 @@ How does different input and/or complementarity filtering affect \# putative int
 
 Reminder summary of miRanda results:
 
-| Input     | unfiltered | filtered for complementarity | \% retained |
-|-----------|------------|------------------------------|-------------|
-| full lncRNA | 814426     | 181                          | 0.0222 %    |
-| 5'UTR     | 115265     | 20                           | 0.0174 %    |
-| 3'UTR     | 123123     | 33                           | 0.0268 %    |
+| Input  | All     | 21bp                     | 21bp, \>=3 mismatch  |
+|--------|---------|--------------------------|----------------------|
+| lncRNA | 178,148 | 24,018 (13.48% of total) | 22 (0.012% of total) |
 
 For different filters, how many putative interactions ***also show significant coexpression*** (PCC pval \< 0.05)?
 
-| Input     | All   | 21bp  | 21bp, \>=3 mismatch |
-|-----------|-------|-------|---------------------|
-| full lncRNA | 99958 | 17425 | 26                  |
-| 5'UTR     | 10623 | 1775  | 3                   |
-| 3'UTR     | 11693 | 2142  | 3                   |
+| Input  | All     | 21bp                    | 21bp, \>=3 mismatch  |
+|--------|---------|-------------------------|----------------------|
+| lncRNA | 105,835 | 14,503 (13.7% of total) | 13 (0.012% of total) |            
 
 Note that some putative interactions indicated by miRanda are not present in the counts data (i.e. the miRNA and/or lncRNA had 0 counts inour RNAseq data), and are thus excluded from the PCC-filtered data
 
 Is there a clear "cutoff" for what complementarity parameters are mostassociated with significant coexpression?
 
 ```{r}
-
-miRNA_lncRNA_miRanda <- miRNA_lncRNA_miRanda %>% mutate(Source = "lncRNA")
-miRNA_3UTR_miRanda <- miRNA_3UTR_miRanda %>% mutate(Source = "3UTR")
-miRNA_5UTR_miRanda <- miRNA_5UTR_miRanda %>% mutate(Source = "5UTR")
-
-# Combine
-combined_df <- bind_rows(miRNA_lncRNA_miRanda, miRNA_3UTR_miRanda, miRNA_5UTR_miRanda)
-
-# Convert Source to a factor for discrete shapes
-combined_df$Source <- factor(combined_df$Source)
-
-# Convert p-value condition into a categorical variable for coloring
-combined_df$Significance <- ifelse(combined_df$p_value < 0.05, "p < 0.05", "p ≥ 0.05")
-significant_df <- combined_df %>% filter(p_value < 0.05)
+significant_df <- miRNA_lncRNA_miRanda %>% filter(p_value < 0.05)
 
 # Plot with jitter (significant coexpression only)
 ggplot(significant_df, aes(x = Al_Len, 
-                           y = as.numeric(gsub("%", "", Subject_Identity)), 
-                           color = Source)) +
-  geom_jitter(size = 1.5, width = 1, height = 1, alpha = 0.1) +
-  scale_color_manual(values = c("lncRNA" = "red", "3UTR" = "blue", "5UTR" = "green")) +
-  facet_wrap(~ Source) +
+                           y = as.numeric(gsub("%", "", Subject_Identity)))) +
+  geom_density_2d_filled(contour_var = "density", alpha = 0.8) +
+  scale_x_continuous(breaks = seq(min(significant_df$Al_Len), max(significant_df$Al_Len), by = 1)) +
   labs(x = "Alignment Length (Al_Len)", 
        y = "Subject Identity (%)", 
-       color = "Dataset", 
-       title = "Significant (p < 0.05) Alignment Length vs. Subject Identity") +
+       title = "2D Density: Alignment Length vs. Subject Identity (p < 0.05)") +
   theme_minimal()
 ```
 
-Interesting... there are signifcant coexpressions happening across both metrics of complementarity.
+Interesting! There are significant coexpressions happening across both metrics of complementarity, but we see clustering between 17 and 20nt alignment length. 
+
+In other words, for all the miRNA-lncRNA binding interactions predicted by miRanda, interactions with high alignment lengths (17-20nt) appear most likely to also show significantly correlated expression. 
+
+There's also a cluster at the top left corner, showing us that many interactions significant correlations have low alignment lengths but perfect complementarity. this likely represents perfect binding in the seed region.
 
 ```{r}
 # Save putative interactions with significantly correlated coexpression for visualization
 # (e.g. creating an interaction network plot in Cytoscape)
-write.csv(combined_df[combined_df$p_value < 0.05,], "../output/14.2-Apul-miRNA-lncRNA-coexpression/miRanda-PCC-significant-lncRNA_3UTR_5UTR.csv", row.names = FALSE)
+write.csv(significant_df, "../output/14.2-Apul-miRNA-lncRNA-coexpression/miRanda-PCC-significant-miRNA_lncRNA.csv", row.names = FALSE)
 
 ```
