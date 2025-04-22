@@ -74,6 +74,11 @@ library(genefilter)
 library(scales)
 ```
 
+The model includes random processes, so set a seed for reproducability. Note: for final results, should we consider bootstrapping to ensure reported results are representative?
+```{r}
+set.seed(703)
+```
+
 # Load and format data 
 
 ## RNA-seq data (mRNA, miRNA, lncRNA)
@@ -128,8 +133,9 @@ colnames(Apul_lncRNA) <- metadata$Sample[match(colnames(Apul_lncRNA), metadata$A
 
 ## WGBS data 
 
-```{r, cache=TRUE}
+```{r}
 #pull processed files from Gannet 
+# Note: Unfortunately we can't use the `cache` feature to make this process more time efficient, as it doesn't support long vectors
 
 # Define the base URL
 base_url <- "https://gannet.fish.washington.edu/seashell/bu-github/timeseries_molecular/D-Apul/output/15.5-Apul-bismark/"
@@ -596,7 +602,7 @@ train_models <- function(response_pcs, predictor_pcs) {
     X <- as.matrix(predictor_pcs)  # Methylation PCs as predictors
     
     # Train elastic net model (alpha = 0.5 for mix of LASSO & Ridge)
-    model <- cv.glmnet(X, y, alpha = 0.5)
+    model <- cv.glmnet(X, y, alpha = 0.05)
     
     models[[pc]] <- model
   }
@@ -690,6 +696,11 @@ ggplot(performance_results_all, aes(x = PC, y = R2)) +
 
 ```
 
+```{r}
+# Mean explained variance
+mean(!is.na(performance_results_all$R2))
+```
+
 View components associated with PCs (need to fix this code to work with the hybrid predictive input)
 
 ```{r}
@@ -760,7 +771,7 @@ ggplot(prediction_df, aes(x = Actual, y = lambda.min)) +
        x = "Actual Gene Expression PC",
        y = "Predicted Gene Expression PC") +
   annotate("text", x = min(actual_values), y = max(predicted_values), 
-           label = paste("R² =", round(max(performance_results$R2, na.rm=TRUE), 3)), 
+           label = paste("R² =", round(max(performance_results_all$R2, na.rm=TRUE), 3)), 
            hjust = 0, color = "black", size = 5)
 
 ```
