@@ -3,6 +3,9 @@ title: "00.10-E-Peve-sRNAseq-reads-FastQC-MultiQC.Rmd"
 author: "Kathleen Durkin"
 date: "2024-04-30"
 output: 
+  github_document:
+    toc: true
+    number_sections: true
   bookdown::html_document2:
     theme: cosmo
     toc: true
@@ -10,9 +13,6 @@ output:
     number_sections: true
     code_folding: show
     code_download: true
-  github_document:
-    toc: true
-    number_sections: true
   html_document:
     theme: cosmo
     toc: true
@@ -46,8 +46,7 @@ echo "#### Assign Variables ####"
 echo ""
 
 echo "# Data directories"
-#echo 'export timeseries_dir=/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular'
-echo ' export timeseries_dir=/gscratch/srlab/kdurkin1/timeseries_molecular'
+echo 'export timeseries_dir=/home/shared/8TB_HDD_02/shedurkin/timeseries_molecular'
 echo 'export output_dir_top=${timeseries_dir}/E-Peve/output/00.10-E-Peve-sRNAseq-reads-FastQC-MultiQC'
 echo 'export raw_fastqc_dir=${output_dir_top}/raw-fastqc-sRNA'
 echo 'export raw_reads_dir=${timeseries_dir}/E-Peve/data/raw-fastqs-sRNA'
@@ -55,9 +54,8 @@ echo 'export raw_reads_url="https://owl.fish.washington.edu/nightingales/E5-cora
 echo ""
 
 echo "# Paths to programs"
-#echo 'export fastqc=/home/shared/FastQC-0.12.1/fastqc'
-#echo 'export multiqc=/home/sam/programs/mambaforge/bin/multiqc'
-echo 'export fastqc=/srlab/programs/fastqc-0.12.1/fastqc'
+echo 'export fastqc=/home/shared/FastQC-0.12.1/fastqc'
+echo 'export multiqc=/home/sam/programs/mambaforge/bin/multiqc'
 
 echo ""
 
@@ -163,7 +161,7 @@ ls -lh "${raw_reads_dir}"
 
 ## Check number of files
 
-We have 40 P.evermanni samples (10 colonies, 4 timepoints each), so there should be 80 total sequence files (forward and reverse read for each sample).
+We have 38 P.evermanni samples (10 colonies, 4 timepoints each, with the exception of POR-236 for which we only have samples from TP1 and TP2), so there should be 76 total sequence files (forward and reverse read for each sample).
 
 ```{r, engine='bash'}
 # Load bash variables into memory
@@ -175,7 +173,9 @@ ls ${raw_reads_dir}/${fastq_pattern} | wc -l
 echo "Number of md5 files:"
 ls ${raw_reads_dir}/*.md5 | wc -l
 ```
-We're good!
+We only have 74 of each instead of the expected 76, indicating one sample is missing. 
+
+After crossreferencing with the metadata df, it looks like we're missing data for sample 1E2 (POR-69, TP3). Not clear why we're missing those files, made a [github issue](https://github.com/RobertsLab/resources/issues/2186). For now I'll continue with file QC, trimming, etc., and may come back later to deal with 1E2 if we find the data.
 
 ## Verify raw read checksums
 
@@ -243,8 +243,12 @@ echo ""
 rm ${raw_fastqc_dir}/*.zip
 echo "FastQC zip files removed."
 echo ""
+```
+
+```{r, engine='bash', eval=TRUE}
+# Load bash variables into memory
+source .bashvars
 
 # View directory contents
 ls -lh ${raw_fastqc_dir}
-
 ```
