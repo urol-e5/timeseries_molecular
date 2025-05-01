@@ -2226,9 +2226,56 @@ ggplot(performance_results_energy_GO, aes(x = as.factor(Feature), y = R2)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate labels
 ```
 
-We can also look at which miRNA(s) contributed most to predicting gene PCs of interest
+We can also look more specifically at genes of interest
 
-```{r, eval=FALSE}
+Say I want to look at predictors of energy genes that were differentially expressed over time
+
+Read in DESeq2 results comparing gene expression from tp2 to tp4:
+```{r}
+gene_tp2_tp4 <- read.csv("https://github.com/urol-e5/timeseries_molecular/raw/refs/heads/main/D-Apul/output/03.00-D-Apul-RNAseq-gene-expression-DESeq2/tp2.v.tp4.results.table.csv")
+
+gene_tp2_tp4_sig <- gene_tp2_tp4[gene_tp2_tp4$pvalue < 0.05,]
+
+diff_energy_genes <- energy_GO[energy_GO$gene_id %in% gene_tp2_tp4_sig$X,1]
+
+paste(diff_energy_genes)
+```
+
+Plot performance for all differentially expressed energy genes
+```{r}
+
+for (feature in diff_energy_genes) {
+  
+  # Extract actual and predicted values for that PC
+  actual_values <- vsd_energy_GO_t[[feature]]
+  predicted_values <- predict(models_energy_GO[[feature]], as.matrix(full_pred_counts), s = "lambda.min")
+  
+  # Create data frame
+  prediction_df <- data.frame(
+    Actual = actual_values,
+    Predicted = predicted_values
+  )
+  
+  # Scatter plot with regression line
+  plot <- ggplot(prediction_df, aes(x = Actual, y = lambda.min)) +
+    geom_point(color = "blue", alpha = 0.7) +
+    geom_smooth(method = "lm", color = "red", se = FALSE) +
+    theme_minimal() +
+    labs(title = paste("Predicted vs. Actual for", feature),
+         x = "Actual Gene Expression PC",
+         y = "Predicted Gene Expression PC") +
+    annotate("text", x = min(actual_values), y = max(predicted_values), 
+             label = paste("R² =", round(max(performance_results_energy_GO[performance_results_energy_GO$Feature==feature,2], na.rm=TRUE), 3)), 
+             hjust = 0, color = "black", size = 5)
+  
+  print(plot)
+}
+
+
+```
+
+
+```{r}
 # Will keep this unevaluated to reduce size of knitted document
 get_feature_importance_for_feature <- function(model) {
   coefs <- as.matrix(coef(model, s = "lambda.min"))[-1, , drop = FALSE]  # Remove intercept
@@ -2239,7 +2286,7 @@ get_feature_importance_for_feature <- function(model) {
 
 all_features_energy_GO <- performance_results_energy_GO %>% filter(R2 > 0.75) %>% pull(Feature)
 
-for (feature in all_features_energy_GO) {
+for (feature in diff_energy_genes) {
   # Extract feature importance for the most predictable PC
   best_feature_model <- models_energy_GO[[feature]]
   best_feature_importance <- get_feature_importance_for_feature(best_feature_model)
