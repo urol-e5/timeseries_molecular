@@ -3,13 +3,9 @@ title: "03.10-D-Apul-sRNAseq-expression-DESeq2"
 author: "Kathleen Durkin"
 date: "2024-12-19"
 output: 
-  bookdown::html_document2:
-    theme: cosmo
+  github_document:
     toc: true
-    toc_float: true
     number_sections: true
-    code_folding: show
-    code_download: true
   html_document:
     theme: cosmo
     toc: true
@@ -17,9 +13,13 @@ output:
     number_sections: true
     code_folding: show
     code_download: true
-  github_document:
+  bookdown::html_document2:
+    theme: cosmo
     toc: true
+    toc_float: true
     number_sections: true
+    code_folding: show
+    code_download: true
 bibliography: references.bib
 ---
 
@@ -81,6 +81,8 @@ colnames(Apul_counts_sRNA) <- paste(colnames(Apul_counts_sRNA), coldata[colnames
 # Make sure coldata metadata has matching rownames (for DEseq2 formatting)
 rownames(coldata) <- paste(rownames(coldata), coldata$colony.id, coldata$time.point, sep = "_")
 
+# Remove sample 1E1_ACR-265_TP3 (outlier based on PCAs of unfiltered vsd data)
+Apul_counts_sRNA <- Apul_counts_sRNA %>% select(-'1E1_ACR-265_TP3')
 
 write.table(Apul_counts_sRNA, file = "../output/03.10-D-Apul-sRNAseq-expression-DESeq2/Apul_sRNA_ShortStack_counts_formatted.txt", sep = "\t", row.names = TRUE, col.names = TRUE, quote = FALSE)
 
@@ -179,6 +181,9 @@ Apul_counts_miRNA <- Apul_counts_miRNA %>% column_to_rownames(var = "Name")
 colnames(Apul_counts_miRNA) <- paste(colnames(Apul_counts_miRNA), coldata[colnames(Apul_counts_miRNA), "colony.id"], coldata[colnames(Apul_counts_miRNA), "time.point"], sep = "_")
 # Make sure coldata metadata has matching rownames (for DEseq2 formatting)
 rownames(coldata) <- paste(rownames(coldata), coldata$colony.id, coldata$time.point, sep = "_")
+
+# Remove sample 1E1_ACR-265_TP3 (outlier based on PCAs of unfiltered vsd data)
+Apul_counts_miRNA <- Apul_counts_miRNA %>% select(-'1E1_ACR-265_TP3')
 
 write.table(Apul_counts_miRNA, file = "../output/03.10-D-Apul-sRNAseq-expression-DESeq2/Apul_miRNA_ShortStack_counts_formatted.txt", sep = "\t", row.names = TRUE, col.names = TRUE, quote = FALSE)
 
@@ -420,6 +425,10 @@ head(coldata)
 
 ## Verify rownames match
 ```{r check-rownames}
+
+# Remove outlier sample from the coldata, so that metadata and counts data columns will match for DESeq
+coldata <- coldata[!(rownames(coldata) %in% "1E1_ACR-265_TP3"), ]
+
 # Alphabetize rownames of coldata and colnames of Apul_counts_sRNA
 coldata <- coldata[order(rownames(coldata)), ]
 Apul_counts_sRNA <- Apul_counts_sRNA[, order(colnames(Apul_counts_sRNA))]
@@ -654,28 +663,123 @@ pheatmap(Apul_counts_sRNA_vsd_q95,
          scale="row")
 ```
 
+
+
 # Normalized miRNA counts
 
-## Isolate normalized/vsd miRNA
-```{r miRNA-normalized-miRNA}
+## Normalize counts with DESeq2
 
-Apul_counts_sRNA_norm$Name <- rownames(Apul_counts_sRNA_norm)
-Apul_counts_sRNA_vsd$Name <- rownames(Apul_counts_sRNA_vsd)
+### Metadata
 
-Apul_counts_miRNA_namesdf <- data.frame(Name = rownames(Apul_counts_miRNA)) 
+DESeq2 requires a metadata data frame as input -- we'll use the coldata we've already formatted
 
-Apul_counts_miRNA_norm <- left_join(Apul_counts_miRNA_namesdf, Apul_counts_sRNA_norm, by = c("Name" = "Name")) %>%
-  column_to_rownames(var = "Name")
-
-colnames(Apul_counts_miRNA_norm) <- gsub("X", "", colnames(Apul_counts_miRNA_norm))
-colnames(Apul_counts_miRNA_norm) <- gsub("\\.", "-", colnames(Apul_counts_miRNA_norm))
-
-write.table(Apul_counts_miRNA_norm, file = "../output/03.10-D-Apul-sRNAseq-expression-DESeq2/Apul_counts_miRNA_normalized.txt", sep = "\t", row.names = TRUE, col.names = TRUE,quote = FALSE)
-
-Apul_counts_miRNA_vsd <- left_join(Apul_counts_miRNA_namesdf, Apul_counts_sRNA_vsd, by = c("Name" = "Name")) %>%
-  column_to_rownames(var = "Name")
-write.table(Apul_counts_miRNA_vsd, file = "../output/03.10-D-Apul-sRNAseq-expression-DESeq2/Apul_counts_miRNA_variancestabilized.txt", sep = "\t", row.names = TRUE, col.names = TRUE,quote = FALSE)
+```{r make-miRNA-metadata-dataframe}
+head(coldata)
 ```
+
+### DESeq object
+
+## Verify rownames match
+```{r check-miRNA-rownames}
+# Alphabetize rownames of coldata and colnames of Apul_counts_miRNA
+coldata <- coldata[order(rownames(coldata)), ]
+Apul_counts_miRNA <- Apul_counts_miRNA[, order(colnames(Apul_counts_miRNA))]
+
+all(rownames(coldata) == colnames(Apul_counts_miRNA))
+```
+
+# Create DESeq2 data set
+```{r create-deseq2-miRNA-data-set, cache=TRUE}
+dds_Apul_miRNA <- DESeqDataSetFromMatrix(countData = Apul_counts_miRNA,
+                              colData = coldata,
+                              design = ~ time.point + colony.id)
+dds_Apul_miRNA
+```
+```{r}
+dds_Apul_miRNA$time.point <- factor(dds_Apul_miRNA$time.point, levels = c("TP1","TP2", "TP3", "TP4"))
+
+dds_Apul_miRNA <- DESeq(dds_Apul_miRNA)
+```
+
+## Pairwise results tables
+
+```{r deseq2-miRNA-pairwise-results-tables}
+# Define the output directory path
+output_dir <- "../output/03.10-D-Apul-sRNAseq-expression-DESeq2/"
+
+# Set desired false discovery rate threshold (i.e. adjusted p-value, padj)
+fdr <- 0.05
+
+# Set log2 fold change threshold (a value of '1' is equal to a fold change of '2')
+log2fc <- 1
+
+miRNA_tp1.v.tp2.results <- results(dds_Apul_miRNA, contrast=c("time.point","TP1","TP2"), alpha = fdr, lfcThreshold = log2fc)
+miRNA_tp1.v.tp3.results <- results(dds_Apul_miRNA, contrast=c("time.point","TP1","TP3"), alpha = fdr, lfcThreshold = log2fc)
+miRNA_tp1.v.tp4.results <- results(dds_Apul_miRNA, contrast=c("time.point","TP1","TP4"), alpha = fdr, lfcThreshold = log2fc)
+miRNA_tp2.v.tp3.results <- results(dds_Apul_miRNA, contrast=c("time.point","TP2","TP3"), alpha = fdr, lfcThreshold = log2fc)
+miRNA_tp2.v.tp4.results <- results(dds_Apul_miRNA, contrast=c("time.point","TP2","TP4"), alpha = fdr, lfcThreshold = log2fc)
+miRNA_tp3.v.tp4.results <- results(dds_Apul_miRNA, contrast=c("time.point","TP3","TP4"), alpha = fdr, lfcThreshold = log2fc)
+
+miRNA_tp2.v.tp4.results
+
+summary(miRNA_tp2.v.tp4.results)
+
+table(miRNA_tp2.v.tp4.results$padj < 0.05)
+```
+
+ Write DDS results tables to CSVs
+```{r write-miRNA-dds-results-csv}
+# Create a named list of the data frames
+results_list <- list(
+  miRNA_tp1.v.tp2.results = miRNA_tp1.v.tp2.results,
+  miRNA_tp1.v.tp3.results = miRNA_tp1.v.tp3.results,
+  miRNA_tp1.v.tp4.results = miRNA_tp1.v.tp4.results,
+  miRNA_tp2.v.tp3.results = miRNA_tp2.v.tp3.results,
+  miRNA_tp2.v.tp4.results = miRNA_tp2.v.tp4.results,
+  miRNA_tp3.v.tp4.results = miRNA_tp3.v.tp4.results
+)
+
+# Loop through the list and write each data frame to a CSV file in the specified directory
+for (df_name in names(results_list)) {
+  write.csv(results_list[[df_name]], file = paste0(output_dir, df_name, ".table.csv"), row.names = TRUE, quote = FALSE)
+}
+```
+
+```{r}
+results12_df <- as.data.frame(miRNA_tp1.v.tp2.results)
+results12_df$Name <- rownames(results12_df)
+
+results23_df <- as.data.frame(miRNA_tp2.v.tp3.results)
+results23_df$Name <- rownames(results23_df)
+
+results24_df <- as.data.frame(miRNA_tp2.v.tp4.results)
+results24_df$Name <- rownames(results24_df)
+
+filter(results12_df, pvalue < 0.05)
+filter(results23_df, pvalue < 0.05)
+filter(results24_df, pvalue < 0.05)
+```
+
+## Normalizations
+
+```{r get-normalized-miRNA-counts, cache=TRUE}
+# extract normalized counts
+# (normalization is automatically performed by deseq2)
+Apul_counts_miRNA_norm <- counts(dds_Apul_miRNA, normalized=TRUE) %>% data.frame()
+
+write.table(Apul_counts_miRNA_norm, file = "../output/03.10-D-Apul-sRNAseq-expression-DESeq2/Apul_counts_miRNA_normalized.txt", sep = "\t", row.names = TRUE, col.names = TRUE, quote = FALSE)
+
+
+# variance stabilized data
+vsd_Apul_miRNA <- varianceStabilizingTransformation(dds_Apul_miRNA, blind=TRUE)
+wpn_vsd_Apul_miRNA <- getVarianceStabilizedData(dds_Apul_miRNA)
+rv_wpn_Apul_miRNA <- rowVars(wpn_vsd_Apul_miRNA, useNames=TRUE)
+
+Apul_counts_miRNA_vsd <- data.frame(wpn_vsd_Apul_miRNA)
+write.table(Apul_counts_miRNA_vsd, file = "../output/03.10-D-Apul-sRNAseq-expression-DESeq2/Apul_counts_miRNA_variancestabilized.txt", sep = "\t", row.names = TRUE, col.names = TRUE,quote = FALSE)
+
+```
+
 
 ## Normalized expression levels
 
@@ -719,41 +823,11 @@ ggplot(total_transcripts_miRNA_norm_df, aes(x = reorder(sample, totals), totals)
 ```
 ## PCA of variance stabilized miRNAs
 
-Note that I had to convert the counts to a data frame (instead of a DESeqTransform object) to select only miRNAs, so I can't use the plotPCA() function.
-```{r miRNA-clustering-vsd}
-# Perform PCA
-pca_res <- prcomp(t(as.matrix(Apul_counts_miRNA_vsd)))
+```{r miRNA-PCA-vsd}
 
-# Calculate percent variance explained
-percentVar <- round(100 * (pca_res$sdev^2 / sum(pca_res$sdev^2)))
+plotPCA(vsd_Apul_miRNA, intgroup="time.point")
 
-## Color by colony ID ##
-# Convert PCA results to data frame
-pca_df <- as.data.frame(pca_res$x)
-pca_df$colony.id <- dds_Apul_sRNA$colony.id
-
-# Create PCA plot with percent variance
-ggplot(pca_df, aes(x = PC1, y = PC2, color = colony.id)) +
-  geom_point(size = 3) +
-  labs(
-    x = paste0("PC1: ", percentVar[1], "% variance"),
-    y = paste0("PC2: ", percentVar[2], "% variance"),
-    title = "PCA of VSD miRNA Counts"
-  )
-
-## Color by colony ID ##
-# Convert PCA results to data frame
-pca_df <- as.data.frame(pca_res$x)
-pca_df$time.point <- dds_Apul_sRNA$time.point
-
-# Create PCA plot with percent variance
-ggplot(pca_df, aes(x = PC1, y = PC2, color = time.point)) +
-  geom_point(size = 3) +
-  labs(
-    x = paste0("PC1: ", percentVar[1], "% variance"),
-    y = paste0("PC2: ", percentVar[2], "% variance"),
-    title = "PCA of VSD miRNA Counts"
-  )
+plotPCA(vsd_Apul_miRNA, intgroup="colony.id")
 
 ```
 Interesting! When considering all sRNAs, they strongly clustered by colony and not time point. However, miRNAs alone show clear clustering by time point (though some influence of colony is still apparent).
@@ -850,42 +924,114 @@ Heatmap(
 
 ```
 
-
 It looks like, of the 51 total miRNAs identified, most are consistently present in all A.pulchra colonies and time points. For 10-15 of the miRNAs, presence/absence is more variable accross colonies and timepoints.
-
-
-```{r}
-results_df <- as.data.frame(sRNA_tp2.v.tp4.results)
-results_df$Name <- rownames(results_df)
-
-# Assuming your metadata frame also has a 'Name' column
-# Perform the left join to select only the genes listed in metadata
-filtered_results <- dplyr::left_join(Apul_counts_miRNA_namesdf, results_df, by = "Name")
-
-filter(filtered_results, padj < 0.4)
-```
-
-
-
 
 
 # Normalized siRNA counts
 
-## Isolate normalized/vsd siRNA
-```{r siRNA-normalized-siRNA}
+## Normalize counts with DESeq2
 
-Apul_counts_sRNA_norm$Name <- rownames(Apul_counts_sRNA_norm)
-Apul_counts_sRNA_vsd$Name <- rownames(Apul_counts_sRNA_vsd)
+### Metadata
 
-Apul_counts_siRNA_namesdf <- data.frame(Name = rownames(Apul_counts_siRNA)) 
+DESeq2 requires a metadata data frame as input -- we'll use the coldata we've already formatted
 
-Apul_counts_siRNA_norm <- left_join(Apul_counts_siRNA_namesdf, Apul_counts_sRNA_norm, by = c("Name" = "Name")) %>%
-  column_to_rownames(var = "Name")
-write.table(Apul_counts_siRNA_norm, file = "../output/03.10-D-Apul-sRNAseq-expression-DESeq2/Apul_counts_siRNA_normalized.txt", sep = "\t", row.names = TRUE, col.names = TRUE,quote = FALSE)
+```{r make-siRNA-metadata-dataframe}
+head(coldata)
+```
 
-Apul_counts_siRNA_vsd <- left_join(Apul_counts_siRNA_namesdf, Apul_counts_sRNA_vsd, by = c("Name" = "Name")) %>%
-  column_to_rownames(var = "Name")
+### DESeq object
+
+## Verify rownames match
+```{r check-siRNA-rownames}
+# Alphabetize rownames of coldata and colnames of Apul_counts_siRNA
+coldata <- coldata[order(rownames(coldata)), ]
+Apul_counts_siRNA <- Apul_counts_siRNA[, order(colnames(Apul_counts_siRNA))]
+
+all(rownames(coldata) == colnames(Apul_counts_siRNA))
+```
+
+# Create DESeq2 data set
+```{r create-deseq2-siRNA-data-set, cache=TRUE}
+dds_Apul_siRNA <- DESeqDataSetFromMatrix(countData = Apul_counts_siRNA,
+                              colData = coldata,
+                              design = ~ time.point + colony.id)
+dds_Apul_siRNA
+```
+```{r}
+dds_Apul_siRNA$time.point <- factor(dds_Apul_siRNA$time.point, levels = c("TP1","TP2", "TP3", "TP4"))
+
+dds_Apul_siRNA <- DESeq(dds_Apul_siRNA)
+```
+
+## Pairwise results tables
+
+```{r deseq2-siRNA-pairwise-results-tables}
+# Define the output directory path
+output_dir <- "../output/03.10-D-Apul-sRNAseq-expression-DESeq2/"
+
+# Set desired false discovery rate threshold (i.e. adjusted p-value, padj)
+fdr <- 0.05
+
+# Set log2 fold change threshold (a value of '1' is equal to a fold change of '2')
+log2fc <- 1
+
+siRNA_tp1.v.tp2.results <- results(dds_Apul_siRNA, contrast=c("time.point","TP1","TP2"), alpha = fdr, lfcThreshold = log2fc)
+siRNA_tp1.v.tp3.results <- results(dds_Apul_siRNA, contrast=c("time.point","TP1","TP3"), alpha = fdr, lfcThreshold = log2fc)
+siRNA_tp1.v.tp4.results <- results(dds_Apul_siRNA, contrast=c("time.point","TP1","TP4"), alpha = fdr, lfcThreshold = log2fc)
+siRNA_tp2.v.tp3.results <- results(dds_Apul_siRNA, contrast=c("time.point","TP2","TP3"), alpha = fdr, lfcThreshold = log2fc)
+siRNA_tp2.v.tp4.results <- results(dds_Apul_siRNA, contrast=c("time.point","TP2","TP4"), alpha = fdr, lfcThreshold = log2fc)
+siRNA_tp3.v.tp4.results <- results(dds_Apul_siRNA, contrast=c("time.point","TP3","TP4"), alpha = fdr, lfcThreshold = log2fc)
+
+siRNA_tp2.v.tp4.results
+
+summary(siRNA_tp2.v.tp4.results)
+
+table(siRNA_tp2.v.tp4.results$padj < 0.05)
+```
+
+ Write DDS results tables to CSVs
+```{r write-siRNA-dds-results-csv}
+# Create a named list of the data frames
+results_list <- list(
+  siRNA_tp1.v.tp2.results = siRNA_tp1.v.tp2.results,
+  siRNA_tp1.v.tp3.results = siRNA_tp1.v.tp3.results,
+  siRNA_tp1.v.tp4.results = siRNA_tp1.v.tp4.results,
+  siRNA_tp2.v.tp3.results = siRNA_tp2.v.tp3.results,
+  siRNA_tp2.v.tp4.results = siRNA_tp2.v.tp4.results,
+  siRNA_tp3.v.tp4.results = siRNA_tp3.v.tp4.results
+)
+
+# Loop through the list and write each data frame to a CSV file in the specified directory
+for (df_name in names(results_list)) {
+  write.csv(results_list[[df_name]], file = paste0(output_dir, df_name, ".table.csv"), row.names = TRUE, quote = FALSE)
+}
+```
+
+```{r}
+results24_df <- as.data.frame(siRNA_tp2.v.tp4.results)
+results24_df$Name <- rownames(results24_df)
+
+filter(results24_df, pvalue < 0.05)
+```
+
+## Normalizations
+
+```{r get-normalized-siRNA-counts, cache=TRUE}
+# extract normalized counts
+# (normalization is automatically performed by deseq2)
+Apul_counts_siRNA_norm <- counts(dds_Apul_siRNA, normalized=TRUE) %>% data.frame()
+
+write.table(Apul_counts_siRNA_norm, file = "../output/03.10-D-Apul-sRNAseq-expression-DESeq2/Apul_counts_siRNA_normalized.txt", sep = "\t", row.names = TRUE, col.names = TRUE, quote = FALSE)
+
+
+# variance stabilized data
+vsd_Apul_siRNA <- varianceStabilizingTransformation(dds_Apul_siRNA, blind=TRUE)
+wpn_vsd_Apul_siRNA <- getVarianceStabilizedData(dds_Apul_siRNA)
+rv_wpn_Apul_siRNA <- rowVars(wpn_vsd_Apul_siRNA, useNames=TRUE)
+
+Apul_counts_siRNA_vsd <- data.frame(wpn_vsd_Apul_siRNA)
 write.table(Apul_counts_siRNA_vsd, file = "../output/03.10-D-Apul-sRNAseq-expression-DESeq2/Apul_counts_siRNA_variancestabilized.txt", sep = "\t", row.names = TRUE, col.names = TRUE,quote = FALSE)
+
 ```
 
 ## Normalized expression levels
@@ -927,6 +1073,37 @@ ggplot(total_transcripts_siRNA_norm_df, aes(x = reorder(sample, totals), y = tot
        y = "Total Transcripts") +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate x-axis labels for readability
+```
+
+## PCA of variance stabilized siRNAs
+
+```{r siRNA-PCA-vsd}
+
+plotPCA(vsd_Apul_siRNA, intgroup="time.point")
+
+plotPCA(vsd_Apul_siRNA, intgroup="colony.id")
+
+```
+
+Sample 1E1_ACR-265_TP3 is a marked outlier, should probably exclude
+
+Again, siRNA clearly cluster by timepoint
+
+
+## Sample clustering
+
+```{r siRNA-sample-clustering}
+
+# Calculate the Euclidean distance matrix
+sample_dists <- dist(t(Apul_counts_siRNA_vsd))
+
+# Create the heatmap
+pheatmap(
+  as.matrix(sample_dists), 
+  clustering_distance_rows = "euclidean", 
+  clustering_distance_cols = "euclidean", 
+  main = "Sample Clustering"
+)
 ```
 
 ## Heatmap
