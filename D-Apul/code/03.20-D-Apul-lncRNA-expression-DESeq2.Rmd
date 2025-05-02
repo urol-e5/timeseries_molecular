@@ -1,0 +1,403 @@
+---
+title: "03.0-D-Apul-lncRNAseq-expression-DESeq2"
+author: "Kathleen Durkin"
+date: "2024-05-01"
+output: 
+  github_document:
+    toc: true
+    number_sections: true
+  html_document:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+  bookdown::html_document2:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+bibliography: references.bib
+---
+
+Expression summary for *Acropora pulchra* lncRNA data.
+
+### Install and load packages
+
+```{r load_libraries, inlcude = TRUE}
+library(tidyverse)
+library(ggplot2)
+library(reshape2)
+library(pheatmap)
+library(RColorBrewer)
+library(DESeq2)
+library(ComplexHeatmap)
+```
+
+
+
+
+## Load count data and coldata
+
+Load in the lncRNA count matrix generated in `08-Apul-lncRNA`. Coldata generated in `03.00-D-Apul-RNAseq-gene-expression-DESeq2`
+
+```{r load-lncRNA-counts}
+# Read in lncRNA counts data
+Apul_counts_lncRNA_data_OG <- read.table("../output/08-Apul-lncRNA/counts.txt", header = TRUE, sep = "\t", skip = 1) 
+head(Apul_counts_lncRNA_data_OG)
+
+# Read in coldata 
+coldata_OG <- read.csv(file = "../output/03.00-D-Apul-RNAseq-gene-expression-DESeq2/DESeq2-coldata.tab", row.names=1, sep = "\t")
+coldata_OG$time.point <- factor(coldata_OG$time.point)
+```
+
+## Count data munging
+
+```{r lncRNA-count-data-munging}
+Apul_counts_lncRNA <- Apul_counts_lncRNA_data_OG
+coldata <- coldata_OG
+
+# Remove excess portions of sample column names to just "sample###"
+colnames(Apul_counts_lncRNA) <- sub("...data.", "", colnames(Apul_counts_lncRNA))
+colnames(Apul_counts_lncRNA) <- sub(".sorted.bam", "", colnames(Apul_counts_lncRNA))
+
+# Keep just the counts and names
+Apul_counts_lncRNA <- Apul_counts_lncRNA %>% select(-Chr, -Start, -End, -Strand, -Length)
+
+# Make the cluster names our new row names
+Apul_counts_lncRNA <- Apul_counts_lncRNA %>% column_to_rownames(var = "Geneid")
+
+# Remove any with 0 counts in all samples
+Apul_counts_lncRNA <- Apul_counts_lncRNA[rowSums(Apul_counts_lncRNA) != 0, ]
+
+# Append colony and timepoint info to sample names
+colnames(Apul_counts_lncRNA) <- paste(colnames(Apul_counts_lncRNA), coldata[colnames(Apul_counts_lncRNA), "colony.id"], coldata[colnames(Apul_counts_lncRNA), "time.point"], sep = "_")
+# Make sure coldata metadata has matching rownames (for DEseq2 formatting)
+rownames(coldata) <- paste(rownames(coldata), coldata$colony.id, coldata$time.point, sep = "_")
+
+write.table(Apul_counts_lncRNA, file = "../output/03.20-D-Apul-lncRNA-expression-DESeq2/Apul_lncRNA_ShortStack_counts_formatted.txt", sep = "\t", row.names = TRUE, col.names = TRUE, quote = FALSE)
+
+head(Apul_counts_lncRNA)
+head(coldata)
+```
+
+
+## Expression levels
+
+Plot histograms of the expression levels in each sample
+
+```{r expression-level-histograms}
+# Melt the count matrix into long format
+Apul_counts_lncRNA_melted <- melt(Apul_counts_lncRNA, variable.name = "sample", value.name = "counts")
+
+# Plot the expression level histograms for each sample
+ggplot(Apul_counts_lncRNA_melted, aes(x = counts)) +
+  geom_histogram(binwidth = 1, fill = "#408EC6", color = "black") +
+  scale_x_log10() +  # Optional: Log-transform the x-axis for better visualization
+  facet_wrap(~sample, scales = "free_y") +
+  labs(title = "Gene Expression Level Histogram for Each Sample",
+       x = "Expression Level (Counts)",
+       y = "Frequency") +
+  theme_minimal()
+```
+
+## Transcript counts
+
+First let's check the total number of transcripts in each sample -- keep in mind this expression data has *not* been normalized yet, so there may be different totals for each sample
+```{r transcript-counts-plot}
+# Calculate the total number of transcripts for each sample
+total_transcripts <- colSums(Apul_counts_lncRNA)
+
+# Create a data frame for plotting
+total_transcripts_df <- data.frame(sample = names(total_transcripts),
+                                   totals = total_transcripts)
+
+# Plot the total number of transcripts for each sample
+ggplot(total_transcripts_df, aes(x = reorder(sample, totals), y = totals)) +
+  geom_bar(stat = "identity", fill = "#408EC6", color = "black") +
+  geom_text(aes(label = totals), vjust = -0.3, size = 3.5) + 
+  labs(title = "Total Number of Transcripts per Sample",
+       x = "Sample",
+       y = "Total Transcripts") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate x-axis labels for readability
+```
+No glaring discrepancies/patterns
+
+Now let's check the number of unique transcripts in each sample -- that is, how many unique lncRNAs are expressed in each sample? This should be pretty much the same across samples, even without normalization.
+
+```{r total-unique-transcripts-plot}
+# Calculate the number of unique transcripts (non-zero counts) for each sample
+unique_transcripts <- colSums(Apul_counts_lncRNA > 0)
+
+# Create a data frame for plotting
+unique_transcripts_df <- data.frame(sample = names(unique_transcripts),
+                                    uniques = unique_transcripts)
+
+# Plot the total number of unique transcripts for each sample
+ggplot(unique_transcripts_df, aes(x = reorder(sample, uniques), y = uniques)) +
+  geom_bar(stat = "identity", fill = "#408EC6", color = "black") +
+  geom_text(aes(label = uniques), vjust = -0.3, size = 3.5) + 
+  labs(title = "Total Number of Unique Expressed Transcripts per Sample",
+       x = "Sample",
+       y = "Unique Transcripts") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate x-axis labels for readability
+```
+   
+# ...........
+
+
+## Normalize counts with DESeq2
+
+### Metadata
+
+DESeq2 requires a metadata data frame as input -- we'll use the coldata we've already formatted
+
+```{r make-lncRNA-metadata-dataframe}
+
+head(coldata)
+```
+
+### DESeq object
+
+## Verify rownames match
+```{r check-rownames}
+
+# Alphabetize rownames of coldata and colnames of Apul_counts_lncRNA
+coldata <- coldata[order(rownames(coldata)), ]
+Apul_counts_lncRNA <- Apul_counts_lncRNA[, order(colnames(Apul_counts_lncRNA))]
+
+all(rownames(coldata) == colnames(Apul_counts_lncRNA))
+```
+
+# Create DESeq2 data set
+```{r create-deseq2-data-set, cache=TRUE}
+dds_Apul_lncRNA <- DESeqDataSetFromMatrix(countData = Apul_counts_lncRNA,
+                              colData = coldata,
+                              design = ~ time.point + colony.id)
+dds_Apul_lncRNA
+```
+```{r}
+dds_Apul_lncRNA$time.point <- factor(dds_Apul_lncRNA$time.point, levels = c("TP1","TP2", "TP3", "TP4"))
+
+dds_Apul_lncRNA <- DESeq(dds_Apul_lncRNA)
+```
+
+## Pairwise results tables
+
+```{r deseq2-pairwise-results-tables}
+# Define the output directory path
+output_dir <- "../output/03.20-D-Apul-lncRNA-expression-DESeq2/"
+
+# Set desired false discovery rate threshold (i.e. adjusted p-value, padj)
+fdr <- 0.05
+
+# Set log2 fold change threshold (a value of '1' is equal to a fold change of '2')
+log2fc <- 1
+
+lncRNA_tp1.v.tp2.results <- results(dds_Apul_lncRNA, contrast=c("time.point","TP1","TP2"), alpha = fdr, lfcThreshold = log2fc)
+lncRNA_tp1.v.tp3.results <- results(dds_Apul_lncRNA, contrast=c("time.point","TP1","TP3"), alpha = fdr, lfcThreshold = log2fc)
+lncRNA_tp1.v.tp4.results <- results(dds_Apul_lncRNA, contrast=c("time.point","TP1","TP4"), alpha = fdr, lfcThreshold = log2fc)
+lncRNA_tp2.v.tp3.results <- results(dds_Apul_lncRNA, contrast=c("time.point","TP2","TP3"), alpha = fdr, lfcThreshold = log2fc)
+lncRNA_tp2.v.tp4.results <- results(dds_Apul_lncRNA, contrast=c("time.point","TP2","TP4"), alpha = fdr, lfcThreshold = log2fc)
+lncRNA_tp3.v.tp4.results <- results(dds_Apul_lncRNA, contrast=c("time.point","TP3","TP4"), alpha = fdr, lfcThreshold = log2fc)
+
+lncRNA_tp2.v.tp4.results
+
+summary(lncRNA_tp2.v.tp4.results)
+
+table(lncRNA_tp2.v.tp4.results$padj < 0.05)
+```
+
+ Write DDS results tables to CSVs
+```{r write-dds-results-csv}
+# Create a named list of the data frames
+results_list <- list(
+  lncRNA_tp1.v.tp2.results = lncRNA_tp1.v.tp2.results,
+  lncRNA_tp1.v.tp3.results = lncRNA_tp1.v.tp3.results,
+  lncRNA_tp1.v.tp4.results = lncRNA_tp1.v.tp4.results,
+  lncRNA_tp2.v.tp3.results = lncRNA_tp2.v.tp3.results,
+  lncRNA_tp2.v.tp4.results = lncRNA_tp2.v.tp4.results,
+  lncRNA_tp3.v.tp4.results = lncRNA_tp3.v.tp4.results
+)
+
+# Loop through the list and write each data frame to a CSV file in the specified directory
+for (df_name in names(results_list)) {
+  write.csv(results_list[[df_name]], file = paste0(output_dir, df_name, ".table.csv"), row.names = TRUE, quote = FALSE)
+}
+```
+
+## Normalizations
+
+It's worth noting here that I'm actually going to be doing two different types of transformation on the counts data, which serve different purposes. 
+
+- First is **normalizing** the transcript counts, which adjusts for differences in library size or sequencing depth, but retains count-like properties. Normalized counts are most useful for things like visualizing expression levels and differential expression analysis.
+
+- Second is **variance stabilizing** the counts data, which aims to make the variance of the transformed data approximately independent of the mean, reducing heteroscedasticity (the relationship between variance and mean) and "smoothing" out the variance at low counts. Notably, the transformed data is *no longer on the original count scale*. The transformation makes the variance roughly constant across the range of counts, which makes it easier to interpret patterns in the data visually. Variance stabilized data is most useful for exploratory data analysis, like PCA, clustering, and heatmaps, and is also the transformation we'll want to use before WGCNA.
+
+```{r get-normalized-lncRNA-counts, cache=TRUE}
+# extract normalized counts
+# (normalization is automatically performed by deseq2)
+Apul_counts_lncRNA_norm <- counts(dds_Apul_lncRNA, normalized=TRUE) %>% data.frame()
+
+write.table(Apul_counts_lncRNA_norm, file = "../output/03.20-D-Apul-lncRNA-expression-DESeq2/Apul_counts_lncRNA_normalized.txt", sep = "\t", row.names = TRUE, col.names = TRUE, quote = FALSE)
+
+
+# variance stabilized data
+vsd_Apul_lncRNA <- varianceStabilizingTransformation(dds_Apul_lncRNA, blind=TRUE)
+wpn_vsd_Apul_lncRNA <- getVarianceStabilizedData(dds_Apul_lncRNA)
+rv_wpn_Apul_lncRNA <- rowVars(wpn_vsd_Apul_lncRNA, useNames=TRUE)
+
+Apul_counts_lncRNA_vsd <- data.frame(wpn_vsd_Apul_lncRNA)
+write.table(Apul_counts_lncRNA_vsd, file = "../output/03.20-D-Apul-lncRNA-expression-DESeq2/Apul_counts_lncRNA_variancestabilized.txt", sep = "\t", row.names = TRUE, col.names = TRUE,quote = FALSE)
+
+q75_wpn_Apul_lncRNA <- quantile(rowVars(wpn_vsd_Apul_lncRNA, useNames=TRUE), .75)  # 75th quantile variability
+Apul_counts_lncRNA_vsd_q75 <- wpn_vsd_Apul_lncRNA[ rv_wpn_Apul_lncRNA > q75_wpn_Apul_lncRNA, ] %>% data.frame # filter to retain only the most variable genes
+write.table(Apul_counts_lncRNA_vsd_q75, file = "../output/03.20-D-Apul-lncRNA-expression-DESeq2/Apul_counts_lncRNA_variancestabilized_q75.txt", sep = "\t", row.names = TRUE, col.names = TRUE,quote = FALSE)
+
+q95_wpn_Apul_lncRNA <- quantile(rowVars(wpn_vsd_Apul_lncRNA, useNames=TRUE), .95)  # 95th quantile variability
+Apul_counts_lncRNA_vsd_q95 <- wpn_vsd_Apul_lncRNA[ rv_wpn_Apul_lncRNA > q95_wpn_Apul_lncRNA, ] %>% data.frame # filter to retain only the most variable genes
+write.table(Apul_counts_lncRNA_vsd_q95, file = "../output/03.20-D-Apul-lncRNA-expression-DESeq2/Apul_counts_lncRNA_variancestabilized_q95.txt", sep = "\t", row.names = TRUE, col.names = TRUE,quote = FALSE)
+```
+
+## Plot normalized data
+
+```{r plot-normalized-lncRNA}
+Apul_counts_lncRNA_norm_long <- Apul_counts_lncRNA_norm %>%
+  mutate(
+    Gene_id = row.names(Apul_counts_lncRNA_norm)
+  ) %>%
+  pivot_longer(-Gene_id)
+
+Apul_counts_lncRNA_norm_long %>%
+  ggplot(., aes(x = name, y = value)) +
+  geom_violin() +
+  geom_point() +
+  theme_bw() +
+  theme(
+    axis.text.x = element_text( angle = 90)
+  ) +
+  ylim(0, NA) +
+  labs(
+    title = "Normalized Expression",
+    x = "Sample",
+    y = "Normalized counts"
+  )
+```
+
+
+## Plot variance stabilized data
+
+```{r plot-vsd-lncRNA}
+Apul_counts_lncRNA_vsd_long <- Apul_counts_lncRNA_vsd %>%
+  mutate(
+    Gene_id = row.names(Apul_counts_lncRNA_vsd)
+  ) %>%
+  pivot_longer(-Gene_id)
+
+Apul_counts_lncRNA_vsd_long %>%
+  ggplot(., aes(x = name, y = value)) +
+  geom_violin() +
+  geom_point() +
+  theme_bw() +
+  theme(
+    axis.text.x = element_text( angle = 90)
+  ) +
+  ylim(0, NA) +
+  labs(
+    title = "Variance Stabilized Expression",
+    x = "Sample",
+    y = "Variance stabilized data"
+  )
+```
+
+## Normalized expression levels
+
+Plot histograms of the normalized expression levels in each sample
+
+```{r norm-expression-level-histograms}
+# Melt the count matrix into long format
+Apul_counts_norm_melted <- melt(Apul_counts_lncRNA_norm, variable.name = "sample", value.name = "counts")
+
+# Plot the expression level histograms for each sample
+ggplot(Apul_counts_norm_melted, aes(x = counts)) +
+  geom_histogram(binwidth = 1, fill = "#408EC6", color = "black") +
+  scale_x_log10() +  # Optional: Log-transform the x-axis for better visualization
+  facet_wrap(~sample, scales = "free_y") +
+  labs(title = "Gene Expression Level Histogram for Each Sample",
+       x = "Expression Level (Counts)",
+       y = "Frequency") +
+  theme_minimal()
+```
+
+## Normalized transcript counts
+
+Check the total number of transcripts in each sample -- now that we've normalized the data these totals should be similar
+```{r norm-transcript-counts-plot}
+# Calculate the total number of transcripts for each sample
+total_transcripts_norm <- colSums(Apul_counts_lncRNA_norm)
+
+# Create a data frame for plotting
+total_transcripts_norm_df <- data.frame(sample = names(total_transcripts_norm),
+                                   totals = total_transcripts_norm)
+
+# Plot the total number of transcripts for each sample
+ggplot(total_transcripts_norm_df, aes(x = reorder(sample, totals), y = totals)) +
+  geom_bar(stat = "identity", fill = "#408EC6", color = "black") +
+  geom_text(aes(label = totals), vjust = -0.3, size = 3.5) +
+  labs(title = "Total Number of Transcripts per Sample",
+       x = "Sample",
+       y = "Total Transcripts") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate x-axis labels for readability
+```
+
+## PCA of variance stabilized data
+
+```{r PCA}
+plotPCA(vsd_Apul_lncRNA, intgroup="time.point")
+
+plotPCA(vsd_Apul_lncRNA, intgroup="colony.id")
+```
+Samples are strongly clustering by colony. Interestingly time point doesn't appear to influence clustering.
+
+## Sample clustering
+
+```{r sample-clustering}
+sample_dists <- dist(t(assay(vsd_Apul_lncRNA)))
+pheatmap(as.matrix(sample_dists), 
+         clustering_distance_rows = "euclidean", 
+         clustering_distance_cols = "euclidean", 
+         main="Sample Clustering")
+```
+Samples are strongly clustering by colony.
+
+## Heatmaps
+
+Of most variable variance stabilized lncRNA transcripts
+
+```{r heatmpas}
+# 75th quantile
+heat_colors <- rev(brewer.pal(12, "RdYlBu"))
+pheatmap(Apul_counts_lncRNA_vsd_q75, 
+         cluster_rows = TRUE,
+         cluster_cols = TRUE,
+         show_rownames = TRUE,
+         show_colnames = TRUE,
+         color = heat_colors,
+         scale="row")
+
+# 95th quantile
+pheatmap(Apul_counts_lncRNA_vsd_q95, 
+         cluster_rows = TRUE,
+         cluster_cols = TRUE,
+         show_rownames = TRUE,
+         show_colnames = TRUE,
+         color = heat_colors,
+         scale="row")
+```
+
