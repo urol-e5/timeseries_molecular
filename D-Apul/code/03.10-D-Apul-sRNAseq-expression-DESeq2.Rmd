@@ -82,7 +82,7 @@ colnames(Apul_counts_sRNA) <- paste(colnames(Apul_counts_sRNA), coldata[colnames
 rownames(coldata) <- paste(rownames(coldata), coldata$colony.id, coldata$time.point, sep = "_")
 
 # Remove sample 1E1_ACR-265_TP3 (outlier based on PCAs of unfiltered vsd data)
-Apul_counts_sRNA <- Apul_counts_sRNA %>% select(-'1E1_ACR-265_TP3')
+# Apul_counts_sRNA <- Apul_counts_sRNA %>% select(-'1E1_ACR-265_TP3')
 
 write.table(Apul_counts_sRNA, file = "../output/03.10-D-Apul-sRNAseq-expression-DESeq2/Apul_sRNA_ShortStack_counts_formatted.txt", sep = "\t", row.names = TRUE, col.names = TRUE, quote = FALSE)
 
@@ -183,7 +183,7 @@ colnames(Apul_counts_miRNA) <- paste(colnames(Apul_counts_miRNA), coldata[colnam
 rownames(coldata) <- paste(rownames(coldata), coldata$colony.id, coldata$time.point, sep = "_")
 
 # Remove sample 1E1_ACR-265_TP3 (outlier based on PCAs of unfiltered vsd data)
-Apul_counts_miRNA <- Apul_counts_miRNA %>% select(-'1E1_ACR-265_TP3')
+# Apul_counts_miRNA <- Apul_counts_miRNA %>% select(-'1E1_ACR-265_TP3')
 
 write.table(Apul_counts_miRNA, file = "../output/03.10-D-Apul-sRNAseq-expression-DESeq2/Apul_miRNA_ShortStack_counts_formatted.txt", sep = "\t", row.names = TRUE, col.names = TRUE, quote = FALSE)
 
@@ -427,7 +427,7 @@ head(coldata)
 ```{r check-rownames}
 
 # Remove outlier sample from the coldata, so that metadata and counts data columns will match for DESeq
-coldata <- coldata[!(rownames(coldata) %in% "1E1_ACR-265_TP3"), ]
+# coldata <- coldata[!(rownames(coldata) %in% "1E1_ACR-265_TP3"), ]
 
 # Alphabetize rownames of coldata and colnames of Apul_counts_sRNA
 coldata <- coldata[order(rownames(coldata)), ]
