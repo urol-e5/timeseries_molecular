@@ -568,7 +568,7 @@ WGCNA_pvals[WGCNA_pvals$trait < 0.05,] %>% rownames()
 ^includes Correlation between modules
 
 
-```{r}
+```{r, eval=FALSE}
 trait <- "timepoint"
 
 # Extract correlated modules
@@ -734,10 +734,21 @@ Or, prompting ChatGPT 4.o for a list of terms related to energy usage and/or sto
 - Regulation of fatty acid biosynthetic process (GO:0032869)
 - Glucose metabolic process (GO:0006006)
 
+E5 team evaluated a subset of these in `D-Apul/code/23-Apul-energetic-state.md`:
+
+- Glycolysis (GO:0006096)
+- Gluconeogenesis (GO:0006094)
+- Lipid catabolic process (GO:0016042)
+- Fatty acid beta-oxidation (GO:0006635)
+- Response to starvation (GO:0042594)
+- Lipid biosynthetic process (GO:0008610)
+- Protein catabolic process (GO:0030163)
+
+
 ```{r}
 # List GO terms of interest (CHANGE as desired)
 #GO_terms_interest <- c("GO:0009060", "GO:0006119", "GO:0061621", "GO:0006099")
-GO_terms_interest <- c("GO:0006096", "GO:0006091", "GO:0006099", "GO:0006119", "GO:0006635", "GO:0009150", "GO:0030163", "GO:0008610", "GO:0045721", "GO:0046467", "GO:0016042", "GO:0005975", "GO:0045722", "GO:0042594", "GO:0046034", "GO:0006094", "GO:0006629", "GO:0032869", "GO:0006006")
+GO_terms_interest <- c("GO:0006096", "GO:0006094", "GO:0016042", "GO:0006635", "GO:0042594", "GO:0008610", "GO:0030163")
 
 # Select genes that have been functionally annotated with at least on of the listed GO terms of interest
 GO_terms_genes_FA <- module_FA %>%
@@ -749,8 +760,10 @@ GO_terms_gene_counts <- Apul_genes %>%
 # Set file name (CHANGE as desired)
 # file_name_GO_FA <- paste0("../output/21-Apul-annotate-miRNA-mRNA-WGCNA/filtered-gene-sets/", "ATP_production", "_GO_terms_genes_FA.csv")
 # file_name_GO_counts <- paste0("../output/21-Apul-annotate-miRNA-mRNA-WGCNA/filtered-gene-sets/", "ATP_production", "_GO_terms_gene_counts.tab")
-file_name_GO_FA <- paste0("../output/21-Apul-annotate-miRNA-mRNA-WGCNA/filtered-gene-sets/", "energy_usage_storage", "_GO_terms_genes_FA.csv")
-file_name_GO_counts <- paste0("../output/21-Apul-annotate-miRNA-mRNA-WGCNA/filtered-gene-sets/", "energy_usage_storage", "_GO_terms_gene_counts.tab")
+# file_name_GO_FA <- paste0("../output/21-Apul-annotate-miRNA-mRNA-WGCNA/filtered-gene-sets/", "energy_usage_storage", "_GO_terms_genes_FA.csv")
+# file_name_GO_counts <- paste0("../output/21-Apul-annotate-miRNA-mRNA-WGCNA/filtered-gene-sets/", "energy_usage_storage", "_GO_terms_gene_counts.tab")
+file_name_GO_FA <- paste0("../output/21-Apul-annotate-miRNA-mRNA-WGCNA/filtered-gene-sets/", "energetic_state", "_GO_terms_genes_FA.csv")
+file_name_GO_counts <- paste0("../output/21-Apul-annotate-miRNA-mRNA-WGCNA/filtered-gene-sets/", "energetic_state", "_GO_terms_gene_counts.tab")
 
 write.csv(GO_terms_genes_FA, file_name_GO_FA, row.names=FALSE)
 write.table(GO_terms_gene_counts, file_name_GO_counts, row.names=FALSE, quote=FALSE, sep="\t")
