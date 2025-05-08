@@ -110,14 +110,16 @@ This is a table of all putative miRNA-mRNA binding predicted by miRanda, plus Pe
 
 ```{r}
 data <- read.csv("../output/14.1-Apul-miRNA-mRNA-coexpression-additional_inputs/miRanda-PCC-significant-mRNA_3UTR_5UTR.csv") %>% filter(!is.na(mirna))
+nrow(data)
 head(data)
 ```
 
-Set function to select genes of interest (ie those that have pvalue \< 0.05)
-
+For the purposes of functional annotation and enrichment, I don't care if an miRNA may bind to several locations of a given gene, and I don't want those duplicates being overrepresented during enrichment analysis.
 ```{r}
-topDiffGenes <- function(allScore) {
-return(allScore < 0.05)}
+# Simplify target genes to gene IDs only (no binding coordinates)
+data <- data %>% dplyr::select(-Target, -Score, -Energy_Kcal_Mol, -Subject_Aln, -Query_Aln, -Al_Len, -Subject_Identity, -Query_Identity) %>%
+  distinct()
+nrow(data)
 ```
 
 # FA of all miRNA targets
@@ -131,22 +133,40 @@ nrow(cor_bind_FA)
 nrow(cor_bind_FA[!is.na(cor_bind_FA$Gene.Ontology.IDs),])
 ```
 
-Of the 122274 putative miRNA targets predicted by miRanda with significant PCC, 40154 have available annotations
+Of the 71634 putative miRNA targets predicted by miRanda with significant PCC, 20294 have available annotations
 
 ```{r}
-high_cor_bind_FA <- cor_bind_FA[abs(cor_bind_FA$PCC.cor) > 0.5,]
+high0.5_cor_bind_FA <- cor_bind_FA[abs(cor_bind_FA$PCC.cor) > 0.5,]
 
-nrow(high_cor_bind_FA)
-nrow(high_cor_bind_FA[!is.na(high_cor_bind_FA$Gene.Ontology.IDs),])
+nrow(high0.5_cor_bind_FA)
+nrow(high0.5_cor_bind_FA[!is.na(high0.5_cor_bind_FA$Gene.Ontology.IDs),])
 ```
 
-Of the 16179 putative miRNA targets predicted by miRanda that that have highly correlated expression (magnitude of correlation > 0.5), 5307 have available annotations.
-
-Save
+Of the 9480 putative miRNA targets predicted by miRanda that that have highly correlated expression (magnitude of correlation > 0.5), 2711 have available annotations.
 
 ```{r}
+high0.6_cor_bind_FA <- cor_bind_FA[abs(cor_bind_FA$PCC.cor) > 0.6,]
+
+nrow(high0.6_cor_bind_FA)
+nrow(high0.6_cor_bind_FA[!is.na(high0.6_cor_bind_FA$Gene.Ontology.IDs),])
+```
+
+2090 have correlation of at least 0.6, and of those 601 are annotated
+
+```{r}
+high0.7_cor_bind_FA <- cor_bind_FA[abs(cor_bind_FA$PCC.cor) > 0.7,]
+
+nrow(high0.7_cor_bind_FA)
+nrow(high0.7_cor_bind_FA[!is.na(high0.7_cor_bind_FA$Gene.Ontology.IDs),])
+```
+
+314 have correlation of at least 0.7, and of those 86 are annotated
+
+
+Save
+```{r}
 write.csv(cor_bind_FA, "../output/27-Apul-mRNA-miRNA-interactions-topGO/miRNA_targets_FA.csv")
-write.csv(high_cor_bind_FA, "../output/27-Apul-mRNA-miRNA-interactions-topGO/miRNA_high_cor_targets_FA.csv")
+write.csv(high0.5_cor_bind_FA, "../output/27-Apul-mRNA-miRNA-interactions-topGO/miRNA_high0.5_cor_targets_FA.csv")
 ```
 
 # FE of specific miRNA's targets (all targets)
@@ -221,7 +241,7 @@ miRNA_topGO_FE("Cluster_9532", cor_bind_FA)
 
 Loop through all miRNA and run functional enrichment on the miRNA's targets (all predicted targets)
 
-```{r}
+```{r, cache=TRUE}
 
 interacting_miRNAs <- unique(cor_bind_FA$miRNA) %>% na.omit
 results_all_targets <- NULL  # initialize empty df
@@ -252,19 +272,19 @@ Save results
 write.csv(results_all_targets, "../output/27-Apul-mRNA-miRNA-interactions-topGO/miRNA_all_targets_topGO_FE.csv")
 ```
 
-# FE of specific miRNA's targets (high cor targets)
+# FE of specific miRNA's targets (high 0.5 cor targets)
 
-Loop through all miRNA and run functional enrichment on the miRNA's highly correlated targets
+Loop through all miRNA and run functional enrichment on the miRNA's highly correlated targets (PCC magnitude > 0.5)
 
-```{r}
+```{r, cache=TRUE}
 
-interacting_miRNAs_high <- unique(high_cor_bind_FA$miRNA) %>% na.omit
-results_high_cor_targets <- NULL  # initialize empty df
+interacting_miRNAs_high0.5 <- unique(high0.5_cor_bind_FA$miRNA) %>% na.omit
+results_high0.5_cor_targets <- NULL  # initialize empty df
 
-for(miRNA in interacting_miRNAs_high) {
+for(miRNA in interacting_miRNAs_high0.5) {
   
   # Run topGO enrichment function
-  miRNA_results <- miRNA_topGO_FE(miRNA, high_cor_bind_FA)
+  miRNA_results <- miRNA_topGO_FE(miRNA, high0.5_cor_bind_FA)
   
   # Only keep results if not empty
   if (nrow(miRNA_results) > 0) {
@@ -273,17 +293,89 @@ for(miRNA in interacting_miRNAs_high) {
     miRNA_results$miRNA <- miRNA
 
     # Bind to the accumulating results data frame
-    results_high_cor_targets <- rbind(results_high_cor_targets, miRNA_results)
+    results_high0.5_cor_targets <- rbind(results_high0.5_cor_targets, miRNA_results)
   }
 }
 
-head(results_high_cor_targets)
+head(results_high0.5_cor_targets)
 
 ```
 
 Save results
 
 ```{r}
-write.csv(results_high_cor_targets, "../output/27-Apul-mRNA-miRNA-interactions-topGO/miRNA_high_cor_targets_topGO_FE.csv")
+write.csv(results_high0.5_cor_targets, "../output/27-Apul-mRNA-miRNA-interactions-topGO/miRNA_high0.5_cor_targets_topGO_FE.csv")
+```
+
+
+# FE of specific miRNA's targets (high 0.6 cor targets)
+
+Loop through all miRNA and run functional enrichment on the miRNA's highly correlated targets (PCC magnitude > 0.6)
+
+```{r, cache=TRUE}
+
+interacting_miRNAs_high0.6 <- unique(high0.6_cor_bind_FA$miRNA) %>% na.omit
+results_high0.6_cor_targets <- NULL  # initialize empty df
+
+for(miRNA in interacting_miRNAs_high0.6) {
+  
+  # Run topGO enrichment function
+  miRNA_results <- miRNA_topGO_FE(miRNA, high0.6_cor_bind_FA)
+  
+  # Only keep results if not empty
+  if (nrow(miRNA_results) > 0) {
+    
+    # Add the miRNA source column
+    miRNA_results$miRNA <- miRNA
+
+    # Bind to the accumulating results data frame
+    results_high0.6_cor_targets <- rbind(results_high0.6_cor_targets, miRNA_results)
+  }
+}
+
+head(results_high0.6_cor_targets)
+
+```
+
+Save results
+
+```{r}
+write.csv(results_high0.6_cor_targets, "../output/27-Apul-mRNA-miRNA-interactions-topGO/miRNA_high0.6_cor_targets_topGO_FE.csv")
+```
+
+
+# FE of specific miRNA's targets (high 0.7 cor targets)
+
+Loop through all miRNA and run functional enrichment on the miRNA's highly correlated targets (PCC magnitude > 0.7)
+
+```{r, cache=TRUE}
+
+interacting_miRNAs_high0.7 <- unique(high0.7_cor_bind_FA$miRNA) %>% na.omit
+results_high0.7_cor_targets <- NULL  # initialize empty df
+
+for(miRNA in interacting_miRNAs_high0.7) {
+  
+  # Run topGO enrichment function
+  miRNA_results <- miRNA_topGO_FE(miRNA, high0.7_cor_bind_FA)
+  
+  # Only keep results if not empty
+  if (nrow(miRNA_results) > 0) {
+    
+    # Add the miRNA source column
+    miRNA_results$miRNA <- miRNA
+
+    # Bind to the accumulating results data frame
+    results_high0.7_cor_targets <- rbind(results_high0.7_cor_targets, miRNA_results)
+  }
+}
+
+head(results_high0.7_cor_targets)
+
+```
+
+Save results
+
+```{r}
+write.csv(results_high0.7_cor_targets, "../output/27-Apul-mRNA-miRNA-interactions-topGO/miRNA_high0.7_cor_targets_topGO_FE.csv")
 ```
 
