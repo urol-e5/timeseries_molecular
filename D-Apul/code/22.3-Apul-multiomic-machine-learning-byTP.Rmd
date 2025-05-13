@@ -1349,7 +1349,6 @@ for (i in 1:n_replicates) {
 }
 
 # Combine all results
-all_TM_highperf <- do.call(rbind, TM_list)
 all_MP_highperf <- do.call(rbind, MP_list)
 all_FI_highperf <- do.call(rbind, FI_list)
 ```
@@ -1439,6 +1438,9 @@ get_feature_importance_for_feature <- function(model) {
   data.frame(Predictor = rownames(coefs), Importance = abs(as.numeric(coefs)))
 }
 
+# Initialize list to save top predictors
+top_predictors <- list()
+
 # Loop over features, aggregate importance across replicates, and plot
 for (target_feature in all_features_highR2) {
   
@@ -1472,11 +1474,88 @@ for (target_feature in all_features_highR2) {
          x = "Predictor",
          y = "Mean Importance (across replicates)")
 
+  # Save top 5 most important predictors for later use
+  top5 <- mean_importance %>% 
+    slice_head(n = 5) %>%
+    mutate(Feature = target_feature)
+  
+  top_predictors[[target_feature]] <- top5
+  
   print(plot)
 }
 
 
 ```
+
+# Plot expression of genes and their predictors
+
+```{r, error=FALSE, warning=FALSE}
+# Put predictor expression in format with samples in columns
+full_pred_counts_t <- t(full_pred_counts)
+
+# Loop over each feature in the list
+for (feature in names(top_predictors)) {
+  
+  # Get top 5 predictors for this feature
+  top_df <- top_predictors[[feature]]
+  predictors <- top_df$Predictor
+  
+  # Combine feature and predictors
+  all_genes <- c(feature, predictors)
+  
+  # Check which genes are actually present
+  present_genes <- all_genes[all_genes %in% rownames(full_pred_counts_t) | all_genes %in% rownames(vsd_energetic_state_GO)]
+  
+  if (!(feature %in% rownames(vsd_energetic_state_GO))) {
+    warning(paste("Feature", feature, "not found in vsd_energetic_state_GO Skipping..."))
+    next
+  }
+
+  # Extract predictor expression (only those present)
+  predictor_expr <- full_pred_counts_t[intersect(predictors, rownames(full_pred_counts_t)), , drop = FALSE] %>% as.data.frame()
+
+  # Add the feature expression
+  feature_expr <- vsd_energetic_state_GO[feature, , drop = FALSE] %>% as.data.frame()
+  
+  # Combine into one data frame
+  combined_expr <- rbind(predictor_expr, feature_expr)
+  combined_expr$Gene <- rownames(combined_expr)
+  
+  # Convert to long format
+  expr_long <- combined_expr %>%
+    pivot_longer(-Gene, names_to = "Sample", values_to = "Expression")
+  
+  # Join with sample metadata
+  expr_long <- expr_long %>%
+    left_join(metadata, by = "Sample")
+  
+  # Plot, with colonies aggregated by timepoint
+  # p <- ggplot(expr_long, aes(x = interaction(Timepoint), y = Expression, color = Gene, group = Gene)) +
+  #   geom_point(alpha = 0.7) +
+  #   geom_smooth(se = FALSE, method = "loess") +
+  #   labs(title = paste("Expression of", feature, "and Top 5 Predictors"),
+  #        x = "Colony-Timepoint",
+  #        y = "Expression") +
+  #   theme_minimal() +
+  #   theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  
+  # Plot, faceted by colony
+  p <- ggplot(expr_long, aes(x = Timepoint, y = Expression, color = Gene, group = Gene)) +
+  geom_point(alpha = 0.7) +
+  geom_smooth(se = FALSE, method = "loess", linewidth = 0.8) +
+  facet_wrap(~ColonyID) +
+  labs(title = paste("Expression of", feature, "and Top 5 Predictors by Colony"),
+       x = "Timepoint",
+       y = "Expression") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+  
+  print(p)
+}
+```
+
+
 
 # Functions of well-predicted genes
 
@@ -1484,6 +1563,13 @@ for (target_feature in all_features_highR2) {
 all_features_highR2_FA <- energetic_state_GO[energetic_state_GO$gene %in% all_features_highR2,]
 print(all_features_highR2_FA)
 ```
+
+
+
+
+
+
+
 
 Notes:
 
