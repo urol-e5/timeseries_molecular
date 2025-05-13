@@ -1564,6 +1564,10 @@ all_features_highR2_FA <- energetic_state_GO[energetic_state_GO$gene %in% all_fe
 print(all_features_highR2_FA)
 ```
 
+Save
+```{r}
+write.csv(all_features_highR2_FA, "../output/22.3-Apul-multiomic-machine-learning-byTP/energetic_state_highperf_FA.csv")
+```
 
 
 
