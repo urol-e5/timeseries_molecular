@@ -1,0 +1,122 @@
+---
+title: "26-Apul-BS-SNPs"
+author: "Steven Roberts"
+date: "`r format(Sys.time(), '%d %B, %Y')`"  
+output: 
+  github_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+    html_preview: true
+  html_document:
+    theme: readable
+    highlight: zenburn
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+editor_options: 
+  markdown: 
+    wrap: sentence
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+library(tidyverse)
+library(kableExtra)
+library(DT)
+library(Biostrings)
+library(tm)
+knitr::opts_chunk$set(
+  echo = TRUE,         # Display code chunks
+  eval = FALSE,         # Evaluate code chunks
+  warning = FALSE,     # Hide warnings
+  message = FALSE,     # Hide messages
+  fig.width = 6,       # Set plot width in inches
+  fig.height = 4,      # Set plot height in inches
+  fig.align = "center", # Align plots to the center
+  comment = ""         # Prevents appending '##' to beginning of lines in code output
+)
+```
+
+
+Annotating CpGs .... 
+
+methylation calls derived at 
+https://sr320.github.io/tumbling-oysters/posts/37-Apul-meth/
+
+Now there are files for each of the Apul samples 
+
+@ https://gannet.fish.washington.edu/seashell/bu-github/timeseries_molecular/D-Apul/output/15.5-Apul-bismark/
+
+Maybe do all CpG in genome..
+
+# genome
+
+```{r, engine='bash'}
+head ../data/Apulcra-genome.fa
+```
+
+
+```{r}
+library(seqinr)
+
+# Replace 'input.fasta' with the name of your multi-sequence fasta file
+input_file <- "../data/Apulcra-genome.fa"
+sequences <- read.fasta(input_file)
+
+```
+
+
+```{r}
+# Set the seed for reproducibility (optional)
+set.seed(42)
+
+number_of_sequences_to_select <- 10
+
+if (length(sequences) < number_of_sequences_to_select) {
+  warning("There are fewer than 10 sequences in the fasta file. All sequences will be selected.")
+  number_of_sequences_to_select <- length(sequences)
+}
+
+selected_indices <- sample(length(sequences), number_of_sequences_to_select)
+selected_sequences <- sequences[selected_indices]
+
+```
+
+
+```{r}
+# Replace 'output.fasta' with your desired output file name
+output_file <- "../output/28-Apul-CpG-Annotation/output.fasta"
+write.fasta(selected_sequences, names(selected_sequences), output_file, open = "w")
+```
+
+
+```{bash}
+#likely will not need; fix issue where gff and fa name did not match
+# sed -i 's/>lcl|/>/g' ../output/10_seqs.fa
+```
+
+
+```{bash}
+#needed downstream for IGV
+/home/shared/samtools-1.12/samtools faidx \
+../output/28-Apul-CpG-Annotation/output.fasta
+```
+
+
+```{bash}
+fuzznuc -sequence ../output/28-Apul-CpG-Annotation/output.fasta -pattern CG -rformat gff -outfile ../output/28-Apul-CpG-Annotation/CGoutput-10seq.gff
+```
+
+
+```{bash}
+tail ../output/28-Apul-CpG-Annotation/CGoutput-10seq.gff
+```
+
+# Full run
+
+```{bash}
+fuzznuc -sequence ../data/Apulcra-genome.fa -pattern CG -rformat gff -outfile ../output/28-Apul-CpG-Annotation/Apul-CG-motifs.gff
+```
