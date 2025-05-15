@@ -192,6 +192,13 @@ lipid_quant_long<-lipid_quant_long%>%
   mutate(nmol.g_plasma.corr=nmol.g_plasma-mean_blank)
 ```
 
+Replace negative values with 0 after blank correction. 
+
+```{r}
+lipid_quant_long<-lipid_quant_long%>%
+  mutate(nmol.g_plasma.corr = if_else(nmol.g_plasma.corr < 0, 0, nmol.g_plasma.corr))
+```
+
 ### Remove lipids not detected in all samples 
 
 How many lipids do we have now? 
@@ -200,7 +207,7 @@ length(levels(as.factor(lipid_quant_long$lipid)))
 ```
 1360 total lipids
 
-Remove lipids where there are NA's in one or more samples. We cannot reliably say that if a lipid was not quantified in a sample that it was truly absent. So we will remove those not quantified here rather than replacing them with "true" 0's.    
+Remove lipids where there are NA's in one or more samples marked as "NA" from the facility. 
 
 ```{r}
 lipid_quant_long <- lipid_quant_long %>%
@@ -215,22 +222,13 @@ length(levels(as.factor(lipid_quant_long$lipid)))
 ```
 491 total lipids
 
-Remove lipids where there is a value <0 in one or more samples.  
-
-```{r}
-lipid_quant_long <- lipid_quant_long %>%
-  group_by(lipid) %>%
-  filter(!(any(type == "sample" & nmol.g_plasma.corr<0))) %>%
-  ungroup()
-```
-
 How many lipids do we have now? 
 ```{r}
 length(levels(as.factor(lipid_quant_long$lipid)))
 ```
-467 total lipids
+491 total lipids
 
-We now have 467 lipids that pass filtering. 
+We now have 491 lipids that pass filtering. 
 
 ### Normalize to tissue input 
 
@@ -382,6 +380,13 @@ lipid_quant_long2<-lipid_quant_long2%>%
   mutate(nmol.g_plasma.corr=nmol.g_plasma-mean_blank)
 ```
 
+Replace negative values with 0 after blank correction. 
+
+```{r}
+lipid_quant_long2<-lipid_quant_long2%>%
+  mutate(nmol.g_plasma.corr = if_else(nmol.g_plasma.corr < 0, 0, nmol.g_plasma.corr))
+```
+
 ### Remove lipids not detected in all samples 
 
 How many lipids do we have now? 
@@ -390,7 +395,7 @@ length(levels(as.factor(lipid_quant_long2$lipid)))
 ```
 1561 total lipids
 
-Remove lipids where there are NA's in one or more samples. We cannot reliably say that if a lipid was not quantified in a sample that it was truly absent. So we will remove those not quantified here rather than replacing them with "true" 0's.    
+Remove lipids where there are NA's in one or more samples marked as NA from the facility.     
 
 ```{r}
 lipid_quant_long2 <- lipid_quant_long2 %>%
@@ -405,22 +410,13 @@ length(levels(as.factor(lipid_quant_long2$lipid)))
 ```
 379 total lipids
 
-Remove lipids where there is a value <0 in one or more samples.  
-
-```{r}
-lipid_quant_long2 <- lipid_quant_long2 %>%
-  group_by(lipid) %>%
-  filter(!(any(type == "sample" & nmol.g_plasma.corr<0))) %>%
-  ungroup()
-```
-
 How many lipids do we have now? 
 ```{r}
 length(levels(as.factor(lipid_quant_long2$lipid)))
 ```
-366 total lipids
+379 total lipids
 
-We now have 366 lipids that pass filtering. 
+We now have 379 lipids that pass filtering. 
 
 ### Normalize to tissue input 
 
@@ -464,7 +460,7 @@ We now have data for 98 samples.
 
 ## Filtering based on PBQC 
 
-Only keep lipids that have a value >0 in all sampes and were measured in at least one of the PBQCs.  
+Only keep lipids that have a value >0 in all samples and were measured in at least one of the PBQCs.  
 
 ```{r}
 length(levels(as.factor(lipid_quant_long_all$lipid)))
@@ -487,8 +483,9 @@ lipid_quant_long_all<-lipid_quant_long_all%>%
   filter(!lipid %in% na_columns)
 
 length(levels(as.factor(lipid_quant_long_all$lipid)))
+levels(as.factor(lipid_quant_long_all$lipid))
 ```
-We have 355 lipids in the dataset that are measured in all samples. 
+We have 371 lipids in the dataset that are measured in all samples. 
 
 Remove lipids not measured in the PBQC (if any)
 
@@ -573,9 +570,9 @@ emm<-emmeans(model, ~species|timepoint)
 pairs(emm)
 ```
 
-There is a significant effect of species and there is a change over time in Pocillopora (decreases with time). Porites and Acropora total lipid is stable over time.  
+There is a significant effect of species and an interactive effect of species x time.  
 
-Pocillopora has more lipid that Acropora and Porites at TP1. Values are not different during other time points.  
+Porites is stable over time. Pocillopora has higher lipid at TP1 than other time points. Acropora is stable over time.  
 
 ## Plot PCA of species effects  
 
@@ -600,7 +597,7 @@ permanova<-adonis2(vegan ~ species * timepoint, data = data_wide, method='eu')
 permanova
 ```
 
-Significant differences in lipid profile between species and time points. 
+Significant differences in lipid profile between species and time points and an interaction. 
 
 View by species 
 ```{r}
@@ -875,7 +872,6 @@ There are a lot of TGs and some FFAs that are strong VIPs between species.
 ### PLSDA and VIPs between time points within species 
 
 Pocillopora was the only species that showed a multivariate difference in lipid concentration across time. 
-
 #### Pocillopora 
 
 Generate a PLS-DA and plot.  
@@ -1287,7 +1283,7 @@ model<-tg_sat%>%
   
   lmer(percent_composition ~ species * lipid + (1|colony:species) + (1|timepoint), data=.)
 
-anova(model)
+#anova(model)
 ```
 
 This model didn't run, return to this.     
@@ -2544,6 +2540,66 @@ PI	Phosphoinositides
 PS	Phosphoserine
 SM	Sphingomyelin
 TG	Triacylglycerol
+
+## Plot total TAGS 
+
+```{r}
+tag_plot1<-class_comp_long%>%
+  filter(class=="TG")%>%
+  group_by(colony, species, timepoint, class)%>%
+  summarise(mean=mean(percent_composition, na.rm=TRUE))%>%
+  
+  ggplot(aes(x = timepoint, y = mean, colour = species, fill=species)) +
+  geom_point(alpha=0.2) +
+  geom_line(aes(group=colony), alpha=0.2)+
+  geom_smooth(aes(group=species), se=FALSE)+
+  labs(x = "Time Point", y = "% total lipid", title = "TAGs") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+        legend.position="right");tag_plot1
+```
+
+Run a model
+```{r}
+model<-class_comp_long%>%
+  filter(class=="TG")%>%
+  
+  lmer(percent_composition ~ species * timepoint + (1|colony), data=.)
+
+anova(model)
+```
+
+Significant over time, and lower in Acropora.  
+
+## Plot total FFAs 
+
+```{r}
+ffa_plot1<-class_comp_long%>%
+  filter(class=="FFA")%>%
+  group_by(colony, species, timepoint, class)%>%
+  summarise(mean=mean(percent_composition, na.rm=TRUE))%>%
+  
+  ggplot(aes(x = timepoint, y = mean, colour = species, fill=species)) +
+  geom_point(alpha=0.2) +
+  geom_line(aes(group=colony), alpha=0.2)+
+  geom_smooth(aes(group=species), se=FALSE)+
+  labs(x = "Time Point", y = "% total lipid", title = "FFAs") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+        legend.position="right");ffa_plot1
+```
+
+Run a model
+```{r}
+model<-class_comp_long%>%
+  filter(class=="FFA")%>%
+  
+  lmer(percent_composition ~ species * timepoint + (1|colony), data=.)
+
+anova(model)
+```
+
+Significant over time, and higher in Acropora. Seems higher at TP3.  
 
 ## Plot PCA of samples 
 
@@ -4072,3 +4128,383 @@ vip_abund_plot<-vip_lipids%>%
     legend.title=element_text(size=12, face="bold")
   );vip_abund_plot
 ```
+
+# 7. Lipid signatures of energetic state (preliminary)
+
+Calculate the following indicators from literature search:  
+
+1. Concentration of palmitic acid (C16:0) (higher = more in homologous symbiotic relationship; Matthews et al. 2018)
+2. Concentration of oleic acid (C18:1n-9) (higher = more in homologous symbiotic relationship; Matthews et al. 2018)
+3. Linoleic acid (C18:2n-6) (higher = more in homologous symbiotic relationship; Matthews et al. 2018)
+4. PUFA:SFA ratio (higher ratio = more feeding/heterotrophy, lower ratio = more autotrophic/starved; Kim et al. 2021)
+5. EPA (20:5n-3):DHA (22:6n-3) ratio (higher ratio = more autotrophic; Kim et al. 2021)
+6. Concentration of 18:3n-6 (symbiosis marker; Radice et al. 2019)
+7. Concentration of 18:4n-3 (symbiosis marker; Radice et al. 2019)
+8. Concentration of 20:4n-6 (heterotrophy marker; Radice et al. 2019)
+9. Total TAG lipids (done above)
+10. Total FA lipids (done above)
+11. Total all lipids (done above) 
+12. FFA:TAG ratio 
+
+## Palmitic acid (16:0)
+
+```{r}
+palmitic<-lipid_comp_long %>%
+  filter(class=="FA")%>%
+  filter(lipid=="FA 16:0")
+```
+
+Plot over time 
+
+```{r}
+palm_plot1<-palmitic%>%
+  group_by(colony, species, timepoint, lipid)%>%
+  summarise(mean=mean(percent_composition, na.rm=TRUE))%>%
+  
+  ggplot(aes(x = timepoint, y = mean, colour = species, fill=species)) +
+  geom_point(alpha=0.2) +
+  geom_line(aes(group=colony), alpha=0.2)+
+  geom_smooth(aes(group=species), se=FALSE)+
+  labs(x = "Time Point", y = "% total FFA composition", title = "Palmitic Acid (16:0)") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+        legend.position="right");palm_plot1
+```
+
+Run a model
+```{r}
+model<-palmitic%>%
+  
+  lmer(percent_composition ~ species * timepoint + (1|colony), data=.)
+
+anova(model)
+```
+
+Significant over time, and higher in Porites. 
+
+## Oleic acid (18:1)
+
+```{r}
+oleic<-lipid_comp_long %>%
+  filter(class=="FA")%>%
+  filter(lipid=="FA 18:1")
+```
+
+Plot over time 
+
+```{r}
+oleic_plot1<-oleic%>%
+  group_by(colony, species, timepoint, lipid)%>%
+  summarise(mean=mean(percent_composition, na.rm=TRUE))%>%
+  
+  ggplot(aes(x = timepoint, y = mean, colour = species, fill=species)) +
+  geom_point(alpha=0.2) +
+  geom_line(aes(group=colony), alpha=0.2)+
+  geom_smooth(aes(group=species), se=FALSE)+
+  labs(x = "Time Point", y = "% total FFA composition", title = "Oleic Acid (18:0)") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+        legend.position="right");oleic_plot1
+```
+
+Run a model
+```{r}
+model<-oleic%>%
+  
+  lmer(percent_composition ~ species * timepoint + (1|colony), data=.)
+
+anova(model)
+```
+
+Significant between species (higher in POR), but no effect of time. 
+
+## Linoleic acid (18:2)
+
+```{r}
+linoleic<-lipid_comp_long %>%
+  filter(class=="FA")%>%
+  filter(lipid=="FA 18:2")
+```
+
+Plot over time 
+
+```{r}
+linoleic_plot1<-linoleic%>%
+  group_by(colony, species, timepoint, lipid)%>%
+  summarise(mean=mean(percent_composition, na.rm=TRUE))%>%
+  
+  ggplot(aes(x = timepoint, y = mean, colour = species, fill=species)) +
+  geom_point(alpha=0.2) +
+  geom_line(aes(group=colony), alpha=0.2)+
+  geom_smooth(aes(group=species), se=FALSE)+
+  labs(x = "Time Point", y = "% total FFA composition", title = "Linoleic Acid (18:2)") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+        legend.position="right");linoleic_plot1
+```
+
+Run a model
+```{r}
+model<-linoleic%>%
+  
+  lmer(percent_composition ~ species * timepoint + (1|colony), data=.)
+
+anova(model)
+```
+
+Significant over time and between species (higher in POR).  
+
+## PUFA:SFA
+
+PUFA = 2 or more double bonds
+SFA = 0 double bonds 
+
+Calculate the sum percent composition of all PUFAs and all SFAs.  
+
+```{r}
+pufa_sfa <- lipid_comp_long %>%
+  filter(class=="FA")%>%
+  
+  # Extract the number after ":" and convert to numeric
+  mutate(double_bonds = as.numeric(str_extract(lipid, "(?<=:)\\d+"))) %>%
+  # Identify PUFA and SFA
+  mutate(
+    is_pufa = double_bonds >= 2,
+    is_sfa = double_bonds == 0
+  ) %>%
+  # Group and summarize both PUFA and SFA
+  group_by(colony, species, timepoint) %>%
+  summarize(
+    pufa = sum(percent_composition[is_pufa], na.rm = TRUE),
+    sfa = sum(percent_composition[is_sfa], na.rm = TRUE)
+  ) %>%
+  ungroup()%>%
+  mutate(ratio = pufa / sfa); pufa_sfa
+```
+
+Plot PUFA:SFA ratio. 
+
+```{r}
+pufa_plot<-pufa_sfa%>%
+  group_by(colony, species, timepoint)%>%
+  summarise(mean=mean(ratio, na.rm=TRUE))%>%
+  
+  ggplot(aes(x = timepoint, y = mean, colour = species, fill=species)) +
+  geom_point(alpha=0.2) +
+  geom_line(aes(group=colony), alpha=0.2)+
+  geom_smooth(aes(group=species), se=FALSE)+
+  labs(x = "Time Point", y = "PUFA:SFA Ratio", title = "PUFA : SFA") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+        legend.position="right");pufa_plot
+```
+
+The ratio is higher in Pocillopora, indicating it is more heterotrophic/more feeding activity. In Porites, this appears to increase in Sept-Nov. In contrast, Porites is lower, indicating more autotrophy/less heterotrophy in the Jan - March time point.   
+
+Run a model
+```{r}
+model<-pufa_sfa%>%
+  
+  lmer(ratio ~ species * timepoint + (1|colony), data=.)
+
+anova(model)
+```
+
+Significant species x time interaction.  
+
+## EPA (20:5):DHA (22:6)
+
+Create a new data frame with EPA and DHA and calculate the ratio
+
+```{r}
+epa_dha<-lipid_comp_long %>%
+  filter(class=="FA")%>%
+  filter(lipid %in% c("FA 20:5", "FA 22:6"))
+```
+
+Calculate the ratio. 
+
+```{r}
+epa_dha<-epa_dha%>%
+  pivot_wider(names_from = lipid, values_from = percent_composition)%>%
+  mutate(ratio=`FA 20:5`/`FA 22:6`)
+```
+
+Plot EPA:DHA ratio. 
+
+```{r}
+ratio_plot1<-epa_dha%>%
+  group_by(colony, species, timepoint)%>%
+  summarise(mean=mean(ratio, na.rm=TRUE))%>%
+  
+  ggplot(aes(x = timepoint, y = mean, colour = species, fill=species)) +
+  geom_point(alpha=0.2) +
+  geom_line(aes(group=colony), alpha=0.2)+
+  geom_smooth(aes(group=species), se=FALSE)+
+  labs(x = "Time Point", y = "EPA:DHA Ratio", title = "EPA (20:5) : DHA (22:6)") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+        legend.position="right");ratio_plot1
+```
+
+The ratio is higher in Acropora, indicating it is more autotrophic. In contrast, Porites is lower, indicating less autotrophy/more heterotrophy. Conserved strategy over time.   
+
+Run a model
+```{r}
+model<-epa_dha%>%
+  
+  lmer(ratio ~ species * timepoint + (1|colony), data=.)
+
+anova(model)
+```
+
+Significant effect between species (higher in ACR), but no change over time. 
+
+## 18:3
+
+```{r}
+fa1<-lipid_comp_long %>%
+  filter(class=="FA")%>%
+  filter(lipid=="FA 18:3")
+```
+
+Plot over time 
+
+```{r}
+fa1_plot1<-fa1%>%
+  group_by(colony, species, timepoint, lipid)%>%
+  summarise(mean=mean(percent_composition, na.rm=TRUE))%>%
+  
+  ggplot(aes(x = timepoint, y = mean, colour = species, fill=species)) +
+  geom_point(alpha=0.2) +
+  geom_line(aes(group=colony), alpha=0.2)+
+  geom_smooth(aes(group=species), se=FALSE)+
+  labs(x = "Time Point", y = "% total FFA composition", title = "FA 18:3") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+        legend.position="right");fa1_plot1
+```
+
+Run a model
+```{r}
+model<-fa1%>%
+  
+  lmer(percent_composition ~ species * timepoint + (1|colony), data=.)
+
+anova(model)
+```
+
+Significant over species but not time.   
+
+## 18:4
+
+```{r}
+fa2<-lipid_comp_long %>%
+  filter(class=="FA")%>%
+  filter(lipid=="FA 18:4")
+```
+
+Plot over time 
+
+```{r}
+fa2_plot1<-fa2%>%
+  group_by(colony, species, timepoint, lipid)%>%
+  summarise(mean=mean(percent_composition, na.rm=TRUE))%>%
+  
+  ggplot(aes(x = timepoint, y = mean, colour = species, fill=species)) +
+  geom_point(alpha=0.2) +
+  geom_line(aes(group=colony), alpha=0.2)+
+  geom_smooth(aes(group=species), se=FALSE)+
+  labs(x = "Time Point", y = "% total FFA composition", title = "FA 18:4") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+        legend.position="right");fa2_plot1
+```
+
+Run a model
+```{r}
+model<-fa2%>%
+  
+  lmer(percent_composition ~ species * timepoint + (1|colony), data=.)
+
+anova(model)
+```
+
+Significant species x time effect. 
+
+## 20:4
+
+```{r}
+fa3<-lipid_comp_long %>%
+  filter(class=="FA")%>%
+  filter(lipid=="FA 20:4")
+```
+
+Plot over time 
+
+```{r}
+fa3_plot1<-fa3%>%
+  group_by(colony, species, timepoint, lipid)%>%
+  summarise(mean=mean(percent_composition, na.rm=TRUE))%>%
+  
+  ggplot(aes(x = timepoint, y = mean, colour = species, fill=species)) +
+  geom_point(alpha=0.2) +
+  geom_line(aes(group=colony), alpha=0.2)+
+  geom_smooth(aes(group=species), se=FALSE)+
+  labs(x = "Time Point", y = "% total FFA composition", title = "FA 20:4") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+        legend.position="right");fa3_plot1
+```
+
+Run a model
+```{r}
+model<-fa3%>%
+  
+  lmer(percent_composition ~ species * timepoint + (1|colony), data=.)
+
+anova(model)
+```
+
+Significant species and time effect. 
+
+## TAG:FA Ratios 
+
+Calculate FFA:TAG ratio of percent composition of total lipid pool. A higher ratio indicates relative increases in FFA compared to TAGs. 
+
+```{r}
+ffa_tag<-class_comp_long%>%
+  filter(class %in% c("FFA", "TG"))%>%
+  pivot_wider(names_from=class, values_from=percent_composition)%>%
+  mutate(ratio=FFA/TG);ffa_tag
+```
+
+Plot EPA:DHA ratio. 
+
+```{r}
+ratio_plot2<-ffa_tag%>%
+  group_by(colony, species, timepoint)%>%
+  summarise(mean=mean(ratio, na.rm=TRUE))%>%
+  
+  ggplot(aes(x = timepoint, y = mean, colour = species, fill=species)) +
+  geom_point(alpha=0.2) +
+  geom_line(aes(group=colony), alpha=0.2)+
+  geom_smooth(aes(group=species), se=FALSE)+
+  labs(x = "Time Point", y = "FFA:TAG Ratio", title = "FFA:TAG") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+        legend.position="right");ratio_plot2
+```
+
+The ratio is higher in Acropora, indicating it has more FFA relative to stored lipids. In contrast, Porites is lower, indicating more stored lipids.  
+
+Run a model
+```{r}
+model<-ffa_tag%>%
+  
+  lmer(ratio ~ species * timepoint + (1|colony), data=.)
+
+anova(model)
+```
+
+Significant effect between species (higher in ACR), and change over time.  
