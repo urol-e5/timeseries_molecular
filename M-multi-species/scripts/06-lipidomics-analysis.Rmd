@@ -2567,6 +2567,9 @@ model<-class_comp_long%>%
   lmer(percent_composition ~ species * timepoint + (1|colony), data=.)
 
 anova(model)
+
+emm<-emmeans(model, ~ timepoint | species)
+pairs(emm)
 ```
 
 Significant over time, and lower in Acropora.  
@@ -2597,6 +2600,9 @@ model<-class_comp_long%>%
   lmer(percent_composition ~ species * timepoint + (1|colony), data=.)
 
 anova(model)
+
+emm<-emmeans(model, ~timepoint | species)
+pairs(emm)
 ```
 
 Significant over time, and higher in Acropora. Seems higher at TP3.  
@@ -4178,6 +4184,9 @@ model<-palmitic%>%
   lmer(percent_composition ~ species * timepoint + (1|colony), data=.)
 
 anova(model)
+
+emm<-emmeans(model, ~timepoint|species)
+pairs(emm)
 ```
 
 Significant over time, and higher in Porites. 
@@ -4250,6 +4259,9 @@ model<-linoleic%>%
   lmer(percent_composition ~ species * timepoint + (1|colony), data=.)
 
 anova(model)
+
+emm<-emmeans(model, ~timepoint | species)
+pairs(emm)
 ```
 
 Significant over time and between species (higher in POR).  
@@ -4300,7 +4312,6 @@ pufa_plot<-pufa_sfa%>%
 ```
 
 The ratio is higher in Pocillopora, indicating it is more heterotrophic/more feeding activity. In Porites, this appears to increase in Sept-Nov. In contrast, Porites is lower, indicating more autotrophy/less heterotrophy in the Jan - March time point.   
-
 Run a model
 ```{r}
 model<-pufa_sfa%>%
@@ -4428,6 +4439,9 @@ model<-fa2%>%
   lmer(percent_composition ~ species * timepoint + (1|colony), data=.)
 
 anova(model)
+
+emm<-emmeans(model, ~ timepoint | species)
+pairs(emm)
 ```
 
 Significant species x time effect. 
@@ -4464,6 +4478,9 @@ model<-fa3%>%
   lmer(percent_composition ~ species * timepoint + (1|colony), data=.)
 
 anova(model)
+
+emm<-emmeans(model, ~ timepoint | species)
+pairs(emm)
 ```
 
 Significant species and time effect. 
@@ -4505,6 +4522,9 @@ model<-ffa_tag%>%
   lmer(ratio ~ species * timepoint + (1|colony), data=.)
 
 anova(model)
+
+emm<-emmeans(model, ~ timepoint | species)
+pairs(emm)
 ```
 
 Significant effect between species (higher in ACR), and change over time.  
