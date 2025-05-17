@@ -12,7 +12,9 @@ editor_options:
   chunk_output_type: console
 --- 
 
-This post analyzes metabolomics data for the E5 timeseries project.  
+This post analyzes metabolomics data for the E5 timeseries project. 
+
+Next steps: evaulate outliers, investigate changes over time, correlate with lipids
 
 # Set Up    
 
@@ -585,15 +587,6 @@ vip_abund_plot<-vip_lipids%>%
   );vip_abund_plot
 ```
 
-
-
-
-
-
-
-
-
-
 ### Acropora 
 
 Generate a PLS-DA and plot.  
@@ -666,6 +659,90 @@ vip_abund_plot<-vip_lipids%>%
   ylab("abundance")+
   xlab("Timepoint")+
   ggtitle("VIP Abundance - ACR")+
+  theme_classic()+
+  theme(
+    axis.text=element_text(color="black", size=12), 
+    axis.text.x=element_text(angle=45, hjust=1), 
+    axis.title=element_text(color="black", face="bold", size=12),
+    plot.margin=margin(1,1,1,1, "cm"),
+    legend.text=element_text(size=12),
+    legend.title=element_text(size=12, face="bold")
+  );vip_abund_plot
+```
+
+
+### Porites 
+
+Generate a PLS-DA and plot.  
+```{r, results=FALSE}
+#assigning datasets 
+X_metabolites <- data_wide%>%filter(species=="Porites")
+
+levels(as.factor(X_metabolites$timepoint))
+
+Y_metabolites <- as.factor(X_metabolites$timepoint) #select treatment names
+Y_metabolites
+
+X_metabolites<-X_metabolites[5:145] #pull only data columns
+
+# run PLSDA 
+MyResult.plsda <- plsda(X_metabolites,Y_metabolites) # 1 Run the method
+
+timepoint_cols<-c("darkgray", "orange", "blue", "purple") 
+            
+plotIndiv(MyResult.plsda, col=timepoint_cols, ind.names = FALSE, legend=TRUE, legend.title = "POR Metabolites ~ Timepoint", ellipse = FALSE, title="", style = "graphics", centroid=FALSE, point.lwd = 2, cex=2)
+```
+
+View the VIP lipids that are most highly differentiating lipids between timepoints.  
+
+```{r}
+#extract
+metabolite_VIP <- PLSDA.VIP(MyResult.plsda)
+metabolite_VIP_df <- as.data.frame(metabolite_VIP[["tab"]])
+metabolite_VIP_df
+
+# Converting row names to column
+VIP_table <- rownames_to_column(metabolite_VIP_df, var = "Metabolite")
+
+#filter for VIP > 1
+VIP_1 <- VIP_table %>% 
+  filter(VIP >= 1)
+
+#plot
+VIP_list_plot<-VIP_1 %>%
+            arrange(VIP) %>%
+  
+  ggplot( aes(x = VIP, y = reorder(Metabolite,VIP,sum))) +
+  geom_point() +
+  ylab("Metabolite") +
+  xlab("VIP Score") +
+  ggtitle("POR Metabolite VIP - Timepoint") +
+  theme_bw() + theme(panel.border = element_rect(linetype = "solid", color = "black"), panel.grid.major = element_blank(), #Makes background theme white
+                     panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"));VIP_list_plot
+```
+
+Filter dataframe by VIP lipids and plot presence in each time point.  
+```{r}
+vip_list<-c(VIP_1$Metabolite)
+
+vip_lipids<-data_im%>%
+  filter(compound %in% vip_list)%>%
+  filter(species=="Porites")
+```
+
+Plot abundance of these metabolites in each sample. 
+
+```{r}
+vip_abund_plot<-vip_lipids%>%
+  
+  ggplot(aes(x=timepoint, y=rel.quant.ug, color=timepoint, group=timepoint))+
+  facet_wrap(~compound, scales="free")+
+  geom_boxplot(aes(group=interaction(compound, timepoint)),position=position_dodge(0.9))+
+  geom_point(position=position_jitterdodge(0.2))+
+  scale_color_manual(values=c("darkgray", "orange", "blue", "purple"), name="Timepoint")+
+  ylab("abundance")+
+  xlab("Timepoint")+
+  ggtitle("VIP Abundance - POR")+
   theme_classic()+
   theme(
     axis.text=element_text(color="black", size=12), 
@@ -774,9 +851,6 @@ Significant species x time.
 Higher at TP1 and TP3 in Acropora with TP4 as the lowest. Lower at TP1 in Pocillopora. Stable in Porites. 
 
 
-
-
-
 ## G6P 
 
 ```{r}
@@ -814,9 +888,6 @@ pairs(emm)
 ```
 
 No changes. 
-
-
-
 
 
 ## Glutamine 
@@ -857,10 +928,6 @@ pairs(emm)
 
 Significant species x time interaction. Higher at TP4 in Porites. Stable in Acropora and Pocillopora.  
 
-
-
-
-
 ## Glutamic acid/Glutamate 
 
 ```{r}
@@ -898,10 +965,6 @@ pairs(emm)
 ```
 
 Significant difference between species, no effect of time. Lower in Porites.  
-
-
-
-
 
 ## Glycerol-3-P 
 
@@ -942,9 +1005,6 @@ pairs(emm)
 Significant difference between species, no effect of time. Higher in Pocillopora.  
 
 
-
-
-
 ## Inositol 
 
 ```{r}
@@ -982,10 +1042,6 @@ pairs(emm)
 ```
 
 Significant difference between species, no effect of time. Higher in Porites.   
-
-
-
-
 
 ## Octanoyl-L-Carnitine (8:0 Carnitine) 
 
@@ -1066,7 +1122,3 @@ pairs(emm)
 ```
 
 Significant species x time interaction. Stable in Porites and Pocillopora. Higher at TP1 in Acropora decreasing over time.   
-
-
-
-
