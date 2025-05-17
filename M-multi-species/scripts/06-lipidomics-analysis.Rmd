@@ -138,11 +138,11 @@ lipid_quant_long<-lipid_quant_long%>%
                       if_else(sample=="QC_01", "QC", 
                           if_else(sample=="QC_02", "QC", "sample"))))%>%
   
-  mutate(protein.ug=if_else(sample=="L26", 340, 
-                         if_else(sample=="L39", 139, 
-                                 if_else(sample=="L67", 7, 
-                                         if_else(sample=="L80", 35, 
-                                                 if_else(sample=="L84", 186, NA))))))
+  mutate(protein.ug=if_else(sample=="L26", 340.2, 
+                         if_else(sample=="L39", 139.2, 
+                                 if_else(sample=="L67", 7.3, 
+                                         if_else(sample=="L80", 35.0, 
+                                                 if_else(sample=="L84", 185.9, NA))))))
 ```
 
 ### Filtering and normalizing 
