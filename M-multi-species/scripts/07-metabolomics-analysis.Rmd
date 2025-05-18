@@ -16,6 +16,8 @@ This post analyzes metabolomics data for the E5 timeseries project.
 
 Next steps: evaulate outliers, investigate changes over time, correlate with lipids
 
+Use same approach for lipids: <10% missing values keep with imputation, add site to lipid analysis 
+
 # Set Up    
 
 ```{r setup, include=FALSE}
@@ -112,7 +114,15 @@ metab_quant_long<-metab_quant_long%>%
       
     )
   )
+```
 
+```{r}
+#add in site metadata
+sites<-read_csv("M-multi-species/data/phys_master_timeseries.csv")%>%select(c("colony_id_corr", "site"))%>%rename(colony="colony_id_corr")
+
+metab_quant_long<-left_join(metab_quant_long, sites)
+
+metab_quant_long<-unique(metab_quant_long)
 ```
 
 Add in protein data from lipid analyses (protein is the same because samples were taken from the same replicate). 
@@ -195,7 +205,7 @@ metab_quant_long<-metab_quant_long%>%
 
 length(levels(as.factor(metab_quant_long$compound)))
 ```
-We have 141 lipids in the dataset that are measured in >90% of samples. We will use imputation to account for the NAs.    
+We have 141 compounds in the dataset that are measured in >90% of samples. We will use imputation to account for the NAs.    
 
 Rename dataframe. 
 
@@ -210,7 +220,8 @@ Next, conduct normalization to tissue input and multiply by constants as directe
 ```{r}
 data<-data%>%
   mutate(rel.quant.ug=rel.quant/protein.ug)%>%
-  select(!protein.ug)
+  select(!protein.ug)%>%
+  select(!rel.quant)
 ```
 
 Metabolite concentration is now normalized to protein.  
@@ -220,7 +231,7 @@ Metabolite concentration is now normalized to protein.
 Do this with species and time point for now. Add site here as well later.  
 ```{r}
 data_im <- data %>%
-  group_by(compound, species, timepoint) %>%
+  group_by(compound, species, timepoint, site) %>%
   mutate(
     rel.quant.ug = if_else(
       is.na(rel.quant.ug),
@@ -236,7 +247,6 @@ data_im <- data %>%
 Generate wide data. 
 ```{r}
 data_wide<-data_im%>%
-  select(!rel.quant)%>%
   ungroup()%>%
   pivot_wider(names_from=compound, values_from=rel.quant.ug)
 ```
@@ -251,15 +261,15 @@ Prepare a PCA plot
 vegan <- scale(data_wide%>%select(where(is.numeric)))
 
 # PerMANOVA 
-permanova<-adonis2(vegan ~ species * timepoint, data = data_wide, method='eu')
+permanova<-adonis2(vegan ~ species * timepoint * site, data = data_wide, method='eu')
 permanova
 ```
 
-Significant differences in metabolomic profile between species and time points and an interaction. 
+Significant differences in metabolomic profile between species and time points and an interaction with species x time x site. 
 
 View by species 
 ```{r}
-pca1<-ggplot2::autoplot(scaled.pca, data=data_wide, loadings=FALSE,  colour="species", loadings.label.colour="black", loadings.colour="black", loadings.label=FALSE, frame=TRUE, loadings.label.size=5, loadings.label.vjust=-1, size=5) + 
+pca1<-ggplot2::autoplot(scaled.pca, data=data_wide, loadings=FALSE,  colour="species", shape = "site", loadings.label.colour="black", loadings.colour="black", loadings.label=FALSE, frame=TRUE, loadings.label.size=5, loadings.label.vjust=-1, size=5) + 
   theme_classic()+
    theme(legend.text = element_text(size=18), 
          legend.position="right",
@@ -272,7 +282,7 @@ pca1<-ggplot2::autoplot(scaled.pca, data=data_wide, loadings=FALSE,  colour="spe
 
 View by time point 
 ```{r}
-pca2<-ggplot2::autoplot(scaled.pca, data=data_wide, loadings=FALSE,  colour="timepoint", loadings.label.colour="black", loadings.colour="black", loadings.label=FALSE, frame=TRUE, loadings.label.size=5, loadings.label.vjust=-1, size=5) + 
+pca2<-ggplot2::autoplot(scaled.pca, data=data_wide, loadings=FALSE,  colour="timepoint", shape="site", loadings.label.colour="black", loadings.colour="black", loadings.label=FALSE, frame=TRUE, loadings.label.size=5, loadings.label.vjust=-1, size=5) + 
   theme_classic()+
    theme(legend.text = element_text(size=18), 
          legend.position="right",
@@ -282,7 +292,7 @@ pca2<-ggplot2::autoplot(scaled.pca, data=data_wide, loadings=FALSE,  colour="tim
         axis.title = element_text(size=18,  face="bold"));pca2
 ```
 
-# Plot PCA of time effects within species   
+# Plot PCA of time and site effects within species   
 
 ## Acropora 
 
@@ -290,7 +300,6 @@ Generate wide data.
 ```{r}
 acr_wide<-data_im%>%
   filter(species=="Acropora")%>%
-  select(!rel.quant)%>%
   ungroup()%>%
   pivot_wider(names_from=compound, values_from=rel.quant.ug)
 ```
@@ -305,14 +314,14 @@ Prepare a PCA plot
 vegan_acr <- scale(acr_wide%>%select(where(is.numeric)))
 
 # PerMANOVA 
-permanova<-adonis2(vegan_acr ~ timepoint, data = acr_wide, method='eu')
+permanova<-adonis2(vegan_acr ~ timepoint * site, data = acr_wide, method='eu')
 permanova
 ```
 
-Significant effect of time in Acropora.  
+Significant effect of time, but not site, in Acropora.  
 
 ```{r}
-pca3<-ggplot2::autoplot(scaled.pca.acr, data=acr_wide, loadings=FALSE,  colour="timepoint", loadings.label.colour="black", loadings.colour="black", loadings.label=FALSE, frame=TRUE, loadings.label.size=5, loadings.label.vjust=-1, size=5) + 
+pca3<-ggplot2::autoplot(scaled.pca.acr, data=acr_wide, loadings=FALSE,  colour="timepoint", shape="site", loadings.label.colour="black", loadings.colour="black", loadings.label=FALSE, frame=TRUE, loadings.label.size=5, loadings.label.vjust=-1, size=5) + 
   theme_classic()+
    theme(legend.text = element_text(size=18), 
          legend.position="right",
@@ -329,7 +338,6 @@ Generate wide data.
 ```{r}
 poc_wide<-data_im%>%
   filter(species=="Pocillopora")%>%
-  select(!rel.quant)%>%
   ungroup()%>%
   pivot_wider(names_from=compound, values_from=rel.quant.ug)
 ```
@@ -344,14 +352,14 @@ Prepare a PCA plot
 vegan_poc <- scale(poc_wide%>%select(where(is.numeric)))
 
 # PerMANOVA 
-permanova<-adonis2(vegan_poc ~ timepoint, data = poc_wide, method='eu')
+permanova<-adonis2(vegan_poc ~ timepoint * site, data = poc_wide, method='eu')
 permanova
 ```
 
-Significant effect of time in Pocillopora  
+Significant effect of time, but not site in Pocillopora  
 
 ```{r}
-pca4<-ggplot2::autoplot(scaled.pca.poc, data=poc_wide, loadings=FALSE,  colour="timepoint", loadings.label.colour="black", loadings.colour="black", loadings.label=FALSE, frame=TRUE, loadings.label.size=5, loadings.label.vjust=-1, size=5) + 
+pca4<-ggplot2::autoplot(scaled.pca.poc, data=poc_wide, loadings=FALSE,  colour="timepoint", shape="site", loadings.label.colour="black", loadings.colour="black", loadings.label=FALSE, frame=TRUE, loadings.label.size=5, loadings.label.vjust=-1, size=5) + 
   theme_classic()+
    theme(legend.text = element_text(size=18), 
          legend.position="right",
@@ -368,7 +376,6 @@ Generate wide data.
 ```{r}
 por_wide<-data_im%>%
   filter(species=="Porites")%>%
-  select(!rel.quant)%>%
   ungroup()%>%
   pivot_wider(names_from=compound, values_from=rel.quant.ug)
 ```
@@ -383,14 +390,14 @@ Prepare a PCA plot
 vegan_por <- scale(por_wide%>%select(where(is.numeric)))
 
 # PerMANOVA 
-permanova<-adonis2(vegan_por ~ timepoint, data = por_wide, method='eu')
+permanova<-adonis2(vegan_por ~ timepoint * site, data = por_wide, method='eu')
 permanova
 ```
 
-No effect of time in Porites. There may be some outliers.   
+No effect of time or site in Porites. There may be some outliers.   
 
 ```{r}
-pca5<-ggplot2::autoplot(scaled.pca.por, data=por_wide, loadings=FALSE,  colour="timepoint", loadings.label.colour="black", loadings.colour="black", loadings.label=FALSE, frame=TRUE, loadings.label.size=5, loadings.label.vjust=-1, size=5) + 
+pca5<-ggplot2::autoplot(scaled.pca.por, data=por_wide, loadings=FALSE,  colour="timepoint", shape="site", loadings.label.colour="black", loadings.colour="black", loadings.label=FALSE, frame=TRUE, loadings.label.size=5, loadings.label.vjust=-1, size=5) + 
   theme_classic()+
    theme(legend.text = element_text(size=18), 
          legend.position="right",
@@ -401,8 +408,11 @@ pca5<-ggplot2::autoplot(scaled.pca.por, data=por_wide, loadings=FALSE,  colour="
 
 ```
 
-# Plot a heatmap of lipid concentration (scaled to z score) by species 
+Because site effects are not significant within each species, we will analyze by time in subsequent analyses. 
 
+# Plot a heatmap of metabolite concentration (scaled to z score) by species and by timepoint within species 
+
+## Heatmap between species 
 ```{r}
 # Convert concentration to Z-scores
 heat_data <- data_im %>% 
@@ -444,6 +454,141 @@ draw(heatmap)
 
 There are metabolites that are characteristic of each species.  
 
+## Heatmap within species 
+
+### Acropora 
+```{r}
+# Convert concentration to Z-scores
+heat_data <- data_im %>% 
+  filter(species=="Acropora")%>%
+  group_by(compound) %>% 
+  mutate(z_score = scale(rel.quant.ug)) %>% 
+  group_by(timepoint, compound)%>%
+  summarise(z_score = mean(z_score, na.rm=TRUE))%>%
+  ungroup()
+
+# Pivot data to have metabolites as rows and lifestage as columns
+heatmap_data <- heat_data %>% 
+  dplyr::select(compound, timepoint, z_score) %>%
+  spread(key = timepoint, value = z_score)
+
+# Convert to matrix and set rownames
+heatmap_matrix <- as.matrix(column_to_rownames(heatmap_data, var = "compound"))
+
+# Create the heatmap
+heatmap <- Heatmap(
+  heatmap_matrix,
+  name = "Z-score",
+  col = inferno(10),
+  cluster_rows = TRUE,
+  cluster_columns = FALSE,
+  show_row_names = FALSE,
+  show_column_names = TRUE,
+  row_split=8,
+  row_title = "Metabolite", 
+  column_names_gp =  gpar(fontsize = 12, border=FALSE),
+  column_names_rot = 45,
+  row_gap = unit(1, "mm"), 
+  border = TRUE,
+  row_names_gp = gpar(fontsize = 12, alpha = 0.75, border = FALSE)
+)
+
+# Draw the heatmap
+draw(heatmap)
+```
+
+There are some metabolites that are higher in TP1, many in TP3, and some in TP4.   
+
+
+
+### Pocillopora 
+```{r}
+# Convert concentration to Z-scores
+heat_data <- data_im %>% 
+  filter(species=="Pocillopora")%>%
+  group_by(compound) %>% 
+  mutate(z_score = scale(rel.quant.ug)) %>% 
+  group_by(timepoint, compound)%>%
+  summarise(z_score = mean(z_score, na.rm=TRUE))%>%
+  ungroup()
+
+# Pivot data to have metabolites as rows and lifestage as columns
+heatmap_data <- heat_data %>% 
+  dplyr::select(compound, timepoint, z_score) %>%
+  spread(key = timepoint, value = z_score)
+
+# Convert to matrix and set rownames
+heatmap_matrix <- as.matrix(column_to_rownames(heatmap_data, var = "compound"))
+
+# Create the heatmap
+heatmap <- Heatmap(
+  heatmap_matrix,
+  name = "Z-score",
+  col = inferno(10),
+  cluster_rows = TRUE,
+  cluster_columns = FALSE,
+  show_row_names = FALSE,
+  show_column_names = TRUE,
+  row_split=8,
+  row_title = "Metabolite", 
+  column_names_gp =  gpar(fontsize = 12, border=FALSE),
+  column_names_rot = 45,
+  row_gap = unit(1, "mm"), 
+  border = TRUE,
+  row_names_gp = gpar(fontsize = 12, alpha = 0.75, border = FALSE)
+)
+
+# Draw the heatmap
+draw(heatmap)
+```
+
+There are some metabolites that are higher in TP1, many in TP3, and some in TP4.   
+
+
+
+### Porites 
+```{r}
+# Convert concentration to Z-scores
+heat_data <- data_im %>% 
+  filter(species=="Porites")%>%
+  group_by(compound) %>% 
+  mutate(z_score = scale(rel.quant.ug)) %>% 
+  group_by(timepoint, compound)%>%
+  summarise(z_score = mean(z_score, na.rm=TRUE))%>%
+  ungroup()
+
+# Pivot data to have metabolites as rows and lifestage as columns
+heatmap_data <- heat_data %>% 
+  dplyr::select(compound, timepoint, z_score) %>%
+  spread(key = timepoint, value = z_score)
+
+# Convert to matrix and set rownames
+heatmap_matrix <- as.matrix(column_to_rownames(heatmap_data, var = "compound"))
+
+# Create the heatmap
+heatmap <- Heatmap(
+  heatmap_matrix,
+  name = "Z-score",
+  col = inferno(10),
+  cluster_rows = TRUE,
+  cluster_columns = FALSE,
+  show_row_names = FALSE,
+  show_column_names = TRUE,
+  row_split=8,
+  row_title = "Metabolite", 
+  column_names_gp =  gpar(fontsize = 12, border=FALSE),
+  column_names_rot = 45,
+  row_gap = unit(1, "mm"), 
+  border = TRUE,
+  row_names_gp = gpar(fontsize = 12, alpha = 0.75, border = FALSE)
+)
+
+# Draw the heatmap
+draw(heatmap)
+```
+
+Metabolites are more stable across time in Porites with some subsets elevated at each time point.     
+
 # Examine differential lipids with a PLSDA and VIP scores 
 
 Generate a PLSDA supervised model to examine metabolites that 1) drive separation between species and 2) then those that differentiate time points within species.  
@@ -460,7 +605,7 @@ levels(as.factor(X_metabolites$species))
 Y_metabolites <- as.factor(X_metabolites$species) #select treatment names
 Y_metabolites
 
-X_metabolites<-X_metabolites[5:145] #pull only data columns
+X_metabolites<-X_metabolites[6:146] #pull only data columns
 
 # run PLSDA 
 MyResult.plsda <- plsda(X_metabolites,Y_metabolites) # 1 Run the method
@@ -516,7 +661,7 @@ levels(as.factor(X_metabolites$timepoint))
 Y_metabolites <- as.factor(X_metabolites$timepoint) #select treatment names
 Y_metabolites
 
-X_metabolites<-X_metabolites[5:145] #pull only data columns
+X_metabolites<-X_metabolites[6:146] #pull only data columns
 
 # run PLSDA 
 MyResult.plsda <- plsda(X_metabolites,Y_metabolites) # 1 Run the method
@@ -599,7 +744,7 @@ levels(as.factor(X_metabolites$timepoint))
 Y_metabolites <- as.factor(X_metabolites$timepoint) #select treatment names
 Y_metabolites
 
-X_metabolites<-X_metabolites[5:145] #pull only data columns
+X_metabolites<-X_metabolites[6:146] #pull only data columns
 
 # run PLSDA 
 MyResult.plsda <- plsda(X_metabolites,Y_metabolites) # 1 Run the method
@@ -683,7 +828,7 @@ levels(as.factor(X_metabolites$timepoint))
 Y_metabolites <- as.factor(X_metabolites$timepoint) #select treatment names
 Y_metabolites
 
-X_metabolites<-X_metabolites[5:145] #pull only data columns
+X_metabolites<-X_metabolites[6:146] #pull only data columns
 
 # run PLSDA 
 MyResult.plsda <- plsda(X_metabolites,Y_metabolites) # 1 Run the method
@@ -1122,3 +1267,5 @@ pairs(emm)
 ```
 
 Significant species x time interaction. Stable in Porites and Pocillopora. Higher at TP1 in Acropora decreasing over time.   
+
+
