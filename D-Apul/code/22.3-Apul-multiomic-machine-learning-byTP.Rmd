@@ -1174,7 +1174,7 @@ ggplot(top_features_split, aes(x = reorder(Feature, MeanImportance), y = MeanImp
 ```
 
 Plot performance (R^2) of the model in predicting the test data
-```{r}
+```{r performance plot}
 ggplot(model_performance_split, aes(x = as.factor(Feature), y = R2)) +
   geom_point(color = "darkred", size = 3) +
   geom_hline(yintercept = mean(model_performance_split$R2, na.rm = TRUE), linetype = "dashed", color = "blue") +
@@ -1202,8 +1202,8 @@ There may, however, be a subset of genes whose expression *is* primarily driven 
 
 # Bootstrapping
 
-```{r, cache=TRUE}
-n_replicates <- 25  # number of replicates
+```{r bootstrap-1, cache=TRUE}
+n_replicates <- 50  # number of replicates
 r2_threshold <- 0.5 # threshold for "good" prediction
 TM_list <- list()
 MP_list <- list()
@@ -1269,7 +1269,7 @@ all_MP$Feature <- factor(all_MP$Feature,
 
 # Plot with features sorted by mean R²
 ggplot(all_MP, aes(x = Feature, y = R2)) +
-  geom_point(aes(color = as.factor(Replicate)), size = 1.5) +
+  geom_point(aes(color = as.factor(Replicate)), size = 1) +
   geom_point(aes(y = Mean_R2), color = "black", shape = 18, size = 3) + 
   geom_hline(yintercept = mean(all_MP$R2, na.rm = TRUE),
              linetype = "dashed", color = "blue") +
@@ -1321,8 +1321,8 @@ Of the original 99 genes annotated for energetic state GO terms, 35 are consiste
 
 
 Run bootstrapping on isolated genes
-```{r, cache=TRUE}
-n_replicates <- 10  # number of replicates
+```{r bootstrap-2, cache=TRUE}
+n_replicates <- 50  # number of replicates
 r2_threshold <- 0.5 # threshold for "good" prediction
 TM_list <- list()
 MP_list <- list()
