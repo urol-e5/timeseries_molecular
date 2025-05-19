@@ -90,6 +90,7 @@ library(vegan)
 library(ggfortify)
 library(genefilter)
 library(scales)
+library(purrr)
 ```
 
 The model includes random processes, so set a seed for reproducability. Note: for final results, should we consider bootstrapping to ensure reported results are representative?
@@ -1569,6 +1570,20 @@ Save
 write.csv(all_features_highR2_FA, "../output/22.3-Apul-multiomic-machine-learning-byTP/energetic_state_highperf_FA.csv")
 ```
 
+Save top predictors and metrics of each well-predicted gene
+```{r}
+# Combine all sub-tibbles into a single data frame with the parent list name as an ID
+top_predictors_df <- imap_dfr(top_predictors, ~ {
+  .x
+})
+
+# View the resulting data frame
+print(top_predictors_df)
+
+# Optional: save to CSV
+write.csv(top_predictors_df, "../output/22.3-Apul-multiomic-machine-learning-byTP/top_predictors.csv", row.names = FALSE)
+
+```
 
 
 
