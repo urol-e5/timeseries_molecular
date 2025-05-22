@@ -1246,6 +1246,7 @@ MP_summary <- all_MP %>%
   summarize(
     Mean_R2 = mean(R2, na.rm = TRUE),
     SD_R2 = sd(R2, na.rm = TRUE),
+    SE_R2 = SD_R2/sqrt(n()),
     High_Perf_Count = sum(R2 >= r2_threshold),
     .groups = 'drop'
   ) %>%
@@ -1261,12 +1262,32 @@ nrow(MP_summary[MP_summary$Mean_R2 > 0.5,])
 Sort genes by average R^2 across all replicates, then plot R^2 for all replicates
 ```{r}
 # Merge mean R2 info into full replicate-level data
-all_MP <- merge(all_MP, MP_summary[, c("Feature", "Mean_R2")], by = "Feature")
+all_MP <- merge(all_MP, MP_summary[, c("Feature", "Mean_R2", "SD_R2")], by = "Feature")
 
 # Reorder Feature factor by Mean_R2
 all_MP$Feature <- factor(all_MP$Feature,
                                           levels = MP_summary$Feature[order(MP_summary$Mean_R2)])
+```
 
+```{r}
+# Plot mean R² with error bars
+# Choose SD to describe variability in model performance
+ggplot(all_MP, aes(x = Feature, y = Mean_R2)) +
+  geom_errorbar(aes(ymin = Mean_R2 - SD_R2, ymax = Mean_R2 + SD_R2), width = 0.4, color = "gray40", linewidth = 0.25) +
+  geom_point(size = 2, color = "black") +
+  geom_hline(yintercept = 0.5,
+             linetype = "dashed", color = "blue") +
+  theme_minimal() +
+  labs(title = "Mean R² with Error Bars Across Gene Features",
+       x = "Gene Expression Feature (Ordered by Mean R²)",
+       y = "Mean R² ± SD") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size=5)) +
+  ylim(-0.2, 1.2) +
+  scale_y_continuous(breaks = c(0, 0.25, 0.5, 0.75, 1))
+
+```
+
+```{r}
 # Plot with features sorted by mean R²
 ggplot(all_MP, aes(x = Feature, y = R2)) +
   geom_point(aes(color = as.factor(Replicate)), size = 1) +
@@ -1317,7 +1338,7 @@ vsd_high_perf_t <- vsd_energetic_state_GO_t[,colnames(vsd_energetic_state_GO_t) 
 dim(vsd_high_perf_t)
 ```
 
-Of the original 99 genes annotated for energetic state GO terms, 35 are consistently well-predicted by our model.
+Of the original 99 genes annotated for energetic state GO terms, 37 are consistently well-predicted by our model.
 
 
 Run bootstrapping on isolated genes
@@ -1362,6 +1383,7 @@ MP_summary_highperf <- all_MP_highperf %>%
   summarize(
     Mean_R2 = mean(R2, na.rm = TRUE),
     SD_R2 = sd(R2, na.rm = TRUE),
+    SE_R2 = SD_R2 / sqrt(n()),
     High_Perf_Count = sum(R2 >= r2_threshold),
     .groups = 'drop'
   ) %>%
@@ -1374,21 +1396,41 @@ print(MP_summary_highperf)
 nrow(MP_summary_highperf[MP_summary_highperf$Mean_R2 > 0.5,])
 ```
 
-When I train the model on only these 35 well-predicted genes, 28 of them are again well-predicted. That's a much higher success rate! This suggests that epigenetic mechanisms may indeed be able to predict expression of these genes
+When I train the model on only these 37 well-predicted genes, 34 of them are again well-predicted. That's a much higher success rate! This suggests that epigenetic mechanisms may indeed be able to predict expression of these genes
 
 
 Sort genes by average R^2 across all replicates, then plot R^2 for all replicates
 ```{r}
 # Merge mean R2 info into full replicate-level data
-all_MP_highperf <- merge(all_MP_highperf, MP_summary_highperf[, c("Feature", "Mean_R2")], by = "Feature")
+all_MP_highperf <- merge(all_MP_highperf, MP_summary_highperf[, c("Feature", "Mean_R2", "SD_R2")], by = "Feature")
 
 # Reorder Feature factor by Mean_R2
 all_MP_highperf$Feature <- factor(all_MP_highperf$Feature,
                                           levels = MP_summary_highperf$Feature[order(MP_summary_highperf$Mean_R2)])
 ```
 
+
+```{r summarized-R2-plot}
+
+# Plot mean R² with error bars
+# Choose SD to describe variability in model performance
+ggplot(all_MP_highperf, aes(x = Feature, y = Mean_R2)) +
+  geom_errorbar(aes(ymin = Mean_R2 - SD_R2, ymax = Mean_R2 + SD_R2), width = 0.3, color = "gray40") +
+  geom_point(size = 2, color = "black") +
+  geom_hline(yintercept = 0.5,
+             linetype = "dashed", color = "blue") +
+  theme_minimal() +
+  labs(title = "Mean R² with Error Bars Across Gene Features",
+       x = "Gene Expression Feature (Ordered by Mean R²)",
+       y = "Mean R² ± SD") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  ylim(-0.2, 1.2) +
+  scale_y_continuous(breaks = c(0, 0.25, 0.5, 0.75, 1))
+
+```
+
 ```{r}
-# Plot with features sorted by mean R²
+# Plot all replicate R2s, with features sorted by mean R²
 ggplot(all_MP_highperf, aes(x = Feature, y = R2)) +
   geom_point(aes(color = as.factor(Replicate)), size = 1.5) +
   geom_point(aes(y = Mean_R2), color = "black", shape = 18, size = 3) + 
@@ -1427,6 +1469,9 @@ ggplot(top_features_highperf, aes(x = reorder(Feature, MeanImportance), y = Mean
 
 Look at most predictive epigenetic features for these well-predicted genes
 ```{r}
+# Define color assignments for predictor types
+color_palette <- c(miRNA = "#E69F00", lncRNA = "#0072B2", CpG = "#009E73")
+
 #  Define well-predicted features
 all_features_highR2 <- all_MP_highperf %>%
   filter(Mean_R2 > 0.5) %>%
@@ -1437,6 +1482,14 @@ all_features_highR2 <- all_MP_highperf %>%
 get_feature_importance_for_feature <- function(model) {
   coefs <- as.matrix(coef(model, s = "lambda.min"))[-1, , drop = FALSE]  # remove intercept
   data.frame(Predictor = rownames(coefs), Importance = abs(as.numeric(coefs)))
+}
+
+# Function to assign predictor type
+get_predictor_type <- function(predictor_name) {
+  if (startsWith(predictor_name, "Cluster")) return("miRNA")
+  if (startsWith(predictor_name, "lncRNA")) return("lncRNA")
+  if (startsWith(predictor_name, "CpG")) return("CpG")
+  return("Other")
 }
 
 # Initialize list to save top predictors
@@ -1461,14 +1514,16 @@ for (target_feature in all_features_highR2) {
   # Compute average importance across replicates
   mean_importance <- importance_all_reps %>%
     group_by(Predictor) %>%
-    summarise(MeanImportance = mean(Importance, na.rm = TRUE),
-              .groups = "drop") %>%
+    summarise(MeanImportance = mean(Importance, na.rm = TRUE), .groups = "drop") %>%
     arrange(desc(MeanImportance)) %>%
-    slice_head(n = 20)
+    slice_head(n = 20) %>%
+    mutate(Type = sapply(Predictor, get_predictor_type))
+
 
   # Plot once per target feature
-  plot <- ggplot(mean_importance, aes(x = reorder(Predictor, MeanImportance), y = MeanImportance)) +
-    geom_bar(stat = "identity", fill = "steelblue") +
+  plot <- ggplot(mean_importance, aes(x = reorder(Predictor, MeanImportance), y = MeanImportance, fill=Type)) +
+    geom_bar(stat = "identity") +
+    scale_fill_manual(values = color_palette) +
     coord_flip() +
     theme_minimal() +
     labs(title = paste("Top Predictors for", target_feature),
