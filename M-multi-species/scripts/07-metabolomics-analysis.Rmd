@@ -1,0 +1,1271 @@
+---
+title: "Analyzing lipidomic data for timeseries molecular samples"
+author: "Ariana S Huffmyer"
+date: "2025"
+output: 
+  html_document:
+    code_folding: hide
+    toc: yes
+    toc_depth: 6
+    toc_float: yes
+editor_options: 
+  chunk_output_type: console
+--- 
+
+This post analyzes metabolomics data for the E5 timeseries project. 
+
+Next steps: evaulate outliers, investigate changes over time, correlate with lipids
+
+Use same approach for lipids: <10% missing values keep with imputation, add site to lipid analysis 
+
+# Set Up    
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+Load libraries. 
+
+```{r}
+library(mixOmics)
+library("RVAideMemoire")
+library(tidyverse)
+library(ggplot2)
+library(readxl)
+library(vegan)
+library(factoextra)
+library(ggfortify)
+library(ComplexHeatmap)
+library(viridis)
+library(lme4)
+library(lmerTest)
+library(emmeans)
+library(broom.mixed)
+library(broom)
+```
+
+# Read and load in data 
+
+## Load data. 
+
+```{r}
+metab_quant<-read_xlsx("M-multi-species/data/metabolomics/2025-04-15_Roberts-98.xlsx", sheet="Relative Quant Data")%>%
+  rename(compound=`Current MS Compounds`)
+```
+
+Format NAs. 
+
+```{r}
+metab_quant[metab_quant == "N/A"] <- NA
+
+str(metab_quant)
+
+#remove kegg columns 
+metab_quant<-metab_quant%>%
+  select(!"HMDB ID")%>%
+  select(!"KEGG ID")
+```
+
+Values missing or not quantified are now NA. 
+
+Convert to numeric format. 
+
+```{r}
+# Keep the "sample" column unchanged, convert all other columns to numeric
+metab_quant_wide <- as.data.frame(lapply(names(metab_quant), function(col) {
+  if (col == "compound") {
+    return(metab_quant[[col]])  # Keep the "sample" column as is
+  } else {
+    # Convert other columns to character first, then to numeric
+    return(as.numeric(as.character(metab_quant[[col]])))
+  }
+}))
+
+# Ensure the column names remain unchanged
+colnames(metab_quant_wide) <- names(metab_quant)
+
+str(metab_quant_wide)
+```
+
+Convert to long format. 
+
+```{r}
+metab_quant_long<-metab_quant_wide%>%
+  pivot_longer(names_to="sample", values_to="rel.quant", cols = -c(compound))
+```
+
+## Add in metadata 
+
+```{r}
+metab_quant_long<-metab_quant_long%>%
+
+  mutate(
+    colony = str_extract(sample, "^[^_]+"),  # Extract everything before the underscore
+    timepoint = str_extract(sample, "(?<=_).*"),  # Extract everything after the underscore
+    species = case_when(
+      str_detect(sample, "ACR") ~ "Acropora",
+      str_detect(sample, "POC") ~ "Pocillopora",
+      str_detect(sample, "POR") ~ "Porites",
+      TRUE ~ NA_character_  # Default to NA if no match
+    ), 
+    type = case_when(
+      str_detect(sample, "PBQC") ~ "PBQC", 
+      TRUE ~ "sample"
+      
+    )
+  )
+```
+
+```{r}
+#add in site metadata
+sites<-read_csv("M-multi-species/data/phys_master_timeseries.csv")%>%select(c("colony_id_corr", "site"))%>%rename(colony="colony_id_corr")
+
+metab_quant_long<-left_join(metab_quant_long, sites)
+
+metab_quant_long<-unique(metab_quant_long)
+```
+
+Add in protein data from lipid analyses (protein is the same because samples were taken from the same replicate). 
+
+```{r}
+protein<-read_xlsx("M-multi-species/data/metabolomics/2025-04-15_Roberts-98.xlsx", sheet="Protein")
+```
+
+Merge in protein data. 
+
+```{r}
+metab_quant_long<-left_join(metab_quant_long, protein)
+```
+
+## Filtering and normalizing 
+
+How many lipids do we have currently? 
+```{r}
+length(levels(as.factor(metab_quant_long$compound)))
+```
+404 total metabolites 
+
+## Remove metabolites not detected in the PBQC samples 
+
+Remove facility internal standard metabolites. 
+```{r}
+standards<-c("3C13-Glycine", "4C13-Alanine", "2C13-Choline", "4C13-Serine", "d3-Creatinine", "6C13-Proline", "6C13-Valine", "5C13-Threonine", "5C13-Aspartic Acid", "6C13-Asparagine", "7C13-Leucine", "7C13-iso-Leucine", "2C13-Glutamic acid", "7C13-Glutamine", "6C13-Glutamic acid", "8C13-Lysine", "6C13-Methionine", "9C13-Histidine", "10C13-Phenylalanine", "2C13-Tyrosine", "10C13-Arginine", "10C13-Tyrosine", "13C13-Tryptophan", "8C13-Cystine", "11C13-Uridine", "3C13-Lactate", "4C13-3HBA", "2N15-Xanthine", "2N15-Urate", "1C13-Citrulline", "6C13-Glucose", "4C13-Pentothenate")
+
+metab_quant_long<-metab_quant_long%>%
+  filter(!compound %in% standards)
+
+length(levels(as.factor(metab_quant_long$compound)))
+```
+372 metabolites after removing standards.  
+
+Only keep metabolites that were measured in at least one of the PBQCs.  
+
+```{r}
+length(levels(as.factor(metab_quant_long$compound)))
+
+#view metabolites not measured in the PBQC
+test <- metab_quant_long %>%
+  group_by(compound) %>%
+  filter((type == "PBQC" & is.na(rel.quant)))%>%
+  pull(compound)
+
+test<-unique(test)
+
+length(unique(test))
+
+metab_quant_long<-metab_quant_long%>%
+  filter(!compound %in% test)
+
+length(levels(as.factor(metab_quant_long$compound)))
+
+metab_quant_long<-metab_quant_long%>%
+  filter(!type=="PBQC")%>%
+  select(!type)
+```
+There are 187 metabolites not detected in the PBQCs. After removing those we have 185 total compounds.  
+
+Remove metabolites that have NA in more than 10% of samples.  
+
+```{r}
+# Identify compounds with less than 25% NA in rel_quant
+compounds_lt10pct_NA <- metab_quant_long %>%
+  group_by(compound) %>%
+  summarize(
+    total = n(),
+    na_count = sum(is.na(rel.quant)),
+    na_prop = na_count / total
+  ) %>%
+  filter(na_prop < 0.1) %>%
+  pull(compound)
+
+length(compounds_lt10pct_NA)
+
+metab_quant_long<-metab_quant_long%>%
+  filter(compound %in% compounds_lt10pct_NA)
+
+length(levels(as.factor(metab_quant_long$compound)))
+```
+We have 141 compounds in the dataset that are measured in >90% of samples. We will use imputation to account for the NAs.    
+
+Rename dataframe. 
+
+```{r}
+data<-metab_quant_long
+```
+
+## Normalize to tissue input 
+
+Next, conduct normalization to tissue input and multiply by constants as directed by the UW facility.  
+
+```{r}
+data<-data%>%
+  mutate(rel.quant.ug=rel.quant/protein.ug)%>%
+  select(!protein.ug)%>%
+  select(!rel.quant)
+```
+
+Metabolite concentration is now normalized to protein.  
+
+# Imputate missing values with group median 
+
+Do this with species and time point for now. Add site here as well later.  
+```{r}
+data_im <- data %>%
+  group_by(compound, species, timepoint, site) %>%
+  mutate(
+    rel.quant.ug = if_else(
+      is.na(rel.quant.ug),
+      median(rel.quant.ug, na.rm = TRUE),
+      rel.quant.ug
+    )
+  ) %>%
+  ungroup()
+```
+
+# Plot PCA of species effects  
+
+Generate wide data. 
+```{r}
+data_wide<-data_im%>%
+  ungroup()%>%
+  pivot_wider(names_from=compound, values_from=rel.quant.ug)
+```
+
+```{r}
+scaled.pca<-prcomp(data_wide%>%select(where(is.numeric)), scale=TRUE, center=TRUE) 
+```
+
+Prepare a PCA plot
+```{r}
+# scale data
+vegan <- scale(data_wide%>%select(where(is.numeric)))
+
+# PerMANOVA 
+permanova<-adonis2(vegan ~ species * timepoint * site, data = data_wide, method='eu')
+permanova
+```
+
+Significant differences in metabolomic profile between species and time points and an interaction with species x time x site. 
+
+View by species 
+```{r}
+pca1<-ggplot2::autoplot(scaled.pca, data=data_wide, loadings=FALSE,  colour="species", shape = "site", loadings.label.colour="black", loadings.colour="black", loadings.label=FALSE, frame=TRUE, loadings.label.size=5, loadings.label.vjust=-1, size=5) + 
+  theme_classic()+
+   theme(legend.text = element_text(size=18), 
+         legend.position="right",
+        plot.background = element_blank(),
+        legend.title = element_text(size=18, face="bold"), 
+        axis.text = element_text(size=18), 
+        axis.title = element_text(size=18,  face="bold"));pca1
+
+```
+
+View by time point 
+```{r}
+pca2<-ggplot2::autoplot(scaled.pca, data=data_wide, loadings=FALSE,  colour="timepoint", shape="site", loadings.label.colour="black", loadings.colour="black", loadings.label=FALSE, frame=TRUE, loadings.label.size=5, loadings.label.vjust=-1, size=5) + 
+  theme_classic()+
+   theme(legend.text = element_text(size=18), 
+         legend.position="right",
+        plot.background = element_blank(),
+        legend.title = element_text(size=18, face="bold"), 
+        axis.text = element_text(size=18), 
+        axis.title = element_text(size=18,  face="bold"));pca2
+```
+
+# Plot PCA of time and site effects within species   
+
+## Acropora 
+
+Generate wide data. 
+```{r}
+acr_wide<-data_im%>%
+  filter(species=="Acropora")%>%
+  ungroup()%>%
+  pivot_wider(names_from=compound, values_from=rel.quant.ug)
+```
+
+```{r}
+scaled.pca.acr<-prcomp(acr_wide%>%select(where(is.numeric)), scale=TRUE, center=TRUE) 
+```
+
+Prepare a PCA plot
+```{r}
+# scale data
+vegan_acr <- scale(acr_wide%>%select(where(is.numeric)))
+
+# PerMANOVA 
+permanova<-adonis2(vegan_acr ~ timepoint * site, data = acr_wide, method='eu')
+permanova
+```
+
+Significant effect of time, but not site, in Acropora.  
+
+```{r}
+pca3<-ggplot2::autoplot(scaled.pca.acr, data=acr_wide, loadings=FALSE,  colour="timepoint", shape="site", loadings.label.colour="black", loadings.colour="black", loadings.label=FALSE, frame=TRUE, loadings.label.size=5, loadings.label.vjust=-1, size=5) + 
+  theme_classic()+
+   theme(legend.text = element_text(size=18), 
+         legend.position="right",
+        plot.background = element_blank(),
+        legend.title = element_text(size=18, face="bold"), 
+        axis.text = element_text(size=18), 
+        axis.title = element_text(size=18,  face="bold"));pca3
+
+```
+
+## Pocillopora
+
+Generate wide data. 
+```{r}
+poc_wide<-data_im%>%
+  filter(species=="Pocillopora")%>%
+  ungroup()%>%
+  pivot_wider(names_from=compound, values_from=rel.quant.ug)
+```
+
+```{r}
+scaled.pca.poc<-prcomp(poc_wide%>%select(where(is.numeric)), scale=TRUE, center=TRUE) 
+```
+
+Prepare a PCA plot
+```{r}
+# scale data
+vegan_poc <- scale(poc_wide%>%select(where(is.numeric)))
+
+# PerMANOVA 
+permanova<-adonis2(vegan_poc ~ timepoint * site, data = poc_wide, method='eu')
+permanova
+```
+
+Significant effect of time, but not site in Pocillopora  
+
+```{r}
+pca4<-ggplot2::autoplot(scaled.pca.poc, data=poc_wide, loadings=FALSE,  colour="timepoint", shape="site", loadings.label.colour="black", loadings.colour="black", loadings.label=FALSE, frame=TRUE, loadings.label.size=5, loadings.label.vjust=-1, size=5) + 
+  theme_classic()+
+   theme(legend.text = element_text(size=18), 
+         legend.position="right",
+        plot.background = element_blank(),
+        legend.title = element_text(size=18, face="bold"), 
+        axis.text = element_text(size=18), 
+        axis.title = element_text(size=18,  face="bold"));pca4
+
+```
+
+## Porites 
+
+Generate wide data. 
+```{r}
+por_wide<-data_im%>%
+  filter(species=="Porites")%>%
+  ungroup()%>%
+  pivot_wider(names_from=compound, values_from=rel.quant.ug)
+```
+
+```{r}
+scaled.pca.por<-prcomp(por_wide%>%select(where(is.numeric)), scale=TRUE, center=TRUE) 
+```
+
+Prepare a PCA plot
+```{r}
+# scale data
+vegan_por <- scale(por_wide%>%select(where(is.numeric)))
+
+# PerMANOVA 
+permanova<-adonis2(vegan_por ~ timepoint * site, data = por_wide, method='eu')
+permanova
+```
+
+No effect of time or site in Porites. There may be some outliers.   
+
+```{r}
+pca5<-ggplot2::autoplot(scaled.pca.por, data=por_wide, loadings=FALSE,  colour="timepoint", shape="site", loadings.label.colour="black", loadings.colour="black", loadings.label=FALSE, frame=TRUE, loadings.label.size=5, loadings.label.vjust=-1, size=5) + 
+  theme_classic()+
+   theme(legend.text = element_text(size=18), 
+         legend.position="right",
+        plot.background = element_blank(),
+        legend.title = element_text(size=18, face="bold"), 
+        axis.text = element_text(size=18), 
+        axis.title = element_text(size=18,  face="bold"));pca5
+
+```
+
+Because site effects are not significant within each species, we will analyze by time in subsequent analyses. 
+
+# Plot a heatmap of metabolite concentration (scaled to z score) by species and by timepoint within species 
+
+## Heatmap between species 
+```{r}
+# Convert concentration to Z-scores
+heat_data <- data_im %>% 
+  group_by(compound) %>% 
+  mutate(z_score = scale(rel.quant.ug)) %>% 
+  group_by(species, compound)%>%
+  summarise(z_score = mean(z_score, na.rm=TRUE))%>%
+  ungroup()
+
+# Pivot data to have metabolites as rows and lifestage as columns
+heatmap_data <- heat_data %>% 
+  dplyr::select(compound, species, z_score) %>%
+  spread(key = species, value = z_score)
+
+# Convert to matrix and set rownames
+heatmap_matrix <- as.matrix(column_to_rownames(heatmap_data, var = "compound"))
+
+# Create the heatmap
+heatmap <- Heatmap(
+  heatmap_matrix,
+  name = "Z-score",
+  col = inferno(10),
+  cluster_rows = TRUE,
+  cluster_columns = FALSE,
+  show_row_names = FALSE,
+  show_column_names = TRUE,
+  row_split=8,
+  row_title = "Metabolite", 
+  column_names_gp =  gpar(fontsize = 12, border=FALSE),
+  column_names_rot = 45,
+  row_gap = unit(1, "mm"), 
+  border = TRUE,
+  row_names_gp = gpar(fontsize = 12, alpha = 0.75, border = FALSE)
+)
+
+# Draw the heatmap
+draw(heatmap)
+```
+
+There are metabolites that are characteristic of each species.  
+
+## Heatmap within species 
+
+### Acropora 
+```{r}
+# Convert concentration to Z-scores
+heat_data <- data_im %>% 
+  filter(species=="Acropora")%>%
+  group_by(compound) %>% 
+  mutate(z_score = scale(rel.quant.ug)) %>% 
+  group_by(timepoint, compound)%>%
+  summarise(z_score = mean(z_score, na.rm=TRUE))%>%
+  ungroup()
+
+# Pivot data to have metabolites as rows and lifestage as columns
+heatmap_data <- heat_data %>% 
+  dplyr::select(compound, timepoint, z_score) %>%
+  spread(key = timepoint, value = z_score)
+
+# Convert to matrix and set rownames
+heatmap_matrix <- as.matrix(column_to_rownames(heatmap_data, var = "compound"))
+
+# Create the heatmap
+heatmap <- Heatmap(
+  heatmap_matrix,
+  name = "Z-score",
+  col = inferno(10),
+  cluster_rows = TRUE,
+  cluster_columns = FALSE,
+  show_row_names = FALSE,
+  show_column_names = TRUE,
+  row_split=8,
+  row_title = "Metabolite", 
+  column_names_gp =  gpar(fontsize = 12, border=FALSE),
+  column_names_rot = 45,
+  row_gap = unit(1, "mm"), 
+  border = TRUE,
+  row_names_gp = gpar(fontsize = 12, alpha = 0.75, border = FALSE)
+)
+
+# Draw the heatmap
+draw(heatmap)
+```
+
+There are some metabolites that are higher in TP1, many in TP3, and some in TP4.   
+
+
+
+### Pocillopora 
+```{r}
+# Convert concentration to Z-scores
+heat_data <- data_im %>% 
+  filter(species=="Pocillopora")%>%
+  group_by(compound) %>% 
+  mutate(z_score = scale(rel.quant.ug)) %>% 
+  group_by(timepoint, compound)%>%
+  summarise(z_score = mean(z_score, na.rm=TRUE))%>%
+  ungroup()
+
+# Pivot data to have metabolites as rows and lifestage as columns
+heatmap_data <- heat_data %>% 
+  dplyr::select(compound, timepoint, z_score) %>%
+  spread(key = timepoint, value = z_score)
+
+# Convert to matrix and set rownames
+heatmap_matrix <- as.matrix(column_to_rownames(heatmap_data, var = "compound"))
+
+# Create the heatmap
+heatmap <- Heatmap(
+  heatmap_matrix,
+  name = "Z-score",
+  col = inferno(10),
+  cluster_rows = TRUE,
+  cluster_columns = FALSE,
+  show_row_names = FALSE,
+  show_column_names = TRUE,
+  row_split=8,
+  row_title = "Metabolite", 
+  column_names_gp =  gpar(fontsize = 12, border=FALSE),
+  column_names_rot = 45,
+  row_gap = unit(1, "mm"), 
+  border = TRUE,
+  row_names_gp = gpar(fontsize = 12, alpha = 0.75, border = FALSE)
+)
+
+# Draw the heatmap
+draw(heatmap)
+```
+
+There are some metabolites that are higher in TP1, many in TP3, and some in TP4.   
+
+
+
+### Porites 
+```{r}
+# Convert concentration to Z-scores
+heat_data <- data_im %>% 
+  filter(species=="Porites")%>%
+  group_by(compound) %>% 
+  mutate(z_score = scale(rel.quant.ug)) %>% 
+  group_by(timepoint, compound)%>%
+  summarise(z_score = mean(z_score, na.rm=TRUE))%>%
+  ungroup()
+
+# Pivot data to have metabolites as rows and lifestage as columns
+heatmap_data <- heat_data %>% 
+  dplyr::select(compound, timepoint, z_score) %>%
+  spread(key = timepoint, value = z_score)
+
+# Convert to matrix and set rownames
+heatmap_matrix <- as.matrix(column_to_rownames(heatmap_data, var = "compound"))
+
+# Create the heatmap
+heatmap <- Heatmap(
+  heatmap_matrix,
+  name = "Z-score",
+  col = inferno(10),
+  cluster_rows = TRUE,
+  cluster_columns = FALSE,
+  show_row_names = FALSE,
+  show_column_names = TRUE,
+  row_split=8,
+  row_title = "Metabolite", 
+  column_names_gp =  gpar(fontsize = 12, border=FALSE),
+  column_names_rot = 45,
+  row_gap = unit(1, "mm"), 
+  border = TRUE,
+  row_names_gp = gpar(fontsize = 12, alpha = 0.75, border = FALSE)
+)
+
+# Draw the heatmap
+draw(heatmap)
+```
+
+Metabolites are more stable across time in Porites with some subsets elevated at each time point.     
+
+# Examine differential lipids with a PLSDA and VIP scores 
+
+Generate a PLSDA supervised model to examine metabolites that 1) drive separation between species and 2) then those that differentiate time points within species.  
+
+## PLSDA and VIPs between species 
+
+Generate a PLS-DA and plot.  
+```{r, results=FALSE}
+#assigning datasets 
+X_metabolites <- data_wide
+
+levels(as.factor(X_metabolites$species))
+
+Y_metabolites <- as.factor(X_metabolites$species) #select treatment names
+Y_metabolites
+
+X_metabolites<-X_metabolites[6:146] #pull only data columns
+
+# run PLSDA 
+MyResult.plsda <- plsda(X_metabolites,Y_metabolites) # 1 Run the method
+
+species_cols<-c("darkgray", "orange", "purple") 
+            
+plotIndiv(MyResult.plsda, col=species_cols, ind.names = FALSE, legend=TRUE, legend.title = "Metabolite ~ Species", ellipse = FALSE, title="", style = "graphics", centroid=FALSE, point.lwd = 2, cex=2)
+```
+
+View the VIP lipids that are most highly differentiating metabolites between species 
+
+```{r}
+#extract
+metabolite_VIP <- PLSDA.VIP(MyResult.plsda)
+metabolite_VIP_df <- as.data.frame(metabolite_VIP[["tab"]])
+metabolite_VIP_df
+
+# Converting row names to column
+VIP_table <- rownames_to_column(metabolite_VIP_df, var = "Metabolite")
+
+#filter for VIP > 1
+VIP_1 <- VIP_table %>% 
+  filter(VIP >= 1)
+
+#plot
+VIP_list_plot<-VIP_1 %>%
+            arrange(VIP) %>%
+  
+  ggplot( aes(x = VIP, y = reorder(Metabolite,VIP,sum))) +
+  geom_point() +
+  ylab("Metabolite") +
+  xlab("VIP Score") +
+  ggtitle("Metabolite VIP - Species") +
+  theme_bw() + theme(panel.border = element_rect(linetype = "solid", color = "black"), panel.grid.major = element_blank(), #Makes background theme white
+                     panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"));VIP_list_plot
+```
+
+There are a lot of TGs and some FFAs that are strong VIPs between species.  
+
+## PLSDA and VIPs between time points within species 
+
+Pocillopora and Acropora were the only species that showed a multivariate difference in metabolite concentration across time. 
+
+### Pocillopora 
+
+Generate a PLS-DA and plot.  
+```{r, results=FALSE}
+#assigning datasets 
+X_metabolites <- data_wide%>%filter(species=="Pocillopora")
+
+levels(as.factor(X_metabolites$timepoint))
+
+Y_metabolites <- as.factor(X_metabolites$timepoint) #select treatment names
+Y_metabolites
+
+X_metabolites<-X_metabolites[6:146] #pull only data columns
+
+# run PLSDA 
+MyResult.plsda <- plsda(X_metabolites,Y_metabolites) # 1 Run the method
+
+timepoint_cols<-c("darkgray", "blue", "purple") 
+            
+plotIndiv(MyResult.plsda, col=timepoint_cols, ind.names = FALSE, legend=TRUE, legend.title = "POC Metabolites ~ Timepoint", ellipse = FALSE, title="", style = "graphics", centroid=FALSE, point.lwd = 2, cex=2)
+```
+
+View the VIP lipids that are most highly differentiating lipids between timepoints.  
+
+```{r}
+#extract
+metabolite_VIP <- PLSDA.VIP(MyResult.plsda)
+metabolite_VIP_df <- as.data.frame(metabolite_VIP[["tab"]])
+metabolite_VIP_df
+
+# Converting row names to column
+VIP_table <- rownames_to_column(metabolite_VIP_df, var = "Metabolite")
+
+#filter for VIP > 1
+VIP_1 <- VIP_table %>% 
+  filter(VIP >= 1)
+
+#plot
+VIP_list_plot<-VIP_1 %>%
+            arrange(VIP) %>%
+  
+  ggplot( aes(x = VIP, y = reorder(Metabolite,VIP,sum))) +
+  geom_point() +
+  ylab("Metabolite") +
+  xlab("VIP Score") +
+  ggtitle("POC Metabolite VIP - Timepoint") +
+  theme_bw() + theme(panel.border = element_rect(linetype = "solid", color = "black"), panel.grid.major = element_blank(), #Makes background theme white
+                     panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"));VIP_list_plot
+```
+
+Filter dataframe by VIP lipids and plot presence in each time point.  
+```{r}
+vip_list<-c(VIP_1$Metabolite)
+
+vip_lipids<-data_im%>%
+  filter(compound %in% vip_list)%>%
+  filter(species=="Pocillopora")
+```
+
+Plot abundance of these metabolites in each sample. 
+
+```{r}
+vip_abund_plot<-vip_lipids%>%
+  
+  ggplot(aes(x=timepoint, y=rel.quant.ug, color=timepoint, group=timepoint))+
+  facet_wrap(~compound, scales="free")+
+  geom_boxplot(aes(group=interaction(compound, timepoint)),position=position_dodge(0.9))+
+  geom_point(position=position_jitterdodge(0.2))+
+  scale_color_manual(values=c("darkgray", "blue", "purple"), name="Timepoint")+
+  ylab("abundance")+
+  xlab("Timepoint")+
+  ggtitle("VIP Abundance - POC")+
+  theme_classic()+
+  theme(
+    axis.text=element_text(color="black", size=12), 
+    axis.text.x=element_text(angle=45, hjust=1), 
+    axis.title=element_text(color="black", face="bold", size=12),
+    plot.margin=margin(1,1,1,1, "cm"),
+    legend.text=element_text(size=12),
+    legend.title=element_text(size=12, face="bold")
+  );vip_abund_plot
+```
+
+### Acropora 
+
+Generate a PLS-DA and plot.  
+```{r, results=FALSE}
+#assigning datasets 
+X_metabolites <- data_wide%>%filter(species=="Acropora")
+
+levels(as.factor(X_metabolites$timepoint))
+
+Y_metabolites <- as.factor(X_metabolites$timepoint) #select treatment names
+Y_metabolites
+
+X_metabolites<-X_metabolites[6:146] #pull only data columns
+
+# run PLSDA 
+MyResult.plsda <- plsda(X_metabolites,Y_metabolites) # 1 Run the method
+
+timepoint_cols<-c("darkgray", "blue", "purple") 
+            
+plotIndiv(MyResult.plsda, col=timepoint_cols, ind.names = FALSE, legend=TRUE, legend.title = "ACR Metabolites ~ Timepoint", ellipse = FALSE, title="", style = "graphics", centroid=FALSE, point.lwd = 2, cex=2)
+```
+
+View the VIP lipids that are most highly differentiating lipids between timepoints.  
+
+```{r}
+#extract
+metabolite_VIP <- PLSDA.VIP(MyResult.plsda)
+metabolite_VIP_df <- as.data.frame(metabolite_VIP[["tab"]])
+metabolite_VIP_df
+
+# Converting row names to column
+VIP_table <- rownames_to_column(metabolite_VIP_df, var = "Metabolite")
+
+#filter for VIP > 1
+VIP_1 <- VIP_table %>% 
+  filter(VIP >= 1)
+
+#plot
+VIP_list_plot<-VIP_1 %>%
+            arrange(VIP) %>%
+  
+  ggplot( aes(x = VIP, y = reorder(Metabolite,VIP,sum))) +
+  geom_point() +
+  ylab("Metabolite") +
+  xlab("VIP Score") +
+  ggtitle("ACR Metabolite VIP - Timepoint") +
+  theme_bw() + theme(panel.border = element_rect(linetype = "solid", color = "black"), panel.grid.major = element_blank(), #Makes background theme white
+                     panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"));VIP_list_plot
+```
+
+Filter dataframe by VIP lipids and plot presence in each time point.  
+```{r}
+vip_list<-c(VIP_1$Metabolite)
+
+vip_lipids<-data_im%>%
+  filter(compound %in% vip_list)%>%
+  filter(species=="Acropora")
+```
+
+Plot abundance of these metabolites in each sample. 
+
+```{r}
+vip_abund_plot<-vip_lipids%>%
+  
+  ggplot(aes(x=timepoint, y=rel.quant.ug, color=timepoint, group=timepoint))+
+  facet_wrap(~compound, scales="free")+
+  geom_boxplot(aes(group=interaction(compound, timepoint)),position=position_dodge(0.9))+
+  geom_point(position=position_jitterdodge(0.2))+
+  scale_color_manual(values=c("darkgray", "blue", "purple"), name="Timepoint")+
+  ylab("abundance")+
+  xlab("Timepoint")+
+  ggtitle("VIP Abundance - ACR")+
+  theme_classic()+
+  theme(
+    axis.text=element_text(color="black", size=12), 
+    axis.text.x=element_text(angle=45, hjust=1), 
+    axis.title=element_text(color="black", face="bold", size=12),
+    plot.margin=margin(1,1,1,1, "cm"),
+    legend.text=element_text(size=12),
+    legend.title=element_text(size=12, face="bold")
+  );vip_abund_plot
+```
+
+
+### Porites 
+
+Generate a PLS-DA and plot.  
+```{r, results=FALSE}
+#assigning datasets 
+X_metabolites <- data_wide%>%filter(species=="Porites")
+
+levels(as.factor(X_metabolites$timepoint))
+
+Y_metabolites <- as.factor(X_metabolites$timepoint) #select treatment names
+Y_metabolites
+
+X_metabolites<-X_metabolites[6:146] #pull only data columns
+
+# run PLSDA 
+MyResult.plsda <- plsda(X_metabolites,Y_metabolites) # 1 Run the method
+
+timepoint_cols<-c("darkgray", "orange", "blue", "purple") 
+            
+plotIndiv(MyResult.plsda, col=timepoint_cols, ind.names = FALSE, legend=TRUE, legend.title = "POR Metabolites ~ Timepoint", ellipse = FALSE, title="", style = "graphics", centroid=FALSE, point.lwd = 2, cex=2)
+```
+
+View the VIP lipids that are most highly differentiating lipids between timepoints.  
+
+```{r}
+#extract
+metabolite_VIP <- PLSDA.VIP(MyResult.plsda)
+metabolite_VIP_df <- as.data.frame(metabolite_VIP[["tab"]])
+metabolite_VIP_df
+
+# Converting row names to column
+VIP_table <- rownames_to_column(metabolite_VIP_df, var = "Metabolite")
+
+#filter for VIP > 1
+VIP_1 <- VIP_table %>% 
+  filter(VIP >= 1)
+
+#plot
+VIP_list_plot<-VIP_1 %>%
+            arrange(VIP) %>%
+  
+  ggplot( aes(x = VIP, y = reorder(Metabolite,VIP,sum))) +
+  geom_point() +
+  ylab("Metabolite") +
+  xlab("VIP Score") +
+  ggtitle("POR Metabolite VIP - Timepoint") +
+  theme_bw() + theme(panel.border = element_rect(linetype = "solid", color = "black"), panel.grid.major = element_blank(), #Makes background theme white
+                     panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"));VIP_list_plot
+```
+
+Filter dataframe by VIP lipids and plot presence in each time point.  
+```{r}
+vip_list<-c(VIP_1$Metabolite)
+
+vip_lipids<-data_im%>%
+  filter(compound %in% vip_list)%>%
+  filter(species=="Porites")
+```
+
+Plot abundance of these metabolites in each sample. 
+
+```{r}
+vip_abund_plot<-vip_lipids%>%
+  
+  ggplot(aes(x=timepoint, y=rel.quant.ug, color=timepoint, group=timepoint))+
+  facet_wrap(~compound, scales="free")+
+  geom_boxplot(aes(group=interaction(compound, timepoint)),position=position_dodge(0.9))+
+  geom_point(position=position_jitterdodge(0.2))+
+  scale_color_manual(values=c("darkgray", "orange", "blue", "purple"), name="Timepoint")+
+  ylab("abundance")+
+  xlab("Timepoint")+
+  ggtitle("VIP Abundance - POR")+
+  theme_classic()+
+  theme(
+    axis.text=element_text(color="black", size=12), 
+    axis.text.x=element_text(angle=45, hjust=1), 
+    axis.title=element_text(color="black", face="bold", size=12),
+    plot.margin=margin(1,1,1,1, "cm"),
+    legend.text=element_text(size=12),
+    legend.title=element_text(size=12, face="bold")
+  );vip_abund_plot
+```
+
+# Metabolite signatures of energetic state (preliminary)
+
+Calculate the following indicators from literature search:  
+
+- Glucose (translocation, glycolysis)
+- G1P/F1P/F6P (glycolysis)
+- G6P (glycolysis)
+- Glutamine (nitrogen metabolism)
+- Glutamic acid (nitrogen metabolism)
+- Glycerol-3-P (central metabolism)
+- Inositol (signaling)
+- Octanoyl-L-Carnitine (8:0 Carnitine) (fatty acid metabolism)
+- S-Adenosylmethionine (SAM) (methylation methyl donor)
+
+## Glucose 
+
+```{r}
+glucose<-data_im %>%
+  filter(compound=="Glucose")
+```
+
+Plot over time 
+
+```{r}
+glucose_plot1<-glucose%>%
+  group_by(colony, species, timepoint, compound)%>%
+  summarise(mean=mean(rel.quant.ug, na.rm=TRUE))%>%
+  
+  ggplot(aes(x = timepoint, y = mean, colour = species, fill=species)) +
+  geom_point(alpha=0.2) +
+  geom_line(aes(group=colony), alpha=0.2)+
+  geom_smooth(aes(group=species), se=FALSE)+
+  labs(x = "Time Point", y = "Relative Concentration (ug protein)", title = "Glucose") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+        legend.position="right");glucose_plot1
+```
+
+Run a model
+```{r}
+model<-glucose%>%
+  
+  lmer(rel.quant.ug ~ species * timepoint + (1|colony), data=.)
+
+anova(model)
+
+emm<-emmeans(model, ~timepoint|species)
+pairs(emm)
+```
+
+Significant species x time.  
+
+Slightly significant increase in POR at TP2. Stable in Pocillopora. Higher at TP3 in Acropora. 
+
+
+
+## G1P/F1P/F6P 
+
+```{r}
+gly<-data_im %>%
+  filter(compound=="G1P/F1P/F6P")
+```
+
+Plot over time 
+
+```{r}
+gly_plot1<-gly%>%
+  group_by(colony, species, timepoint, compound)%>%
+  summarise(mean=mean(rel.quant.ug, na.rm=TRUE))%>%
+  
+  ggplot(aes(x = timepoint, y = mean, colour = species, fill=species)) +
+  geom_point(alpha=0.2) +
+  geom_line(aes(group=colony), alpha=0.2)+
+  geom_smooth(aes(group=species), se=FALSE)+
+  labs(x = "Time Point", y = "Relative Concentration (ug protein)", title = "G1P/F1P/F6P") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+        legend.position="right");gly_plot1
+```
+
+Run a model
+```{r}
+model<-gly%>%
+  
+  lmer(rel.quant.ug ~ species * timepoint + (1|colony), data=.)
+
+anova(model)
+
+emm<-emmeans(model, ~timepoint|species)
+pairs(emm)
+```
+
+Significant species x time.  
+
+Higher at TP1 and TP3 in Acropora with TP4 as the lowest. Lower at TP1 in Pocillopora. Stable in Porites. 
+
+
+## G6P 
+
+```{r}
+gly2<-data_im %>%
+  filter(compound=="G6P")
+```
+
+Plot over time 
+
+```{r}
+gly2_plot1<-gly2%>%
+  group_by(colony, species, timepoint, compound)%>%
+  summarise(mean=mean(rel.quant.ug, na.rm=TRUE))%>%
+  
+  ggplot(aes(x = timepoint, y = mean, colour = species, fill=species)) +
+  geom_point(alpha=0.2) +
+  geom_line(aes(group=colony), alpha=0.2)+
+  geom_smooth(aes(group=species), se=FALSE)+
+  labs(x = "Time Point", y = "Relative Concentration (ug protein)", title = "G6P") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+        legend.position="right");gly2_plot1
+```
+
+Run a model
+```{r}
+model<-gly2%>%
+  
+  lmer(rel.quant.ug ~ species * timepoint + (1|colony), data=.)
+
+anova(model)
+
+emm<-emmeans(model, ~timepoint|species)
+pairs(emm)
+```
+
+No changes. 
+
+
+## Glutamine 
+
+```{r}
+glutamine<-data_im %>%
+  filter(compound=="Glutamine")
+```
+
+Plot over time 
+
+```{r}
+glutamine_plot1<-glutamine%>%
+  group_by(colony, species, timepoint, compound)%>%
+  summarise(mean=mean(rel.quant.ug, na.rm=TRUE))%>%
+  
+  ggplot(aes(x = timepoint, y = mean, colour = species, fill=species)) +
+  geom_point(alpha=0.2) +
+  geom_line(aes(group=colony), alpha=0.2)+
+  geom_smooth(aes(group=species), se=FALSE)+
+  labs(x = "Time Point", y = "Relative Concentration (ug protein)", title = "Glutamine") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+        legend.position="right");glutamine_plot1
+```
+
+Run a model
+```{r}
+model<-glutamine%>%
+  
+  lmer(rel.quant.ug ~ species * timepoint + (1|colony), data=.)
+
+anova(model)
+
+emm<-emmeans(model, ~timepoint|species)
+pairs(emm)
+```
+
+Significant species x time interaction. Higher at TP4 in Porites. Stable in Acropora and Pocillopora.  
+
+## Glutamic acid/Glutamate 
+
+```{r}
+glutamate<-data_im %>%
+  filter(compound=="Glutamic acid")
+```
+
+Plot over time 
+
+```{r}
+glutamate_plot1<-glutamate%>%
+  group_by(colony, species, timepoint, compound)%>%
+  summarise(mean=mean(rel.quant.ug, na.rm=TRUE))%>%
+  
+  ggplot(aes(x = timepoint, y = mean, colour = species, fill=species)) +
+  geom_point(alpha=0.2) +
+  geom_line(aes(group=colony), alpha=0.2)+
+  geom_smooth(aes(group=species), se=FALSE)+
+  labs(x = "Time Point", y = "Relative Concentration (ug protein)", title = "Glutamate/Glutamic Acid") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+        legend.position="right");glutamate_plot1
+```
+
+Run a model
+```{r}
+model<-glutamate%>%
+  
+  lmer(rel.quant.ug ~ species * timepoint + (1|colony), data=.)
+
+anova(model)
+
+emm<-emmeans(model, ~timepoint|species)
+pairs(emm)
+```
+
+Significant difference between species, no effect of time. Lower in Porites.  
+
+## Glycerol-3-P 
+
+```{r}
+glycerol<-data_im %>%
+  filter(compound=="Glycerol-3-P")
+```
+
+Plot over time 
+
+```{r}
+glycerol_plot1<-glycerol%>%
+  group_by(colony, species, timepoint, compound)%>%
+  summarise(mean=mean(rel.quant.ug, na.rm=TRUE))%>%
+  
+  ggplot(aes(x = timepoint, y = mean, colour = species, fill=species)) +
+  geom_point(alpha=0.2) +
+  geom_line(aes(group=colony), alpha=0.2)+
+  geom_smooth(aes(group=species), se=FALSE)+
+  labs(x = "Time Point", y = "Relative Concentration (ug protein)", title = "Glycerol-3-P") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+        legend.position="right");glycerol_plot1
+```
+
+Run a model
+```{r}
+model<-glycerol%>%
+  
+  lmer(rel.quant.ug ~ species * timepoint + (1|colony), data=.)
+
+anova(model)
+
+emm<-emmeans(model, ~timepoint|species)
+pairs(emm)
+```
+
+Significant difference between species, no effect of time. Higher in Pocillopora.  
+
+
+## Inositol 
+
+```{r}
+inositol<-data_im %>%
+  filter(compound=="Inositol")
+```
+
+Plot over time 
+
+```{r}
+inositol_plot1<-inositol%>%
+  group_by(colony, species, timepoint, compound)%>%
+  summarise(mean=mean(rel.quant.ug, na.rm=TRUE))%>%
+  
+  ggplot(aes(x = timepoint, y = mean, colour = species, fill=species)) +
+  geom_point(alpha=0.2) +
+  geom_line(aes(group=colony), alpha=0.2)+
+  geom_smooth(aes(group=species), se=FALSE)+
+  labs(x = "Time Point", y = "Relative Concentration (ug protein)", title = "Inositol") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+        legend.position="right");inositol_plot1
+```
+
+Run a model
+```{r}
+model<-inositol%>%
+  
+  lmer(rel.quant.ug ~ species * timepoint + (1|colony), data=.)
+
+anova(model)
+
+emm<-emmeans(model, ~timepoint|species)
+pairs(emm)
+```
+
+Significant difference between species, no effect of time. Higher in Porites.   
+
+## Octanoyl-L-Carnitine (8:0 Carnitine) 
+
+```{r}
+carnitine<-data_im %>%
+  filter(compound=="Octanoyl-L-Carnitine (8:0 Carnitine)")
+```
+
+Plot over time 
+
+```{r}
+carnitine_plot1<-carnitine%>%
+  group_by(colony, species, timepoint, compound)%>%
+  summarise(mean=mean(rel.quant.ug, na.rm=TRUE))%>%
+  
+  ggplot(aes(x = timepoint, y = mean, colour = species, fill=species)) +
+  geom_point(alpha=0.2) +
+  geom_line(aes(group=colony), alpha=0.2)+
+  geom_smooth(aes(group=species), se=FALSE)+
+  labs(x = "Time Point", y = "Relative Concentration (ug protein)", title = "Octanoyl-L-Carnitine (8:0 Carnitine)") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+        legend.position="right");carnitine_plot1
+```
+
+Run a model
+```{r}
+model<-carnitine%>%
+  
+  lmer(rel.quant.ug ~ species * timepoint + (1|colony), data=.)
+
+anova(model)
+
+emm<-emmeans(model, ~timepoint|species)
+pairs(emm)
+```
+
+Significant difference between species, no effect of time. Lowest in Pocillopora.     
+
+
+
+
+
+## S-Adenosylmethionine (SAM)
+
+```{r}
+sam<-data_im %>%
+  filter(compound=="S-Adenosylmethionine (SAM)")
+```
+
+Plot over time 
+
+```{r}
+sam_plot1<-sam%>%
+  group_by(colony, species, timepoint, compound)%>%
+  summarise(mean=mean(rel.quant.ug, na.rm=TRUE))%>%
+  
+  ggplot(aes(x = timepoint, y = mean, colour = species, fill=species)) +
+  geom_point(alpha=0.2) +
+  geom_line(aes(group=colony), alpha=0.2)+
+  geom_smooth(aes(group=species), se=FALSE)+
+  labs(x = "Time Point", y = "Relative Concentration (ug protein)", title = "S-Adenosylmethionine (SAM)") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+        legend.position="right");sam_plot1
+```
+
+Run a model
+```{r}
+model<-sam%>%
+  
+  lmer(rel.quant.ug ~ species * timepoint + (1|colony), data=.)
+
+anova(model)
+
+emm<-emmeans(model, ~timepoint|species)
+pairs(emm)
+```
+
+Significant species x time interaction. Stable in Porites and Pocillopora. Higher at TP1 in Acropora decreasing over time.   
+
+
