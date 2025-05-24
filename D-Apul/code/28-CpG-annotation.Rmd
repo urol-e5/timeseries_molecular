@@ -111,6 +111,10 @@ tail ../output/28-Apul-CpG-Annotation/CGoutput-10seq.gff
 fuzznuc -sequence ../data/Apulcra-genome.fa -pattern CG -rformat gff -outfile ../output/28-Apul-CpG-Annotation/Apul-CG-motifs.gff
 ```
 
+```{r, engine='bash'}
+head ../output/28-Apul-CpG-Annotation/Apul-CG-motifs.gff
+```
+
 
 
 # Intersectbed
@@ -165,5 +169,10 @@ bedtools intersect \
 
 ```{r, engine='bash', eval=TRUE}
 head ../output/28-Apul-CpG-Annotation/CG_intersect_mRNA.gff
+```
+
+
+```{r, engine='bash', eval=TRUE}
+grep "ptg000015l_9999753" ../output/28-Apul-CpG-Annotation/CG_intersect_mRNA.gff
 ```
 
