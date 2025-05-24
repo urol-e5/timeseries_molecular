@@ -1,0 +1,1665 @@
+---
+title: "22.5-Apul-multiomic-machine-learning-byTP"
+author: "steven roberts"
+date: "2025-05-24"
+output: 
+  github_document:
+    toc: true
+    number_sections: true
+  html_document:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+  bookdown::html_document2:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+bibliography: references.bib
+---
+
+Applying ML model using multiomic predictors -- miRNA + lncRNA + methylation as predictors of gene expression. I also want to see whether predictors/drivers of expression differ with seasonality (by timepoint)
+
+Inputs:
+
+-   RNA counts matrix (raw):  `../output/02.20-D-Apul-RNAseq-alignment-HiSat2/apul-gene_count_matrix.csv`
+
+  -   Gene sets of interest: `../output/21-Apul-annotate-miRNA-mRNA-WGCNA/filtered-gene-sets/`
+
+-   sRNA/miRNA counts matrix (raw):  `../output/03.10-D-Apul-sRNAseq-expression-DESeq2/Apul_miRNA_ShortStack_counts_formatted.txt`
+
+- lncRNA counts matrix (raw): `../output/08-Apul-lncNRA/counts.txt`
+
+- WGBS data (processed): Performed in `/timeseries_molecular/D-Apul/output/15.5-Apul-bismark/`, data in [large-file storage](https://gannet.fish.washington.edu/seashell/bu-github/timeseries_molecular/D-Apul/output/15.5-Apul-bismark/).
+
+-   sample metadata:  `../../M-multi-species/data/rna_metadata.csv`
+
+
+
+Will be predicting expression for a subset of genes related to energetic state (those annotated for the below GO terms)
+
+- Glycolysis GO:0006096
+
+- Gluconeogenesis GO:0006094
+
+- Lipolysis/lipid catabolism GO:0016042
+
+- Fatty acid beta oxidation GO:0006635
+
+- Starvation GO:0042594
+
+- Lipid biosynthesis GO:000861
+
+- Protein catabolic process GO:0030163
+
+Selected GO terms evaluated at https://github.com/urol-e5/timeseries_molecular/blob/main/D-Apul/code/23-Apul-energetic-state.md
+
+
+# Set up 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, cache=TRUE)
+```
+
+# Load libraries 
+```{r, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(DESeq2)
+library(igraph)
+library(psych)
+library(tidygraph)
+library(ggraph)
+library(WGCNA)
+library(edgeR)
+library(reshape2)
+library(ggcorrplot)
+library(corrplot)
+library(rvest)
+library(purrr)
+library(pheatmap)
+library(glmnet)
+library(caret)
+library(factoextra)
+library(vegan)
+library(ggfortify)
+library(genefilter)
+library(scales)
+library(purrr)
+```
+
+The model includes random processes, so set a seed for reproducability. Note: for final results, should we consider bootstrapping to ensure reported results are representative?
+```{r}
+set.seed(703)
+```
+
+# Load and format data 
+
+## RNA-seq data (mRNA, miRNA, lncRNA)
+
+```{r load-data}
+### mRNA ###
+# raw gene counts data (will filter and variance stabilize)
+Apul_genes <- read_csv("../output/02.20-D-Apul-RNAseq-alignment-HiSat2/apul-gene_count_matrix.csv")
+Apul_genes <- as.data.frame(Apul_genes)
+
+# format gene IDs as rownames (instead of a column)
+rownames(Apul_genes) <- Apul_genes$gene_id
+Apul_genes <- Apul_genes%>%select(!gene_id)
+
+
+### miRNA ###
+# raw miRNA counts (will filter and variance stabilize)
+Apul_miRNA <- read.table(file = "../output/03.10-D-Apul-sRNAseq-expression-DESeq2/Apul_miRNA_ShortStack_counts_formatted.txt", header = TRUE, sep = "\t", check.names = FALSE)
+
+
+### lncRNA ###
+# raw lncRNA counts (will filter and variance stabilize)
+Apul_lncRNA_full <- read.table("../output/08-Apul-lncRNA/counts.txt", header = TRUE, sep = "\t", skip = 1)
+
+# Remove info on genomic location, set lncRNA IDs as rownames
+rownames(Apul_lncRNA_full) <- Apul_lncRNA_full$Geneid
+Apul_lncRNA <- Apul_lncRNA_full %>% select(-Geneid, -Chr, -Start, -End, -Strand, -Length)
+
+
+
+### load and format metadata ###
+metadata <- read_csv("../../M-multi-species/data/rna_metadata.csv")%>%select(AzentaSampleName, ColonyID, Timepoint) %>%
+  filter(grepl("ACR", ColonyID))
+metadata$Sample <- paste0(metadata$ColonyID, "-", metadata$Timepoint)
+rownames(metadata) <- metadata$Sample
+
+colonies <- unique(metadata$ColonyID)
+
+# Rename gene column names to include full sample info
+colnames(Apul_genes) <- metadata$Sample[match(colnames(Apul_genes), metadata$AzentaSampleName)]
+
+# Rename miRNA column names to match formatting
+colnames(Apul_miRNA) <- sub("_.*", "", colnames(Apul_miRNA))
+colnames(Apul_miRNA) <- metadata$Sample[match(colnames(Apul_miRNA), metadata$AzentaSampleName)]
+
+# rename lncRNA colin names to include full sample info
+colnames(Apul_lncRNA) <- sub("...data.", "", colnames(Apul_lncRNA))
+colnames(Apul_lncRNA) <- sub(".sorted.bam", "", colnames(Apul_lncRNA))
+colnames(Apul_lncRNA) <- metadata$Sample[match(colnames(Apul_lncRNA), metadata$AzentaSampleName)]
+
+```
+
+## Islolate gene set
+
+Read in gene set table
+```{r}
+# GO terms related to energetic state
+energetic_state_GO <- read.csv("../output/21-Apul-annotate-miRNA-mRNA-WGCNA/filtered-gene-sets/energetic_state_GO_terms_genes_FA.csv")
+```
+
+Isolate filtered counts by gene set
+```{r}
+energetic_state_GO_genes <- Apul_genes[rownames(Apul_genes) %in% energetic_state_GO$gene,]
+```
+
+## WGBS data 
+
+```{r, eval=FALSE}
+#pull processed files from Gannet 
+# Note: Unfortunately we can't use the `cache` feature to make this process more time efficient, as it doesn't support long vectors
+
+# Define the base URL
+base_url <- "https://gannet.fish.washington.edu/seashell/bu-github/timeseries_molecular/D-Apul/output/15.5-Apul-bismark/"
+
+# Read the HTML page
+page <- read_html(base_url)
+
+# Extract links to files
+file_links <- page %>%
+  html_nodes("a") %>%
+  html_attr("href")
+
+# Filter for files ending in "processed.txt"
+processed_files <- file_links[grepl("processed\\.txt$", file_links)]
+
+# Create full URLs
+file_urls <- paste0(base_url, processed_files)
+
+# Function to read a file from URL
+read_processed_file <- function(url) {
+  read_table(url, col_types = cols(.default = "c"))  # Read as character to avoid parsing issues
+}
+
+# Import all processed files into a list
+processed_data <- lapply(file_urls, read_processed_file)
+
+# Name the list elements by file name
+names(processed_data) <- processed_files
+
+# Print structure of imported data
+str(processed_data)
+
+# add a header row that has "CpG" for the first column and "sample" for the second column, which will be populated by the file name 
+
+processed_data <- Map(function(df, filename) {
+  colnames(df) <- c("CpG", filename)  # Rename columns
+  return(df)
+}, processed_data, names(processed_data))  # Use stored file names
+
+#merge files together by "CpG"
+merged_data <- purrr::reduce(processed_data, full_join, by = "CpG")
+
+# Print structure of final merged data
+str(merged_data)
+```
+
+Replace any NA with 0. 
+```{r, eval=FALSE}
+# Convert all columns (except "CpG") to numeric and replace NAs with 0
+merged_data <- merged_data %>%
+  mutate(across(-CpG, as.numeric)) %>%  # Convert all except CpG to numeric
+  mutate(across(-CpG, ~ replace_na(.x, 0)))  # Replace NA with 0 in numeric columns
+```
+
+## Filter data sets 
+
+Only keep CpGs that have a non-zero value in all samples. 
+
+```{r, eval=FALSE}
+filtered_wgbs <- merged_data %>% filter(if_all(-CpG, ~ .x > 0))
+
+# Ensure it's formatted as a data frame
+filtered_wgbs <- as.data.frame(filtered_wgbs)
+# Only keep the sample information in the column name. 
+colnames(filtered_wgbs) <- gsub("^(.*?)_.*$", "\\1", colnames(filtered_wgbs))
+# Set CpG IDs to rownames
+rownames(filtered_wgbs) <- filtered_wgbs$CpG
+filtered_wgbs <- filtered_wgbs %>% select(-CpG)
+
+nrow(merged_data)
+nrow(filtered_wgbs)
+```
+
+We had 12,093,025 CpGs before filtering and have only 507 after filtering. This makes sense because most CpGs were not methylated in all samples.
+
+Save filtered set to make code reruns/knitting quicker
+
+```{r, eval=FALSE}
+write.csv(filtered_wgbs, "../output/22.3-Apul-multiomic-machine-learning-byTP/filtered-WGBS-CpG-counts.csv")
+```
+
+If knitting/rerunning code, we can load in this filtered data here, instead of loading raw counts and reprocessing.
+
+```{r}
+filtered_wgbs <- read.csv("../output/22.2-Apul-multiomic-machine-learning/filtered-WGBS-CpG-counts.csv", row.names = 1, check.names = FALSE)
+```
+
+
+Only keep genes, miRNA, and lncRNA that are present in at least one sample
+```{r}
+# genes
+energetic_state_GO_genes_red <- energetic_state_GO_genes[rowSums(energetic_state_GO_genes) != 0, ]
+# miRNA
+Apul_miRNA_red <- Apul_miRNA[rowSums(Apul_miRNA) != 0, ]
+# lncRNA
+Apul_lncRNA_red <- Apul_lncRNA[rowSums(Apul_lncRNA) != 0, ]
+
+cat("Retained ", nrow(energetic_state_GO_genes_red), " of ", nrow(energetic_state_GO_genes), "genes; ",
+       nrow(Apul_miRNA_red), " of ", nrow(Apul_miRNA), " miRNA; and ", 
+       nrow(Apul_lncRNA_red), " of ", nrow(Apul_lncRNA), " lncRNA")
+```
+
+*pOverA*: 
+Specifying the minimum count for a proportion of samples for each gene. Setting 3/40 = 0.08. This would retain genes that are only expressed in a single season in a couple of the colonies. Additionally, setting the minimum count so that the minimum number of samples must have a gene count above a certain threshold. 
+
+genes:
+```{r}
+filt <- filterfun(pOverA(0.08, 5))
+
+#create filter for the counts data
+gfilt <- genefilter(energetic_state_GO_genes_red, filt)
+
+#identify genes to keep by count filter
+gkeep <- energetic_state_GO_genes_red[gfilt,]
+
+#identify gene lists
+gn.keep <- rownames(gkeep)
+
+#gene count data filtered in PoverA, P percent of the samples have counts over A
+energetic_state_GO_genes_filt <- as.data.frame(energetic_state_GO_genes_red[which(rownames(energetic_state_GO_genes_red) %in% gn.keep),])
+
+#How many rows do we have before and after filtering?
+cat("Pre-filtering:", nrow(energetic_state_GO_genes_red), "; Post-filtering:", nrow(energetic_state_GO_genes_filt))
+```
+
+miRNA:
+```{r}
+mifilt <- filterfun(pOverA(0.08, 5))
+
+#create filter for the counts data
+mifilt <- genefilter(Apul_miRNA_red, mifilt)
+
+#identify miRNA to keep by count filter
+mikeep <- Apul_miRNA_red[mifilt,]
+
+#identify miRNA to keep by count filter
+mikeep <- Apul_miRNA_red[mifilt,]
+
+#identify miRNA lists
+mi.keep <- rownames(mikeep)
+
+#miRNA count data filtered in PoverA, P percent of the samples have counts over A
+Apul_miRNA_filt <- as.data.frame(Apul_miRNA_red[which(rownames(Apul_miRNA_red) %in% mi.keep),])
+
+#How many rows do we have before and after filtering?
+cat("Pre-filtering:", nrow(Apul_miRNA_red), "; Post-filtering:", nrow(Apul_miRNA_filt))
+```
+
+Of the 51 miRNA, 47 were retained. Which were removed?
+```{r}
+setdiff(rownames(Apul_miRNA_red), rownames(Apul_miRNA_filt))
+```
+
+lncRNA:
+```{r}
+lncfilt <- filterfun(pOverA(0.08, 5))
+
+#create filter for the counts data
+lncfilt <- genefilter(Apul_lncRNA_red, lncfilt)
+
+#identify lncRNA to keep by count filter
+lnckeep <- Apul_lncRNA_red[lncfilt,]
+
+#identify lncRNA to keep by count filter
+lnckeep <- Apul_lncRNA_red[lncfilt,]
+
+#identify lncRNA lists
+lnc.keep <- rownames(lnckeep)
+
+#lncRNA count data filtered in PoverA, P percent of the samples have counts over A
+Apul_lncRNA_filt <- as.data.frame(Apul_lncRNA_red[which(rownames(Apul_lncRNA_red) %in% lnc.keep),])
+
+#How many rows do we have before and after filtering?
+cat("Pre-filtering:", nrow(Apul_lncRNA_red), "; Post-filtering:", nrow(Apul_lncRNA_filt))
+```
+
+## Transform data 
+
+Set the order of genes, miRNA, lncRNA, wgbs, and metadata to all be the same. 
+```{r}
+# Ensure rownames of metadata are used as the desired column order
+desired_order <- rownames(metadata)
+
+# Reorder data frame columns
+energetic_state_GO_genes_filt <- energetic_state_GO_genes_filt[, desired_order]
+Apul_miRNA_filt <- Apul_miRNA_filt[, desired_order]
+Apul_lncRNA_filt <- Apul_lncRNA_filt[, desired_order]
+filtered_wgbs <- filtered_wgbs[, desired_order]
+
+# Check they all match
+identical(rownames(metadata), colnames(energetic_state_GO_genes_filt))
+identical(rownames(metadata), colnames(Apul_miRNA_filt))
+identical(rownames(metadata), colnames(Apul_lncRNA_filt))
+identical(rownames(metadata), colnames(filtered_wgbs))
+```
+
+
+Use a variance stabilized transformation for all four data sets. Variance stabilization essentially tries to make variance independent of the mean
+
+(Is this the most appropriate design to use?)
+
+genes:
+```{r}
+dds_energetic_state_GO <- DESeqDataSetFromMatrix(countData = energetic_state_GO_genes_filt, 
+                              colData = metadata, 
+                              design = ~Timepoint+ColonyID)
+
+# Variance Stabilizing Transformation
+vsd_energetic_state_GO <- varianceStabilizingTransformation(dds_energetic_state_GO, blind = TRUE)  # Must use varianceStabilizingTransformation() instead of vst() due to few input genes
+vsd_energetic_state_GO <- assay(vsd_energetic_state_GO)
+```
+
+miRNA:
+```{r}
+dds_miRNA <- DESeqDataSetFromMatrix(countData = Apul_miRNA_filt, 
+                              colData = metadata, 
+                              design = ~Timepoint+ColonyID)
+
+# Variance Stabilizing Transformation
+vsd_miRNA <- varianceStabilizingTransformation(dds_miRNA, blind=TRUE) # Must use varianceStabilizingTransformation() instead of vst() due to few input genes
+vsd_miRNA <- assay(vsd_miRNA)
+
+```
+
+lncRNA:
+```{r}
+dds_lncRNA <- DESeqDataSetFromMatrix(countData = Apul_lncRNA_filt, 
+                              colData = metadata, 
+                              design = ~Timepoint+ColonyID)
+
+# Variance Stabilizing Transformation
+vsd_lncRNA <- assay(vst(dds_lncRNA, blind = TRUE))
+```
+
+Must round wgbs data to whole integers for normalization - need to return to this to decide if this is appropriate. 
+```{r}
+#round to integers 
+filtered_wgbs<-filtered_wgbs %>% mutate(across(where(is.numeric), round))
+
+dds_wgbs <- DESeqDataSetFromMatrix(countData = filtered_wgbs, 
+                              colData = metadata, 
+                              design = ~ Timepoint+ColonyID)
+
+# Variance Stabilizing Transformation
+vsd_wgbs <- assay(varianceStabilizingTransformation(dds_wgbs, blind = TRUE))
+```
+
+
+## Merge predictor features
+
+Create a merged dataset that contains the variance stabilized counts for all miRNA, lncRNA, and CpGs.
+
+```{r}
+# Triple check that all three data frames have sample names in the same order
+identical(colnames(vsd_lncRNA), colnames(vsd_miRNA))
+identical(colnames(vsd_lncRNA), colnames(vsd_wgbs))
+
+# Bind (stack dataframes vertically, so that they match by column/sample)
+full_pred_counts <- rbind(vsd_lncRNA, vsd_miRNA, vsd_wgbs)
+
+# Transform so that samples are on rows and features are in columns
+full_pred_counts <- t(full_pred_counts)
+
+dim(full_pred_counts)
+```
+
+## Format
+
+```{r}
+# Transform the counts matrices so that samples are on the rows and gene IDs on the columns
+vsd_energetic_state_GO_t <- t(vsd_energetic_state_GO)
+
+# Ensure both are formatted as data frames
+full_pred_counts <- as.data.frame(full_pred_counts)
+vsd_energetic_state_GO_t <- as.data.frame(vsd_energetic_state_GO_t)
+
+# Ensure sample matching between gene and epigenetic dfs
+common_samples <- intersect(rownames(vsd_energetic_state_GO_t), rownames(full_pred_counts))
+
+full_pred_counts <- full_pred_counts[common_samples, ]
+vsd_energetic_state_GO_t <- vsd_energetic_state_GO_t[common_samples,]
+```
+
+## Break up response and predictors by timepoint
+
+```{r}
+vsd_energetic_state_GO_tp1 <- vsd_energetic_state_GO_t[grep("TP1$", rownames(vsd_energetic_state_GO_t)),]
+vsd_energetic_state_GO_tp2 <- vsd_energetic_state_GO_t[grep("TP2$", rownames(vsd_energetic_state_GO_t)),]
+vsd_energetic_state_GO_tp3 <- vsd_energetic_state_GO_t[grep("TP3$", rownames(vsd_energetic_state_GO_t)),]
+vsd_energetic_state_GO_tp4 <- vsd_energetic_state_GO_t[grep("TP4$", rownames(vsd_energetic_state_GO_t)),]
+
+full_pred_counts_tp1 <- full_pred_counts[grep("TP1$", rownames(full_pred_counts)),]
+full_pred_counts_tp2 <- full_pred_counts[grep("TP2$", rownames(full_pred_counts)),]
+full_pred_counts_tp3 <- full_pred_counts[grep("TP3$", rownames(full_pred_counts)),]
+full_pred_counts_tp4 <- full_pred_counts[grep("TP4$", rownames(full_pred_counts)),]
+```
+
+# Define model functions
+
+```{r}
+train_models <- function(response_features, predictor_features) {
+  models <- list()
+  
+  for (feature in colnames(response_features)) {
+    y <- response_features[[feature]]  # Gene expression
+    X <- as.matrix(predictor_features)  # miRNA/lncRNA/methylation as predictors
+    
+    # Train elastic net model (alpha = 0.5 for mix of LASSO & Ridge)
+    # Reducing nfolds from 10 (default) to 5, since I'm using smaller sample sizes of just 10 samples per timepoint
+    model <- cv.glmnet(X, y, alpha = 0.5, nfolds = 3)
+    
+    models[[feature]] <- model
+  }
+  
+  return(models)
+}
+
+get_feature_importance <- function(models) {
+  importance_list <- lapply(models, function(model) {
+    coefs <- as.matrix(coef(model, s = "lambda.min"))[-1, , drop = FALSE]  # Convert to regular matrix & remove intercept
+    
+    # Convert to data frame
+    coefs_df <- data.frame(Feature = rownames(coefs), Importance = as.numeric(coefs))
+    
+    return(coefs_df)
+  })
+  
+  # Combine feature importance across all predicted genes
+  importance_df <- bind_rows(importance_list) %>%
+    group_by(Feature) %>%
+    summarize(MeanImportance = mean(abs(Importance)), .groups = "drop") %>%
+    arrange(desc(MeanImportance))
+  
+  return(importance_df)
+}
+
+evaluate_model_performance <- function(models, response_features, predictor_features) {
+  results <- data.frame(Feature = colnames(response_features), R2 = NA)
+
+  for (feature in colnames(response_features)) {
+    y <- response_features[[feature]]
+    X <- as.matrix(predictor_features)
+
+    model <- models[[feature]]
+    preds <- predict(model, X, s = "lambda.min")
+
+    R2 <- cor(y, preds)^2  # R-squared metric
+    results[results$Feature == feature, "R2"] <- R2
+  }
+
+  return(results)
+}
+```
+
+
+# Energetic state (GO terms)
+
+
+## TP1
+
+### The model 
+
+Train elastic models to predict gene expression from miRNA/lncRNA/methylation
+```{r}
+# Train models predicting gene expression from miRNA/lncRNA/methylation
+models_ATP_prod_GO_tp1 <- train_models(vsd_energetic_state_GO_tp1, full_pred_counts_tp1)
+```
+
+Extract feature importance.
+```{r}
+feature_importance_ATP_prod_GO_tp1 <- get_feature_importance(models_ATP_prod_GO_tp1)
+head(feature_importance_ATP_prod_GO_tp1, 20)  # Top predictive miRNA
+```
+
+Evaluate performance.
+```{r}
+performance_results_ATP_prod_GO_tp1 <- evaluate_model_performance(models_ATP_prod_GO_tp1, vsd_energetic_state_GO_tp1, full_pred_counts_tp1)
+summary(performance_results_ATP_prod_GO_tp1$R2)
+```
+
+### Results
+
+Plot results.
+```{r}
+# Select top predictive features
+top_features_ATP_prod_GO_tp1 <- feature_importance_ATP_prod_GO_tp1 %>% top_n(50, MeanImportance)
+
+# Plot
+ggplot(top_features_ATP_prod_GO_tp1, aes(x = reorder(Feature, MeanImportance), y = MeanImportance)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  coord_flip() +  # Flip for readability
+  theme_minimal() +
+  labs(title = "miRNA/lncRNA/methylation as Predictive Features",
+       x = "Feature",
+       y = "Mean Importance")
+```
+
+```{r}
+ggplot(performance_results_ATP_prod_GO_tp1, aes(x = as.factor(Feature), y = R2)) +
+  geom_point(color = "darkred", size = 3) +
+  geom_hline(yintercept = mean(performance_results_ATP_prod_GO_tp1$R2, na.rm = TRUE), linetype = "dashed", color = "blue") +
+  theme_minimal() +
+  labs(title = "Model Performance Across Gene Expression",
+       x = "Gene Expression PC",
+       y = "R² (Variance Explained)") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + # Rotate labels
+  ylim(0,1)
+```
+
+View predicted vs actual gene expression values to evaluate model.
+```{r}
+# Choose a gene expression PC to visualize (e.g., the most predictable one)
+best_feature_ATP_prod_GO_tp1 <- performance_results_ATP_prod_GO_tp1$Feature[which.max(performance_results_ATP_prod_GO_tp1$R2)]
+
+# Extract actual and predicted values for that PC
+actual_values_ATP_prod_GO_tp1 <- vsd_energetic_state_GO_tp1[[best_feature_ATP_prod_GO_tp1]]
+predicted_values_ATP_prod_GO_tp1 <- predict(models_ATP_prod_GO_tp1[[best_feature_ATP_prod_GO_tp1]], as.matrix(full_pred_counts_tp1), s = "lambda.min")
+
+# Create data frame
+prediction_df_ATP_prod_GO_tp1 <- data.frame(
+  Actual = actual_values_ATP_prod_GO_tp1,
+  Predicted = predicted_values_ATP_prod_GO_tp1
+)
+
+# Scatter plot with regression line
+ggplot(prediction_df_ATP_prod_GO_tp1, aes(x = Actual, y = lambda.min)) +
+  geom_point(color = "blue", alpha = 0.7) +
+  geom_smooth(method = "lm", color = "red", se = FALSE) +
+  theme_minimal() +
+  labs(title = paste("Predicted vs. Actual for", best_feature_ATP_prod_GO_tp1),
+       x = "Actual Gene Expression PC",
+       y = "Predicted Gene Expression PC") +
+  annotate("text", x = min(actual_values_ATP_prod_GO_tp1), y = max(predicted_values_ATP_prod_GO_tp1), 
+           label = paste("R² =", round(max(performance_results_ATP_prod_GO_tp1$R2, na.rm=TRUE), 3)), 
+           hjust = 0, color = "black", size = 5)
+## `geom_smooth()` using formula = 'y ~ x'
+
+```
+
+We can also look at which miRNA(s) contributed most to predicting gene of interest
+
+```{r, eval=FALSE}
+# Select all with R^2 values above line in plot
+all_features_ATP_prod_GO_tp1 <- performance_results_ATP_prod_GO_tp1 %>% filter(R2 > 0.75) %>% pull(Feature)
+
+get_feature_importance_for_feature <- function(model) {
+  coefs <- as.matrix(coef(model, s = "lambda.min"))[-1, , drop = FALSE]  # Remove intercept
+  coefs_df <- data.frame(Feature = rownames(coefs), Importance = abs(as.numeric(coefs)))
+  
+  return(coefs_df %>% arrange(desc(Importance)))  # Sort by importance
+}
+
+for (feature in all_features_ATP_prod_GO_tp1) {
+  # Extract feature importance for the most predictable PC
+  best_feature_model <- models_ATP_prod_GO_tp1[[feature]]
+  best_feature_importance <- get_feature_importance_for_feature(best_feature_model)
+  
+  # Plot top most important miRNA/lncRNA/methylation for predicting this PC
+  plot <- ggplot(best_feature_importance %>% head(20), aes(x = reorder(Feature, Importance), y = Importance)) +
+    geom_bar(stat = "identity", fill = "steelblue") +
+    coord_flip() +
+    theme_minimal() +
+    labs(title = paste("Top miRNA/lncRNA/methylation Predictors for", feature),
+         x = "Feature",
+         y = "Importance Score")
+  
+  print(plot)
+}
+```
+
+```{r}
+# Compute correlation between actual and predicted gene expression
+predicted_matrix <- sapply(models_ATP_prod_GO_tp1, function(m) predict(m, as.matrix(full_pred_counts_tp1), s = "lambda.min"))
+
+# Ensure matrices are the same size
+predicted_matrix <- predicted_matrix[, colnames(vsd_energetic_state_GO_tp1), drop = FALSE]  # Align columns
+
+# remove 0 variance columns
+predicted_matrix <- predicted_matrix[, apply(predicted_matrix, 2, function(col) sd(col, na.rm = TRUE) > 0)]
+
+# Compute correlation matrix, handling missing values
+cor_matrix <- cor(predicted_matrix, as.matrix(vsd_energetic_state_GO_tp1), use = "complete.obs")
+
+# Replace NA or Inf values with zero
+cor_matrix[is.na(cor_matrix) | is.infinite(cor_matrix)] <- 0  
+
+# Plot heatmap
+pheatmap(cor_matrix, color = colorRampPalette(c("blue", "white", "red"))(100),
+         main = "Correlation Between Actual and Predicted Gene Expression",
+         cluster_rows = FALSE,
+         cluster_cols = FALSE,
+         fontsize = 10)
+
+```
+
+
+
+
+## TP2
+
+### The model 
+
+Train elastic models to predict gene expression from miRNA/lncRNA/methylation
+```{r}
+# Train models predicting gene expression from miRNA/lncRNA/methylation
+models_ATP_prod_GO_tp2 <- train_models(vsd_energetic_state_GO_tp2, full_pred_counts_tp2)
+```
+
+Extract feature importance.
+```{r}
+feature_importance_ATP_prod_GO_tp2 <- get_feature_importance(models_ATP_prod_GO_tp2)
+head(feature_importance_ATP_prod_GO_tp2, 20)  # Top predictive miRNA
+```
+
+Evaluate performance.
+```{r}
+performance_results_ATP_prod_GO_tp2 <- evaluate_model_performance(models_ATP_prod_GO_tp2, vsd_energetic_state_GO_tp2, full_pred_counts_tp2)
+summary(performance_results_ATP_prod_GO_tp2$R2)
+```
+
+### Results
+
+Plot results.
+```{r}
+# Select top predictive features
+top_features_ATP_prod_GO_tp2 <- feature_importance_ATP_prod_GO_tp2 %>% top_n(50, MeanImportance)
+
+# Plot
+ggplot(top_features_ATP_prod_GO_tp2, aes(x = reorder(Feature, MeanImportance), y = MeanImportance)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  coord_flip() +  # Flip for readability
+  theme_minimal() +
+  labs(title = "miRNA/lncRNA/methylation as Predictive Features",
+       x = "Feature",
+       y = "Mean Importance")
+```
+
+```{r}
+ggplot(performance_results_ATP_prod_GO_tp2, aes(x = as.factor(Feature), y = R2)) +
+  geom_point(color = "darkred", size = 3) +
+  geom_hline(yintercept = mean(performance_results_ATP_prod_GO_tp2$R2, na.rm = TRUE), linetype = "dashed", color = "blue") +
+  theme_minimal() +
+  labs(title = "Model Performance Across Gene Expression",
+       x = "Gene Expression PC",
+       y = "R² (Variance Explained)") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + # Rotate labels
+  ylim(0,1)
+```
+
+View predicted vs actual gene expression values to evaluate model.
+```{r}
+# Choose a gene expression PC to visualize (e.g., the most predictable one)
+best_feature_ATP_prod_GO_tp2 <- performance_results_ATP_prod_GO_tp2$Feature[which.max(performance_results_ATP_prod_GO_tp2$R2)]
+
+# Extract actual and predicted values for that PC
+actual_values_ATP_prod_GO_tp2 <- vsd_energetic_state_GO_tp2[[best_feature_ATP_prod_GO_tp2]]
+predicted_values_ATP_prod_GO_tp2 <- predict(models_ATP_prod_GO_tp2[[best_feature_ATP_prod_GO_tp2]], as.matrix(full_pred_counts_tp2), s = "lambda.min")
+
+# Create data frame
+prediction_df_ATP_prod_GO_tp2 <- data.frame(
+  Actual = actual_values_ATP_prod_GO_tp2,
+  Predicted = predicted_values_ATP_prod_GO_tp2
+)
+
+# Scatter plot with regression line
+ggplot(prediction_df_ATP_prod_GO_tp2, aes(x = Actual, y = lambda.min)) +
+  geom_point(color = "blue", alpha = 0.7) +
+  geom_smooth(method = "lm", color = "red", se = FALSE) +
+  theme_minimal() +
+  labs(title = paste("Predicted vs. Actual for", best_feature_ATP_prod_GO_tp2),
+       x = "Actual Gene Expression PC",
+       y = "Predicted Gene Expression PC") +
+  annotate("text", x = min(actual_values_ATP_prod_GO_tp2), y = max(predicted_values_ATP_prod_GO_tp2), 
+           label = paste("R² =", round(max(performance_results_ATP_prod_GO_tp2$R2, na.rm=TRUE), 3)), 
+           hjust = 0, color = "black", size = 5)
+## `geom_smooth()` using formula = 'y ~ x'
+
+```
+
+We can also look at which miRNA(s) contributed most to predicting gene of interest
+
+```{r, eval=FALSE}
+# Select all with R^2 values above line in plot
+all_features_ATP_prod_GO_tp2 <- performance_results_ATP_prod_GO_tp2 %>% filter(R2 > 0.75) %>% pull(Feature)
+
+get_feature_importance_for_feature <- function(model) {
+  coefs <- as.matrix(coef(model, s = "lambda.min"))[-1, , drop = FALSE]  # Remove intercept
+  coefs_df <- data.frame(Feature = rownames(coefs), Importance = abs(as.numeric(coefs)))
+  
+  return(coefs_df %>% arrange(desc(Importance)))  # Sort by importance
+}
+
+for (feature in all_features_ATP_prod_GO_tp2) {
+  # Extract feature importance for the most predictable PC
+  best_feature_model <- models_ATP_prod_GO_tp2[[feature]]
+  best_feature_importance <- get_feature_importance_for_feature(best_feature_model)
+  
+  # Plot top most important miRNA/lncRNA/methylation for predicting this PC
+  plot <- ggplot(best_feature_importance %>% head(20), aes(x = reorder(Feature, Importance), y = Importance)) +
+    geom_bar(stat = "identity", fill = "steelblue") +
+    coord_flip() +
+    theme_minimal() +
+    labs(title = paste("Top miRNA/lncRNA/methylation Predictors for", feature),
+         x = "Feature",
+         y = "Importance Score")
+  
+  print(plot)
+}
+```
+
+```{r}
+# Compute correlation between actual and predicted gene expression
+predicted_matrix <- sapply(models_ATP_prod_GO_tp2, function(m) predict(m, as.matrix(full_pred_counts_tp2), s = "lambda.min"))
+
+# Ensure matrices are the same size
+predicted_matrix <- predicted_matrix[, colnames(vsd_energetic_state_GO_tp2), drop = FALSE]  # Align columns
+
+# remove 0 variance columns
+predicted_matrix <- predicted_matrix[, apply(predicted_matrix, 2, function(col) sd(col, na.rm = TRUE) > 0)]
+
+# Compute correlation matrix, handling missing values
+cor_matrix <- cor(predicted_matrix, as.matrix(vsd_energetic_state_GO_tp2), use = "complete.obs")
+
+# Replace NA or Inf values with zero
+cor_matrix[is.na(cor_matrix) | is.infinite(cor_matrix)] <- 0  
+
+# Plot heatmap
+pheatmap(cor_matrix, color = colorRampPalette(c("blue", "white", "red"))(100),
+         main = "Correlation Between Actual and Predicted Gene Expression",
+         cluster_rows = FALSE,
+         cluster_cols = FALSE,
+         fontsize = 10)
+
+```
+
+
+## TP3
+
+### The model 
+
+Train elastic models to predict gene expression from miRNA/lncRNA/methylation
+```{r}
+# Train models predicting gene expression from miRNA/lncRNA/methylation
+models_ATP_prod_GO_tp3 <- train_models(vsd_energetic_state_GO_tp3, full_pred_counts_tp3)
+```
+
+Extract feature importance.
+```{r}
+feature_importance_ATP_prod_GO_tp3 <- get_feature_importance(models_ATP_prod_GO_tp3)
+head(feature_importance_ATP_prod_GO_tp3, 20)  # Top predictive miRNA
+```
+
+Evaluate performance.
+```{r}
+performance_results_ATP_prod_GO_tp3 <- evaluate_model_performance(models_ATP_prod_GO_tp3, vsd_energetic_state_GO_tp3, full_pred_counts_tp3)
+summary(performance_results_ATP_prod_GO_tp3$R2)
+```
+
+### Results
+
+Plot results.
+```{r}
+# Select top predictive features
+top_features_ATP_prod_GO_tp3 <- feature_importance_ATP_prod_GO_tp3 %>% top_n(50, MeanImportance)
+
+# Plot
+ggplot(top_features_ATP_prod_GO_tp3, aes(x = reorder(Feature, MeanImportance), y = MeanImportance)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  coord_flip() +  # Flip for readability
+  theme_minimal() +
+  labs(title = "miRNA/lncRNA/methylation as Predictive Features",
+       x = "Feature",
+       y = "Mean Importance")
+```
+
+```{r}
+ggplot(performance_results_ATP_prod_GO_tp3, aes(x = as.factor(Feature), y = R2)) +
+  geom_point(color = "darkred", size = 3) +
+  geom_hline(yintercept = mean(performance_results_ATP_prod_GO_tp3$R2, na.rm = TRUE), linetype = "dashed", color = "blue") +
+  theme_minimal() +
+  labs(title = "Model Performance Across Gene Expression",
+       x = "Gene Expression PC",
+       y = "R² (Variance Explained)") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + # Rotate labels
+  ylim(0,1)
+```
+
+View predicted vs actual gene expression values to evaluate model.
+```{r}
+# Choose a gene expression PC to visualize (e.g., the most predictable one)
+best_feature_ATP_prod_GO_tp3 <- performance_results_ATP_prod_GO_tp3$Feature[which.max(performance_results_ATP_prod_GO_tp3$R2)]
+
+# Extract actual and predicted values for that PC
+actual_values_ATP_prod_GO_tp3 <- vsd_energetic_state_GO_tp3[[best_feature_ATP_prod_GO_tp3]]
+predicted_values_ATP_prod_GO_tp3 <- predict(models_ATP_prod_GO_tp3[[best_feature_ATP_prod_GO_tp3]], as.matrix(full_pred_counts_tp3), s = "lambda.min")
+
+# Create data frame
+prediction_df_ATP_prod_GO_tp3 <- data.frame(
+  Actual = actual_values_ATP_prod_GO_tp3,
+  Predicted = predicted_values_ATP_prod_GO_tp3
+)
+
+# Scatter plot with regression line
+ggplot(prediction_df_ATP_prod_GO_tp3, aes(x = Actual, y = lambda.min)) +
+  geom_point(color = "blue", alpha = 0.7) +
+  geom_smooth(method = "lm", color = "red", se = FALSE) +
+  theme_minimal() +
+  labs(title = paste("Predicted vs. Actual for", best_feature_ATP_prod_GO_tp3),
+       x = "Actual Gene Expression PC",
+       y = "Predicted Gene Expression PC") +
+  annotate("text", x = min(actual_values_ATP_prod_GO_tp3), y = max(predicted_values_ATP_prod_GO_tp3), 
+           label = paste("R² =", round(max(performance_results_ATP_prod_GO_tp3$R2, na.rm=TRUE), 3)), 
+           hjust = 0, color = "black", size = 5)
+## `geom_smooth()` using formula = 'y ~ x'
+
+```
+
+We can also look at which miRNA(s) contributed most to predicting gene of interest
+
+```{r, eval=FALSE}
+# Select all with R^2 values above line in plot
+all_features_ATP_prod_GO_tp3 <- performance_results_ATP_prod_GO_tp3 %>% filter(R2 > 0.75) %>% pull(Feature)
+
+get_feature_importance_for_feature <- function(model) {
+  coefs <- as.matrix(coef(model, s = "lambda.min"))[-1, , drop = FALSE]  # Remove intercept
+  coefs_df <- data.frame(Feature = rownames(coefs), Importance = abs(as.numeric(coefs)))
+  
+  return(coefs_df %>% arrange(desc(Importance)))  # Sort by importance
+}
+
+for (feature in all_features_ATP_prod_GO_tp3) {
+  # Extract feature importance for the most predictable PC
+  best_feature_model <- models_ATP_prod_GO_tp3[[feature]]
+  best_feature_importance <- get_feature_importance_for_feature(best_feature_model)
+  
+  # Plot top most important miRNA/lncRNA/methylation for predicting this PC
+  plot <- ggplot(best_feature_importance %>% head(20), aes(x = reorder(Feature, Importance), y = Importance)) +
+    geom_bar(stat = "identity", fill = "steelblue") +
+    coord_flip() +
+    theme_minimal() +
+    labs(title = paste("Top miRNA/lncRNA/methylation Predictors for", feature),
+         x = "Feature",
+         y = "Importance Score")
+  
+  print(plot)
+}
+```
+
+```{r}
+# Compute correlation between actual and predicted gene expression
+predicted_matrix <- sapply(models_ATP_prod_GO_tp3, function(m) predict(m, as.matrix(full_pred_counts_tp3), s = "lambda.min"))
+
+# Ensure matrices are the same size
+predicted_matrix <- predicted_matrix[, colnames(vsd_energetic_state_GO_tp3), drop = FALSE]  # Align columns
+
+# remove 0 variance columns
+predicted_matrix <- predicted_matrix[, apply(predicted_matrix, 2, function(col) sd(col, na.rm = TRUE) > 0)]
+
+# Compute correlation matrix, handling missing values
+cor_matrix <- cor(predicted_matrix, as.matrix(vsd_energetic_state_GO_tp3), use = "complete.obs")
+
+# Replace NA or Inf values with zero
+cor_matrix[is.na(cor_matrix) | is.infinite(cor_matrix)] <- 0  
+
+# Plot heatmap
+pheatmap(cor_matrix, color = colorRampPalette(c("blue", "white", "red"))(100),
+         main = "Correlation Between Actual and Predicted Gene Expression",
+         cluster_rows = FALSE,
+         cluster_cols = FALSE,
+         fontsize = 10)
+
+```
+
+
+
+## TP4
+
+### The model 
+
+Train elastic models to predict gene expression from miRNA/lncRNA/methylation
+```{r}
+# Train models predicting gene expression from miRNA/lncRNA/methylation
+models_ATP_prod_GO_tp4 <- train_models(vsd_energetic_state_GO_tp4, full_pred_counts_tp4)
+```
+
+Extract feature importance.
+```{r}
+feature_importance_ATP_prod_GO_tp4 <- get_feature_importance(models_ATP_prod_GO_tp4)
+head(feature_importance_ATP_prod_GO_tp4, 20)  # Top predictive miRNA
+```
+
+Evaluate performance.
+```{r}
+performance_results_ATP_prod_GO_tp4 <- evaluate_model_performance(models_ATP_prod_GO_tp4, vsd_energetic_state_GO_tp4, full_pred_counts_tp4)
+summary(performance_results_ATP_prod_GO_tp4$R2)
+```
+
+### Results
+
+Plot results.
+```{r}
+# Select top predictive features
+top_features_ATP_prod_GO_tp4 <- feature_importance_ATP_prod_GO_tp4 %>% top_n(50, MeanImportance)
+
+# Plot
+ggplot(top_features_ATP_prod_GO_tp4, aes(x = reorder(Feature, MeanImportance), y = MeanImportance)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  coord_flip() +  # Flip for readability
+  theme_minimal() +
+  labs(title = "miRNA/lncRNA/methylation as Predictive Features",
+       x = "Feature",
+       y = "Mean Importance")
+```
+
+```{r}
+ggplot(performance_results_ATP_prod_GO_tp4, aes(x = as.factor(Feature), y = R2)) +
+  geom_point(color = "darkred", size = 3) +
+  geom_hline(yintercept = mean(performance_results_ATP_prod_GO_tp4$R2, na.rm = TRUE), linetype = "dashed", color = "blue") +
+  theme_minimal() +
+  labs(title = "Model Performance Across Gene Expression",
+       x = "Gene Expression PC",
+       y = "R² (Variance Explained)") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + # Rotate labels
+  ylim(0,1)
+```
+
+View predicted vs actual gene expression values to evaluate model.
+```{r}
+# Choose a gene expression PC to visualize (e.g., the most predictable one)
+best_feature_ATP_prod_GO_tp4 <- performance_results_ATP_prod_GO_tp4$Feature[which.max(performance_results_ATP_prod_GO_tp4$R2)]
+
+# Extract actual and predicted values for that PC
+actual_values_ATP_prod_GO_tp4 <- vsd_energetic_state_GO_tp4[[best_feature_ATP_prod_GO_tp4]]
+predicted_values_ATP_prod_GO_tp4 <- predict(models_ATP_prod_GO_tp4[[best_feature_ATP_prod_GO_tp4]], as.matrix(full_pred_counts_tp4), s = "lambda.min")
+
+# Create data frame
+prediction_df_ATP_prod_GO_tp4 <- data.frame(
+  Actual = actual_values_ATP_prod_GO_tp4,
+  Predicted = predicted_values_ATP_prod_GO_tp4
+)
+
+# Scatter plot with regression line
+ggplot(prediction_df_ATP_prod_GO_tp4, aes(x = Actual, y = lambda.min)) +
+  geom_point(color = "blue", alpha = 0.7) +
+  geom_smooth(method = "lm", color = "red", se = FALSE) +
+  theme_minimal() +
+  labs(title = paste("Predicted vs. Actual for", best_feature_ATP_prod_GO_tp4),
+       x = "Actual Gene Expression PC",
+       y = "Predicted Gene Expression PC") +
+  annotate("text", x = min(actual_values_ATP_prod_GO_tp4), y = max(predicted_values_ATP_prod_GO_tp4), 
+           label = paste("R² =", round(max(performance_results_ATP_prod_GO_tp4$R2, na.rm=TRUE), 3)), 
+           hjust = 0, color = "black", size = 5)
+## `geom_smooth()` using formula = 'y ~ x'
+
+```
+
+We can also look at which miRNA(s) contributed most to predicting gene of interest
+
+```{r, eval=FALSE}
+# Select all with R^2 values above line in plot
+all_features_ATP_prod_GO_tp4 <- performance_results_ATP_prod_GO_tp4 %>% filter(R2 > 0.75) %>% pull(Feature)
+
+get_feature_importance_for_feature <- function(model) {
+  coefs <- as.matrix(coef(model, s = "lambda.min"))[-1, , drop = FALSE]  # Remove intercept
+  coefs_df <- data.frame(Feature = rownames(coefs), Importance = abs(as.numeric(coefs)))
+  
+  return(coefs_df %>% arrange(desc(Importance)))  # Sort by importance
+}
+
+for (feature in all_features_ATP_prod_GO_tp4) {
+  # Extract feature importance for the most predictable PC
+  best_feature_model <- models_ATP_prod_GO_tp4[[feature]]
+  best_feature_importance <- get_feature_importance_for_feature(best_feature_model)
+  
+  # Plot top most important miRNA/lncRNA/methylation for predicting this PC
+  plot <- ggplot(best_feature_importance %>% head(20), aes(x = reorder(Feature, Importance), y = Importance)) +
+    geom_bar(stat = "identity", fill = "steelblue") +
+    coord_flip() +
+    theme_minimal() +
+    labs(title = paste("Top miRNA/lncRNA/methylation Predictors for", feature),
+         x = "Feature",
+         y = "Importance Score")
+  
+  print(plot)
+}
+```
+
+```{r}
+# Compute correlation between actual and predicted gene expression
+predicted_matrix <- sapply(models_ATP_prod_GO_tp4, function(m) predict(m, as.matrix(full_pred_counts_tp4), s = "lambda.min"))
+
+# Ensure matrices are the same size
+predicted_matrix <- predicted_matrix[, colnames(vsd_energetic_state_GO_tp4), drop = FALSE]  # Align columns
+
+# remove 0 variance columns
+predicted_matrix <- predicted_matrix[, apply(predicted_matrix, 2, function(col) sd(col, na.rm = TRUE) > 0)]
+
+# Compute correlation matrix, handling missing values
+cor_matrix <- cor(predicted_matrix, as.matrix(vsd_energetic_state_GO_tp4), use = "complete.obs")
+
+# Replace NA or Inf values with zero
+cor_matrix[is.na(cor_matrix) | is.infinite(cor_matrix)] <- 0  
+
+# Plot heatmap
+pheatmap(cor_matrix, color = colorRampPalette(c("blue", "white", "red"))(100),
+         main = "Correlation Between Actual and Predicted Gene Expression",
+         cluster_rows = FALSE,
+         cluster_cols = FALSE,
+         fontsize = 10)
+
+```
+
+# Compare accross timepoints
+
+See, for each pair of timepoints, which features are present in both lists of top 50 most important features
+```{r}
+
+intersect(top_features_ATP_prod_GO_tp1$Feature, top_features_ATP_prod_GO_tp4$Feature)
+intersect(top_features_ATP_prod_GO_tp1$Feature, top_features_ATP_prod_GO_tp2$Feature)
+intersect(top_features_ATP_prod_GO_tp1$Feature, top_features_ATP_prod_GO_tp3$Feature)
+intersect(top_features_ATP_prod_GO_tp2$Feature, top_features_ATP_prod_GO_tp3$Feature)
+intersect(top_features_ATP_prod_GO_tp2$Feature, top_features_ATP_prod_GO_tp4$Feature)
+intersect(top_features_ATP_prod_GO_tp3$Feature, top_features_ATP_prod_GO_tp4$Feature)
+
+```
+Basically, there was little-to-no overlap in the most predictive features for each timepoint. 
+
+This is all making me pretty suspicious of how accurate the model is, I feel like it's overfitting. So far I've just been training the model on all of our data. Instead, I need to try training on a subset of our data and then testing the model.
+
+
+# Split training and test
+
+## Define model training and testing function
+
+```{r}
+train_models_split <- function(response_features, predictor_features, train_frac = 0.8, alpha = 0.5, nfolds = 10) {
+  
+  # Set up storage
+  models <- list()
+  performance <- data.frame(Feature = colnames(response_features), R2 = NA)
+
+  # Select fraction of data
+  sample_idx <- sample(seq_len(nrow(predictor_features)), size = floor(train_frac * nrow(predictor_features)))
+
+  # Split predictor data
+  X_train <- predictor_features[sample_idx, ]
+  X_test  <- predictor_features[-sample_idx, ]
+
+  for (feature in colnames(response_features)) {
+    # Split response data
+    y_train <- response_features[sample_idx, feature]
+    y_test  <- response_features[-sample_idx, feature]
+
+    
+    # Check if y_train is constant
+    if (length(unique(y_train)) == 1) {
+      warning(sprintf("Skipping feature '%s': y_train is constant", feature))
+      next
+    }
+    
+    # Run model on training data
+    model <- cv.glmnet(as.matrix(X_train), y_train, alpha = alpha, nfolds = nfolds)
+    models[[feature]] <- model
+
+    # Now apply the trained model to test data
+    preds <- predict(model, newx = as.matrix(X_test), s = "lambda.min")
+    R2 <- cor(y_test, preds)^2
+    performance[performance$Feature == feature, "R2"] <- R2
+  }
+
+  return(list(models = models, performance = performance))
+}
+
+```
+
+## Run function
+
+```{r}
+# Run training/testing function
+result_split <- train_models_split(vsd_energetic_state_GO_t, full_pred_counts)
+
+# Results
+trained_models_split <- result_split$models
+model_performance_split <- result_split$performance
+feature_importance_split <- get_feature_importance(trained_models_split)
+
+```
+
+## Results
+
+Plot top predictive features for the test data
+```{r}
+# Select top predictive features
+top_features_split <- feature_importance_split %>% top_n(50, MeanImportance)
+
+# Plot
+ggplot(top_features_split, aes(x = reorder(Feature, MeanImportance), y = MeanImportance)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  coord_flip() +  # Flip for readability
+  theme_minimal() +
+  labs(title = "miRNA/lncRNA/methylation as Predictive Features",
+       x = "Feature",
+       y = "Mean Importance")
+```
+
+Plot performance (R^2) of the model in predicting the test data
+```{r performance plot}
+ggplot(model_performance_split, aes(x = as.factor(Feature), y = R2)) +
+  geom_point(color = "darkred", size = 3) +
+  geom_hline(yintercept = mean(model_performance_split$R2, na.rm = TRUE), linetype = "dashed", color = "blue") +
+  theme_minimal() +
+  labs(title = "Model Performance Across Gene Expression",
+       x = "Gene Expression PC",
+       y = "R² (Variance Explained)") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + # Rotate labels
+  ylim(0,1)
+```
+
+The values for explained variance are all over the place, which suggests the model may not be very generalizable accross all genes.
+
+Let's double check the R^2 distribution
+```{r}
+ggplot(model_performance_split, aes(x = R2)) +
+  geom_histogram(bins = 20, fill = "skyblue", color = "black") +
+  labs(title = "Distribution of R² on Test Set", x = "R²", y = "Count") +
+  theme_minimal()
+```
+
+Again, model performance appears essentially random. This could be due to small sample size (though this seems less likely sigen N=40), invariant data, noise, or because expression of some genes is driven by features not included in our predictor set (e.g. transcription factors). The final option seems most likely to me. 
+
+There may, however, be a subset of genes whose expression *is* primarily driven by our epigenetic mechanisms. Bootstrapping should help us identify this subset, if it exists. I'll run model training/testing many times and see which genes are consistently well-predicted.
+
+# Bootstrapping
+
+```{r bootstrap-1, cache=TRUE}
+n_replicates <- 50  # number of replicates
+r2_threshold <- 0.5 # threshold for "good" prediction
+TM_list <- list()
+MP_list <- list()
+FI_list <- list()
+
+# Perform bootstrapping
+for (i in 1:n_replicates) {
+  cat("Beginning replicate", i)
+  cat("\n")
+  result <- train_models_split(vsd_energetic_state_GO_t, full_pred_counts)
+  
+  cat("Extracting results for replicate", i)
+  cat("\n")
+  trained_models <- result$models
+  model_performance <- result$performance
+  feature_importance <- get_feature_importance(trained_models)
+  
+  TM_list[[i]] <- trained_models
+  TM_list[[i]]$Replicate <- i
+  
+  MP_list[[i]] <- model_performance
+  MP_list[[i]]$Replicate <- i
+  
+  FI_list[[i]] <- feature_importance
+  FI_list[[i]]$Replicate <- i
+}
+
+# Combine all results
+all_TM <- do.call(rbind, TM_list)
+all_MP <- do.call(rbind, MP_list)
+all_FI <- do.call(rbind, FI_list)
+```
+
+
+```{r}
+# Count how often each feature exceeds the R² threshold
+
+MP_summary <- all_MP %>%
+  group_by(Feature) %>%
+  summarize(
+    Mean_R2 = mean(R2, na.rm = TRUE),
+    SD_R2 = sd(R2, na.rm = TRUE),
+    SE_R2 = SD_R2/sqrt(n()),
+    High_Perf_Count = sum(R2 >= r2_threshold),
+    .groups = 'drop'
+  ) %>%
+  arrange(desc(High_Perf_Count))
+
+# View top consistently high-performing features
+print(MP_summary)
+
+# How many genes are consistently well-predicted?
+nrow(MP_summary[MP_summary$Mean_R2 > 0.5,])
+```
+
+Sort genes by average R^2 across all replicates, then plot R^2 for all replicates
+```{r}
+# Merge mean R2 info into full replicate-level data
+all_MP <- merge(all_MP, MP_summary[, c("Feature", "Mean_R2", "SD_R2")], by = "Feature")
+
+# Reorder Feature factor by Mean_R2
+all_MP$Feature <- factor(all_MP$Feature,
+                                          levels = MP_summary$Feature[order(MP_summary$Mean_R2)])
+```
+
+```{r}
+# Plot mean R² with error bars
+# Choose SD to describe variability in model performance
+ggplot(all_MP, aes(x = Feature, y = Mean_R2)) +
+  geom_errorbar(aes(ymin = Mean_R2 - SD_R2, ymax = Mean_R2 + SD_R2), width = 0.4, color = "gray40", linewidth = 0.25) +
+  geom_point(size = 2, color = "black") +
+  geom_hline(yintercept = 0.5,
+             linetype = "dashed", color = "blue") +
+  theme_minimal() +
+  labs(title = "Mean R² with Error Bars Across Gene Features",
+       x = "Gene Expression Feature (Ordered by Mean R²)",
+       y = "Mean R² ± SD") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size=5)) +
+  ylim(-0.2, 1.2) +
+  scale_y_continuous(breaks = c(0, 0.25, 0.5, 0.75, 1))
+
+```
+
+```{r}
+# Plot with features sorted by mean R²
+ggplot(all_MP, aes(x = Feature, y = R2)) +
+  geom_point(aes(color = as.factor(Replicate)), size = 1) +
+  geom_point(aes(y = Mean_R2), color = "black", shape = 18, size = 3) + 
+  geom_hline(yintercept = mean(all_MP$R2, na.rm = TRUE),
+             linetype = "dashed", color = "blue") +
+  theme_minimal() +
+  labs(title = "Model Performance Across Gene Expression",
+       x = "Gene Expression Feature (Ordered by Mean R²)",
+       y = "R² (Variance Explained)",
+       color = "Replicate") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  ylim(0, 1)
+
+```
+
+Average importance of all predictive features and plot those with highest average importance accross all replicates
+```{r}
+# Average importance across replicates
+mean_importance_df <- all_FI %>%
+  group_by(Feature) %>%
+  summarise(MeanImportance = mean(MeanImportance, na.rm = TRUE)) %>%
+  arrange(desc(MeanImportance))
+
+# Select top 50 features
+top_features <- mean_importance_df %>% top_n(50, MeanImportance)
+
+# Plot
+ggplot(top_features, aes(x = reorder(Feature, MeanImportance), y = MeanImportance)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  coord_flip() +  # Flip for readability
+  theme_minimal() +
+  labs(title = "Top Predictive Features by Mean Importance",
+       x = "Feature",
+       y = "Mean Importance")
+
+```
+
+# Boostrapping on predictable genes
+
+Now I only want to model genes that are well-predicted over many replicates
+
+Isolate well-predicted genes
+```{r}
+well_predicted <- MP_summary[MP_summary$Mean_R2 > 0.5,]
+
+vsd_high_perf_t <- vsd_energetic_state_GO_t[,colnames(vsd_energetic_state_GO_t) %in% well_predicted$Feature]
+dim(vsd_high_perf_t)
+```
+
+Of the original 99 genes annotated for energetic state GO terms, 37 are consistently well-predicted by our model.
+
+
+Run bootstrapping on isolated genes
+```{r bootstrap-2, cache=TRUE}
+n_replicates <- 50  # number of replicates
+r2_threshold <- 0.5 # threshold for "good" prediction
+TM_list <- list()
+MP_list <- list()
+FI_list <- list()
+
+# Perform bootstrapping
+for (i in 1:n_replicates) {
+  cat("Beginning replicate", i)
+  cat("\n")
+  result <- train_models_split(vsd_high_perf_t, full_pred_counts)
+  
+  cat("Extracting results for replicate", i)
+  cat("\n")
+  trained_models <- result$models
+  model_performance <- result$performance
+  feature_importance <- get_feature_importance(trained_models)
+  
+  TM_list[[i]] <- list(Replicate = i, Models = trained_models)
+  
+  MP_list[[i]] <- model_performance
+  MP_list[[i]]$Replicate <- i
+  
+  FI_list[[i]] <- feature_importance
+  FI_list[[i]]$Replicate <- i
+}
+
+# Combine all results
+all_MP_highperf <- do.call(rbind, MP_list)
+all_FI_highperf <- do.call(rbind, FI_list)
+```
+
+```{r}
+# Count how often each feature exceeds the R² threshold
+
+MP_summary_highperf <- all_MP_highperf %>%
+  group_by(Feature) %>%
+  summarize(
+    Mean_R2 = mean(R2, na.rm = TRUE),
+    SD_R2 = sd(R2, na.rm = TRUE),
+    SE_R2 = SD_R2 / sqrt(n()),
+    High_Perf_Count = sum(R2 >= r2_threshold),
+    .groups = 'drop'
+  ) %>%
+  arrange(desc(High_Perf_Count))
+
+# View top consistently high-performing features
+print(MP_summary_highperf)
+
+# How many genes are consistently well-predicted?
+nrow(MP_summary_highperf[MP_summary_highperf$Mean_R2 > 0.5,])
+```
+
+When I train the model on only these 37 well-predicted genes, 34 of them are again well-predicted. That's a much higher success rate! This suggests that epigenetic mechanisms may indeed be able to predict expression of these genes
+
+
+Sort genes by average R^2 across all replicates, then plot R^2 for all replicates
+```{r}
+# Merge mean R2 info into full replicate-level data
+all_MP_highperf <- merge(all_MP_highperf, MP_summary_highperf[, c("Feature", "Mean_R2", "SD_R2")], by = "Feature")
+
+# Reorder Feature factor by Mean_R2
+all_MP_highperf$Feature <- factor(all_MP_highperf$Feature,
+                                          levels = MP_summary_highperf$Feature[order(MP_summary_highperf$Mean_R2)])
+```
+
+
+```{r summarized-R2-plot}
+
+# Plot mean R² with error bars
+# Choose SD to describe variability in model performance
+ggplot(all_MP_highperf, aes(x = Feature, y = Mean_R2)) +
+  geom_errorbar(aes(ymin = Mean_R2 - SD_R2, ymax = Mean_R2 + SD_R2), width = 0.3, color = "gray40") +
+  geom_point(size = 2, color = "black") +
+  geom_hline(yintercept = 0.5,
+             linetype = "dashed", color = "blue") +
+  theme_minimal() +
+  labs(title = "Mean R² with Error Bars Across Gene Features",
+       x = "Gene Expression Feature (Ordered by Mean R²)",
+       y = "Mean R² ± SD") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  ylim(-0.2, 1.2) +
+  scale_y_continuous(breaks = c(0, 0.25, 0.5, 0.75, 1))
+
+```
+
+```{r}
+# Plot all replicate R2s, with features sorted by mean R²
+ggplot(all_MP_highperf, aes(x = Feature, y = R2)) +
+  geom_point(aes(color = as.factor(Replicate)), size = 1.5) +
+  geom_point(aes(y = Mean_R2), color = "black", shape = 18, size = 3) + 
+  geom_hline(yintercept = mean(all_MP_highperf$R2, na.rm = TRUE),
+             linetype = "dashed", color = "blue") +
+  theme_minimal() +
+  labs(title = "Model Performance Across Gene Expression",
+       x = "Gene Expression Feature (Ordered by Mean R²)",
+       y = "R² (Variance Explained)",
+       color = "Replicate") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  ylim(0, 1)
+
+```
+
+```{r}
+# Average importance across replicates
+mean_importance_df_highperf <- all_FI_highperf %>%
+  group_by(Feature) %>%
+  summarise(MeanImportance = mean(MeanImportance, na.rm = TRUE)) %>%
+  arrange(desc(MeanImportance))
+
+# Select top 50 features
+top_features_highperf <- mean_importance_df_highperf %>% top_n(50, MeanImportance)
+
+# Plot
+ggplot(top_features_highperf, aes(x = reorder(Feature, MeanImportance), y = MeanImportance)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  coord_flip() +  # Flip for readability
+  theme_minimal() +
+  labs(title = "Top Predictive Features by Mean Importance",
+       x = "Feature",
+       y = "Mean Importance")
+
+```
+
+Look at most predictive epigenetic features for these well-predicted genes
+```{r}
+# Define color assignments for predictor types
+color_palette <- c(miRNA = "#E69F00", lncRNA = "#0072B2", CpG = "#009E73")
+
+#  Define well-predicted features
+all_features_highR2 <- all_MP_highperf %>%
+  filter(Mean_R2 > 0.5) %>%
+  pull(Feature) %>%
+  unique()
+
+# Function to extract importance from a single model
+get_feature_importance_for_feature <- function(model) {
+  coefs <- as.matrix(coef(model, s = "lambda.min"))[-1, , drop = FALSE]  # remove intercept
+  data.frame(Predictor = rownames(coefs), Importance = abs(as.numeric(coefs)))
+}
+
+# Function to assign predictor type
+get_predictor_type <- function(predictor_name) {
+  if (startsWith(predictor_name, "Cluster")) return("miRNA")
+  if (startsWith(predictor_name, "lncRNA")) return("lncRNA")
+  if (startsWith(predictor_name, "CpG")) return("CpG")
+  return("Other")
+}
+
+# Initialize list to save top predictors
+top_predictors <- list()
+
+# Loop over features, aggregate importance across replicates, and plot
+for (target_feature in all_features_highR2) {
+  
+  # Extract and combine importance scores across all replicates
+  importance_all_reps <- lapply(TM_list, function(rep_entry) {
+    model <- rep_entry$Models[[target_feature]]
+    if (!is.null(model)) {
+      get_feature_importance_for_feature(model)
+    } else {
+      NULL
+    }
+  }) %>% bind_rows()
+
+  # If no importance data was found, skip
+  if (nrow(importance_all_reps) == 0) next
+
+  # Compute average importance across replicates
+  mean_importance <- importance_all_reps %>%
+    group_by(Predictor) %>%
+    summarise(MeanImportance = mean(Importance, na.rm = TRUE), .groups = "drop") %>%
+    arrange(desc(MeanImportance)) %>%
+    slice_head(n = 20) %>%
+    mutate(Type = sapply(Predictor, get_predictor_type))
+
+
+  # Plot once per target feature
+  plot <- ggplot(mean_importance, aes(x = reorder(Predictor, MeanImportance), y = MeanImportance, fill=Type)) +
+    geom_bar(stat = "identity") +
+    scale_fill_manual(values = color_palette) +
+    coord_flip() +
+    theme_minimal() +
+    labs(title = paste("Top Predictors for", target_feature),
+         x = "Predictor",
+         y = "Mean Importance (across replicates)")
+
+  # Save top 5 most important predictors for later use
+  top5 <- mean_importance %>% 
+    slice_head(n = 5) %>%
+    mutate(Feature = target_feature)
+  
+  top_predictors[[target_feature]] <- top5
+  
+  print(plot)
+}
+
+
+```
+
+# Plot expression of genes and their predictors
+
+```{r, error=FALSE, warning=FALSE}
+# Put predictor expression in format with samples in columns
+full_pred_counts_t <- t(full_pred_counts)
+
+# Loop over each feature in the list
+for (feature in names(top_predictors)) {
+  
+  # Get top 5 predictors for this feature
+  top_df <- top_predictors[[feature]]
+  predictors <- top_df$Predictor
+  
+  # Combine feature and predictors
+  all_genes <- c(feature, predictors)
+  
+  # Check which genes are actually present
+  present_genes <- all_genes[all_genes %in% rownames(full_pred_counts_t) | all_genes %in% rownames(vsd_energetic_state_GO)]
+  
+  if (!(feature %in% rownames(vsd_energetic_state_GO))) {
+    warning(paste("Feature", feature, "not found in vsd_energetic_state_GO Skipping..."))
+    next
+  }
+
+  # Extract predictor expression (only those present)
+  predictor_expr <- full_pred_counts_t[intersect(predictors, rownames(full_pred_counts_t)), , drop = FALSE] %>% as.data.frame()
+
+  # Add the feature expression
+  feature_expr <- vsd_energetic_state_GO[feature, , drop = FALSE] %>% as.data.frame()
+  
+  # Combine into one data frame
+  combined_expr <- rbind(predictor_expr, feature_expr)
+  combined_expr$Gene <- rownames(combined_expr)
+  
+  # Convert to long format
+  expr_long <- combined_expr %>%
+    pivot_longer(-Gene, names_to = "Sample", values_to = "Expression")
+  
+  # Join with sample metadata
+  expr_long <- expr_long %>%
+    left_join(metadata, by = "Sample")
+  
+  # Plot, with colonies aggregated by timepoint
+  # p <- ggplot(expr_long, aes(x = interaction(Timepoint), y = Expression, color = Gene, group = Gene)) +
+  #   geom_point(alpha = 0.7) +
+  #   geom_smooth(se = FALSE, method = "loess") +
+  #   labs(title = paste("Expression of", feature, "and Top 5 Predictors"),
+  #        x = "Colony-Timepoint",
+  #        y = "Expression") +
+  #   theme_minimal() +
+  #   theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  
+  # Plot, faceted by colony
+  p <- ggplot(expr_long, aes(x = Timepoint, y = Expression, color = Gene, group = Gene)) +
+  geom_point(alpha = 0.7) +
+  geom_smooth(se = FALSE, method = "loess", linewidth = 0.8) +
+  facet_wrap(~ColonyID) +
+  labs(title = paste("Expression of", feature, "and Top 5 Predictors by Colony"),
+       x = "Timepoint",
+       y = "Expression") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+  
+  print(p)
+}
+```
+
+
+
+# Functions of well-predicted genes
+
+```{r}
+all_features_highR2_FA <- energetic_state_GO[energetic_state_GO$gene %in% all_features_highR2,]
+print(all_features_highR2_FA)
+```
+
+Save
+```{r}
+write.csv(all_features_highR2_FA, "../output/22.3-Apul-multiomic-machine-learning-byTP/energetic_state_highperf_FA.csv")
+```
+
+Save top predictors and metrics of each well-predicted gene
+```{r}
+# Combine all sub-tibbles into a single data frame with the parent list name as an ID
+top_predictors_df <- imap_dfr(top_predictors, ~ {
+  .x
+})
+
+# View the resulting data frame
+print(top_predictors_df)
+
+# Optional: save to CSV
+write.csv(top_predictors_df, "../output/22.3-Apul-multiomic-machine-learning-byTP/top_predictors.csv", row.names = FALSE)
+
+```
+
+
+
+
+
+
+Notes:
+
+FUN_001326:  Lysosomal acid lipase/cholesteryl ester hydrolase:
+
+- observed to be upregulated in response to temperature stress, low-pH, and combination in the azooxanthellate octocoral *Scleronephthya gracillimum* (Woo et al. 2022). 
+
+- Identified as putative venom component in the hydrozoan *Olindias sambaquiensis*  (Doonen et al. 2019)
+
+
+Super cool! Next steps:
+
+- grab the annotations for each of these genes to see what proteins they code for
+- For each gene, plot its expression with the expression of its most predictively important lncRNA/miRNA (group samples by timepoint)
+- for each, check to see if in Cytoscape network
+
+- Could/should I add siRNA cluster expression to this?
+
+
