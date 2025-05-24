@@ -112,111 +112,50 @@ parallel -j 24 /home/shared/Bismark-0.24.0/coverage2cytosine \
 ```
 
 ```{bash}
-head ../output/15-Apul-bismark/1H3*evidence.cov
+head ../output/05-Ptua-bismark-CG/*53*evidence.cov
 ```
-
-
-# above was on klone...
-
-# lets look at it..
-
-```{bash}
-ls ../output/15-Apul-bismark/
-```
-
-
-
-did not work
-
-```{bash}
-cp ../output/15-Apul-bismark/*cov ../output/15.5-Apul-bismark
-```
-
-
-
-```{bash}
-ls ../output/15.5-Apul-bismark | wc -l
-```
-
-
 
 
 # Converting cov files to other typesl
 
 
 ```{bash}
-cd ../output/15.5-Apul-bismark/
+cd ../output/05-Ptua-bismark-CG/
 
 for f in *merged_CpG_evidence.cov
 do
-  STEM=$(basename "${f}" _R1_001.fastp-trim_bismark_bt2.CpG_report.merged_CpG_evidence.cov)
+  STEM=$(basename "${f}" _.CpG_report.merged_CpG_evidence.cov)
   cat "${f}" | awk -F $'\t' 'BEGIN {OFS = FS} {if ($5+$6 >= 5) {print $1, $2, $3, $4}}' \
-  > "${STEM}"_5x.bedgraph
-done
-```
-
-
-
-```{bash}
-cd ../output/15.5-Apul-bismark/
-
-for f in *merged_CpG_evidence.cov
-do
-  STEM=$(basename "${f}" _R1_001.fastp-trim_bismark_bt2.CpG_report.merged_CpG_evidence.cov)
-  cat "${f}" | awk -F $'\t' 'BEGIN {OFS = FS} {if ($5+$6 >= 10) {print $1, $2, $3, $4}}' \
   > "${STEM}"_10x.bedgraph
 done
 ```
 
 
-```{bash}
-head ../output/15.5-Apul-bismark/*229-TP1*
-```
 
 # take all 10x bedgraph and given CG loci unique ID
 
-```{bash}
-cd ../output/15.5-Apul-bismark/
-
-awk '{print "CpG_"_$1"_"$2, $4}' ACR-229-TP1_10x.bedgraph | head
-```
-
-```{bash}
-rm ../output/15.5-Apul-bismark/*processed*
-```
 
 
 
 ```{bash}
-for file in ../output/15.5-Apul-bismark/*10x.bedgraph; do
+for file in ../output/05-Ptua-bismark-CG/*10x.bedgraph; do
     awk '{print "CpG_"_$1"_"$2, $4}' "$file" > "${file%.bedgraph}_processed.txt"
 done
 ```
 
+
+
+
 ```{bash}
-for file in ../output/15.5-Apul-bismark/*10x_processed.txt; do
+for file in ../output/05-Ptua-bismark-CG/*10x_processed.txt; do
     head -1 $file
 done
 
 ```
 
 
-
-
-
-
-```{bash}
-cd ../output/15.5-Apul-bismark/
-awk '{print $1}' ACR-229-TP1_10x.bedgraph | sort | uniq
+```{r, engine='bash'}
+head ../output/05-Ptua-bismark-CG/*57-TP4*txt
 ```
 
 
-```{bash}
-multiqc ../output/15-Apul-bismark/ \
--o ../output/15-Apul-bismark/
-```
-
-```{bash}
-multiqc /gscratch/srlab/sam/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/02.20-D-Apul-WGBS-alignment-SLURM_array-bismark/ \
--o ../output/15-Apul-bismark/
-```
