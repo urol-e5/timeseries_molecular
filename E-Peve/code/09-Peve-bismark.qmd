@@ -1,0 +1,300 @@
+---
+title: "09 Peve bismark"
+author: Steven Roberts
+date: "`r format(Sys.time(), '%d %B, %Y')`"  
+output: 
+  html_document:
+    theme: readable
+    highlight: zenburn
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+library(tidyverse)
+knitr::opts_chunk$set(
+  echo = TRUE,         # Display code chunks
+  eval = FALSE,         # Evaluate code chunks
+  warning = FALSE,     # Hide warnings
+  message = FALSE,     # Hide messages
+  fig.width = 6,       # Set plot width in inches
+  fig.height = 4,      # Set plot height in inches
+  fig.align = "center" # Align plots to the center
+)
+```
+
+
+Alignment was done 04.3.sh
+
+
+```
+# Run Bismark for this sample
+bismark \
+    -genome ${genome_folder} \
+    -p 12 \
+    -score_min L,0,-0.6 \
+    -1 ${reads_dir}${sample_name}_R1_001.fastp-trim.fq.gz \
+    -2 ${reads_dir}${sample_name}_R2_001.fastp-trim.fq.gz \
+    -o ${output_dir} \
+    --basename ${sample_name} \
+    2> "${sample_name}-${SLURM_ARRAY_TASK_ID}-bismark_summary.txt"
+
+```
+
+We have a bam file for each sample
+https://gannet.fish.washington.edu/seashell/bu-github/timeseries_molecular/E-Peve/output/04.3-Peve-bismark-array/
+
+## Download bam files
+
+```{bash}
+cd ../data/bismark-bam
+wget -r -l1 -np -nd -A ".bam" https://gannet.fish.washington.edu/seashell/bu-github/timeseries_molecular/E-Peve/output/04.3-Peve-bismark-array/
+```
+
+
+#dedup
+
+
+find *.bam | \
+xargs basename -s .bam | \
+xargs -I{} ${bismark_dir}/deduplicate_bismark \
+--bam \
+--paired \
+{}.bam
+
+
+
+```{bash}
+find ../data/bismark-bam/*.bam | \
+xargs basename -s _pe.bam | \
+xargs -I{} /home/shared/Bismark-0.24.0/deduplicate_bismark \
+--bam \
+--paired \
+--output_dir ../output/09-Peve-bismark \
+../data/bismark-bam/{}_pe.bam
+```
+
+
+```{bash}
+find ../output/15-Apul-bismark/*deduplicated.bam | \
+xargs basename -s _R1_001.fastp-trim_bismark_bt2_pe.deduplicated.bam | \
+xargs -I{} samtools \
+sort --threads 24 \
+../output/15-Apul-bismark/{}_R1_001.fastp-trim_bismark_bt2_pe.deduplicated.bam \
+-o ../output/15-Apul-bismark/{}.sorted.bam
+```
+
+# methylation exraction
+
+```
+find ../output/09-meth-quant/*deduplicated.bam | xargs -n 1 -I{} /home/shared/Bismark-0.24.0/bismark_methylation_extractor --bedGraph --counts --comprehensive --merge_non_CpG --multicore 24 --buffer_size 75% --output ../output/09-meth-quant {} 
+```
+
+```{bash}
+find ../output/15-Apul-bismark/*deduplicated.bam | xargs -n 1 -I{} \
+bismark_methylation_extractor --bedGraph --counts --comprehensive --merge_non_CpG \
+--multicore 24 --buffer_size 75% --output ../output/15-Apul-bismark "{}"
+```
+
+# Methylation call
+
+```
+find ../output/09-meth-quant/*deduplicated.bismark.cov.gz | \
+xargs -n 1 basename -s _pe.deduplicated.bismark.cov.gz | \
+parallel -j 48 /home/shared/Bismark-0.24.0/coverage2cytosine \
+--genome_folder ../data/ \
+-o ../output/09-meth-quant/{} \
+--merge_CpG \
+--zero_based \
+../output/09-meth-quant/{}_pe.deduplicated.bismark.cov.gz
+```
+
+```{bash}
+find ../output/15-Apul-bismark/*deduplicated.bismark.cov.gz | \
+xargs -n 1 basename -s _pe.deduplicated.bismark.cov.gz | \
+parallel -j 24 coverage2cytosine \
+--genome_folder /gscratch/srlab/sam/gitrepos/urol-e5/timeseries_molecular/D-Apul/data/ \
+-o ../output/15-Apul-bismark/{} \
+--merge_CpG \
+--zero_based \
+../output/15-Apul-bismark/{}_pe.deduplicated.bismark.cov.gz
+```
+
+```{bash}
+head ../output/15-Apul-bismark/1H3*evidence.cov
+```
+
+
+# above was on klone...
+
+# lets look at it..
+
+```{bash}
+ls ../output/15-Apul-bismark/
+```
+
+
+```{bash}
+
+# Define paths
+CSV_FILE="../../M-multi-species/data/e5_DNA_Azenta_metadata.csv"  # Change this to your actual CSV file path
+SOURCE_DIR="../output/15-Apul-bismark"  # Change to your actual directory containing the files
+DEST_DIR="../output/15.5-Apul-bismark"  # Change to your desired output directory
+
+# Create the destination directory if it doesn't exist
+mkdir -p "$DEST_DIR"
+
+# Read the CSV and create a mapping of old IDs to new IDs
+declare -A rename_map
+while IFS=, read -r sample_name azenta_sample_name _; do
+    # Trim whitespace
+    sample_name=$(echo "$sample_name" | tr -d '[:space:]')
+    azenta_sample_name=$(echo "$azenta_sample_name" | tr -d '[:space:]')
+    
+    # Add to mapping if both fields exist
+    if [[ -n "$sample_name" && -n "$azenta_sample_name" ]]; then
+        rename_map["$azenta_sample_name"]="$sample_name"
+    fi
+done < <(tail -n +2 "$CSV_FILE")  # Skip the header row
+
+# Loop through files in the source directory, filtering only .cov files
+for file in "$SOURCE_DIR"/*.cov; do
+    filename=$(basename -- "$file")  # Extract filename
+
+    # Extract sample ID from filename
+    if [[ $filename =~ ([A-Za-z0-9]+)_R1_001 ]]; then
+        old_id="${BASH_REMATCH[1]}"
+        
+        # Check if there's a match in the rename map
+        if [[ -n "${rename_map[$old_id]}" ]]; then
+            new_id="${rename_map[$old_id]}"
+            new_filename="${filename/$old_id/$new_id}"
+            cp "$file" "$DEST_DIR/$new_filename"
+            echo "Copied: $filename → $DEST_DIR/$new_filename"
+        fi
+    fi
+done
+
+echo "Copying complete!"
+```
+
+
+did not work
+
+```{bash}
+cp ../output/15-Apul-bismark/*cov ../output/15.5-Apul-bismark
+```
+
+
+
+```{bash}
+ls ../output/15.5-Apul-bismark | wc -l
+```
+
+
+```{bash}
+# Read the CSV file and create an associative array
+declare -A sample_map
+while IFS=, read -r col1 sample_name col3 col4 azenta_sample_name colony_id timepoint col7 col8 col9 col10 col11 col12 col13 col14 col15 col16 col17 col18; do
+  sample_map["$azenta_sample_name"]="${colony_id}-${timepoint}"
+done < ../../M-multi-species/data/e5_DNA_Azenta_metadata.csv
+
+cd ../output/15.5-Apul-bismark
+
+# Iterate over all *.cov files and rename them
+for file in *.cov; do
+  # Extract the portion before the first underscore
+  prefix="${file%%_*}"
+  if [[ -n "${sample_map[$prefix]}" ]]; then
+    new_file="${file//$prefix/${sample_map[$prefix]}}"
+    mv "$file" "$new_file"
+  fi
+done
+
+```
+
+
+
+# Converting cov files to other typesl
+
+
+```{bash}
+cd ../output/15.5-Apul-bismark/
+
+for f in *merged_CpG_evidence.cov
+do
+  STEM=$(basename "${f}" _R1_001.fastp-trim_bismark_bt2.CpG_report.merged_CpG_evidence.cov)
+  cat "${f}" | awk -F $'\t' 'BEGIN {OFS = FS} {if ($5+$6 >= 5) {print $1, $2, $3, $4}}' \
+  > "${STEM}"_5x.bedgraph
+done
+```
+
+
+
+```{bash}
+cd ../output/15.5-Apul-bismark/
+
+for f in *merged_CpG_evidence.cov
+do
+  STEM=$(basename "${f}" _R1_001.fastp-trim_bismark_bt2.CpG_report.merged_CpG_evidence.cov)
+  cat "${f}" | awk -F $'\t' 'BEGIN {OFS = FS} {if ($5+$6 >= 10) {print $1, $2, $3, $4}}' \
+  > "${STEM}"_10x.bedgraph
+done
+```
+
+
+```{bash}
+head ../output/15.5-Apul-bismark/*229-TP1*
+```
+
+# take all 10x bedgraph and given CG loci unique ID
+
+```{bash}
+cd ../output/15.5-Apul-bismark/
+
+awk '{print "CpG_"_$1"_"$2, $4}' ACR-229-TP1_10x.bedgraph | head
+```
+
+```{bash}
+rm ../output/15.5-Apul-bismark/*processed*
+```
+
+
+
+```{bash}
+for file in ../output/15.5-Apul-bismark/*10x.bedgraph; do
+    awk '{print "CpG_"_$1"_"$2, $4}' "$file" > "${file%.bedgraph}_processed.txt"
+done
+```
+
+```{bash}
+for file in ../output/15.5-Apul-bismark/*10x_processed.txt; do
+    head -1 $file
+done
+
+```
+
+
+
+
+
+
+```{bash}
+cd ../output/15.5-Apul-bismark/
+awk '{print $1}' ACR-229-TP1_10x.bedgraph | sort | uniq
+```
+
+
+```{bash}
+multiqc ../output/15-Apul-bismark/ \
+-o ../output/15-Apul-bismark/
+```
+
+```{bash}
+multiqc /gscratch/srlab/sam/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/02.20-D-Apul-WGBS-alignment-SLURM_array-bismark/ \
+-o ../output/15-Apul-bismark/
+```
