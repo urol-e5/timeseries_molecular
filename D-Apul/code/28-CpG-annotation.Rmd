@@ -2,7 +2,15 @@
 title: "28-Apul CpG Motifs"
 author: "Steven Roberts"
 date: "`r format(Sys.Date(), '%d %B, %Y')`"
-format: markdown-plain
+output: 
+  github_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+    html_preview: false
+editor_options: 
+  markdown: 
+    wrap: sentence
 ---
 
 ```{r setup, include=FALSE}
