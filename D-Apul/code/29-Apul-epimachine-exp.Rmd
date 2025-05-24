@@ -102,4 +102,39 @@ colnames(Apul_lncRNA) <- metadata$Sample[match(colnames(Apul_lncRNA), metadata$A
 
 ```
 
+```{r}
+# Read the tab-delimited file
+blast_data <- read.delim("../output/25-Apul-epimods-blast/Mach-blastp-Apul_out.tab", header = FALSE)
+
+# View the first few rows (optional)
+head(blast_data)
+
+# Remove the "-T1" (or any "-T<number>") from column 2
+blast_data$V2 <- sub("-T[0-9]+$", "", blast_data$V2)
+
+# View the modified column (optional)
+head(blast_data$V2)
+```
+
+```{r}
+# Move rownames of Apul_genes into a column for joining
+Apul_genes$gene_id <- rownames(Apul_genes)
+
+# Reorder columns to keep gene_id at the beginning (optional)
+Apul_genes <- Apul_genes[, c("gene_id", setdiff(colnames(Apul_genes), "gene_id"))]
+
+
+# Merge by blast_data V2 and Apul_genes gene_id
+epi_mach_exp <- merge(blast_data, Apul_genes, by.x = "V2", by.y = "gene_id", all.x = TRUE)
+
+# View merged result
+head(epi_mach_exp)
+```
+```{r}
+write.csv(epi_mach_exp, file = "../output/29-Apul-epimachine-exp/Apul-epimachine-expression.csv", row.names = FALSE)
+```
+
+```{bash}
+head ../output/29-Apul-epimachine-exp/Apul-epimachine-expression.csv
+```
 
