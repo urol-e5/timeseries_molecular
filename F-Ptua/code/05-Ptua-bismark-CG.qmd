@@ -1,0 +1,222 @@
+---
+title: "05 Ptua bismark"
+author: Steven Roberts
+date: "`r format(Sys.time(), '%d %B, %Y')`"  
+output: 
+  html_document:
+    theme: readable
+    highlight: zenburn
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+library(tidyverse)
+knitr::opts_chunk$set(
+  echo = TRUE,         # Display code chunks
+  eval = FALSE,         # Evaluate code chunks
+  warning = FALSE,     # Hide warnings
+  message = FALSE,     # Hide messages
+  fig.width = 6,       # Set plot width in inches
+  fig.height = 4,      # Set plot height in inches
+  fig.align = "center" # Align plots to the center
+)
+```
+
+
+Shelly did alignment 
+
+```
+# run pipeline
+nextflow run nf-core/methylseq \
+-c /gscratch/srlab/strigg/bin/uw_hyak_srlab.config \
+--input /gscratch/scrubbed/strigg/analyses/20250422_methylseq/samplesheet.csv \
+--outdir /gscratch/scrubbed/strigg/analyses/20250422_methylseq \
+--fasta /gscratch/srlab/strigg/GENOMES/Pocillopora_meandrina_HIv1.assembly.fasta \
+--em_seq \
+-resume \
+-with-report nf_report.html \
+-with-trace \
+-with-timeline nf_timeline.html \
+--skip_trimming \
+--nomeseq 
+
+### Results
+
+- Multiqc report: [https://gannet.fish.washington.edu/metacarcinus/E5/Ptuahiniensis/20250422_methylseq/multiqc/bismark/multiqc_report.html](https://gannet.fish.washington.edu/metacarcinus/E5/Ptuahiniensis/20250422_methylseq/multiqc/bismark/multiqc_report.html)
+- Bismark summary report: [https://gannet.fish.washington.edu/metacarcinus/E5/Ptuahiniensis/20250422_methylseq/bismark/summary/bismark_summary_report.html](https://gannet.fish.washington.edu/metacarcinus/E5/Ptuahiniensis/20250422_methylseq/bismark/summary/bismark_summary_report.html)
+- Pipeline report: [https://gannet.fish.washington.edu/metacarcinus/E5/Ptuahiniensis/20250422_methylseq/nf_report.html](https://gannet.fish.washington.edu/metacarcinus/E5/Ptuahiniensis/20250422_methylseq/nf_report.html)
+- Pipeline timeline: [https://gannet.fish.washington.edu/metacarcinus/E5/Ptuahiniensis/20250422_methylseq/nf_timeline.html](https://gannet.fish.washington.edu/metacarcinus/E5/Ptuahiniensis/20250422_methylseq/nf_timeline.html)
+- Counts matrices: [https://gannet.fish.washington.edu/metacarcinus/E5/Ptuahiniensis/20250422_methylseq/bismark/methylation_calls/methylation_coverage/](https://gannet.fish.washington.edu/metacarcinus/E5/Ptuahiniensis/20250422_methylseq/bismark/methylation_calls/methylation_coverage/)
+	- <sample_name>.fastp-trim_bismark_bt2_pe.deduplicated.bismark.cov.gz
+- Deduplicated sorted bam files: [https://gannet.fish.washington.edu/metacarcinus/E5/Ptuahiniensis/20250422_methylseq/bismark/deduplicated/](https://gannet.fish.washington.edu/metacarcinus/E5/Ptuahiniensis/20250422_methylseq/bismark/deduplicated/) 
+	- <sample_name>.deduplicated.sorted.bam 
+- Other bismark output: [https://gannet.fish.washington.edu/metacarcinus/E5/Ptuahiniensis/20250422_methylseq/bismark/](https://gannet.fish.washington.edu/metacarcinus/E5/Ptuahiniensis/20250422_methylseq/bismark/)
+```
+
+## Downloading deduplcated coveage files
+
+```{r,engine='bash'}
+cd ../data/dedup-cov
+
+wget -r -np -nH --cut-dirs=5 --reject "index.html*" https://gannet.fish.washington.edu/metacarcinus/E5/Ptuahiniensis/20250422_methylseq/bismark/methylation_calls/methylation_coverage/
+
+```
+
+
+
+# Methylation call
+
+```
+find ../output/09-meth-quant/*deduplicated.bismark.cov.gz | \
+xargs -n 1 basename -s _pe.deduplicated.bismark.cov.gz | \
+parallel -j 48 /home/shared/Bismark-0.24.0/coverage2cytosine \
+--genome_folder ../data/ \
+-o ../output/09-meth-quant/{} \
+--merge_CpG \
+--zero_based \
+../output/09-meth-quant/{}_pe.deduplicated.bismark.cov.gz
+```
+
+
+```{r,engine='bash'}
+cd ../data
+
+curl -O https://gannet.fish.washington.edu/gitrepos/urol-e5/timeseries_molecular/F-Ptua/data/Bisulfite_Genome.tar.gz
+```
+
+```{r, engine='bash'}
+tar -xzvf ../data/Bisulfite_Genome.tar.gz
+```
+
+```{r,engine='bash'}
+cd ../data/bs
+curl -O https://owl.fish.washington.edu/halfshell/genomic-databank/Pocillopora_meandrina_HIv1.assembly.fasta
+```
+
+
+
+```{bash}
+find ../data/dedup-cov/methylation_calls/methylation_coverage/*deduplicated.bismark.cov.gz | \
+xargs -n 1 basename -s R1_001.fastp-trim_bismark_bt2_pe.deduplicated.bismark.cov.gz | \
+parallel -j 24 /home/shared/Bismark-0.24.0/coverage2cytosine \
+--genome_folder ../data/bs \
+-o ../output/05-Ptua-bismark-CG/{} \
+--merge_CpG \
+--zero_based \
+../data/dedup-cov/methylation_calls/methylation_coverage/{}R1_001.fastp-trim_bismark_bt2_pe.deduplicated.bismark.cov.gz
+```
+
+```{bash}
+head ../output/15-Apul-bismark/1H3*evidence.cov
+```
+
+
+# above was on klone...
+
+# lets look at it..
+
+```{bash}
+ls ../output/15-Apul-bismark/
+```
+
+
+
+did not work
+
+```{bash}
+cp ../output/15-Apul-bismark/*cov ../output/15.5-Apul-bismark
+```
+
+
+
+```{bash}
+ls ../output/15.5-Apul-bismark | wc -l
+```
+
+
+
+
+# Converting cov files to other typesl
+
+
+```{bash}
+cd ../output/15.5-Apul-bismark/
+
+for f in *merged_CpG_evidence.cov
+do
+  STEM=$(basename "${f}" _R1_001.fastp-trim_bismark_bt2.CpG_report.merged_CpG_evidence.cov)
+  cat "${f}" | awk -F $'\t' 'BEGIN {OFS = FS} {if ($5+$6 >= 5) {print $1, $2, $3, $4}}' \
+  > "${STEM}"_5x.bedgraph
+done
+```
+
+
+
+```{bash}
+cd ../output/15.5-Apul-bismark/
+
+for f in *merged_CpG_evidence.cov
+do
+  STEM=$(basename "${f}" _R1_001.fastp-trim_bismark_bt2.CpG_report.merged_CpG_evidence.cov)
+  cat "${f}" | awk -F $'\t' 'BEGIN {OFS = FS} {if ($5+$6 >= 10) {print $1, $2, $3, $4}}' \
+  > "${STEM}"_10x.bedgraph
+done
+```
+
+
+```{bash}
+head ../output/15.5-Apul-bismark/*229-TP1*
+```
+
+# take all 10x bedgraph and given CG loci unique ID
+
+```{bash}
+cd ../output/15.5-Apul-bismark/
+
+awk '{print "CpG_"_$1"_"$2, $4}' ACR-229-TP1_10x.bedgraph | head
+```
+
+```{bash}
+rm ../output/15.5-Apul-bismark/*processed*
+```
+
+
+
+```{bash}
+for file in ../output/15.5-Apul-bismark/*10x.bedgraph; do
+    awk '{print "CpG_"_$1"_"$2, $4}' "$file" > "${file%.bedgraph}_processed.txt"
+done
+```
+
+```{bash}
+for file in ../output/15.5-Apul-bismark/*10x_processed.txt; do
+    head -1 $file
+done
+
+```
+
+
+
+
+
+
+```{bash}
+cd ../output/15.5-Apul-bismark/
+awk '{print $1}' ACR-229-TP1_10x.bedgraph | sort | uniq
+```
+
+
+```{bash}
+multiqc ../output/15-Apul-bismark/ \
+-o ../output/15-Apul-bismark/
+```
+
+```{bash}
+multiqc /gscratch/srlab/sam/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/02.20-D-Apul-WGBS-alignment-SLURM_array-bismark/ \
+-o ../output/15-Apul-bismark/
+```
