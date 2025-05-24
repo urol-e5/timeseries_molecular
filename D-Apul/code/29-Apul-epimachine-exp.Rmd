@@ -1,0 +1,105 @@
+---
+title: "29-Epimachinary Expression"
+author: "Steven Roberts"
+date: "`r format(Sys.Date(), '%d %B, %Y')`"
+output: 
+  github_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+    html_preview: false
+editor_options: 
+  markdown: 
+    wrap: sentence
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+library(tidyverse)
+library(Biostrings)
+library(tm)
+knitr::opts_chunk$set(
+  echo = TRUE,         # Display code chunks
+  eval = FALSE,         # Evaluate code chunks
+  warning = FALSE,     # Hide warnings
+  message = FALSE,     # Hide messages
+  fig.width = 6,       # Set plot width in inches
+  fig.height = 4,      # Set plot height in inches
+  fig.align = "center", # Align plots to the center
+  comment = ""         # Prevents appending '##' to beginning of lines in code output
+)
+```
+
+Based on blast we have list of genes..
+
+# Epi Machinery
+
+```{r, engine='bash'}
+head ../output/25-Apul-epimods-blast/Mach-blastp-Apul_out.tab
+```
+
+## why the T1
+
+```{r,engine='bash'}
+
+grep ">" ../data/Apulchra-genome.pep.faa | head -40
+
+```
+
+
+# Expresssion Matrix
+
+```{r, engine='bash'}
+tail ../output/02.20-D-Apul-RNAseq-alignment-HiSat2/apul-gene_count_matrix.csv
+
+```
+
+```{r}
+### mRNA ###
+# raw gene counts data (will filter and variance stabilize)
+Apul_genes <- read_csv("../output/02.20-D-Apul-RNAseq-alignment-HiSat2/apul-gene_count_matrix.csv")
+Apul_genes <- as.data.frame(Apul_genes)
+
+# format gene IDs as rownames (instead of a column)
+rownames(Apul_genes) <- Apul_genes$gene_id
+Apul_genes <- Apul_genes%>%select(!gene_id)
+
+
+### miRNA ###
+# raw miRNA counts (will filter and variance stabilize)
+Apul_miRNA <- read.table(file = "../output/03.10-D-Apul-sRNAseq-expression-DESeq2/Apul_miRNA_ShortStack_counts_formatted.txt", header = TRUE, sep = "\t", check.names = FALSE)
+
+
+### lncRNA ###
+# raw lncRNA counts (will filter and variance stabilize)
+Apul_lncRNA_full <- read.table("../output/08-Apul-lncRNA/counts.txt", header = TRUE, sep = "\t", skip = 1)
+
+# Remove info on genomic location, set lncRNA IDs as rownames
+rownames(Apul_lncRNA_full) <- Apul_lncRNA_full$Geneid
+Apul_lncRNA <- Apul_lncRNA_full %>% select(-Geneid, -Chr, -Start, -End, -Strand, -Length)
+
+
+
+### load and format metadata ###
+metadata <- read_csv("../../M-multi-species/data/rna_metadata.csv")%>%select(AzentaSampleName, ColonyID, Timepoint) %>%
+  filter(grepl("ACR", ColonyID))
+metadata$Sample <- paste0(metadata$ColonyID, "-", metadata$Timepoint)
+rownames(metadata) <- metadata$Sample
+
+colonies <- unique(metadata$ColonyID)
+
+# Rename gene column names to include full sample info
+colnames(Apul_genes) <- metadata$Sample[match(colnames(Apul_genes), metadata$AzentaSampleName)]
+
+# Rename miRNA column names to match formatting
+colnames(Apul_miRNA) <- sub("_.*", "", colnames(Apul_miRNA))
+colnames(Apul_miRNA) <- metadata$Sample[match(colnames(Apul_miRNA), metadata$AzentaSampleName)]
+
+# rename lncRNA colin names to include full sample info
+colnames(Apul_lncRNA) <- sub("...data.", "", colnames(Apul_lncRNA))
+colnames(Apul_lncRNA) <- sub(".sorted.bam", "", colnames(Apul_lncRNA))
+colnames(Apul_lncRNA) <- metadata$Sample[match(colnames(Apul_lncRNA), metadata$AzentaSampleName)]
+
+```
+
+
