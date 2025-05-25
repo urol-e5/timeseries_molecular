@@ -508,6 +508,7 @@ Rename dataframe.
 
 ```{r}
 data<-lipid_quant_long_all
+saveRDS(data, file = "M-multi-species/data/lipidomics/lipids.rds")
 ```
 
 ## Plot total lipids  
