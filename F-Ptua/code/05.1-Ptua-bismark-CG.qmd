@@ -1,0 +1,286 @@
+---
+title: "05 Ptua bismark"
+author: Steven Roberts
+date: "`r format(Sys.time(), '%d %B, %Y')`"  
+output: 
+  html_document:
+    theme: readable
+    highlight: zenburn
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+library(tidyverse)
+knitr::opts_chunk$set(
+  echo = TRUE,         # Display code chunks
+  eval = FALSE,         # Evaluate code chunks
+  warning = FALSE,     # Hide warnings
+  message = FALSE,     # Hide messages
+  fig.width = 6,       # Set plot width in inches
+  fig.height = 4,      # Set plot height in inches
+  fig.align = "center" # Align plots to the center
+)
+```
+
+
+Shelly did alignment 
+
+```
+# run pipeline
+nextflow run nf-core/methylseq \
+-c /gscratch/srlab/strigg/bin/uw_hyak_srlab.config \
+--input /gscratch/scrubbed/strigg/analyses/20250422_methylseq/samplesheet.csv \
+--outdir /gscratch/scrubbed/strigg/analyses/20250422_methylseq \
+--fasta /gscratch/srlab/strigg/GENOMES/Pocillopora_meandrina_HIv1.assembly.fasta \
+--em_seq \
+-resume \
+-with-report nf_report.html \
+-with-trace \
+-with-timeline nf_timeline.html \
+--skip_trimming \
+--nomeseq 
+
+### Results
+
+- Multiqc report: [https://gannet.fish.washington.edu/metacarcinus/E5/Ptuahiniensis/20250422_methylseq/multiqc/bismark/multiqc_report.html](https://gannet.fish.washington.edu/metacarcinus/E5/Ptuahiniensis/20250422_methylseq/multiqc/bismark/multiqc_report.html)
+- Bismark summary report: [https://gannet.fish.washington.edu/metacarcinus/E5/Ptuahiniensis/20250422_methylseq/bismark/summary/bismark_summary_report.html](https://gannet.fish.washington.edu/metacarcinus/E5/Ptuahiniensis/20250422_methylseq/bismark/summary/bismark_summary_report.html)
+- Pipeline report: [https://gannet.fish.washington.edu/metacarcinus/E5/Ptuahiniensis/20250422_methylseq/nf_report.html](https://gannet.fish.washington.edu/metacarcinus/E5/Ptuahiniensis/20250422_methylseq/nf_report.html)
+- Pipeline timeline: [https://gannet.fish.washington.edu/metacarcinus/E5/Ptuahiniensis/20250422_methylseq/nf_timeline.html](https://gannet.fish.washington.edu/metacarcinus/E5/Ptuahiniensis/20250422_methylseq/nf_timeline.html)
+- Counts matrices: [https://gannet.fish.washington.edu/metacarcinus/E5/Ptuahiniensis/20250422_methylseq/bismark/methylation_calls/methylation_coverage/](https://gannet.fish.washington.edu/metacarcinus/E5/Ptuahiniensis/20250422_methylseq/bismark/methylation_calls/methylation_coverage/)
+	- <sample_name>.fastp-trim_bismark_bt2_pe.deduplicated.bismark.cov.gz
+- Deduplicated sorted bam files: [https://gannet.fish.washington.edu/metacarcinus/E5/Ptuahiniensis/20250422_methylseq/bismark/deduplicated/](https://gannet.fish.washington.edu/metacarcinus/E5/Ptuahiniensis/20250422_methylseq/bismark/deduplicated/) 
+	- <sample_name>.deduplicated.sorted.bam 
+- Other bismark output: [https://gannet.fish.washington.edu/metacarcinus/E5/Ptuahiniensis/20250422_methylseq/bismark/](https://gannet.fish.washington.edu/metacarcinus/E5/Ptuahiniensis/20250422_methylseq/bismark/)
+```
+
+## Downloading deduplcated coveage files
+
+```{r,engine='bash'}
+cd ../data/dedup-cov
+
+wget -r -np -nH --cut-dirs=5 --reject "index.html*" https://gannet.fish.washington.edu/metacarcinus/E5/Ptuahiniensis/20250422_methylseq/bismark/methylation_calls/methylation_coverage/
+
+```
+
+
+
+# Methylation call
+
+```
+find ../output/09-meth-quant/*deduplicated.bismark.cov.gz | \
+xargs -n 1 basename -s _pe.deduplicated.bismark.cov.gz | \
+parallel -j 48 /home/shared/Bismark-0.24.0/coverage2cytosine \
+--genome_folder ../data/ \
+-o ../output/09-meth-quant/{} \
+--merge_CpG \
+--zero_based \
+../output/09-meth-quant/{}_pe.deduplicated.bismark.cov.gz
+```
+
+
+```{r,engine='bash'}
+cd ../data
+
+curl -O https://gannet.fish.washington.edu/gitrepos/urol-e5/timeseries_molecular/F-Ptua/data/Bisulfite_Genome.tar.gz
+```
+
+```{r, engine='bash'}
+tar -xzvf ../data/Bisulfite_Genome.tar.gz
+```
+
+```{r,engine='bash'}
+cd ../data/bs
+curl -O https://owl.fish.washington.edu/halfshell/genomic-databank/Pocillopora_meandrina_HIv1.assembly.fasta
+```
+
+
+
+```{bash}
+find ../data/dedup-cov/methylation_calls/methylation_coverage/*deduplicated.bismark.cov.gz | \
+xargs -n 1 basename -s R1_001.fastp-trim_bismark_bt2_pe.deduplicated.bismark.cov.gz | \
+parallel -j 24 /home/shared/Bismark-0.24.0/coverage2cytosine \
+--genome_folder ../data/bs \
+-o ../output/05-Ptua-bismark-CG/{} \
+--merge_CpG \
+--zero_based \
+../data/dedup-cov/methylation_calls/methylation_coverage/{}R1_001.fastp-trim_bismark_bt2_pe.deduplicated.bismark.cov.gz
+```
+
+```{bash}
+head ../output/05-Ptua-bismark-CG/*53*evidence.cov
+```
+
+
+# Converting cov files to other typesl
+
+
+```{bash}
+cd ../output/05-Ptua-bismark-CG/
+
+for f in *merged_CpG_evidence.cov
+do
+  STEM=$(basename "${f}" _.CpG_report.merged_CpG_evidence.cov)
+  cat "${f}" | awk -F $'\t' 'BEGIN {OFS = FS} {if ($5+$6 >= 5) {print $1, $2, $3, $4}}' \
+  > "${STEM}"_10x.bedgraph
+done
+```
+
+
+
+# take all 10x bedgraph and given CG loci unique ID
+
+
+
+
+```{bash}
+for file in ../output/05-Ptua-bismark-CG/*10x.bedgraph; do
+    awk '{print "CpG_"_$1"_"$2, $4}' "$file" > "${file%.bedgraph}_processed.txt"
+done
+```
+
+
+
+
+```{bash}
+for file in ../output/05-Ptua-bismark-CG/*10x_processed.txt; do
+    head -1 $file
+done
+
+```
+
+
+```{r, engine='bash'}
+head ../output/05-Ptua-bismark-CG/*57-TP4*txt
+```
+
+
+# Load libraries 
+```{r, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(DESeq2)
+library(igraph)
+library(psych)
+library(tidygraph)
+library(ggraph)
+library(WGCNA)
+library(edgeR)
+library(reshape2)
+library(ggcorrplot)
+library(corrplot)
+library(rvest)
+library(purrr)
+library(pheatmap)
+library(glmnet)
+library(caret)
+library(factoextra)
+library(vegan)
+library(ggfortify)
+library(genefilter)
+library(scales)
+library(purrr)
+```
+
+
+
+## WGBS data 
+
+```{r, eval=FALSE}
+#pull processed files from Gannet 
+# Note: Unfortunately we can't use the `cache` feature to make this process more time efficient, as it doesn't support long vectors
+
+# Define the base URL
+base_url <- "https://gannet.fish.washington.edu/v1_web/owlshell/bu-github/timeseries_molecular/F-Ptua/output/05-Ptua-bismark-CG/"
+
+# Read the HTML page
+page <- read_html(base_url)
+
+# Extract links to files
+file_links <- page %>%
+  html_nodes("a") %>%
+  html_attr("href")
+
+# Filter for files ending in "processed.txt"
+processed_files <- file_links[grepl("processed\\.txt$", file_links)]
+
+# Create full URLs
+file_urls <- paste0(base_url, processed_files)
+
+# Function to read a file from URL
+read_processed_file <- function(url) {
+  read_table(url, col_types = cols(.default = "c"))  # Read as character to avoid parsing issues
+}
+
+# Import all processed files into a list
+processed_data <- lapply(file_urls, read_processed_file)
+
+# Name the list elements by file name
+names(processed_data) <- processed_files
+
+# Print structure of imported data
+str(processed_data)
+
+# add a header row that has "CpG" for the first column and "sample" for the second column, which will be populated by the file name 
+
+processed_data <- Map(function(df, filename) {
+  colnames(df) <- c("CpG", filename)  # Rename columns
+  return(df)
+}, processed_data, names(processed_data))  # Use stored file names
+
+#merge files together by "CpG"
+merged_data <- purrr::reduce(processed_data, full_join, by = "CpG")
+
+# Print structure of final merged data
+str(merged_data)
+```
+
+
+
+Replace any NA with 0. 
+```{r, eval=FALSE}
+# Convert all columns (except "CpG") to numeric and replace NAs with 0
+merged_data <- merged_data %>%
+  mutate(across(-CpG, as.numeric)) %>%  # Convert all except CpG to numeric
+  mutate(across(-CpG, ~ replace_na(.x, 0)))  # Replace NA with 0 in numeric columns
+```
+
+## Filter data sets 
+
+Only keep CpGs that have a non-zero value in all samples. 
+
+```{r, eval=FALSE}
+filtered_wgbs <- merged_data %>% filter(if_all(-CpG, ~ .x > 0))
+
+# Ensure it's formatted as a data frame
+filtered_wgbs <- as.data.frame(filtered_wgbs)
+# Only keep the sample information in the column name. 
+colnames(filtered_wgbs) <- gsub("^(.*?)_.*$", "\\1", colnames(filtered_wgbs))
+# Set CpG IDs to rownames
+rownames(filtered_wgbs) <- filtered_wgbs$CpG
+filtered_wgbs <- filtered_wgbs %>% select(-CpG)
+
+nrow(merged_data)
+nrow(filtered_wgbs)
+```
+
+We had xxxxxx  xxCpGs before filtering and have only xxxxx after filtering. This makes sense because most CpGs were not methylated in all samples.
+
+Save filtered set to make code reruns/knitting quicker
+
+```{r, eval=FALSE}
+write.csv(filtered_wgbs, "../output/05-Ptua-bismark-CG/filtered-WGBS-CpG-counts.csv")
+```
+
+
+```{r, engine='bash'}
+head ../output/05-Ptua-bismark-CG/filtered-WGBS-CpG-counts.csv
+```
+
+```{r, engine='bash'}
+wc -l ../output/05-Ptua-bismark-CG/filtered-WGBS-CpG-counts.csv
+```

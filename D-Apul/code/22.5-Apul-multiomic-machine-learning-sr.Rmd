@@ -213,21 +213,34 @@ merged_data <- purrr::reduce(processed_data, full_join, by = "CpG")
 # Print structure of final merged data
 str(merged_data)
 ```
+```{r}
+#remove 225-T1
+
+merged_data <- merged_data[, !(names(merged_data) %in% "ACR-225-TP1_10x_processed.txt")]
+  
+
+```
+
+```{r}
+colnames(merged_data)
+```
+
+
 
 Replace any NA with 0. 
 ```{r, eval=FALSE}
 # Convert all columns (except "CpG") to numeric and replace NAs with 0
 merged_data <- merged_data %>%
-  mutate(across(-CpG, as.numeric)) %>%  # Convert all except CpG to numeric
-  mutate(across(-CpG, ~ replace_na(.x, 0)))  # Replace NA with 0 in numeric columns
+  mutate(across(-CpG, as.numeric)) # Convert all except CpG to numeric
+
 ```
 
 ## Filter data sets 
 
-Only keep CpGs that have a non-zero value in all samples. 
+Only keep CpGs that have a non-na value in all samples. 
 
 ```{r, eval=FALSE}
-filtered_wgbs <- merged_data %>% filter(if_all(-CpG, ~ .x > 0))
+filtered_wgbs <- na.omit(merged_data)
 
 # Ensure it's formatted as a data frame
 filtered_wgbs <- as.data.frame(filtered_wgbs)
@@ -241,19 +254,22 @@ nrow(merged_data)
 nrow(filtered_wgbs)
 ```
 
-We had 12,093,025 CpGs before filtering and have only 507 after filtering. This makes sense because most CpGs were not methylated in all samples.
+We had 12,093,025 CpGs before filtering and have only 96785 after filtering. This makes sense because most CpGs were not methylated in all samples.
 
 Save filtered set to make code reruns/knitting quicker
 
 ```{r, eval=FALSE}
-write.csv(filtered_wgbs, "../output/22.3-Apul-multiomic-machine-learning-byTP/filtered-WGBS-CpG-counts.csv")
+write.csv(filtered_wgbs, "../output/22.5-Apul-multiomic-SR/Apul-filtered-WGBS-CpG-counts.csv")
 ```
 
-If knitting/rerunning code, we can load in this filtered data here, instead of loading raw counts and reprocessing.
 
-```{r}
-filtered_wgbs <- read.csv("../output/22.2-Apul-multiomic-machine-learning/filtered-WGBS-CpG-counts.csv", row.names = 1, check.names = FALSE)
-```
+
+
+
+
+
+
+
 
 
 Only keep genes, miRNA, and lncRNA that are present in at least one sample
