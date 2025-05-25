@@ -1,0 +1,32 @@
+---
+title: "30-Bismark Summary"
+author: "Steven Roberts"
+date: "`r format(Sys.Date(), '%d %B, %Y')`"
+output: 
+  github_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+    html_preview: false
+editor_options: 
+  markdown: 
+    wrap: sentence
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+library(tidyverse)
+library(Biostrings)
+library(tm)
+knitr::opts_chunk$set(
+  echo = TRUE,         # Display code chunks
+  eval = FALSE,         # Evaluate code chunks
+  warning = FALSE,     # Hide warnings
+  message = FALSE,     # Hide messages
+  fig.width = 6,       # Set plot width in inches
+  fig.height = 4,      # Set plot height in inches
+  fig.align = "center", # Align plots to the center
+  comment = ""         # Prevents appending '##' to beginning of lines in code output
+)
+```
+
