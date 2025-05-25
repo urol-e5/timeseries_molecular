@@ -159,3 +159,128 @@ head ../output/05-Ptua-bismark-CG/*57-TP4*txt
 ```
 
 
+# Load libraries 
+```{r, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(DESeq2)
+library(igraph)
+library(psych)
+library(tidygraph)
+library(ggraph)
+library(WGCNA)
+library(edgeR)
+library(reshape2)
+library(ggcorrplot)
+library(corrplot)
+library(rvest)
+library(purrr)
+library(pheatmap)
+library(glmnet)
+library(caret)
+library(factoextra)
+library(vegan)
+library(ggfortify)
+library(genefilter)
+library(scales)
+library(purrr)
+```
+
+
+
+## WGBS data 
+
+```{r, eval=FALSE}
+#pull processed files from Gannet 
+# Note: Unfortunately we can't use the `cache` feature to make this process more time efficient, as it doesn't support long vectors
+
+# Define the base URL
+base_url <- "https://gannet.fish.washington.edu/v1_web/owlshell/bu-github/timeseries_molecular/F-Ptua/output/05-Ptua-bismark-CG/"
+
+# Read the HTML page
+page <- read_html(base_url)
+
+# Extract links to files
+file_links <- page %>%
+  html_nodes("a") %>%
+  html_attr("href")
+
+# Filter for files ending in "processed.txt"
+processed_files <- file_links[grepl("processed\\.txt$", file_links)]
+
+# Create full URLs
+file_urls <- paste0(base_url, processed_files)
+
+# Function to read a file from URL
+read_processed_file <- function(url) {
+  read_table(url, col_types = cols(.default = "c"))  # Read as character to avoid parsing issues
+}
+
+# Import all processed files into a list
+processed_data <- lapply(file_urls, read_processed_file)
+
+# Name the list elements by file name
+names(processed_data) <- processed_files
+
+# Print structure of imported data
+str(processed_data)
+
+# add a header row that has "CpG" for the first column and "sample" for the second column, which will be populated by the file name 
+
+processed_data <- Map(function(df, filename) {
+  colnames(df) <- c("CpG", filename)  # Rename columns
+  return(df)
+}, processed_data, names(processed_data))  # Use stored file names
+
+#merge files together by "CpG"
+merged_data <- purrr::reduce(processed_data, full_join, by = "CpG")
+
+# Print structure of final merged data
+str(merged_data)
+```
+
+
+
+Replace any NA with 0. 
+```{r, eval=FALSE}
+# Convert all columns (except "CpG") to numeric and replace NAs with 0
+merged_data <- merged_data %>%
+  mutate(across(-CpG, as.numeric)) %>%  # Convert all except CpG to numeric
+  mutate(across(-CpG, ~ replace_na(.x, 0)))  # Replace NA with 0 in numeric columns
+```
+
+## Filter data sets 
+
+Only keep CpGs that have a non-zero value in all samples. 
+
+```{r, eval=FALSE}
+filtered_wgbs <- merged_data %>% filter(if_all(-CpG, ~ .x > 0))
+
+# Ensure it's formatted as a data frame
+filtered_wgbs <- as.data.frame(filtered_wgbs)
+# Only keep the sample information in the column name. 
+colnames(filtered_wgbs) <- gsub("^(.*?)_.*$", "\\1", colnames(filtered_wgbs))
+# Set CpG IDs to rownames
+rownames(filtered_wgbs) <- filtered_wgbs$CpG
+filtered_wgbs <- filtered_wgbs %>% select(-CpG)
+
+nrow(merged_data)
+nrow(filtered_wgbs)
+```
+
+We had xxxxxx  xxCpGs before filtering and have only xxxxx after filtering. This makes sense because most CpGs were not methylated in all samples.
+
+Save filtered set to make code reruns/knitting quicker
+
+```{r, eval=FALSE}
+write.csv(filtered_wgbs, "../output/05-Ptua-bismark-CG/filtered-WGBS-CpG-counts.csv")
+```
+
+
+```{r, engine='bash'}
+head ../output/05-Ptua-bismark-CG/filtered-WGBS-CpG-counts.csv
+```
+
+```{r, engine='bash'}
+wc -l ../output/05-Ptua-bismark-CG/filtered-WGBS-CpG-counts.csv
+```
