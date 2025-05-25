@@ -240,6 +240,8 @@ data_im <- data %>%
     )
   ) %>%
   ungroup()
+
+saveRDS(data_im, file = "M-multi-species/data/metabolomics/metabolites.rds")
 ```
 
 # Plot PCA of species effects  
