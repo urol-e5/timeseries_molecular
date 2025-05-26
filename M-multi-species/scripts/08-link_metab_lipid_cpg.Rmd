@@ -12,6 +12,7 @@ knitr::opts_chunk$set(warning=FALSE, message=FALSE, cache = TRUE)
 
 ```{r}
 library(tidyverse)
+library(data.table)
 ```
 
 # Import data
@@ -257,13 +258,28 @@ Acropora
 # D-Apul/22.3-Apul-multiomic-machine-learning-byTP.Rmd
 acr_cpg <- read_csv("D-Apul/output/22.5-Apul-multiomic-SR/Apul-filtered-WGBS-CpG-counts.csv")
 
-acr_cpg_wide_by_colony_tp <- acr_cpg %>%
-  rename(acr_cpg_id = 1) %>%
-  pivot_longer(-acr_cpg_id, names_to = "sample", values_to = "value") %>%
-  separate(sample, into = c("colony", "timepoint"), sep = "-TP", remove = FALSE) %>%
-  mutate(timepoint = paste0("TP", timepoint)) %>%
-  select(colony, timepoint, acr_cpg_id, value) %>%
-  pivot_wider(names_from = acr_cpg_id, values_from = value)
+# acr_cpg_wide_by_colony_tp <- acr_cpg %>%
+#   rename(acr_cpg_id = 1) %>%
+#   pivot_longer(-acr_cpg_id, names_to = "sample", values_to = "value") %>%
+#   separate(sample, into = c("colony", "timepoint"), sep = "-TP", remove = FALSE) %>%
+#   mutate(timepoint = paste0("TP", timepoint)) %>%
+#   select(colony, timepoint, acr_cpg_id, value) %>%
+#   pivot_wider(names_from = acr_cpg_id, values_from = value)
+# 
+
+
+# Convert to data.table
+dt <- as.data.table(acr_cpg)
+setnames(dt, 1, "acr_cpg_id")  # Rename first column
+# Melt (faster pivot_longer)
+dt_long <- melt(dt, id.vars = "acr_cpg_id", variable.name = "sample", value.name = "value")
+# Extract colony and timepoint using fast string regex
+dt_long[, c("colony", "timepoint") := tstrsplit(sample, "-TP", fixed = TRUE)]
+dt_long[, timepoint := paste0("TP", timepoint)]
+# Recast to wide form (colony/timepoint rows × acr_cpg_id columns)
+acr_cpg_wide_by_colony_tp <- dcast(
+  dt_long, colony + timepoint ~ acr_cpg_id, value.var = "value") %>%
+  as_tibble(.)
 
 
 # Remove columns with zero standard deviation
@@ -296,43 +312,32 @@ colony_site_lookup <- pca_results_metab %>%
 acr_cpg_pca_results_with_site <- acr_cpg_pca_results %>%
   left_join(colony_site_lookup, by = "colony")
 
-# # 3. Plot PCA trajectories with site info
-# acr_cpg_pca_results_with_site %>%
-#   ggplot(aes(x = PC1, y = PC2, group = colony)) +
-#   geom_path(alpha = 0.6) +
-#   geom_point(aes(color = timepoint), size = 3) +
-#   facet_grid(~ site, scales = "free") +
-#   labs(
-#     title = "acr_cpg PCA trajectories over time by site (Acropora only)",
-#     color = "Timepoint"
-#   ) +
-#   theme_minimal()
 
-# Compute PC change intervals by colony
-pc_changes_acr_cpg <- acr_cpg_pca_results %>%
-  mutate(time_num = as.numeric(str_extract(timepoint, "\\d+"))) %>%
-  arrange(colony, time_num) %>%
-  group_by(colony) %>%
-  mutate(
-    next_timepoint = lead(timepoint),
-    interval = if_else(!is.na(next_timepoint),
-                       paste0(timepoint, "-", next_timepoint),
-                       NA_character_)
-  ) %>%
-  mutate(across(starts_with("PC"), ~ lead(.) - ., .names = "delta_{col}")) %>%
-  ungroup() %>%
-  filter(!is.na(interval)) %>%
-  select(colony, interval, starts_with("delta_"))
-
-# Match each PC change to the baseline PC value
-baseline_vs_changes_acr_cpg <- pc_changes_acr_cpg %>%
-  separate(interval, into = c("baseline_tp", "next_tp"), sep = "-") %>%
-  left_join(
-    acr_cpg_pca_results %>%
-      rename_with(~ paste0("baseline_", .), starts_with("PC")),
-    by = c("colony", "baseline_tp" = "timepoint")
-  ) %>%
-  select(colony, baseline_tp, next_tp, starts_with("delta_"), starts_with("baseline_PC"))
+# # Compute PC change intervals by colony
+# pc_changes_acr_cpg <- acr_cpg_pca_results %>%
+#   mutate(time_num = as.numeric(str_extract(timepoint, "\\d+"))) %>%
+#   arrange(colony, time_num) %>%
+#   group_by(colony) %>%
+#   mutate(
+#     next_timepoint = lead(timepoint),
+#     interval = if_else(!is.na(next_timepoint),
+#                        paste0(timepoint, "-", next_timepoint),
+#                        NA_character_)
+#   ) %>%
+#   mutate(across(starts_with("PC"), ~ lead(.) - ., .names = "delta_{col}")) %>%
+#   ungroup() %>%
+#   filter(!is.na(interval)) %>%
+#   select(colony, interval, starts_with("delta_"))
+# 
+# # Match each PC change to the baseline PC value
+# baseline_vs_changes_acr_cpg <- pc_changes_acr_cpg %>%
+#   separate(interval, into = c("baseline_tp", "next_tp"), sep = "-") %>%
+#   left_join(
+#     acr_cpg_pca_results %>%
+#       rename_with(~ paste0("baseline_", .), starts_with("PC")),
+#     by = c("colony", "baseline_tp" = "timepoint")
+#   ) %>%
+#   select(colony, baseline_tp, next_tp, starts_with("delta_"), starts_with("baseline_PC"))
 
 
 # # Recompute with all forward time intervals
@@ -760,110 +765,77 @@ metab_cpg_lip_combined %>%
 ```
 
 
-## Compute absolute and net methylation change
-### Acropora
+# Compute absolute and net methylation change
+
+Filter out CpG sites showing not much of a change in methylation (swamping noise?)
+
+
 ```{r}
-# Get only the CpG site columns
-acr_cpg_cols <- colnames(acr_cpg_wide_by_colony_tp)[!colnames(acr_cpg_wide_by_colony_tp) %in% c("colony", "timepoint")]
-poc_cpg_cols <- colnames(poc_cpg_wide_by_colony_tp)[!colnames(poc_cpg_wide_by_colony_tp) %in% c("colony", "timepoint")]
+compute_methylation_changes <- function(cpg_wide_df, cpg_cols = NULL, sd_filter = FALSE) {
+  # If not specified, infer CpG columns as everything except colony and timepoint
+  if (is.null(cpg_cols)) {
+    cpg_cols <- setdiff(colnames(cpg_wide_df), c("colony", "timepoint"))
+  }
 
-# Compute forward-in-time methylation changes per colony
-acr_methylation_change_summary <- acr_cpg_wide_by_colony_tp %>%
-  mutate(time_num = as.numeric(str_extract(timepoint, "\\d+"))) %>%
-  arrange(colony, time_num) %>%
-  group_by(colony) %>%
-  group_modify(~ {
-    earlier <- .x
-    later <- .x
+  cpg_wide_df %>%
+    mutate(time_num = as.numeric(stringr::str_extract(timepoint, "\\d+"))) %>%
+    arrange(colony, time_num) %>%
+    group_by(colony) %>%
+    group_modify(~ {
+      if (nrow(.x) < 2) return(tibble())
 
-    expand_grid(
-      idx_earlier = seq_len(nrow(earlier)),
-      idx_later   = seq_len(nrow(later))
-    ) %>%
-      filter(idx_later > idx_earlier) %>%
-      mutate(
-        baseline_tp = earlier$timepoint[idx_earlier],
-        next_tp     = later$timepoint[idx_later],
+      mat <- as.matrix(.x[, cpg_cols])
+      timepoints <- .x$timepoint
+      n <- nrow(mat)
+
+      idx_pairs <- which(upper.tri(matrix(NA, n, n)), arr.ind = TRUE)
+
+      diffs <- mat[idx_pairs[,2], , drop = FALSE] - mat[idx_pairs[,1], , drop = FALSE]
+
+      if (sd_filter) {
+        # For each row (interval), filter out CpGs changing < 1 SD from mean
+        diffs <- t(apply(diffs, 1, function(diff_row) {
+          mean_diff <- mean(diff_row, na.rm = TRUE)
+          sd_diff <- sd(diff_row, na.rm = TRUE)
+          keep <- abs(diff_row - mean_diff) >= sd_diff
+          diff_row[!keep] <- NA
+          diff_row
+        }))
+      }
+
+      tibble(
+        baseline_tp = timepoints[idx_pairs[,1]],
+        next_tp     = timepoints[idx_pairs[,2]],
         interval    = paste0(baseline_tp, "-", next_tp),
-        total_abs_change = map2_dbl(
-          idx_earlier, idx_later,
-          ~ sum(abs(earlier[.x, acr_cpg_cols] - later[.y, acr_cpg_cols]), na.rm = TRUE)
-        ),
-        total_net_change = map2_dbl(
-          idx_earlier, idx_later,
-          ~ sum(later[.y, acr_cpg_cols] - earlier[.x, acr_cpg_cols], na.rm = TRUE)
-        )
+        total_abs_change = rowSums(abs(diffs), na.rm = TRUE),
+        total_net_change = rowSums(diffs, na.rm = TRUE)
       )
-  }) %>%
-  ungroup() %>%
-  select(colony, baseline_tp, next_tp, interval, total_abs_change, total_net_change)
+    }) %>%
+    ungroup() %>%
+    select(colony, baseline_tp, next_tp, interval, total_abs_change, total_net_change)
+}
+
+# For Acropora (with filtering)
+acr_methylation_change_summary <- compute_methylation_changes(acr_cpg_wide_by_colony_tp, sd_filter = TRUE)
+
+# For Pocillopora (without filtering)
+poc_methylation_change_summary <- compute_methylation_changes(poc_cpg_wide_by_colony_tp, sd_filter = TRUE)
 
 
 
-
-
-# # join to lipidomic data
-# acr_res <- acr_methylation_change_summary %>% inner_join(baseline_vs_changes_lip_renamed)
-# 
-# ggplot(acr_res, aes(x = PC1_baseline_lip, y = total_net_change)) +
-#   geom_point() +
-#   geom_smooth(method = "lm") +
-#   facet_wrap(~interval) +
-#   ggpubr::stat_cor()
-```
-
-### Pocillopora
-```{r}
-# Get only the CpG site columns
-poc_cpg_cols <- colnames(poc_cpg_wide_by_colony_tp)[!colnames(poc_cpg_wide_by_colony_tp) %in% c("colony", "timepoint")]
-
-# Compute forward-in-time methylation changes per colony
-library(dplyr)
-library(tidyr)
-library(purrr)
-
-poc_methylation_change_summary <- poc_cpg_wide_by_colony_tp %>%
-  mutate(time_num = as.numeric(str_extract(timepoint, "\\d+"))) %>%
-  arrange(colony, time_num) %>%
-  group_by(colony) %>%
-  group_modify(~ {
-    if (nrow(.x) < 2) return(tibble())  # Skip groups with <2 timepoints
-
-    mat <- as.matrix(.x[, poc_cpg_cols])
-    timepoints <- .x$timepoint
-    n <- nrow(mat)
-    
-    idx_pairs <- which(upper.tri(matrix(NA, n, n)), arr.ind = TRUE)
-    
-    diffs <- mat[idx_pairs[,2], , drop = FALSE] - mat[idx_pairs[,1], , drop = FALSE]
-    
-    tibble(
-      baseline_tp = timepoints[idx_pairs[,1]],
-      next_tp     = timepoints[idx_pairs[,2]],
-      interval    = paste0(baseline_tp, "-", next_tp),
-      total_abs_change = rowSums(abs(diffs), na.rm = TRUE),
-      total_net_change = rowSums(diffs, na.rm = TRUE)
-    )
-  }) %>%
-  ungroup() %>%
-  select(colony, baseline_tp, next_tp, interval, total_abs_change, total_net_change)
-
-
-
-```
-
-## Plot methylation change vs. metabolomic PC
-```{r}
 # combine methylation change summary across species
 all_methylation_change_summary <- bind_rows(
   acr_methylation_change_summary,
   poc_methylation_change_summary)
+```
 
+## Plot methylation change vs. metabolomic PC
+```{r}
 # join to metabolomic data
 metab_methylation_res <- all_methylation_change_summary %>% 
   inner_join(baseline_vs_changes_metab_renamed)
 
-ggplot(metab_methylation_res, aes(x = PC1_baseline_metab, y = total_net_change)) +
+ggplot(metab_methylation_res, aes(x = PC1_baseline_metab, y = total_abs_change)) +
   geom_point(aes(color = species, shape = site)) +
   geom_smooth(method = "lm", color = "black") +
   facet_wrap(species~interval, scales = "free") +
@@ -876,7 +848,7 @@ lipid_methylation_res <- all_methylation_change_summary %>%
   inner_join(baseline_vs_changes_lip_renamed) %>%
   left_join(colony_md)
 
-ggplot(lipid_methylation_res, aes(x = PC1_baseline_lip, y = total_net_change)) +
+ggplot(lipid_methylation_res, aes(x = PC1_baseline_lip, y = total_abs_change)) +
   geom_point(aes(color = species, shape = site)) +
   geom_smooth(method = "lm", color = "black") +
   facet_wrap(species~interval, scales = "free") +
@@ -902,22 +874,6 @@ metab_long <- metab_data_wide %>%
   )
 
 # Join baseline metabolite value to methylation interval data
-
-# Filter absolute methylation changes if we want to plot that -- there was an outlier...
-# all_methylation_change_summary_filtered <- all_methylation_change_summary %>%
-#   mutate(species = str_sub(colony, 1, 3)) %>%
-#   group_by(species) %>%
-#   mutate(
-#     q1 = quantile(total_abs_change, 0.25, na.rm = TRUE),
-#     q3 = quantile(total_abs_change, 0.75, na.rm = TRUE),
-#     iqr = q3 - q1,
-#     lower_bound = q1 - 1.5 * iqr,
-#     upper_bound = q3 + 1.5 * iqr
-#   ) %>%
-#   filter(total_abs_change >= lower_bound & total_abs_change <= upper_bound) %>%
-#   select(-q1, -q3, -iqr, -lower_bound, -upper_bound) %>%
-#   ungroup()
-
 metab_methylation_joined <- all_methylation_change_summary %>%
   inner_join(
     metab_long %>%
