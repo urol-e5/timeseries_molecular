@@ -2,15 +2,21 @@
 title: "Energetic-Epigenetic Linkages"
 author: "R. Cunning"
 date: "2025-05-24"
-output: html_document
+output:
+  html_document:
+    # toc: true
+    # toc_float: true
+    # number_sections: true   # optional
+    # theme: flatly            # optional, or try cosmo, journal, etc.
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(warning=FALSE, message=FALSE, cache = TRUE)
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE, message=FALSE, cache = FALSE)
+knitr::opts_chunk$set(fig.width = 8)  # Set global figure width (in inches)
 ```
 
 
-```{r}
+```{r libraries}
 library(tidyverse)
 library(data.table)
 ```
@@ -66,7 +72,7 @@ pca_results_lip %>%
   ggplot(aes(x = PC1, y = PC2, group = colony)) +
   geom_path(alpha = 0.6) +
   geom_point(aes(color = timepoint), size = 3) +
-  facet_grid(species ~ site, scales = "free") +
+  facet_grid(site ~ species, scales = "free") +
   labs(title = "Lipid PCA trajectories over time",
        color = "Timepoint") +
   theme_minimal()
@@ -123,6 +129,33 @@ baseline_vs_changes_lip <- pca_results_lip %>%
   ungroup() %>%
   select(colony, species, baseline_tp, next_tp, interval, everything(), -idx_earlier, -idx_later)
 
+# Class lipid composition
+lipid_comp <- lip_data %>%
+  select(-type) %>%
+  # Extract lipid class prefix
+  mutate(class = sub("^(\\D+) .*", "\\1", lipid)) %>%
+  
+  # Calculate total lipid concentration per sample
+  group_by(sample, species, colony, timepoint) %>%
+  mutate(total_lipid_concentration = sum(nmol.g_plasma.ug_protein, na.rm = TRUE)) %>%
+  
+  # Calculate percent composition per lipid
+  mutate(percent_lipid = (nmol.g_plasma.ug_protein / total_lipid_concentration) * 100) %>%
+  
+  # Calculate total class concentration and class-level percent composition
+  group_by(sample, species, colony, timepoint, class) %>%
+  mutate(total_class_concentration = sum(nmol.g_plasma.ug_protein, na.rm = TRUE),
+         percent_class = (total_class_concentration / total_lipid_concentration) * 100) %>%
+  
+  ungroup() %>%
+  select(sample, species, colony, timepoint, lipid, class,
+         nmol.g_plasma.ug_protein, total_lipid_concentration,
+         total_class_concentration, percent_lipid, percent_class)
+
+
+# lipid_comp %>%
+#   filter(colony == "ACR-229", timepoint == "TP4") %>%
+#   summarize(tt = sum(percent_class))
 ```
 
 ## Metabolomic data (all 3 species)
@@ -179,7 +212,7 @@ pca_results_metab %>%
   ggplot(aes(x = PC1, y = PC2, group = colony)) +
   geom_path(alpha = 0.6) +
   geom_point(aes(color = timepoint), size = 3) +
-  facet_grid(species ~ site, scales = "free") +
+  facet_grid(site ~ species, scales = "free") +
   labs(title = "Metabolite PCA trajectories over time",
        color = "Timepoint") +
   theme_minimal()
@@ -251,7 +284,7 @@ baseline_vs_changes_metab <- pca_results_metab %>%
 # pca_results_metab %>% filter(colony == "ACR-139")
 ```
 
-## Epigenetic data (CpG data)
+## Methylation data (CpG data)
 
 Acropora
 ```{r data_cpg_acr}
@@ -518,7 +551,7 @@ baseline_vs_changes_poc_cpg <- poc_cpg_pca_results_with_site %>%
 ```
 
 Visualize CpG principal component changes
-```{r}
+```{r cpg_viz_pca}
 bind_rows(poc_cpg_pca_results_with_site, acr_cpg_pca_results_with_site) %>%
   left_join(colony_md) %>%
   ggplot(aes(x = PC1, y = PC2, group = colony)) +
@@ -532,8 +565,8 @@ bind_rows(poc_cpg_pca_results_with_site, acr_cpg_pca_results_with_site) %>%
   theme_minimal()
 ```
 
-## Epigenetic machinery gene expression data 
-```{r, include = F, eval = F}
+## Expression of epigenetic machinery genes 
+```{r data_epimachine}
 epimachine <- read_csv("D-Apul/output/29-Apul-epimachine-exp/Apul-epimachine-expression.csv")
 
 epimachine <- epimachine %>%
@@ -544,82 +577,43 @@ epimachine <- epimachine %>%
 epimachine <- epimachine %>%
   mutate(gene_id = make.unique(gene_id))
 
-# Step 1: Transpose so samples are rows, genes are columns
-expr_matrix <- epimachine %>%
-  column_to_rownames("gene_id") %>%
-  t() %>%
-  as.data.frame()
-
-expr_matrix$`H2AW-201`
-
-expr_matrix_filtered <- expr_matrix %>%
-  select(where(~ {
-    x <- .
-    s <- sd(x, na.rm = TRUE)
-    is.finite(s) && s > 0
-  }))
-
-# Step 2: PCA (centered and scaled)
-pca_results <- prcomp(expr_matrix_filtered, center = TRUE, scale. = TRUE)
-
-# Step 3: Get scores (PCA coordinates for each sample)
-pca_scores <- as_tibble(pca_results$x, rownames = "sample")
-pca_scores <- pca_scores %>%
-  mutate(
-    timepoint = str_extract(sample, "TP\\d"),
-    timepoint = factor(timepoint, levels = c("TP1", "TP2", "TP3", "TP4")),
-    colony = str_extract(sample, "ACR-\\d+")
-  ) %>%
-  arrange(colony, timepoint)
-
-# Step 4: Plot (e.g., PC1 vs PC2)
-ggplot(pca_scores, aes(x = PC1, y = PC2, group = colony)) +
-  geom_point(aes(color = timepoint), size = 3) +
-  geom_path() +
-  facet_wrap(~colony) +
-  labs(title = "PCA of Gene Expression", x = "PC1", y = "PC2") +
-  theme_minimal()
+# Long format
+epimachine_long <- epimachine %>%
+  pivot_longer(-gene_id, names_to = "sample", values_to = "gene_count") %>%
+  separate(sample, into = c("colony", "timepoint_num"), sep = "-TP", remove = FALSE) %>%
+  mutate(timepoint = paste0("TP", timepoint_num),
+         logcount = log(gene_count)) 
 
 
-# Baseline and change
-pca_results_gene <- pca_scores %>%
-  mutate(
-    time_num = as.numeric(str_extract(timepoint, "\\d+"))
-  ) %>%
-  arrange(colony, time_num)
 
-baseline_vs_changes_gene <- pca_results_gene %>%
-  group_by(colony) %>%
-  group_modify(~ {
-    earlier <- .x
-    later <- .x
+# # PLOT
+# # Select top 20 most variable genes
+# top_genes <- epimachine %>%
+#   rowwise() %>%
+#   mutate(var = var(c_across(-gene_id), na.rm = TRUE)) %>%
+#   ungroup() %>%
+#   slice_max(var, n = 20) %>%
+#   pull(gene_id)
+# 
+# # Plot histograms for those 20 genes
+# epimachine %>%
+#   filter(gene_id %in% top_genes) %>%
+#   pivot_longer(-gene_id, names_to = "sample", values_to = "gene_count") %>%
+#   ggplot(aes(x = gene_count)) +
+#   geom_histogram(bins = 30, fill = "steelblue", color = "white") +
+#   facet_wrap(~ gene_id, scales = "free_y") +
+#   labs(
+#     title = "Gene Count Distributions (Top 20 Most Variable Genes)",
+#     x = "Gene Count",
+#     y = "Frequency"
+#   ) +
+#   scale_x_log10() +
+#   theme_minimal(base_size = 10)
 
-    pc_cols <- grep("^PC", names(earlier), value = TRUE)
-
-    pair_df <- expand_grid(
-      idx_earlier = seq_len(nrow(earlier)),
-      idx_later = seq_len(nrow(later))
-    ) %>%
-      filter(idx_later > idx_earlier) %>%
-      mutate(
-        baseline_tp = earlier$timepoint[idx_earlier],
-        next_tp     = later$timepoint[idx_later],
-        interval    = paste0(baseline_tp, "-", next_tp)
-      )
-
-    # Extract baseline and compute deltas
-    baseline_pcs <- map_dfc(pc_cols, ~ tibble(!!paste0(.x, "_baseline") := earlier[[.x]][pair_df$idx_earlier]))
-    delta_pcs    <- map_dfc(pc_cols, ~ tibble(!!paste0("delta_", .x) := later[[.x]][pair_df$idx_later] - earlier[[.x]][pair_df$idx_earlier]))
-
-    bind_cols(pair_df, baseline_pcs, delta_pcs)
-  }) %>%
-  ungroup() %>%
-  select(colony, baseline_tp, next_tp, interval, everything(), -idx_earlier, -idx_later)
 
 ```
 
-
-# Combine epigenetic/energetic Principal Component data
+## Combine Principal Components of lipidomic, metabolomic, and methylation data
 ```{r combine_pc_data}
 
 # 1. Rename lipid columns (if not already)
@@ -647,7 +641,7 @@ baseline_vs_changes_all_cpg_renamed <- bind_rows(
   baseline_vs_changes_poc_cpg_renamed
 )
 
-# Rename epimachine gene exp data
+# # Rename epimachine gene exp data
 # baseline_vs_changes_gene_renamed <- baseline_vs_changes_gene %>%
 #   rename_with(~ paste0(.x, "_gene"), ends_with("_baseline")) %>%
 #   rename_with(~ paste0(.x, "_gene"), starts_with("delta_PC"))
@@ -670,28 +664,67 @@ metab_cpg_lip_combined <- baseline_vs_changes_all_cpg_renamed %>%     # All SPP
          species = str_sub(colony, 1, 3))
 ```
 
+# Analysis
 
-```{r, include = F, eval = F}
-# Metabolomic PC baseline --> Epigenetic machinery gene exp change
+## Metabolomic PC --> Expression of epigenetic machinery genes [ACR only]
+```{r metabPC_exp}
+# Combine epimachine gene exp with metab PC
+epimachine_metab <- epimachine_long %>%
+  inner_join(
+    pca_results_metab %>% select(colony, timepoint, PC1),
+    by = c("colony", "timepoint")
+  )
 
-metab_cpg_lip_combined %>%
-  filter(!is.na(PC1_baseline_metab)) %>%
-  ggplot(aes(x = PC1_baseline_metab, y = delta_PC1_gene)) +
-  geom_point(aes(color = species, shape = site.x), size = 3, alpha = 0.7) +
-  facet_wrap(species ~ interval_label, scales = "free") +
-  geom_smooth(method = "lm", color = "black") +
-  ggpubr::stat_cor() +
+
+gene_pc_results_all_tp <- epimachine_metab %>%
+  group_by(gene_id) %>%
+  summarise(
+    n = sum(is.finite(logcount) & is.finite(PC1)),
+    gene_sd = sd(logcount, na.rm = TRUE),
+    pc_sd = sd(PC1, na.rm = TRUE),
+    cor_test = list(
+      if (!is.na(gene_sd) && !is.na(pc_sd) && gene_sd > 0 && pc_sd > 0) {
+        cor.test(logcount, PC1)
+      } else {
+        NA
+      }
+    ),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    estimate = map_dbl(cor_test, ~ if (is.list(.x)) .x$estimate else NA_real_),
+    p_value = map_dbl(cor_test, ~ if (is.list(.x)) .x$p.value else NA_real_),
+    p_adj = p.adjust(p_value, method = "fdr")) %>%
+  select(gene_id, n, estimate, p_value, p_adj)
+
+# Get top 10 most strongly correlated genes (by absolute correlation)
+top12_genes <- gene_pc_results_all_tp %>%
+  arrange(-abs(estimate)) %>%
+  slice_head(n = 12) %>%
+  pull(gene_id)
+
+# Plot logcount vs. PC1 for top 10 genes
+epimachine_metab %>%
+  filter(gene_id %in% top12_genes) %>%
+  ggplot(aes(x = PC1, y = logcount)) +
+  geom_point(aes(color = timepoint), alpha = 0.7, size = 1.5) +
+  geom_smooth(method = "lm", se = FALSE, color = "black", linetype = "dashed") +
+  facet_wrap(~ gene_id, scales = "free_y") +
   labs(
-    x = "Baseline Metabolomic PC1",
-    y = "Change in Epigenetic Machinery Gene Expression PC1",
-    title = "Metabolomic baseline vs. epigenetic change across time intervals"
+    title = "Top 12 Genes Most Correlated with Metabolomic PC1",
+    x = "Metabolomic PC1",
+    y = "Log Gene Expression",
+    color = "Timepoint"
   ) +
-  theme_minimal()
+  theme_minimal(base_size = 11) +
+  ggpubr::stat_cor()
+
+
+
 ```
 
-
-# Metabolomic PC baseline --> Epigenetic PC change
-```{r}
+## Metabolomic PC baseline --> Methylation PC change
+```{r metabPC_methPCchange}
 # METAB vs. CPG
 metab_cpg_lip_combined %>%
   filter(!is.na(PC1_baseline_metab)) %>%
@@ -702,14 +735,14 @@ metab_cpg_lip_combined %>%
   ggpubr::stat_cor() +
   labs(
     x = "Baseline Metabolomic PC1",
-    y = "Change in Epigenetic PC1",
+    y = "Change in Methylation PC1",
     title = "Metabolomic baseline vs. epigenetic change across time intervals"
   ) +
   theme_minimal()
 ```
 
-# Epigenetic PC baseline --> Metabolomic PC change
-```{r}
+## Methylation PC baseline --> Metabolomic PC change
+```{r methPC_metabPCchange}
 metab_cpg_lip_combined %>%
   filter(!is.na(PC1_baseline_metab)) %>%
   ggplot(aes(x = PC1_baseline_cpg, y = delta_PC1_metab)) +
@@ -725,9 +758,8 @@ metab_cpg_lip_combined %>%
   theme_minimal()
 ```
 
-
-# Lipidomic PC baseline --> Epigenetic PC change 
-```{r}
+## Lipidomic PC baseline --> Methylation PC change 
+```{r lipPC_methPCchange}
 
 # LIPIDS vs. CPG
 
@@ -746,8 +778,8 @@ metab_cpg_lip_combined %>%
   theme_minimal()
 ```
 
-# Epigenetic PC baseline --> lipidomic PC change
-```{r}
+## Methylation PC baseline --> Lipidomic PC change
+```{r methPC_lipPCchange}
 
 metab_cpg_lip_combined %>%
   filter(!is.na(delta_PC1_lip)) %>%
@@ -765,12 +797,10 @@ metab_cpg_lip_combined %>%
 ```
 
 
-# Compute absolute and net methylation change
-
-Filter out CpG sites showing not much of a change in methylation (swamping noise?)
-
-
-```{r}
+## Compute absolute and net change in Methylation
+```{r methChange}
+# Function to compute abs and net changes in methylation across all cpg sites from one time point to another.
+# sd_filter == TRUE will Filter out CpG sites showing <1S.D. change in methylation (swamping noise)
 compute_methylation_changes <- function(cpg_wide_df, cpg_cols = NULL, sd_filter = FALSE) {
   # If not specified, infer CpG columns as everything except colony and timepoint
   if (is.null(cpg_cols)) {
@@ -822,50 +852,51 @@ acr_methylation_change_summary <- compute_methylation_changes(acr_cpg_wide_by_co
 poc_methylation_change_summary <- compute_methylation_changes(poc_cpg_wide_by_colony_tp, sd_filter = TRUE)
 
 
-
 # combine methylation change summary across species
 all_methylation_change_summary <- bind_rows(
   acr_methylation_change_summary,
   poc_methylation_change_summary)
 ```
 
-## Plot methylation change vs. metabolomic PC
+## Metabolomic PC --> Abs. Methylation change 
 ```{r}
 # join to metabolomic data
 metab_methylation_res <- all_methylation_change_summary %>% 
-  inner_join(baseline_vs_changes_metab_renamed)
+  left_join(baseline_vs_changes_metab_renamed,
+             by = c("colony", "baseline_tp")) %>%
+  filter(!is.na(PC1_baseline_metab))
 
-ggplot(metab_methylation_res, aes(x = PC1_baseline_metab, y = total_abs_change)) +
+
+ggplot(metab_methylation_res, aes(x = PC1_baseline_metab, 
+                                  y = total_abs_change)) +
   geom_point(aes(color = species, shape = site)) +
   geom_smooth(method = "lm", color = "black") +
-  facet_wrap(species~interval, scales = "free") +
+  facet_grid(species~interval.x, scales = "free") +
   ggpubr::stat_cor() +
     theme_minimal()
+```
 
-
+## Lipidomic PC --> Abs. Methylation change
+```{r}
 # join to lipidomic data
 lipid_methylation_res <- all_methylation_change_summary %>% 
-  inner_join(baseline_vs_changes_lip_renamed) %>%
-  left_join(colony_md)
+  left_join(baseline_vs_changes_lip_renamed,
+            by = c("colony", "baseline_tp")) %>%
+  left_join(colony_md) %>%
+  filter(!is.na(PC1_baseline_lip))
 
 ggplot(lipid_methylation_res, aes(x = PC1_baseline_lip, y = total_abs_change)) +
   geom_point(aes(color = species, shape = site)) +
   geom_smooth(method = "lm", color = "black") +
-  facet_wrap(species~interval, scales = "free") +
+  facet_grid(species~interval.x, scales = "free") +
   ggpubr::stat_cor() +
     theme_minimal()
 
 ```
 
+## Individual metabolites --> expression of epigenetic machinery genes
+```{r, metab_expr}
 
-```{r, eval = F, include = F, fig.width = 10}
-# Individual metabolites --> epimachine changes
-
-```
-
-# Individual metabolites --> methylation changes
-```{r, fig.width = 10}
-# Reshape metabolite data to long format (excluding identifiers)
 metab_long <- metab_data_wide %>%
   pivot_longer(
     cols = -c(sample, colony, timepoint, species, site),
@@ -873,92 +904,179 @@ metab_long <- metab_data_wide %>%
     values_to = "value"
   )
 
-# Join baseline metabolite value to methylation interval data
-metab_methylation_joined <- all_methylation_change_summary %>%
+# Join metabolite and gene expression data
+metab_gene_joined <- epimachine_long %>%
+  select(gene_id, colony, timepoint, logcount) %>%
+  inner_join(
+    metab_long %>% select(colony, timepoint, metabolite, value),
+    by = c("colony", "timepoint")
+  )
+
+# Correlation between gene expression and metabolite value
+gene_metab_corrs <- metab_gene_joined %>%
+  group_by(gene_id, metabolite) %>%
+  summarise(
+    n = sum(is.finite(logcount) & is.finite(value)),
+    gene_sd = sd(logcount, na.rm = TRUE),
+    metab_sd = sd(value, na.rm = TRUE),
+    cor_test = list(
+      if (!is.na(gene_sd) && !is.na(metab_sd) && gene_sd > 0 && metab_sd > 0) {
+        cor.test(logcount, value)
+      } else {
+        NA
+      }
+    ),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    estimate = map_dbl(cor_test, ~ if (is.list(.x)) .x$estimate else NA_real_),
+    p_value = map_dbl(cor_test, ~ if (is.list(.x)) .x$p.value else NA_real_),
+    p_adj = p.adjust(p_value, method = "fdr")
+  ) %>%
+  select(gene_id, metabolite, n, estimate, p_value, p_adj)
+
+
+
+# Get top 10 strongest gene–metabolite correlations
+top10_pairs <- gene_metab_corrs %>%
+  arrange(-abs(estimate)) %>%
+  slice_head(n = 12)
+
+# Join back to the long data for plotting
+plot_data <- epimachine_long %>%
+  select(gene_id, colony, timepoint, logcount) %>%
+  inner_join(
+    metab_long %>% select(colony, timepoint, metabolite, value),
+    by = c("colony", "timepoint")
+  ) %>%
+  inner_join(
+    top10_pairs %>% select(gene_id, metabolite),
+    by = c("gene_id", "metabolite")
+  ) %>%
+  mutate(label = paste(gene_id, "vs.", metabolite))
+
+# Plot
+ggplot(plot_data, aes(x = value, y = logcount, color = timepoint)) +
+  geom_point(alpha = 0.7, size = 2.5) +
+  geom_smooth(method = "lm", se = FALSE, color = "black", linetype = "dashed") +
+  facet_wrap(~ label, scales = "free") +
+  labs(
+    title = "Top 10 Gene–Metabolite Correlations",
+    x = "Metabolite Value",
+    y = "Log Gene Expression",
+    color = "Timepoint"
+  ) +
+  theme_minimal(base_size = 11)
+
+```
+
+## Individual metabolites --> Abs./Net Methylation changes
+```{r}
+# Reshape methylation changes to long format
+methylation_change_long <- all_methylation_change_summary %>%
+  pivot_longer(
+    cols = c(total_net_change, total_abs_change),
+    names_to = "change_type",
+    values_to = "methylation_change"
+  )
+
+# Join metabolite baseline values to methylation change data
+metab_methylation_joined <- methylation_change_long %>%
   inner_join(
     metab_long %>%
       rename(baseline_tp = timepoint, baseline_value = value),
     by = c("colony", "baseline_tp")
   )
 
-# Compute correlation for each metabolite × interval
+# Correlation tests for each metabolite × species × interval × change type
 metab_corrs <- metab_methylation_joined %>%
-  group_by(metabolite, interval) %>%
+  group_by(species, metabolite, interval, change_type) %>%
   summarise(
-    cor_test = list(cor.test(baseline_value, total_net_change)),
+    cor_test = list(tryCatch(cor.test(baseline_value, methylation_change), error = function(e) NA)),
     .groups = "drop"
   ) %>%
   mutate(
-    tidied = map(cor_test, broom::tidy)
+    tidied = map(cor_test, ~ if (is.list(.x)) broom::tidy(.x) else tibble(estimate = NA_real_, p.value = NA_real_))
   ) %>%
   unnest(tidied) %>%
-  select(metabolite, interval, estimate, p.value)
-
-# Optional: classify significant & strong correlations
-metab_corrs <- metab_corrs %>%
+  select(species, metabolite, interval, change_type, estimate, p.value) %>%
   mutate(
     sig = p.value < 0.05,
     strong = abs(estimate) > 0.5
   )
 
-top10 <- metab_corrs %>% 
-  #filter(interval %in% c("TP1-TP2", "TP3-TP4")) %>%
-  arrange(-abs(estimate), p.value)
-
-# Count how many intervals each metabolite had strong and significant correlations
-metab_summary <- metab_corrs %>%
-  group_by(metabolite) %>%
+# Rank top metabolites by strongest abs or net correlation within a species
+top_metabs <- metab_corrs %>%
+  group_by(metabolite, species, change_type) %>%
   summarise(
-    n_intervals = n(),
-    n_strong_sig = sum(sig & strong),
-    avg_cor = mean(abs(estimate)),
+    mean_r = mean(abs(estimate), na.rm = TRUE),
     .groups = "drop"
   ) %>%
-  arrange(desc(n_strong_sig), desc(avg_cor))
+  arrange(desc(mean_r)) %>%
+  slice_head(n = 10) %>%
+  pull(metabolite)
 
-
-# Plot individual metabolite vs. methylation changes
-plot_metab_vs_methylation_change <- function(metab_data_wide, methylation_change_summary, variable_name) {
-  
-  # Get variable + colony + timepoint
+# Define plotting function to show both net + abs methylation changes
+plot_metab_vs_methylation_change_dual <- function(metab_data_wide, methylation_change_long, variable_name) {
+  # Prepare baseline values for this metabolite
   metab_var <- metab_data_wide %>%
-    select(colony, timepoint, species, !!sym(variable_name))
-  
-  # Join baseline value of variable to methylation change summary
-  joined <- methylation_change_summary %>%
-    inner_join(
-      metab_var %>%
-        rename(baseline_tp = timepoint, baseline_value = !!sym(variable_name)),
-      by = c("colony", "baseline_tp")
-    ) %>%
-    left_join(colony_md)
-  
-  # Plot baseline value vs. methylation change
-  ggplot(joined, aes(x = baseline_value, y = total_net_change)) +
-    geom_point(aes(color = species, shape = site), size = 3, alpha = 0.7) +
-    geom_smooth(method = "lm", se = TRUE, color = "black") +
-    facet_wrap(species~interval, scales = "free", nrow = 2) +
+    select(colony, timepoint, species, site, !!sym(variable_name)) %>%
+    rename(baseline_value = !!sym(variable_name))
+
+  # Join baseline value to methylation data
+  joined <- methylation_change_long %>%
+    left_join(metab_var %>% rename(baseline_tp = timepoint), by = c("colony", "baseline_tp")) %>%
+    mutate(metabolite = variable_name) %>%  # manually tag metabolite
+    filter(!is.na(baseline_value))
+
+  ggplot(joined, aes(x = baseline_value, y = methylation_change, color = change_type)) +
+    geom_point(aes(shape = site), size = 3, alpha = 0.7) +
+    geom_smooth(method = "lm", se = TRUE, linetype = "dashed") +
+    facet_wrap(species ~ interval, scales = "free", nrow = 2) +
     labs(
       x = paste("Baseline", variable_name),
-      y = "Net Change in Methylation",
-      title = paste("Baseline", variable_name, "vs. Methylation Change")
+      y = "Methylation Change",
+      title = paste("Baseline", variable_name, "vs. Methylation Change (Abs + Net)")
     ) +
-    ggpubr::stat_cor(method = "pearson", label.x.npc = "left", label.y.npc = "top") +
-    theme_minimal()
+    theme_minimal() +
+    scale_color_manual(
+      values = c("total_abs_change" = "darkorange", "total_net_change" = "steelblue"),
+      labels = c("Absolute", "Net"),
+      name = "Change Type"
+    ) +
+  # Add abs change correlation at the top
+  ggpubr::stat_cor(
+    data = ~ subset(.x, change_type == "total_abs_change"),
+    method = "pearson",
+    label.x.npc = "left", label.y.npc = 1
+  ) +
+  # Add net change correlation at the bottom
+  ggpubr::stat_cor(
+    data = ~ subset(.x, change_type == "total_net_change"),
+    method = "pearson",
+    label.x.npc = "left", label.y.npc = 0
+  )
 }
 
 
 
-# Plot top 10
-for (i in 1:10) {
-  p <- plot_metab_vs_methylation_change(metab_data_wide = metab_data_wide,
-                                 methylation_change_summary = all_methylation_change_summary,
-                                 variable_name = metab_summary$metabolite[i])
+# Loop to generate plots for top 10 metabolites
+for (metab in top_metabs) {
+  p <- plot_metab_vs_methylation_change_dual(
+    metab_data_wide = metab_data_wide,
+    methylation_change_long = methylation_change_long,
+    variable_name = metab
+  )
   print(p)
 }
+
 ```
 
-# Are individual lipids predictive of future methylation changes?
+
+
+
+
+## Individual lipids --> methylation changes?
 
 ```{r, fig.width = 10}
 # Full lipid correlation analysis and plotting
@@ -983,7 +1101,7 @@ lip_methylation_joined <- all_methylation_change_summary %>%
 lip_corrs <- lip_methylation_joined %>%
   group_by(species, lipid, interval) %>%
   summarise(
-    cor_test = list(cor.test(baseline_value, total_net_change)),
+    cor_test = list(cor.test(baseline_value, total_abs_change)),
     .groups = "drop"
   ) %>%
   mutate(tidied = map(cor_test, broom::tidy)) %>%
@@ -1024,7 +1142,7 @@ plot_lipid_vs_methylation_change <- function(lip_data_wide, methylation_change_s
     facet_wrap(species ~ interval, scales = "free", nrow = 2) +
     labs(
       x = paste("Baseline", variable_name),
-      y = "Net Change in Methylation",
+      y = "Abs Change in Methylation",
       title = paste("Baseline", variable_name, "vs. Methylation Change")
     ) +
     ggpubr::stat_cor(method = "pearson", label.x.npc = "left", label.y.npc = "top") +
@@ -1043,6 +1161,100 @@ for (i in 1:10) {
 
 ```
 
+## Lipid classes --> Abs. methylation change
+```{r}
+# Summarize lipid class composition at baseline timepoints
+lipid_class_baseline <- lipid_comp %>%
+  select(colony, timepoint, class, percent_class) %>%
+  distinct()  # removes duplicate lipids within a class
+
+lipid_class_long <- lipid_class_baseline %>%
+  rename(variable = class, value = percent_class)
+
+# Calculate FA:TG ratio
+lipid_ratios <- lipid_comp %>%
+  distinct(sample, species, colony, timepoint, class, total_class_concentration) %>%
+  pivot_wider(
+    names_from = class,
+    values_from = total_class_concentration
+  ) %>%
+  mutate(
+    FA_TG_ratio = FA / TG
+  )
+
+lipid_ratio_long <- lipid_ratios %>%
+  select(colony, timepoint, FA_TG_ratio) %>%
+  mutate(variable = "FA_TG_ratio", value = FA_TG_ratio) %>%
+  select(colony, timepoint, variable, value)
+
+lipid_metrics_long <- bind_rows(lipid_class_long, lipid_ratio_long)
+
+# Join with methylation change data by colony and baseline timepoint
+lipid_methylation_long <- all_methylation_change_summary %>%
+  inner_join(
+    lipid_metrics_long,
+    by = c("colony", "baseline_tp" = "timepoint")
+  ) %>%
+  left_join(colony_md)
+
+# Correlation per lipid class
+# Summarize lipid class correlations with methylation change
+lipid_corrs <- lipid_methylation_long %>%
+  group_by(species, variable, interval) %>%
+  summarise(
+    n = n(),
+    cor_test = list(
+      tryCatch(cor.test(value, total_abs_change), error = function(e) NA)
+    ),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    estimate = map_dbl(cor_test, ~ if (is.list(.x)) .x$estimate else NA_real_),
+    p_value  = map_dbl(cor_test, ~ if (is.list(.x)) .x$p.value  else NA_real_),
+    p_adj    = p.adjust(p_value, method = "fdr")
+  )
+
+
+
+
+plot_lipid_metric_vs_methylation_change <- function(variable_name) {
+  plot_data <- lipid_methylation_long %>%
+    filter(variable == variable_name) %>%
+    left_join(colony_md, by = c("colony", "species", "site"))
+
+  ggplot(plot_data, aes(x = value, y = total_abs_change)) +
+    geom_point(aes(color = species, shape = site), size = 3, alpha = 0.7) +
+    geom_smooth(method = "lm", se = TRUE, color = "black") +
+    facet_wrap(species ~ interval, scales = "free", nrow = 2) +
+    labs(
+      x = paste("Baseline", variable_name),
+      y = "Abs. Change in Methylation",
+      title = paste("Baseline", variable_name, "vs. Methylation Change")
+    ) +
+    ggpubr::stat_cor(method = "pearson", label.x.npc = "left", label.y.npc = "top") +
+    theme_minimal()
+}
+
+
+
+
+# Rank variables (lipid classes + FA:TG ratio) by strongest absolute correlation
+lipid_variable_ranked <- lipid_corrs %>%
+  group_by(variable) %>%
+  summarise(
+    strongest_abs_r = max(abs(estimate), na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(strongest_abs_r)) %>%
+  pull(variable)
+
+
+for (var in lipid_variable_ranked) {
+  p <- plot_lipid_metric_vs_methylation_change(variable_name = var)
+  print(p)
+}
+
+```
 
 
 
