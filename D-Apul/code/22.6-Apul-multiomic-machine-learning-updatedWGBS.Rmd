@@ -585,7 +585,7 @@ train_models_split <- function(response_features, predictor_features, train_frac
 # Bootstrapping
 
 ```{r bootstrap-1, cache=TRUE}
-n_replicates <- 5  # number of replicates
+n_replicates <- 25  # number of replicates
 r2_threshold <- 0.5 # threshold for "good" prediction
 TM_list <- list()
 MP_list <- list()
@@ -618,7 +618,7 @@ all_TM <- do.call(rbind, TM_list)
 all_MP <- do.call(rbind, MP_list)
 all_FI <- do.call(rbind, FI_list)
 ```
-began 5 replicate run at 11:00am
+
 ```{r}
 # Count how often each feature exceeds the R² threshold
 
@@ -719,12 +719,12 @@ vsd_high_perf_t <- vsd_energetic_state_GO_t[,colnames(vsd_energetic_state_GO_t) 
 dim(vsd_high_perf_t)
 ```
 
-Of the original 99 genes annotated for energetic state GO terms, 37 are consistently well-predicted by our model.
+Of the original 99 genes annotated for energetic state GO terms, 33 are consistently well-predicted by our model (mean R^2 > 0.5, over 25 replicates).
 
 
 Run bootstrapping on isolated genes
 ```{r bootstrap-2, cache=TRUE}
-n_replicates <- 5  # number of replicates
+n_replicates <- 50  # number of replicates
 r2_threshold <- 0.5 # threshold for "good" prediction
 TM_list <- list()
 MP_list <- list()
@@ -777,7 +777,7 @@ print(MP_summary_highperf)
 nrow(MP_summary_highperf[MP_summary_highperf$Mean_R2 > 0.5,])
 ```
 
-When I train the model on only these 37 well-predicted genes, 28 of them are again well-predicted. That's a much higher success rate! This suggests that epigenetic mechanisms may indeed be able to predict expression of these genes
+When I train the model on only these 33 well-predicted genes, 28 of them are again well-predicted. That's a much higher success rate! This suggests that epigenetic mechanisms may indeed be able to predict expression of these genes
 
 
 Sort genes by average R^2 across all replicates, then plot R^2 for all replicates
