@@ -1,5 +1,5 @@
 ---
-title: "05 Ptua bismark"
+title: "05.1 Ptua bismark"
 author: Steven Roberts
 date: "`r format(Sys.time(), '%d %B, %Y')`"  
 output: 
@@ -148,15 +148,17 @@ done
 
 ```{bash}
 for file in ../output/05-Ptua-bismark-CG/*10x_processed.txt; do
-    head -1 $file
+    head -1
 done
 
 ```
 
 
 ```{r, engine='bash'}
-head ../output/05-Ptua-bismark-CG/*57-TP4*txt
+wc -l ../output/05-Ptua-bismark-CG/*10x_processed.txt | wc -l
 ```
+
+
 
 
 # Load libraries 
