@@ -138,7 +138,7 @@ echo ""
 
 
 # Use printf to format each item for use in wget
-formatted_list=$(printf "%s_*," ${sample_list})
+formatted_list=$(printf "*%s_*," ${sample_list})
 
 # Remove the trailing comma
 formatted_list="${formatted_list%,}"
