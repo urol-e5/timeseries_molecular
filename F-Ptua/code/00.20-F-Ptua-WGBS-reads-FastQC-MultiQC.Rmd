@@ -164,9 +164,34 @@ wget \
 --no-host-directories \
 --no-parent \
 --quiet \
---accept=\"$formatted_list\" ${raw_reads_url}
+--accept=${formatted_list} ${raw_reads_url}
 
 ls -lh "${raw_reads_dir}"
+```
+
+## Compare expected sample files to downloaded files
+
+```{bash verify-raw-read-checksums, engine='bash', eval=TRUE}
+# Load bash variables into memory
+source .bashvars
+
+# Create list of only P.tuahiniensis sample names
+sample_list=$(awk -F"," '$9 == "Pocillopora tuahiniensis" { print $5 }' ${timeseries_dir}/M-multi-species/data/e5_DNA_Azenta_metadata.csv \
+| sort)
+
+# 1. Make a list of expected files (R1 and R2 for each sample)
+expected_files=$(echo "$sample_list" | awk '{print $1"_R1_001.fastq.gz\n"$1"_R2_001.fastq.gz"}' | sort)
+
+# Safely list downloaded files (filenames only, sorted)
+downloaded_files=$(find "${raw_reads_dir}" -maxdepth 1 -type f -name "*.fastq.gz" -printf "%f\n" | sort)
+
+# 3. Find missing files
+echo ""
+echo "${line}"
+echo "Checking for missing files:"
+comm -23 <(echo "$expected_files") <(echo "$downloaded_files")
+echo "${line}"
+echo ""
 ```
 
 ## Verify raw read checksums
