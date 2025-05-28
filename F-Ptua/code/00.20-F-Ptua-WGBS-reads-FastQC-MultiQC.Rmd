@@ -298,7 +298,7 @@ done
 
 
 ## Count renamed files
-```{bash -counts-renamed-fastqs, engine='bash', eval=TRUE}
+```{bash counts-renamed-fastqs, engine='bash', eval=TRUE}
 # Load bash variables into memory
 source .bashvars
 
@@ -335,7 +335,7 @@ echo ""
 Although not needed, since the checksums will remain the same, it will help
 with legibility by having MD5 checkum files with corresponding names.
 
-``````{bash -counts-renamed-fastqs, engine='bash', eval=TRUE}
+```{bash md5s-renamed-fastqs, engine='bash', eval=TRUE}
 # Load bash variables into memory
 source .bashvars
 
