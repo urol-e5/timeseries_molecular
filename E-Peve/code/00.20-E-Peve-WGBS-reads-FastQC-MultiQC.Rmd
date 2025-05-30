@@ -144,7 +144,7 @@ echo ""
 
 
 # Use printf to format each item for use in wget
-formatted_list=$(printf "%s_*," ${sample_list})
+formatted_list=$(printf "*%s_*," ${sample_list})
 
 # Remove the trailing comma
 formatted_list="${formatted_list%,}"
@@ -159,6 +159,8 @@ echo "wget --accept=\"$formatted_list\""
 echo ""
 echo "${line}"
 echo ""
+# Set a log file
+wget_log="${raw_reads_dir}/wget_log.txt"
 
 # Run wget to retrieve FastQs and MD5 files
 wget \
@@ -170,9 +172,54 @@ wget \
 --no-host-directories \
 --no-parent \
 --quiet \
---accept=\"$formatted_list\" ${raw_reads_url}
+--accept=${formatted_list} \
+${raw_reads_url}
+
+# List downloaded files
+downloaded_files=$(find "${raw_reads_dir}" -maxdepth 1 -type f -name "*.fastq.gz" -print)
+
+echo ""
+echo "${line}"
+echo ""
+echo "Downloaded files:"
+echo "$downloaded_files"
+echo ""
+echo "${line}"
+echo ""
 
 ls -lh "${raw_reads_dir}"
+```
+
+## Compare counts of expected sample files to downloaded files
+
+```{bash confirm-file-counts, engine='bash', eval=TRUE}
+# Load bash variables into memory
+source .bashvars
+
+# Count expected number of P.tuahiniensis samples (assuming each has an R1 file)
+expected_count=$(awk -F"," '$9 == "Porites evermanni" { count++ } END {print count}' "${metadata_file}")
+
+# Count the number of R1 fastq files in the raw reads directory
+actual_count=$(find "${raw_reads_dir}" -maxdepth 1 -type f -name "*_R1_*.fastq.gz" | wc -l)
+
+echo ""
+echo "${line}"
+echo ""
+echo "Expected number of R1 files: ${expected_count}"
+echo "Actual number of R1 files: ${actual_count}"
+echo ""
+echo "${line}"
+echo ""
+
+# Compare the counts
+if [ "$expected_count" -eq "$actual_count" ]; then
+  echo "PASS: All expected R1 files downloaded."
+else
+  echo "FAIL: Mismatch in expected and actual R1 file counts."
+fi
+echo ""
+echo "${line}"
+echo ""
 ```
 
 ## Verify raw read checksums
@@ -253,6 +300,57 @@ for fastq_file in *.fastq.gz; do
         done
     fi
 done
+```
+
+## Count renamed files
+```{bash counts-renamed-fastqs, engine='bash', eval=TRUE}
+# Load bash variables into memory
+source .bashvars
+
+cd "${raw_reads_dir}"
+
+# Count expected number of P.evermanni samples (assuming each has an R1 file)
+expected_count=$(awk -F"," '$9 == "Porites evermanni" { count++ } END {print count}' "${metadata_file}")
+
+# Count the number of R1 fastq files in the raw reads directory
+actual_count=$(find "${raw_reads_dir}" -maxdepth 1 -type f -name "POR*_R1_*.fastq.gz" | wc -l)
+
+echo ""
+echo "${line}"
+echo ""
+echo "Expected number of R1 files: ${expected_count}"
+echo "Actual number of R1 files: ${actual_count}"
+echo ""
+echo "${line}"
+echo ""
+
+# Compare the counts
+if [ "$expected_count" -eq "$actual_count" ]; then
+  echo "PASS: All expected R1 files present."
+else
+  echo "FAIL: Mismatch in expected and actual R1 file counts."
+fi
+echo ""
+echo "${line}"
+echo ""
+```
+
+## Create MD5 files for new filenames
+
+Although not needed, since the checksums will remain the same, it will help
+with legibility by having MD5 checkum files with corresponding names.
+
+```{bash md5s-renamed-fastqs, engine='bash', eval=TRUE}
+# Load bash variables into memory
+source .bashvars
+
+cd "${raw_reads_dir}"
+
+for fastq in POR*.fastq.gz
+do
+  md5sum "${fastq}" | tee --append ${fastq}.md5
+done
+
 ```
 
 # FastQC/MultiQC on raw reads
