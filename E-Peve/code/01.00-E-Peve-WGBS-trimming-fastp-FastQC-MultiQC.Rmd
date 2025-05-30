@@ -25,7 +25,7 @@ bibliography: references.bib
 
 # Background
 
-This notebook will download raw WGBS FastQs, concatenate them (there were multiple lanes run), and then trim them using [fastp](https://github.com/OpenGene/fastp) [@chen2023]. Samples which generate an error during trimming will attempt to be repaired using [BBTools `repairl.sh`](https://jgi.doe.gov/data-and-tools/software-tools/bbtools/) (BBMap -- Bushnell B. -- sourceforge.net/projects/bbmap/). Trimming results will be analyzed with FastQC and summarized by [MultiQC](https://github.com/MultiQC/MultiQC) [@ewels2016].
+This notebook will trim FastQs using [fastp](https://github.com/OpenGene/fastp) [@chen2023]. Samples which generate an error during trimming will attempt to be repaired using [BBTools `repairl.sh`](https://jgi.doe.gov/data-and-tools/software-tools/bbtools/) (BBMap -- Bushnell B. -- sourceforge.net/projects/bbmap/). Trimming results will be analyzed with FastQC and summarized by [MultiQC](https://github.com/MultiQC/MultiQC) [@ewels2016].
 
 ::: callout-note
 If you need to download the raw sequencing reads, please see [00.20-E-Peve-WGBS-reads-FastQC-MultiQC.Rmd](https://github.com/urol-e5/timeseries_molecular/blob/e05febcc9105afaf086c573368e15b7228d2cbaf/E-Peve/code/00.20-E-Peve-WGBS-reads-FastQC-MultiQC.Rmd)
