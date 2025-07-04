@@ -39,6 +39,31 @@ lip_data <- lip_data %>%
 
 #hist(lip_data$logquant)
 
+# Summarize lipid data
+lip_summary <- lip_data %>%
+  distinct(species, colony, timepoint, sample, lipid) %>%
+  group_by(species) %>%
+  summarize(
+    n_colonies = n_distinct(colony),
+    
+    timepoints_per_colony = {
+      tpc <- count(cur_data(), colony, timepoint) %>%
+        count(colony, name = "n_timepoints") %>%
+        pull(n_timepoints)
+      if (length(tpc) == 0) "0" else paste0(min(tpc), " — ", max(tpc))
+    },
+    
+    lipids_per_sample = {
+      lps <- count(cur_data(), sample, lipid) %>%
+        count(sample, name = "n_lipids") %>%
+        pull(n_lipids)
+      if (length(lps) == 0) "0" else paste0(min(lps), " — ", max(lps))
+    },
+    
+    .groups = "drop"
+  )
+
+
 # ① Reshape your data to a wide format first (one row per colony and timepoint):
 lip_data_wide <- lip_data %>%
   select(-nmol.g_plasma.ug_protein) %>%
@@ -162,6 +187,31 @@ lipid_comp <- lip_data %>%
 ```{r data_metab}
 # data_im ------ generated in M-multi-species/07-metabolomics-analysis.Rmd
 data_im <- readRDS("M-multi-species/data/metabolomics/metabolites.rds")
+
+# Summarize metabolomic data
+metab_summary <- data_im %>%
+  distinct(species, colony, timepoint, sample, compound) %>%
+  group_by(species) %>%
+  summarize(
+    n_colonies = n_distinct(colony),
+    
+    timepoints_per_colony = {
+      tpc <- count(cur_data(), colony, timepoint) %>%
+        count(colony, name = "n_timepoints") %>%
+        pull(n_timepoints)
+      if (length(tpc) == 0) "0" else paste0(min(tpc), " — ", max(tpc))
+    },
+    
+    compounds_per_sample = {
+      cps <- count(cur_data(), sample, compound) %>%
+        count(sample, name = "n_compounds") %>%
+        pull(n_compounds)
+      if (length(cps) == 0) "0" else paste0(min(cps), " — ", max(cps))
+    },
+    
+    .groups = "drop"
+  )
+metab_summary
 
 # ① Reshape your data to a wide format first (one row per colony and timepoint):
 metab_data_wide <- data_im %>%
@@ -315,6 +365,28 @@ acr_cpg_wide_by_colony_tp <- dcast(
   as_tibble(.)
 
 
+# Summarize data
+# Calculate timepoints per colony
+tpc <- acr_cpg_wide_by_colony_tp %>%
+  count(colony, timepoint) %>%
+  count(colony, name = "n_timepoints") %>%
+  pull(n_timepoints)
+
+# Count CpG sites (non-NA) per sample (row)
+cpg_counts <- acr_cpg_wide_by_colony_tp %>%
+  select(-colony, -timepoint) %>%
+  apply(1, function(x) sum(!is.na(x)))
+
+# Final summary table
+acr_methylation_summary <- tibble(
+  species = "Acropora",
+  n_colonies = n_distinct(acr_cpg_wide_by_colony_tp$colony),
+  timepoints_per_colony = paste0(min(tpc), " — ", max(tpc)),
+  cpgs_per_sample = paste0(min(cpg_counts), " — ", max(cpg_counts))
+)
+
+
+
 # Remove columns with zero standard deviation
 acr_cpg_pca_input <- acr_cpg_wide_by_colony_tp %>%
   select(-colony, -timepoint) %>%
@@ -453,6 +525,31 @@ poc_cpg_wide_by_colony_tp <- poc_cpg %>%
   select(colony, timepoint, poc_cpg_id, value) %>%
   pivot_wider(names_from = poc_cpg_id, values_from = value)
 
+# Summarize POC methylation data
+# Step 1: Calculate timepoints per colony
+tpc_poc <- poc_cpg_wide_by_colony_tp %>%
+  count(colony, timepoint) %>%
+  count(colony, name = "n_timepoints") %>%
+  pull(n_timepoints)
+
+# Step 2: Count non-NA CpG values per sample (row)
+cpg_counts_poc <- poc_cpg_wide_by_colony_tp %>%
+  select(-colony, -timepoint) %>%
+  apply(1, function(x) sum(!is.na(x)))
+
+# Step 3: Build summary table
+poc_methylation_summary <- tibble(
+  species = "Pocillopora",
+  n_colonies = n_distinct(poc_cpg_wide_by_colony_tp$colony),
+  timepoints_per_colony = paste0(min(tpc_poc), " — ", max(tpc_poc)),
+  cpgs_per_sample = paste0(min(cpg_counts_poc), " — ", max(cpg_counts_poc))
+)
+
+
+
+
+
+
 # Run PCA on poc_cpg values (exclude colony and timepoint columns)
 pca_poc_cpg <- prcomp(
   poc_cpg_wide_by_colony_tp %>% select(-colony, -timepoint),
@@ -565,6 +662,14 @@ bind_rows(poc_cpg_pca_results_with_site, acr_cpg_pca_results_with_site) %>%
   theme_minimal()
 ```
 
+```{r}
+combined_methylation_summary <- bind_rows(
+  acr_methylation_summary,
+  poc_methylation_summary
+)
+
+```
+
 ## Expression of epigenetic machinery genes 
 ```{r data_epimachine}
 epimachine <- read_csv("D-Apul/output/29-Apul-epimachine-exp/Apul-epimachine-expression.csv")
@@ -583,6 +688,28 @@ epimachine_long <- epimachine %>%
   separate(sample, into = c("colony", "timepoint_num"), sep = "-TP", remove = FALSE) %>%
   mutate(timepoint = paste0("TP", timepoint_num),
          logcount = log(gene_count)) 
+
+# SUMMARIze dATA
+# Step 1: Timepoints per colony
+tpc_gene <- epimachine_long %>%
+  distinct(colony, timepoint) %>%
+  count(colony, name = "n_timepoints") %>%
+  pull(n_timepoints)
+
+# Step 2: Genes per sample
+genes_per_sample <- epimachine_long %>%
+  distinct(sample, gene_id) %>%
+  count(sample, name = "n_genes") %>%
+  pull(n_genes)
+
+# Step 3: Final summary
+acropora_gene_expression_summary <- tibble(
+  species = "Acropora",
+  n_colonies = n_distinct(epimachine_long$colony),
+  timepoints_per_colony = paste0(min(tpc_gene), " — ", max(tpc_gene)),
+  genes_per_sample = paste0(min(genes_per_sample), " — ", max(genes_per_sample))
+)
+
 
 
 
@@ -663,6 +790,64 @@ metab_cpg_lip_combined <- baseline_vs_changes_all_cpg_renamed %>%     # All SPP
   mutate(interval_label = paste0(baseline_tp, "–", next_tp),
          species = str_sub(colony, 1, 3))
 ```
+
+## Data summary
+```{r}
+# Step 1: Format each summary into long format with consistent columns
+
+# Lipid summary (example — update if yours is named differently)
+lipid_summary_formatted <- lip_summary %>%
+  mutate(
+    data_type = "Lipidomics",
+    features_per_sample = lipids_per_sample
+  ) %>%
+  select(species, data_type, n_colonies, timepoints_per_colony, features_per_sample)
+
+# Metabolomics
+metab_summary_formatted <- metab_summary %>%
+  mutate(
+    data_type = "Metabolomics",
+    features_per_sample = compounds_per_sample
+  ) %>%
+  select(species, data_type, n_colonies, timepoints_per_colony, features_per_sample)
+
+# Methylation
+methylation_summary_formatted <- combined_methylation_summary %>%
+  mutate(
+    data_type = "Methylation/CpGs",
+    features_per_sample = cpgs_per_sample
+  ) %>%
+  select(species, data_type, n_colonies, timepoints_per_colony, features_per_sample)
+
+# Gene expression
+gene_expr_summary_formatted <- acropora_gene_expression_summary %>%
+  mutate(
+    data_type = "Epigenetic machinery gene expression",
+    features_per_sample = genes_per_sample
+  ) %>%
+  select(species, data_type, n_colonies, timepoints_per_colony, features_per_sample)
+
+# Step 2: Combine all
+combined_summary <- bind_rows(
+  lipid_summary_formatted,
+  metab_summary_formatted,
+  methylation_summary_formatted,
+  gene_expr_summary_formatted
+) 
+
+combined_summary %>%
+  complete(species, data_type) %>%
+  arrange(data_type, species) %>%
+  knitr::kable(format = "pipe")
+
+```
+
+
+
+
+
+
+
 
 # Analysis
 
