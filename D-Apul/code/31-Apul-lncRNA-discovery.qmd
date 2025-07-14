@@ -85,7 +85,8 @@ mkdir -p "${OUTPUT_DIR}"
 wget -nv -r \
 --no-directories --no-parent \
 -P ${FASTQ_DIR} \
--A "*${FASTQ_SUFFIX}" ${FASTQ_SOURCE}
+-A "*${FASTQ_SUFFIX}" ${FASTQ_SOURCE} \
+ > "${FASTQ_DIR}/wget.stdout.log" 2>&1
 ```
 
 
