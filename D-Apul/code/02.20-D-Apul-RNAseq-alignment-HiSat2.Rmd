@@ -105,12 +105,12 @@ echo "#### Assign Variables ####"
 echo ""
 
 echo "# Data directories"
-echo 'export timeseries_dir=/home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular'
+echo 'export timeseries_dir=/mmfs1/gscratch/scrubbed/samwhite/gitrepos/urol-e5/timeseries_molecular'
 echo 'export genome_dir="${timeseries_dir}/D-Apul/data"'
 echo 'export genome_index_dir="${timeseries_dir}/D-Apul/output/02.10-D-Apul-RNAseq-genome-index-HiSat2"'
 echo 'export output_dir_top="${timeseries_dir}/D-Apul/output/02.20-D-Apul-RNAseq-alignment-HiSat2"'
-echo 'export trimmed_fastqs_dir="${timeseries_dir}/D-Apul/output/01.00-D-Apul-RNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs"'
-echo 'export trimmed_reads_url="https://gannet.fish.washington.edu/Atumefaciens/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/01.00-D-Apul-RNAseq-trimming-fastp-FastQC-MultiQC/trimmed-fastqs/"'
+echo 'export trimmed_fastqs_dir="${timeseries_dir}/D-Apul/output/01.00-D-Apul-RNAseq-trimming-fastp-FastQC-MultiQC"'
+echo 'export trimmed_reads_url="https://gannet.fish.washington.edu/Atumefaciens/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/01.00-D-Apul-RNAseq-trimming-fastp-FastQC-MultiQC"'
 echo ""
 
 echo "# Location of Hisat2 index files"
@@ -132,14 +132,14 @@ echo 'export merged_bam="${output_dir_top}/sorted-bams-merged.bam"'
 echo ""
 
 echo "# Paths to programs"
-echo 'export programs_dir="/home/shared"'
+echo 'export programs_dir="/srlab/programs/"'
 echo 'export hisat2_dir="${programs_dir}/hisat2-2.2.1"'
 
-echo 'export hisat2="${hisat2_dir}/hisat2"'
+echo 'export hisat2="hisat2"'
 
-echo 'export multiqc=/home/sam/programs/mambaforge/bin/multiqc'
+echo 'export multiqc=multiqc'
 
-echo 'export samtools="${programs_dir}/samtools-1.12/samtools"'
+echo 'export samtools="samtools"'
 
 echo 'export prepDE="${programs_dir}/stringtie-2.2.1.Linux_x86_64/prepDE.py3"'
 echo 'export stringtie="${programs_dir}/stringtie-2.2.1.Linux_x86_64/stringtie"'
@@ -153,7 +153,7 @@ echo "export trimmed_fastq_pattern='*fastp-trim.fq.gz'"
 echo ""
 
 echo "# Set number of CPUs to use"
-echo 'export threads=40'
+echo 'export threads=80'
 echo ""
 
 echo "# Set average read length - for StringTie prepDE.py"
@@ -232,6 +232,8 @@ done
 
 # Align reads using HISAT2
 
+## HISAT2 Alignment
+
 This requires usage of the `rna_metadata.csv`
 
 This step has a lengthy, semi-complex workflow:
@@ -252,39 +254,31 @@ mkdir --parents "${output_dir_top}"
 # Change to ouput directory
 cd "${output_dir_top}"
 
-# Create associative array with sample and timepoint
-metadata="../../../M-multi-species/data/rna_metadata.csv"
-
-# Declare the array
-declare -A sample_timepoint_map
-
-# Read the metadata file line by line
-while IFS=',' read -r sample_number sample_name plate well_number azenta_sample_name colony_id timepoint sample_type species_strain SampleBuffer; do
-    # Check if the species is "Acropora pulchra"
-    if [[ "${species_strain}" == "Acropora pulchra" ]]; then
-        # Add the Azenta sample name as the key and Timepoint as the value in the associative array
-        sample_timepoint_map["${azenta_sample_name}"]="${timepoint}"
-    fi
-done < <(tail -n +2 "${metadata}") # Skip the header
-
 ## Populate trimmed reads arrays
 fastq_array_R1=("${trimmed_fastqs_dir}"/${R1_fastq_pattern})
 fastq_array_R2=("${trimmed_fastqs_dir}"/${R2_fastq_pattern})
 
 ############## BEGIN HISAT2 ALIGNMENTS ##############
-for sample in "${!sample_timepoint_map[@]}"
-do
 
+for filepath in "${fastq_array_R1[@]}"; do
+    filename=${filepath##*/}      # Strip path
+    sample=$(echo "$filename" | awk -F"_" '{print $1}')
+    timepoint=$(echo "$filename" | awk -F"[_-]" '{print $3}')
 
+    
   # Create and switch to dedicated sample directory
   mkdir --parents "${sample}" && cd "$_"
-
+    
   # Create HISAT2 list of fastq R1 files
   # and generated MD5 checksums file.
   for fastq in "${fastq_array_R1[@]}"
   do
+
+    
     # Parse sample name from FastQ filename
-    fastq_sample=$(echo "${fastq##*/}" | awk -F"[_-]" '{print $3}')
+    fastq_sample=$(echo "${fastq##*/}" | awk -F"_" '{print $1}')
+    
+
     
     # Process matching FastQ file, based on sample name
     if [ "${fastq_sample}" == "${sample}" ]; then
@@ -303,7 +297,7 @@ do
   for fastq in "${fastq_array_R2[@]}"
   do
     # Parse sample name from FastQ filename
-    fastq_sample=$(echo "${fastq##*/}" | awk -F"[_-]" '{print $3}')
+    fastq_sample=$(echo "${fastq##*/}" | awk -F"_" '{print $1}')
     
     # Process matching FastQ file, based on sample name
     if [ "${fastq_sample}" == "${sample}" ]; then
@@ -327,7 +321,7 @@ do
   -2 "${fastq_list_R2}" \
   --threads "${threads}" \
   --rg-id "${sample}" \
-  --rg "SM:""${sample_timepoint_map[$sample]}" \
+  --rg "SM:""${timepoint}" \
   2> "${sample}"_hisat2.stats \
   | tee >(${programs_array[samtools]} flagstat - > "${sample}"-hisat2_output.flagstat) \
   | ${programs_array[samtools]} sort - -@ "${threads}" -O BAM \

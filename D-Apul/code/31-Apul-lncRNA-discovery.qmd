@@ -194,6 +194,9 @@ for samfile in "${OUTPUT_DIR}/${sample}"*.sam; do
 done
 ```
 
+
+
+
 # StringTie
 
 StringTie uses the sorted BAM files to assemble transcripts for each sample, outputting them as GTF (Gene Transfer Format) files. And then merges all individual GTF assemblies into a single merged GTF file. This step extracts transcript information and merges GTFs from all samples–an important step in creating a canonical list of lncRNAs across all samples included in the pipeline.
