@@ -10,7 +10,7 @@ file_paths = glob.glob(file_pattern)
 # Read each file into a DataFrame and store them in a list
 list_of_dfs = []
 for file_path in file_paths:
-    df = pd.read_csv(file_path)  # Use pd.read_excel, pd.read_json, etc., based on file type
+    df = pd.read_csv(file_path, sep = '\t')  # Use pd.read_excel, pd.read_json, etc., based on file type
     list_of_dfs.append(df)
 
 # merge dfs together
