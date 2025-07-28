@@ -1,0 +1,43 @@
+---
+title: "32-Apul-RNAseq-bigwig"
+format: html
+editor: visual
+---
+
+
+THIS WAS all done in terminal as klone had knitr issues.
+
+```{bash}
+wget -r -l inf -nd -A "*sorted.ba" --spider https://gannet.fish.washington.edu/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/02.20-D-Apul-RNAseq-alignment-HiSat2/ 2>&1 | grep '^--' | awk '{ print $3 }'
+```
+```{bash}
+
+cd ../data/32
+wget -r -l 2 -nd -A "*sorted.bam" https://gannet.fish.washington.edu/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/02.20-D-Apul-RNAseq-alignment-HiSat2/
+```
+
+
+
+```{bash}
+wget -r -l 2 -nd -A "*sorted.bam.bai" https://gannet.fish.washington.edu/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/02.20-D-Apul-RNAseq-alignment-HiSat2/
+```
+
+```
+find . -name "*.bam" | parallel 'bedtools genomecov -ibam {} -bg > {.}.bedGraph'
+```
+
+# make bigwig
+
+samtools faidx Apulchra-genome.fa
+cut -f1,2 Apulchra-genome.fa.fai > genome.chrom.sizes
+
+
+
+for bed in *.bedGraph; do
+  base=$(basename "$bed" .bedGraph)
+  bedGraphToBigWig "$bed" genome.chrom.sizes "${base}.bw"
+done
+
+
+
+
