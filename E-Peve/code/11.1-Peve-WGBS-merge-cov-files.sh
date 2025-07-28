@@ -33,7 +33,7 @@ done
 
 # create modified tables with two columns; one is the CpG ID which is merged chrom and start site; one is the %meth 
 for file in *10x.bedgraph; do
-    awk -F"\t" -v fname="${file%_10x*}" 'BEGIN {print "CpG\t" fname}{print "CpG_"_$1"_"$2, $4}' "$file" > "${file%.bedgraph}_processed.txt"
+    awk -F"\t" -v fname="${file%_10x*}" 'BEGIN {print "CpG\t" fname}{print "CpG_"_$1"_"$2"\t"$4}' "$file" > "${file%.bedgraph}_processed.txt"
 done
 
 python /gscratch/srlab/strigg/scripts/merge_processed_txt.py
