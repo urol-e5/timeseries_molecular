@@ -17,6 +17,9 @@
 ## Specify the working directory for this job 
 #SBATCH --chdir=/gscratch/scrubbed/strigg/analyses/20250728_meth_Peve
 
+# ran this rsync first
+# rsync --progress --verbose --archive shellytrigg@gannet.fish.washington.edu:/volume2/web/metacarcinus/E5/Pevermanni/20250619_methylseq/bismark/methylation_calls/methylation_coverage/*.cov.gz  /gscratch/scrubbed/strigg/analyses/20250728_meth_Peve
+
 %%bash
 
 set -ex
