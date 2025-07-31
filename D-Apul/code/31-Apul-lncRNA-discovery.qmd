@@ -4,6 +4,10 @@ format: html
 editor: visual
 ---
 
+
+# set variables
+
+
 ```{r}
 # Global R options
 knitr::opts_chunk$set(echo = TRUE)
@@ -334,7 +338,7 @@ while IFS= read -r line; do
     IFS='-' read -r start end <<< "$pos"
     
     # Convert the start position to 0-based by subtracting 1
-    start=$((start - 1))
+    #start=$((start - 0))
     
     # Write the chromosome, updated start, and end positions to the output file (tab-separated)
     printf "%s\t%s\t%s\n" "$chromosome" "$start" "$end"
@@ -412,3 +416,17 @@ END {
 }
 ' "$tf_file"
 ```
+
+
+
+# Common questions (negatives and dups)
+
+```{bash}
+grep -E '\s-+[0-9]+' "${OUTPUT_DIR}/lncRNA.gtf"
+```
+
+
+```{bash}
+sort "${OUTPUT_DIR}/lncRNA.gtf" | uniq -d | wc -l
+```
+
