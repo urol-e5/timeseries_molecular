@@ -6,7 +6,7 @@ editor: visual
 
 ```{r}
 # Global R options
-#knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE)
 
 # Define key paths and tool directories
  
@@ -282,9 +282,8 @@ head ${OUTPUT_DIR}/lncRNA_candidates.fasta
 
 #CPC2
 
-
-```{bash}
-CPC2.py \
+```{r, engine='bash'}
+"${CPC2_DIR}CPC2.py" \
 -i "${OUTPUT_DIR}/lncRNA_candidates.fasta" \
 -o "${OUTPUT_DIR}/CPC2"
 ```
