@@ -11,10 +11,13 @@ mkdir -p ../output/34-Apul-CT-SNPs
 
 ```{bash}
 samtools merge \
-Pg_merged.bam \
-*.sorted.bam
+-@ 42 \
+../output/34-Apul-CT-SNPs/Apul_merged.bam \
+../output/31-Apul-lncRNA-discovery/*.sorted.bam
+```
 
-perl /gscratch/srlab/programs/BS-Snper-master/BS-Snper.pl \
+```{bash}
+perl /home/shared/BS-Snper-master/BS-Snper.pl \
 Pg_merged.bam \
 --fa Panopea-generosa-v1.0.fa \
 --output snp.candidate.out \
@@ -35,4 +38,5 @@ Pg_merged.bam \
 grep $'C\tG' output/SNP.vcf > output/CT-SNP.vcf
 wc -l output/CT-SNP.vcf
 ```
+
 
