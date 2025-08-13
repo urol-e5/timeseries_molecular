@@ -9,6 +9,27 @@ mkdir -p ../output/33-Apul-lncRNA-matrix
 ```
 
 ```{bash}
+mkdir -p ../output/31-Apul-lncRNA-discovery
+```
+
+```{bash}
+cd ../output/31-Apul-lncRNA-discovery
+
+URL="https://gannet.fish.washington.edu/v1_web/owlshell/bu-github/timeseries_molecular/D-Apul/output/31-Apul-lncRNA-discovery/"
+
+wget -r -np -nd -l1 -A "*sorted.bam,*sorted.bam.bai,*sorted.bai" -R "index.html*" "$URL"
+```
+
+
+```{bash}
+cd ../output/31-Apul-lncRNA-discovery
+
+URL="https://gannet.fish.washington.edu/v1_web/owlshell/bu-github/timeseries_molecular/D-Apul/output/31-Apul-lncRNA-discovery/"
+
+wget -r -np -nd -l1 -A "lncRNA*" -R "index.html*" "$URL"
+```
+
+```{bash}
 /home/shared/subread-2.0.5-Linux-x86_64/bin/featureCounts \
   -T 24 \
   -O \
