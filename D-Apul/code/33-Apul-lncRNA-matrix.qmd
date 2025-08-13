@@ -46,7 +46,6 @@ echo "Current directory shown above"
   -T 42 \
   -O \
   --fraction \
-  -F "ACR-[0-9]+-TP[0-9]+" \
   -a ../output/31-Apul-lncRNA-discovery/lncRNA.gtf \
   -o ../output/33-Apul-lncRNA-matrix/Apul_lncRNA_counts.txt \
   -t lncRNA \
@@ -84,6 +83,6 @@ awk 'BEGIN {OFS="\t"}
 
 
 ```{bash}
-head .../output/33-Apul-lncRNA-matrix/Apul_lncRNA_counts.txt
+head ../output/33-Apul-lncRNA-matrix/Apul_lncRNA_counts.txt
 ```
 
