@@ -1,0 +1,38 @@
+---
+title: "34-Apul-CT-SNPs"
+format: html
+editor: visual
+---
+
+```{bash}
+mkdir -p ../output/34-Apul-CT-SNPs
+```
+
+
+```{bash}
+samtools merge \
+Pg_merged.bam \
+*.sorted.bam
+
+perl /gscratch/srlab/programs/BS-Snper-master/BS-Snper.pl \
+Pg_merged.bam \
+--fa Panopea-generosa-v1.0.fa \
+--output snp.candidate.out \
+--methcg meth.cg \
+--methchg meth.chg \
+--methchh meth.chh \
+--minhetfreq 0.1 \
+--minhomfreq 0.85 \
+--minquali 15 \
+--mincover 10 \
+--maxcover 1000 \
+--minread2 2 \
+--errorate 0.02 \
+--mapvalue 20 \
+>SNP.vcf 2>SNP.log
+
+
+grep $'C\tG' output/SNP.vcf > output/CT-SNP.vcf
+wc -l output/CT-SNP.vcf
+```
+

@@ -46,12 +46,40 @@ echo "Current directory shown above"
   -T 42 \
   -O \
   --fraction \
+  -F "ACR-[0-9]+-TP[0-9]+" \
   -a ../output/31-Apul-lncRNA-discovery/lncRNA.gtf \
   -o ../output/33-Apul-lncRNA-matrix/Apul_lncRNA_counts.txt \
   -t lncRNA \
   -g gene_id \
   -p \
 ../output/31-Apul-lncRNA-discovery/*sorted.bam
+```
+
+# Alternative approach: If the -F flag doesn't work as expected, 
+# you can post-process the output file to rename columns
+# This script extracts just the filename without the path
+```{bash}
+# Create a backup of the original file
+cp ../output/33-Apul-lncRNA-matrix/Apul_lncRNA_counts.txt ../output/33-Apul-lncRNA-matrix/Apul_lncRNA_counts_original.txt
+
+# Use awk to rename the columns (extract just the filename part)
+awk 'BEGIN {OFS="\t"} 
+     NR==1 {
+       for(i=1; i<=NF; i++) {
+         if(i<=6) {print $i}  # Keep the first 6 columns as-is
+         else {
+           # Extract just the filename from the path
+           split($i, path_parts, "/")
+           filename = path_parts[length(path_parts)]
+           # Remove .sorted.bam extension
+           gsub(/\.sorted\.bam$/, "", filename)
+           printf "%s", filename
+           if(i<NF) printf "\t"
+         }
+       }
+       print ""
+     }
+     NR>1 {print $0}' ../output/33-Apul-lncRNA-matrix/Apul_lncRNA_counts_original.txt > ../output/33-Apul-lncRNA-matrix/Apul_lncRNA_counts.txt
 ```
 
 
