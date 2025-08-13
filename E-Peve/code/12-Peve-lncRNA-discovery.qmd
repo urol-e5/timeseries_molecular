@@ -1,9 +1,8 @@
 ---
-title: "31-Apul-lncRNA-discovery"
+title: "lncRNA-discovery"
 format: html
 editor: visual
 ---
-
 
 
 # set variables
@@ -84,7 +83,6 @@ mkdir -p "${DATA_DIR}"
 mkdir -p "${OUTPUT_DIR}"
 ```
 
-
 ```{r, engine='bash'}
 wget -nv -r \
 --no-directories --no-parent \
@@ -93,11 +91,9 @@ wget -nv -r \
  > "${FASTQ_DIR}/wget.stdout.log" 2>&1
 ```
 
-
 ```{r ls, engine='bash'}
 ls ${FASTQ_DIR}
 ```
-
 
 ```{r fasta, engine='bash'}
 
@@ -130,7 +126,7 @@ else
 fi
 ```
 
-
+# HISAT
 
 ```{r, engine='bash'}
 "${HISAT2_DIR}hisat2_extract_exons.py" "${GENOME_GTF}" > "${OUTPUT_DIR}/exon.txt"
@@ -194,7 +190,6 @@ for samfile in "${OUTPUT_DIR}/${sample}"*.sam; do
 done
 ```
 
-
 # StringTie
 
 StringTie uses the sorted BAM files to assemble transcripts for each sample, outputting them as GTF (Gene Transfer Format) files. And then merges all individual GTF assemblies into a single merged GTF file. This step extracts transcript information and merges GTFs from all samples–an important step in creating a canonical list of lncRNAs across all samples included in the pipeline.
@@ -237,7 +232,6 @@ head ${OUTPUT_DIR}/stringtie_merged.gtf
 
 ![](http://gannet.fish.washington.edu/seashell/snaps/Monosnap_687474703a2f2f67616e6e65742e666973682e77617368696e67746f6e2e6564752f7365617368656c6c2f736e6170732f323032332d31312d30335f30392d3_2024-12-20_04-02-37.png)
 
-
 ```{r gffcomp, engine='bash'}
 "${GFFCOMPARE_DIR}gffcompare" \
 -r "${GENOME_GFF}" \
@@ -253,23 +247,16 @@ head -4 "${OUTPUT_DIR}"/gffcompare_merged*
 wc -l "${OUTPUT_DIR}"/gffcompare_merged*
 ```
 
-
 ```{r, engine='bash'}
 echo "${GFFPATTERN}"
 echo "${OUTPUT_DIR}"
 ```
 
-<<<<<<< HEAD
-
-
-=======
->>>>>>> 38a157f1ec70735ba11e7f2c573ad4205ab7b846
 ```{r gff filter, engine='bash'}
 awk '$3 == "transcript" && $1 !~ /^#/' "${OUTPUT_DIR}/gffcompare_merged.annotated.gtf" | \
 grep -E "${GFFPATTERN}" | \
 awk '($5 - $4 > 199) || ($4 - $5 > 199)' > "${OUTPUT_DIR}/lncRNA_candidates.gtf"
 ```
-
 
 ```{r, engine='bash'}
 head ${OUTPUT_DIR}/lncRNA_candidates.gtf
@@ -282,7 +269,6 @@ wc -l ${OUTPUT_DIR}/lncRNA_candidates.gtf
 ```{r, engine='bash'}
 sort ../output/17-Ptuh-lncRNA/lncRNA_candidates.gtf | uniq -d
 ```
-
 
 # Bedtools
 
@@ -298,32 +284,7 @@ sort ../output/17-Ptuh-lncRNA/lncRNA_candidates.gtf | uniq -d
 head ${OUTPUT_DIR}/lncRNA_candidates.fasta
 ```
 
-
-
-
 #CPC2
-
-```{bash}
-wget https://github.com/gao-lab/CPC2_standalone/archive/refs/tags/v1.0.1.zip
-```
-```{bash}
-unzip v1.0.1.zip
-```
-
-
-
-
-
-```{r, engine='bash'}
-eval "$(/mmfs1/gscratch/srlab/nextflow/bin/miniforge/bin/conda shell.bash hook)"
-conda activate /mmfs1/gscratch/srlab/nextflow/bin/miniforge/envs/nextflow  # replace with your actual env name
-python /mmfs1/gscratch/scrubbed/sr320/github/deep-dive-expression/F-Ptuh/code/CPC2_standalone-1.0.1/bin/CPC2.py \
-  -i "${OUTPUT_DIR}/lncRNA_candidates.fasta" \
-  -o "${OUTPUT_DIR}/CPC2"
-```
-
-
-
 
 ```{r, engine='bash'}
 "${CPC2_DIR}CPC2.py" \
@@ -331,7 +292,7 @@ python /mmfs1/gscratch/scrubbed/sr320/github/deep-dive-expression/F-Ptuh/code/CP
 -o "${OUTPUT_DIR}/CPC2"
 ```
 
-
+Filter
 
 ```{r filCPC, engine='bash'}
 awk '$8 == "noncoding" {print $1}' "${OUTPUT_DIR}/CPC2.txt" > "${OUTPUT_DIR}/noncoding_transcripts_ids.txt"
@@ -360,11 +321,6 @@ head -2 "${OUTPUT_DIR}/lncRNA.fasta"
 grep -c ">" "${OUTPUT_DIR}/lncRNA.fasta"
 ```
 
-<<<<<<< HEAD
-
-
-
-
 ```{r lncRNAgtf, engine='bash'}
 # Define input and output file paths using the OUTPUT_DIR variable
 input="${OUTPUT_DIR}/noncoding_transcripts_ids.txt"
@@ -382,9 +338,7 @@ while IFS= read -r line; do
     IFS='-' read -r start end <<< "$pos"
     
     # Convert the start position to 0-based by subtracting 1
-    start=$((start - 1))
     #start=$((start - 0))
-
     
     # Write the chromosome, updated start, and end positions to the output file (tab-separated)
     printf "%s\t%s\t%s\n" "$chromosome" "$start" "$end"
@@ -404,7 +358,6 @@ awk 'BEGIN{OFS="\t"; count=1} {printf "%s\t.\tlncRNA\t%d\t%d\t.\t+\t.\tgene_id \
 head "${OUTPUT_DIR}/lncRNA.gtf"
 wc -l "${OUTPUT_DIR}/lncRNA.gtf"
 ```
-
 
 # Summary Table
 
@@ -462,7 +415,6 @@ END {
     }
 }
 ' "$tf_file"
-
 ```
 
 
@@ -477,5 +429,3 @@ grep -E '\s-+[0-9]+' "${OUTPUT_DIR}/lncRNA.gtf"
 ```{bash}
 sort "${OUTPUT_DIR}/lncRNA.gtf" | uniq -d | wc -l
 ```
-
-
