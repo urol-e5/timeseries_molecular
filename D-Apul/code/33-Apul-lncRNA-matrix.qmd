@@ -29,16 +29,28 @@ URL="https://gannet.fish.washington.edu/v1_web/owlshell/bu-github/timeseries_mol
 wget -r -np -nd -l1 -A "lncRNA*" -R "index.html*" "$URL"
 ```
 
+
+```{bash}
+head ../output/31-Apul-lncRNA-discovery/
+```
+
+
+
 ```{bash}
 /home/shared/subread-2.0.5-Linux-x86_64/bin/featureCounts \
   -T 24 \
   -O \
   --fraction \
-  -a ../output/01.6-Ptuh-lncRNA-pipeline/Ptuh_lncRNA_for_fc.gtf \
-  -o ../output/01.6-Ptuh-lncRNA-pipeline/Ptuh_counts_fractional.txt \
+  -a ../output/31-Apul-lncRNA-discovery/ \
+  -o .../output/33-Apul-lncRNA-matrix/Apul_lncRNA_counts.txt \
   -t lncRNA \
   -g gene_id \
   -p \
-  ../output/01.6-Ptuh-lncRNA-pipeline/*sorted.bam
+../output/31-Apul-lncRNA-discovery/*sorted.bam
+```
+
+
+```{bash}
+head .../output/33-Apul-lncRNA-matrix/Apul_lncRNA_counts.txt
 ```
 
