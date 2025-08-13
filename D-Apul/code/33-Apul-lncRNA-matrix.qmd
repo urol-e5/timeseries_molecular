@@ -31,18 +31,23 @@ wget -r -np -nd -l1 -A "lncRNA*" -R "index.html*" "$URL"
 
 
 ```{bash}
-head ../output/31-Apul-lncRNA-discovery/
+head ../output/31-Apul-lncRNA-discovery/lncRNA*
 ```
 
+```{bash}
+echo "Starting execution..."
+pwd
+echo "Current directory shown above"
+```
 
 
 ```{bash}
 /home/shared/subread-2.0.5-Linux-x86_64/bin/featureCounts \
-  -T 24 \
+  -T 42 \
   -O \
   --fraction \
-  -a ../output/31-Apul-lncRNA-discovery/ \
-  -o .../output/33-Apul-lncRNA-matrix/Apul_lncRNA_counts.txt \
+  -a ../output/31-Apul-lncRNA-discovery/lncRNA.gtf \
+  -o ../output/33-Apul-lncRNA-matrix/Apul_lncRNA_counts.txt \
   -t lncRNA \
   -g gene_id \
   -p \
