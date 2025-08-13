@@ -14,37 +14,37 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Define key paths and tool directories
  
-DATA_DIR <- "../data/31-Apul-lncRNA-discovery"
-OUTPUT_DIR <- "../output/31-Apul-lncRNA-discovery"
-THREADS <- "48"
+DATA_DIR <- "../data/12-Peve-lncRNA-discovery"
+OUTPUT_DIR <- "../output/12-Peve-lncRNA-discovery"
+THREADS <- "42"
   
-FASTQ_SOURCE <- "https://gannet.fish.washington.edu/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/01.00-D-Apul-RNAseq-trimming-fastp-FastQC-MultiQC/"
+FASTQ_SOURCE <- "https://gannet.fish.washington.edu/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC/"
 FASTQ_SUFFIX <- "fq.gz"
-GENOME_SOURCE <- "https://gannet.fish.washington.edu/seashell/bu-github/deep-dive-expression/D-Apul/data/Apulcra-genome.fa"
+GENOME_SOURCE <- "https://gannet.fish.washington.edu/seashell/snaps/Porites_evermanni_v1.fa"
 
 
-GTF_SOURCE <- "https://gannet.fish.washington.edu/seashell/bu-github/deep-dive-expression/D-Apul/data/Apulchra-genome.gtf"
-GFF_SOURCE <- "https://raw.githubusercontent.com/urol-e5/deep-dive-expression/refs/heads/main/D-Apul/data/Apulcra-genome.gff"
+GTF_SOURCE <- "https://github.com/urol-e5/timeseries_molecular/raw/99f0563a067ca9d010cb206dfd44b36d8f77de00/E-Peve/data/Porites_evermanni_validated.gtf"
+GFF_SOURCE <- "https://github.com/urol-e5/timeseries_molecular/raw/99f0563a067ca9d010cb206dfd44b36d8f77de00/E-Peve/data/Porites_evermanni_validated.gff3"
 
 GFFPATTERN <- 'class_code "u"|class_code "x"|class_code "o"|class_code "i"'
 
 #RAVEN
-# HISAT2_DIR <- "/home/shared/hisat2-2.2.1/"
-# SAMTOOLS_DIR <- "/home/shared/samtools-1.12/"
-# STRINGTIE_DIR <- "/home/shared/stringtie-2.2.1.Linux_x86_64"
-# GFFCOMPARE_DIR <- "/home/shared/gffcompare-0.12.6.Linux_x86_64"
-# BEDTOOLS_DIR <- "/home/shared/bedtools2/bin"
-# CPC2_DIR <- "/home/shared/CPC2_standalone-1.0.1"
-# CONDA_PATH <- "/opt/anaconda/anaconda3/bin/conda"
+HISAT2_DIR <- "/home/shared/hisat2-2.2.1/"
+SAMTOOLS_DIR <- "/home/shared/samtools-1.12/"
+STRINGTIE_DIR <- "/home/shared/stringtie-2.2.1.Linux_x86_64"
+GFFCOMPARE_DIR <- "/home/shared/gffcompare-0.12.6.Linux_x86_64"
+BEDTOOLS_DIR <- "/home/shared/bedtools2/bin"
+CPC2_DIR <- "/home/shared/CPC2_standalone-1.0.1"
+CONDA_PATH <- "/opt/anaconda/anaconda3/bin/conda"
 
 #KLONE
-HISAT2_DIR <- ""
-SAMTOOLS_DIR <- ""
-STRINGTIE_DIR <- ""
-GFFCOMPARE_DIR <- "/srlab/programs/gffcompare-0.12.6.Linux_x86_64/"
-BEDTOOLS_DIR <- ""
-CPC2_DIR <- "/srlab/programs/CPC2_standalone-1.0.1/bin/"
-CONDA_PATH <- "/mmfs1/gscratch/srlab/nextflow/bin/miniforge/bin/conda"
+# HISAT2_DIR <- ""
+# SAMTOOLS_DIR <- ""
+# STRINGTIE_DIR <- ""
+# GFFCOMPARE_DIR <- "/srlab/programs/gffcompare-0.12.6.Linux_x86_64/"
+# BEDTOOLS_DIR <- ""
+# CPC2_DIR <- "/srlab/programs/CPC2_standalone-1.0.1/bin/"
+# CONDA_PATH <- "/mmfs1/gscratch/srlab/nextflow/bin/miniforge/bin/conda"
 
 GENOME_FASTA <- file.path(DATA_DIR, "genome.fasta")
 GENOME_GTF <- file.path(DATA_DIR, "genome.gtf")
