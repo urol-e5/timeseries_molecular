@@ -31,10 +31,10 @@ GFFPATTERN <- 'class_code "u"|class_code "x"|class_code "o"|class_code "i"'
 #RAVEN
 HISAT2_DIR <- "/home/shared/hisat2-2.2.1/"
 SAMTOOLS_DIR <- "/home/shared/samtools-1.12/"
-STRINGTIE_DIR <- "/home/shared/stringtie-2.2.1.Linux_x86_64"
-GFFCOMPARE_DIR <- "/home/shared/gffcompare-0.12.6.Linux_x86_64"
-BEDTOOLS_DIR <- "/home/shared/bedtools2/bin"
-CPC2_DIR <- "/home/shared/CPC2_standalone-1.0.1"
+STRINGTIE_DIR <- "/home/shared/stringtie-2.2.1.Linux_x86_64/"
+GFFCOMPARE_DIR <- "/home/shared/gffcompare-0.12.6.Linux_x86_64/"
+BEDTOOLS_DIR <- "/home/shared/bedtools2/bin/"
+CPC2_DIR <- "/home/shared/CPC2_standalone-1.0.1/"
 CONDA_PATH <- "/opt/anaconda/anaconda3/bin/conda"
 
 #KLONE
@@ -100,17 +100,22 @@ ls ${FASTQ_DIR}
 
 curl -o "${GENOME_FASTA}" "${GENOME_SOURCE}"
 ```
+```{r, engine='bash'}
+echo "${GENOME_GTF}" "${GTF_SOURCE}"
+```
 
 ```{r gtf, engine='bash'}
 
 
-curl -o "${GENOME_GTF}" "${GTF_SOURCE}"
+curl -L -o "${GENOME_GTF}" "${GTF_SOURCE}"
 ```
+
+
 
 ```{r gff, engine='bash'}
 
 
-curl -o "${GENOME_GFF}" "${GFF_SOURCE}"
+curl -L -o "${GENOME_GFF}" "${GFF_SOURCE}"
 ```
 
 ```{r file check, engine='bash'}
@@ -190,6 +195,12 @@ for samfile in "${OUTPUT_DIR}/${sample}"*.sam; do
   "${SAMTOOLS_DIR}samtools" index -@ "${THREADS}" "$sorted_bamfile"
 done
 ```
+```{bash}
+rm ${OUTPUT_DIR}/*sam
+```
+
+
+
 
 # StringTie
 

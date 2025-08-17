@@ -18,25 +18,134 @@ samtools merge \
 
 ```{bash}
 perl /home/shared/BS-Snper-master/BS-Snper.pl \
-Pg_merged.bam \
---fa Panopea-generosa-v1.0.fa \
---output snp.candidate.out \
---methcg meth.cg \
---methchg meth.chg \
---methchh meth.chh \
---minhetfreq 0.1 \
---minhomfreq 0.85 \
---minquali 15 \
---mincover 10 \
---maxcover 1000 \
---minread2 2 \
---errorate 0.02 \
---mapvalue 20 \
->SNP.vcf 2>SNP.log
-
-
-grep $'C\tG' output/SNP.vcf > output/CT-SNP.vcf
-wc -l output/CT-SNP.vcf
+  ../output/34-Apul-CT-SNPs/Apul_merged.bam \
+  --fa ../data/Apulcra-genome.fa \
+  --output ../output/34-Apul-CT-SNPs/snp.candidate.out \
+  --methcg meth.cg \
+  --methchg meth.chg \
+  --methchh meth.chh \
+  --minhetfreq 0.1 \
+  --minhomfreq 0.9 \
+  --minquali 20 \
+  --mincover 10 \
+  --maxcover 1000 \
+  --minread2 3 \
+  --errorate 0.02 \
+  --mapvalue 30 \
+  > ../output/34-Apul-CT-SNPs/SNP.vcf \
+  2> ../output/34-Apul-CT-SNPs/SNP.log
 ```
 
+
+```{bash}
+perl /home/shared/BS-Snper-master/BS-Snper.pl \
+  ../output/34-Apul-CT-SNPs/Apul_merged.bam \
+  --fa ../data/Apulcra-genome.fa \
+  --output ../output/34-Apul-CT-SNPs/snp.candidate2.out \
+  --methcg meth.cg \
+  --methchg meth.chg \
+  --methchh meth.chh \
+  --minhetfreq 0.03 \
+  --minhomfreq 0.98 \
+  --minquali 30 \
+  --mincover 20 \
+  --maxcover 1000000 \
+  --minread2 5 \
+  --errorate 0.02 \
+  --mapvalue 30 \
+  > ../output/34-Apul-CT-SNPs/SNP2.vcf \
+  2> ../output/34-Apul-CT-SNPs/SNP2.log
+```
+
+
+
+```{bash}
+bgzip -c ../output/34-Apul-CT-SNPs/SNP2.vcf > ../output/34-Apul-CT-SNPs/SNP2.vcf.gz
+tabix -p vcf ../output/34-Apul-CT-SNPs/SNP2.vcf.gz
+
+
+```
+
+
+```{bash}
+set -euo pipefail
+
+BCF=/home/shared/bcftools-1.14/bcftools
+IN=../output/34-Apul-CT-SNPs/SNP2.vcf.gz
+REF=../data/Apulcra-genome.fa
+OUT=../output/34-Apul-CT-SNPs/SNP2.pooled.pass.vcf.gz
+
+# sanity: confirm one sample and the name
+$BCF query -l "$IN"
+
+$BCF norm -m -both -f "$REF" "$IN" \
+| $BCF view -v snps -i '(FILTER="PASS") && ((INFO/DP>=20) || (FMT/DP[0]>=20))' \
+| $BCF view -i '(FMT/AD[0:1]>=5) && (100*FMT/AD[0:1] >= 3*(FMT/AD[0:0]+FMT/AD[0:1])) && (FMT/AD[0:0]+FMT/AD[0:1]>0)' \
+| $BCF view -i '((FMT/ADF[0:1]>0 && FMT/ADR[0:1]>0) || (FMT/ADF[0:0]+FMT/ADF[0:1]==0) || (FMT/ADR[0:0]+FMT/ADR[0:1]==0))' \
+-Oz -o "$OUT"
+
+tabix -p vcf "$OUT"
+```
+
+
+
+```{bash}
+
+# Outputs both bases; column4 labels which base ("C" or "G")
+awk 'BEGIN{OFS="\t"}
+/^>/ {chr=substr($0,2); pos=0; next}
+{
+  s=toupper($0)
+  for(i=1;i<=length(s)-1;i++){
+    if(substr(s,i,2)=="CG"){
+      print chr, pos+i-1, pos+i, "C"   # C base (0-based, half-open)
+      print chr, pos+i,   pos+i+1, "G" # G base (0-based, half-open)
+    }
+  }
+  pos += length(s)
+}' ../data/Apulcra-genome.fa > ../output/34-Apul-CT-SNPs/Apul_CpG.labeled.bed
+```
+
+```{bash}
+# SNPs as BED with REF/ALT
+/home/shared/bcftools-1.14/bcftools query -f '%CHROM\t%POS0\t%POS\t%REF\t%ALT\n' \
+  ../output/34-Apul-CT-SNPs/SNP2.pooled.pass.vcf.gz > ../output/34-Apul-CT-SNPs/SNP2.pooled.pass.bed
+
+# Intersect and keep the CpG base label
+bedtools intersect -wa -wb \
+  -a ../output/34-Apul-CT-SNPs/SNP2.pooled.pass.bed \
+  -b ../output/34-Apul-CT-SNPs/Apul_CpG.labeled.bed \
+  > ../output/34-Apul-CT-SNPs/SNPxCpG.labeled.tsv
+```
+
+```{bash}
+awk '($4=="C" && $5=="T") || ($4=="G" && $5=="A")' \
+  ../output/34-Apul-CT-SNPs/SNPxCpG.labeled.tsv \
+  > ../output/34-Apul-CT-SNPs/SNPxCpG.CTGA.tsv
+```
+
+
+```{bash}
+# Use SNPxCpG.labeled.tsv for "all CpG-disrupting SNPs"
+#awk 'BEGIN{OFS="\t"} { if($8=="C"){print $1,$2,$3} else if($8=="G"){print $1,$2-1,$3-1} }' \
+#  ../output/34-Apul-CT-SNPs/SNPxCpG.labeled.tsv \
+
+# Or, use SNPxCpG.CTGA.tsv if you only want C>T / G>A
+awk 'BEGIN{OFS="\t"} { if($9=="C"){print $1,$2,$3} else if($9=="G"){print $1,$2-1,$3-1} }' \
+../output/34-Apul-CT-SNPs/SNPxCpG.CTGA.tsv | sort -u > ../output/34-Apul-CT-SNPs/mask_C_positions.bed
+
+```
+
+
+
+```{bash}
+# FASTA (CpG BED is built from this)
+grep '^>' ../data/Apulcra-genome.fa | sed 's/^>//' | sort | head
+
+# VCF
+/home/shared/bcftools-1.14/bcftools query -f '%CHROM\n' ../output/34-Apul-CT-SNPs/SNP2.pooled.pass.vcf.gz | sort | uniq | head
+
+# CpG BED
+cut -f1 ../output/34-Apul-CT-SNPs/Apul_CpG.labeled.bed | sort | uniq | head
+```
 
