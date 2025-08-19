@@ -4,9 +4,7 @@ format: html
 editor: visual
 ---
 
-
 # set variables
-
 
 ```{r}
 # Global R options
@@ -34,7 +32,7 @@ SAMTOOLS_DIR <- "/home/shared/samtools-1.12/"
 STRINGTIE_DIR <- "/home/shared/stringtie-2.2.1.Linux_x86_64/"
 GFFCOMPARE_DIR <- "/home/shared/gffcompare-0.12.6.Linux_x86_64/"
 BEDTOOLS_DIR <- "/home/shared/bedtools2/bin/"
-CPC2_DIR <- "/home/shared/CPC2_standalone-1.0.1/"
+CPC2_DIR <- "/home/shared/CPC2_standalone-1.0.1/bin/"
 CONDA_PATH <- "/opt/anaconda/anaconda3/bin/conda"
 
 #KLONE
@@ -100,6 +98,7 @@ ls ${FASTQ_DIR}
 
 curl -o "${GENOME_FASTA}" "${GENOME_SOURCE}"
 ```
+
 ```{r, engine='bash'}
 echo "${GENOME_GTF}" "${GTF_SOURCE}"
 ```
@@ -109,8 +108,6 @@ echo "${GENOME_GTF}" "${GTF_SOURCE}"
 
 curl -L -o "${GENOME_GTF}" "${GTF_SOURCE}"
 ```
-
-
 
 ```{r gff, engine='bash'}
 
@@ -195,16 +192,14 @@ for samfile in "${OUTPUT_DIR}/${sample}"*.sam; do
   "${SAMTOOLS_DIR}samtools" index -@ "${THREADS}" "$sorted_bamfile"
 done
 ```
+
 ```{bash}
 rm ${OUTPUT_DIR}/*sam
 ```
 
-
-
-
 # StringTie
 
-StringTie uses the sorted BAM files to assemble transcripts for each sample, outputting them as GTF (Gene Transfer Format) files. And then merges all individual GTF assemblies into a single merged GTF file. This step extracts transcript information and merges GTFs from all samples–an important step in creating a canonical list of lncRNAs across all samples included in the pipeline.
+StringTie uses the sorted BAM files to assemble transcripts for each sample, outputting them as GTF (Gene Transfer Format) files. And then merges all individual GTF assemblies into a single merged GTF file. This step extracts transcript information and merges GTFs from all samples--an important step in creating a canonical list of lncRNAs across all samples included in the pipeline.
 
 ```{r stringtie, engine='bash'}
 find "${OUTPUT_DIR}" -name "*sorted.bam" \
@@ -278,9 +273,7 @@ head ${OUTPUT_DIR}/lncRNA_candidates.gtf
 wc -l ${OUTPUT_DIR}/lncRNA_candidates.gtf
 ```
 
-```{r, engine='bash'}
-sort ../output/17-Ptuh-lncRNA/lncRNA_candidates.gtf | uniq -d
-```
+
 
 # Bedtools
 
@@ -298,8 +291,10 @@ head ${OUTPUT_DIR}/lncRNA_candidates.fasta
 
 #CPC2
 
+for raven
 ```{r, engine='bash'}
-"${CPC2_DIR}CPC2.py" \
+eval "$(/opt/anaconda/anaconda3/bin/conda shell.bash hook)"
+python "${CPC2_DIR}CPC2.py" \
 -i "${OUTPUT_DIR}/lncRNA_candidates.fasta" \
 -o "${OUTPUT_DIR}/CPC2"
 ```
@@ -349,8 +344,8 @@ while IFS= read -r line; do
     # Split the position string by '-' to separate start and end positions
     IFS='-' read -r start end <<< "$pos"
     
-    # Convert the start position to 0-based by subtracting 1
-    #start=$((start - 0))
+    # Convert the start position to 
+    start=$((start + 1))
     
     # Write the chromosome, updated start, and end positions to the output file (tab-separated)
     printf "%s\t%s\t%s\n" "$chromosome" "$start" "$end"
@@ -374,70 +369,57 @@ wc -l "${OUTPUT_DIR}/lncRNA.gtf"
 # Summary Table
 
 ```{r summary, engine='bash'}
-tf_file="${OUTPUT_DIR}/lncRNA.gtf"
-
-awk '
-BEGIN {
-    total_entries = 0;
-    min_length = 1e9;
-    max_length = 0;
-    sum_length = 0;
-}
-# Skip comment lines
-/^#/ { next }
-{
-    if (NF < 9) next;
-    total_entries++;
-    start = $4;
-    end = $5;
-    gene_length = end - start + 1;
-    if (gene_length < min_length) min_length = gene_length;
-    if (gene_length > max_length) max_length = gene_length;
-    sum_length += gene_length;
-    feature[$3]++;
-    chrom[$1]++;
-    # Use two-argument match() and then extract the gene_id manually.
-    if (match($9, /gene_id "[^"]+"/)) {
-        gene_str = substr($9, RSTART, RLENGTH);
-        # Remove the "gene_id " prefix and the quotes.
-        gsub(/gene_id "/, "", gene_str);
-        gsub(/"/, "", gene_str);
-        genes[gene_str] = 1;
-    }
+awk '{
+  count++                                # total entries
+  key=$1 FS $4 FS $5                     # unique gene key
+  seen[key]++                            # count unique genes
+  len=$5-$4+1
+  if (min=="" || len<min) min=len        # track min
+  if (len>max) max=len                   # track max
+  sum+=len                               # accumulate for average
 }
 END {
-    avg_length = (total_entries > 0) ? sum_length / total_entries : 0;
-    unique_gene_count = 0;
-    for (g in genes)
-        unique_gene_count++;
-    print "Basic GTF File Statistics:";
-    print "--------------------------";
-    print "Total entries:      " total_entries;
-    print "Unique genes:       " unique_gene_count;
-    print "Min gene length:    " min_length;
-    print "Max gene length:    " max_length;
-    printf("Average gene length: %.2f\n", avg_length);
-    print "\nFeature counts:";
-    for (f in feature) {
-        print "  " f ": " feature[f];
-    }
-    print "\nChromosome counts:";
-    for (c in chrom) {
-        print "  " c ": " chrom[c];
-    }
-}
-' "$tf_file"
+  print "Total entries:", count
+  print "Unique genes (by col1,col4,col5):", length(seen)
+  print "Min length:", min
+  print "Max length:", max
+  print "Average length:", sum/count
+}' "${OUTPUT_DIR}/lncRNA.gtf"
 ```
-
-
 
 # Common questions (negatives and dups)
 
 ```{bash}
-grep -E '\s-+[0-9]+' "${OUTPUT_DIR}/lncRNA.gtf"
+awk '$4==0 || $5==0 || $4==$5' "${OUTPUT_DIR}/lncRNA.gtf" | head
 ```
 
 
+
 ```{bash}
-sort "${OUTPUT_DIR}/lncRNA.gtf" | uniq -d | wc -l
+cut -f1,4,5 "${OUTPUT_DIR}/lncRNA.gtf" | sort | uniq -d | head
+```
+Drop duplicates
+
+```{bash}
+awk '!seen[$1,$4,$5]++' "${OUTPUT_DIR}/lncRNA.gtf" > "${OUTPUT_DIR}/lncRNA.gtf.tmp" \
+  && mv "${OUTPUT_DIR}/lncRNA.gtf.tmp" "${OUTPUT_DIR}/lncRNA.gtf"
+```
+
+```{r summary, engine='bash'}
+awk '{
+  count++                                # total entries
+  key=$1 FS $4 FS $5                     # unique gene key
+  seen[key]++                            # count unique genes
+  len=$5-$4+1
+  if (min=="" || len<min) min=len        # track min
+  if (len>max) max=len                   # track max
+  sum+=len                               # accumulate for average
+}
+END {
+  print "Total entries:", count
+  print "Unique genes (by col1,col4,col5):", length(seen)
+  print "Min length:", min
+  print "Max length:", max
+  print "Average length:", sum/count
+}' "${OUTPUT_DIR}/lncRNA.gtf"
 ```
