@@ -4,26 +4,120 @@ output: html_document
 date: "2025-08-17"
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{bash}
+head ../data/Apulchra-genome.pep.faa
+```
+```{bash}
+cd ../../blastdb && \
+wget ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.fasta.gz
+
 ```
 
-## R Markdown
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+```{bash}
+# Make a fresh, compatible .dmnd (adjust input FASTA path)
+diamond makedb \
+  --in ../../blastdb/uniprot_sprot.fasta.gz \
+  --db ../../blastdb/sp-20250816-diamond \
+  --threads 42 \
+  --tmpdir ../output/35-Apul-prot-blast
 ```
 
-## Including Plots
 
-You can also embed plots, for example:
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+
+```{bash}
+mkdir -p ../output/35-Apul-prot-blast
+
+diamond blastp \
+--query ../data/Apulchra-genome.pep.faa \
+--db ../../blastdb/sp-20250816-diamond \
+--out ../output/35-Apul-prot-blast/Apulchra_aa_SWISSPROT.out \
+--outfmt 6 \
+--max-target-seqs 1 \
+--evalue 1e-5 \
+--threads 42
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{bash}
+set -euo pipefail
+
+# === Config ===
+# Path to DIAMOND outfmt 6 file (qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore)
+INPUT="${1:../output/35-Apul-prot-blast/Apulchra_aa_SWISSPROT.out}"
+WORKDIR="${2:../output/35-Apul-prot-blast/}"
+BATCH_SIZE="${3:-200}"
+
+cd "$WORKDIR"
+
+echo "[INFO] Using INPUT=$INPUT"
+echo "[INFO] Working directory=$WORKDIR"
+echo "[INFO] Batch size=$BATCH_SIZE"
+
+# === Step 1: Extract query->UniProt accession mapping from DIAMOND outfmt 6 ===
+# sseqid format is like 'sp|P84227|H32_BOVIN'; accession is the middle token.
+echo "[INFO] Extracting query -> accession pairs..."
+awk 'BEGIN{FS=OFS="\t"} {split($2,a,"|"); acc=(length(a)>=2?a[2]:""); if(acc!="") print $1, acc}' "$INPUT" \
+  | sort -u > blast_query_to_acc.tsv
+
+QCOUNT=$(cut -f1 blast_query_to_acc.tsv | sort -u | wc -l | awk "{print \$1}")
+ACOUNT=$(cut -f2 blast_query_to_acc.tsv | sort -u | wc -l | awk "{print \$1}")
+echo "[INFO] Unique queries: $QCOUNT"
+echo "[INFO] Unique accessions: $ACOUNT"
+
+cut -f2 blast_query_to_acc.tsv | sort -u > uniprot_accessions.txt
+
+# === Step 2: Batch query UniProt API for accession -> protein name ===
+echo "[INFO] Querying UniProt REST API for protein names..."
+rm -f uniprot_acc_to_name.tsv uniprot_batches/*
+mkdir -p uniprot_batches
+
+split -l "$BATCH_SIZE" uniprot_accessions.txt uniprot_batches/acc_batch_
+
+# Header for the combined TSV
+echo -e "Entry\tProtein names" > uniprot_acc_to_name.tsv
+
+for b in uniprot_batches/acc_batch_*; do
+  # Join accessions with commas for a single query
+  ids=$(paste -sd',' "$b")
+  # Robust URL encoding with curl --data-urlencode
+  curl -sG "https://rest.uniprot.org/uniprotkb/stream" \
+    --data-urlencode "format=tsv" \
+    --data-urlencode "fields=accession,protein_name" \
+    --data-urlencode "query=accession:(${ids})" \
+    >> uniprot_acc_to_name.tsv
+done
+
+# Deduplicate (keep header once)
+awk 'NR==1 || !seen[$0]++' uniprot_acc_to_name.tsv > uniprot_acc_to_name.dedup.tsv
+mv uniprot_acc_to_name.dedup.tsv uniprot_acc_to_name.tsv
+
+MAPCOUNT=$(awk 'BEGIN{FS="\t"} NR>1{print $1}' uniprot_acc_to_name.tsv | sort -u | wc -l | awk "{print \$1}")
+echo "[INFO] Retrieved names for $MAPCOUNT accessions"
+
+# === Step 3: Join protein names back to queries ===
+echo "[INFO] Joining names back to query->accession pairs..."
+# Build an AWK map accession -> protein name
+awk 'BEGIN{FS=OFS="\t"} FNR==NR {if(NR>1) name[$1]=$2; next} {pn=(($2 in name)?name[$2]:"NA"); print $1,$2,pn}' \
+  uniprot_acc_to_name.tsv \
+  blast_query_to_acc.tsv \
+  > query_acc_name.tsv
+
+# === Optional Step 4: Add protein names to the full DIAMOND table ===
+# Read original file and append protein name as a new last column
+echo "[INFO] Appending protein_name column to full DIAMOND output..."
+awk 'BEGIN{FS=OFS="\t"} FNR==NR{split($2,a,"|"); acc=(length(a)>=2?a[2]:""); name[acc]=$0; next} \
+     {split($2,a,"|"); acc=(length(a)>=2?a[2]:""); pn="NA"; if(acc in name){split(name[acc],b,"\t"); pn=b[3]} print $0,pn}' \
+    query_acc_name.tsv \
+    "$INPUT" > diamond_with_names.tsv
+
+echo "[INFO] Done."
+echo "[INFO] Outputs:"
+echo " - blast_query_to_acc.tsv      (query -> accession)"
+echo " - uniprot_accessions.txt      (unique accessions)"
+echo " - uniprot_acc_to_name.tsv     (accession -> protein name)"
+echo " - query_acc_name.tsv          (query, accession, protein_name)"
+echo " - diamond_with_names.tsv      (original DIAMOND columns + protein_name)"
+
+```
+
