@@ -1,0 +1,60 @@
+---
+title: "13-Peve-lncRNA-matrix"
+format: html
+editor: visual
+---
+
+```{bash}
+mkdir -p ../output/13-Peve-lncRNA-matrix
+```
+
+
+
+```{bash}
+/home/shared/subread-2.0.5-Linux-x86_64/bin/featureCounts \
+  -T 42 \
+  -O \
+  --fraction \
+  -a ../output/12-Peve-lncRNA-discovery/lncRNA.gtf \
+  -o ../output/13-Peve-lncRNA-matrix/Peve_lncRNA_counts.txt \
+  -t lncRNA \
+  -g gene_id \
+  -p \
+../output/12-Peve-lncRNA-discovery/*sorted.bam
+```
+
+```{bash}
+head ../output/13-Peve-lncRNA-matrix/Peve_lncRNA_counts.txt
+```
+
+
+
+# Alternative approach: If the -F flag doesn't work as expected,
+
+# you can post-process the output file to rename columns
+
+# This script extracts just the filename without the path
+
+```{bash}
+awk -v FS='\t' -v OFS='\t' '
+  /^Geneid(\t|$)/ {
+    for (i=7; i<=NF; i++) {
+      gsub(/^.*\//, "", $i);          # drop path
+      sub(/\.sorted\.bam$/, "", $i);  # drop suffix
+    }
+  }
+  { print }
+' ../output/13-Peve-lncRNA-matrix/Peve_lncRNA_counts.txt > ../output/13-Peve-lncRNA-matrix/Peve_lncRNA_counts.clean.txt
+```
+
+```{bash}
+head ../output/13-Peve-lncRNA-matrix/Peve_lncRNA_counts.clean.txt
+```
+
+
+
+
+```{bash}
+python 13.1-filter_count_matrix.py ../output/13-Peve-lncRNA-matrix/Peve_lncRNA_counts.clean.txt ../output/13-Peve-lncRNA-matrix/Apul_lncRNA_counts_filtered.txt
+```
+
