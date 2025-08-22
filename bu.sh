@@ -9,7 +9,7 @@
 # --exclude='.*' --exclude='*/.*' \
 # sr320@gannet.fish.washington.edu:/volume1/v1_web/owlshell/bu-github/
 
-rsync -avz -e ssh ../timeseries_molecular \
+rsync -av ../timeseries_molecular \
 --exclude='*.sam' \
 --exclude='tmp*' \
 --exclude='*gz_C_to_T.fastq' \
@@ -19,7 +19,7 @@ rsync -avz -e ssh ../timeseries_molecular \
 sr320@gannet.fish.washington.edu:/volume1/v1_web/owlshell/bu-github/
 
 
-rsync -avz -e ssh ../timeseries_molecular \
+rsync -av ../timeseries_molecular \
 --exclude='*.sam' \
 --exclude='tmp*' \
 --exclude='*gz_C_to_T.fastq' \
