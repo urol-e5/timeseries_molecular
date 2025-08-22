@@ -1,6 +1,6 @@
 #!/bin/bash
 ## Job Name
-#SBATCH --job-name=20250728_mergeCov
+#SBATCH --job-name=20250821_mergeCov
 ## Allocation Definition
 #SBATCH --account=coenv
 #SBATCH --partition=cpu-g2
@@ -15,10 +15,10 @@
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=strigg@uw.edu
 ## Specify the working directory for this job 
-#SBATCH --chdir=/gscratch/scrubbed/strigg/analyses/20250728_meth_Peve
+#SBATCH --chdir=/gscratch/scrubbed/strigg/analyses/20250821_meth_Peve
 
 # ran this rsync first
-# rsync --progress --verbose --archive shellytrigg@gannet.fish.washington.edu:/volume2/web/metacarcinus/E5/Pevermanni/20250619_methylseq/bismark/methylation_calls/methylation_coverage/*.cov.gz  /gscratch/scrubbed/strigg/analyses/20250728_meth_Peve
+# rsync --progress --verbose --archive shellytrigg@gannet.fish.washington.edu:/volume2/web/metacarcinus/E5/Pevermanni/20250619_methylseq/bismark/coverage2cytosine/coverage/*.cov.gz  /gscratch/scrubbed/strigg/analyses/20250821_meth_Peve
 
 %%bash
 
@@ -26,10 +26,10 @@ set -ex
 
 
 # make bed file from cov file keeping only CpGs w. 10x cov
-for f in *.fastp-trim_bismark_bt2_pe.deduplicated.bismark.cov.gz
+for f in *.CpG_report.merged_CpG_evidence.cov.gz
 do
   STEM=$(basename "${f}") # Get the entire filename including the long suffix
-  STEM="${STEM%.POR-*.fastp-trim_bismark_bt2_pe.deduplicated.bismark.cov.gz}" # Remove the suffix using parameter expansion
+  STEM="${STEM%*.CpG_report.merged_CpG_evidence.cov.gz}" # Remove the suffix using parameter expansion
   zcat "${f}" | awk -F $'\t' 'BEGIN {OFS = FS} {if ($5+$6 >= 10) {print $1, $2, $3, $4}}' \
   > "${STEM}"_10x.bedgraph
 done
