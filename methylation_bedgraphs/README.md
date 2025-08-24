@@ -19,10 +19,16 @@ This directory contains species-level DNA methylation bedgraph files generated f
 - **Source data**: `F-Ptua/output/05-Ptua-bismark-CG/filtered-WGBS-CpG-counts.csv`
 
 ### E-Peve_methylation.bedgraph
-- **Status**: Not generated - missing source data
+- **Status**: Not generated - pipeline incomplete
 - **Species**: *Porites evermanni*
-- **Issue**: The required processed WGBS coverage files (*.CpG_report.merged_CpG_evidence.cov.gz) are not present in the expected locations
-- **Next steps**: Need to complete the coverage2cytosine processing step or locate existing processed files
+- **Issue**: Bismark alignment appears incomplete - no BAM files found in expected locations
+- **WGBS samples**: 41 samples confirmed in submission metadata (samples 103-143 in WGBS metadata)
+- **Next steps**: 
+  1. Complete Bismark alignment to generate BAM files
+  2. Run methylation extraction (bismark_methylation_extractor)
+  3. Run coverage2cytosine to generate merged coverage files
+  4. Process coverage files to bedgraph format
+  5. Use provided script to generate final species-level bedgraph
 
 ## File Format
 
