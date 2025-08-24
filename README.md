@@ -198,6 +198,16 @@ This research addresses several key biological hypotheses about coral molecular 
 | Metabolomics | Ariana Huffmyer, R. Cunning | M-multi-species scripts |
 | Functional Annotation | Kathleen Durkin, Steven Roberts | 21.XX, 23.XX, 25.XX, 27.XX series |
 
+## Data Processing Workflows
+
+### lncRNA
+
+Workflow builds a splice-aware HISAT2 index from the GTF (exons + splice sites), and aligns all samples. Per-sample transcript assemblies are generated with StringTie and merged into a unified GTF, which is then annotated with gffcompare. Putative lncRNAs are filtered from the merged annotations by biotype/class codes (u/x/o/i) and minimum length (>200 nt), sequences are extracted with bedtools, and coding potential is screened with CPC2 to retain noncoding transcripts. The surviving transcripts are converted into a clean BED/GTF set with unique lncRNA_### IDs, deduplicated, sanity-checked (coordinates/lengths), and summarized. Finally, featureCounts quantifies lncRNA features across all BAMs, column names are cleaned, and a filtered count matrix is produced, removing features with low expression.
+
+### miRNA
+
+Workflow processes sRNA-seq reads through quality control and adapter trimming with fastp, then performs miRNA discovery and quantification using ShortStack 4.1.0. ShortStack aligns trimmed reads to the species-specific genome reference and integrates a curated cnidarian miRBase database for known miRNA annotation. De novo miRNA identification is performed using the `--dn_mirna` parameter, which predicts novel miRNA loci based on hairpin structure and expression patterns. The pipeline generates comprehensive count matrices across all samples, with only confirmed miRNA loci (MIRNA="Y" in Results.txt) retained for downstream analysis. Count matrices are formatted with proper sample names using metadata mapping, and filtered to remove features with low expression (must have ≥5 counts in ≥10% of samples) to produce final normalized count matrices for differential expression and co-expression analyses.
+
 ## Key Datasets and Metadata
 
 - **RNA Metadata**: [`M-multi-species/data/rna_metadata.csv`](M-multi-species/data/rna_metadata.csv)
