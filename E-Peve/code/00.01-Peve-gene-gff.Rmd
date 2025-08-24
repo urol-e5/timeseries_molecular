@@ -1,0 +1,41 @@
+---
+title: "00.01-Peve-gene-gff"
+format: html
+editor: visual
+---
+
+```{bash}
+mkdir -p ../data/00.01-Peve-gene-gff
+mkdir -p ../output/00.01-Peve-gene-gff
+```
+
+
+```{bash}
+tail ../data/Porites_evermanni_validated.gtf
+```
+
+```{bash}
+awk '$3 == "gene"' ../data/Porites_evermanni_validated.gtf \
+> ../output/00.01-Peve-gene-gff/Peve_gene_only.gtf
+```
+
+
+```{bash}
+wc -l ../output/00.01-Peve-gene-gff/Peve_gene_only.gtf
+```
+
+
+
+```{bash}
+
+```{bash}
+tail -20 ../data/Porites_evermanni_validated.gff3
+```
+
+```{bash}
+
+awk '$3 == "gene"' ../data/Porites_evermanni_validated.gff3 \
+> ../output/00.01-Peve-gene-gff/Peve_gene_only.gff3
+```
+
+
