@@ -1,0 +1,451 @@
+---
+title: "Orthologous Protein Identification Across Three Coral Species"
+output: html_document
+date: "`r Sys.Date()`"
+author: "Multi-species comparative analysis"
+---
+
+# Overview
+
+This script identifies orthologous proteins across three coral species using reciprocal best hits (RBH) approach:
+
+- **Acropora pulchra** (D-Apul): Fast-growing, branching coral
+- **Porites evermanni** (E-Peve): Slow-growing, massive coral  
+- **Pocillopora tuahiniensis** (F-Ptua): Intermediate growth, branching coral
+
+## Methodology
+
+Orthology identification using:
+1. All-vs-all protein BLAST comparisons
+2. Reciprocal best hits (RBH) criterion
+3. E-value threshold: 1e-5
+4. Minimum identity: 30%
+5. Minimum coverage: 50%
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+library(tidyverse)
+library(here)
+
+# Create output directory
+output_dir <- "../output/11-orthology-analysis"
+if (!dir.exists(output_dir)) {
+  dir.create(output_dir, recursive = TRUE)
+}
+```
+
+# Input Files
+
+```{bash}
+# Define protein file paths
+APUL_PROTEINS="../../../D-Apul/data/Apulchra-genome.pep.faa"
+PEVE_PROTEINS="../../../E-Peve/data/Porites_evermanni_v1.annot.pep.fa" 
+PTUA_PROTEINS="../../../F-Ptua/data/Pocillopora_meandrina_HIv1.genes.pep.faa"
+
+# Check files exist and get basic stats
+echo "=== Input Protein Files ==="
+echo "Acropora pulchra (Apul):"
+ls -lh $APUL_PROTEINS
+grep -c "^>" $APUL_PROTEINS
+echo
+
+echo "Porites evermanni (Peve):"
+ls -lh $PEVE_PROTEINS  
+grep -c "^>" $PEVE_PROTEINS
+echo
+
+echo "Pocillopora tuahiniensis (Ptua):"
+ls -lh $PTUA_PROTEINS
+grep -c "^>" $PTUA_PROTEINS
+echo
+```
+
+# Prepare BLAST Databases
+
+```{bash}
+# Create BLAST databases for each species
+echo "Creating BLAST databases..."
+
+# Apul database
+makeblastdb -in $APUL_PROTEINS -dbtype prot -out ../output/11-orthology-analysis/Apul_proteins -title "Acropora_pulchra_proteins"
+
+# Peve database  
+makeblastdb -in $PEVE_PROTEINS -dbtype prot -out ../output/11-orthology-analysis/Peve_proteins -title "Porites_evermanni_proteins"
+
+# Ptua database
+makeblastdb -in $PTUA_PROTEINS -dbtype prot -out ../output/11-orthology-analysis/Ptua_proteins -title "Pocillopora_tuahiniensis_proteins"
+
+echo "BLAST databases created successfully"
+```
+
+# All-vs-All BLAST Comparisons
+
+```{bash}
+echo "Performing all-vs-all BLAST comparisons..."
+
+# BLAST parameters
+EVALUE="1e-5"
+THREADS="4"
+OUTFMT="6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore qlen slen"
+
+# Apul vs Peve
+echo "Apul vs Peve..."
+blastp -query $APUL_PROTEINS -db ../output/11-orthology-analysis/Peve_proteins \
+  -out ../output/11-orthology-analysis/Apul_vs_Peve.blastp \
+  -evalue $EVALUE -num_threads $THREADS -outfmt "$OUTFMT" -max_target_seqs 5
+
+# Peve vs Apul  
+echo "Peve vs Apul..."
+blastp -query $PEVE_PROTEINS -db ../output/11-orthology-analysis/Apul_proteins \
+  -out ../output/11-orthology-analysis/Peve_vs_Apul.blastp \
+  -evalue $EVALUE -num_threads $THREADS -outfmt "$OUTFMT" -max_target_seqs 5
+
+# Apul vs Ptua
+echo "Apul vs Ptua..."
+blastp -query $APUL_PROTEINS -db ../output/11-orthology-analysis/Ptua_proteins \
+  -out ../output/11-orthology-analysis/Apul_vs_Ptua.blastp \
+  -evalue $EVALUE -num_threads $THREADS -outfmt "$OUTFMT" -max_target_seqs 5
+
+# Ptua vs Apul
+echo "Ptua vs Apul..."
+blastp -query $PTUA_PROTEINS -db ../output/11-orthology-analysis/Apul_proteins \
+  -out ../output/11-orthology-analysis/Ptua_vs_Apul.blastp \
+  -evalue $EVALUE -num_threads $THREADS -outfmt "$OUTFMT" -max_target_seqs 5
+
+# Peve vs Ptua
+echo "Peve vs Ptua..."
+blastp -query $PEVE_PROTEINS -db ../output/11-orthology-analysis/Ptua_proteins \
+  -out ../output/11-orthology-analysis/Peve_vs_Ptua.blastp \
+  -evalue $EVALUE -num_threads $THREADS -outfmt "$OUTFMT" -max_target_seqs 5
+
+# Ptua vs Peve
+echo "Ptua vs Peve..."
+blastp -query $PTUA_PROTEINS -db ../output/11-orthology-analysis/Peve_proteins \
+  -out ../output/11-orthology-analysis/Ptua_vs_Peve.blastp \
+  -evalue $EVALUE -num_threads $THREADS -outfmt "$OUTFMT" -max_target_seqs 5
+
+echo "BLAST comparisons completed"
+```
+
+# Identify Reciprocal Best Hits
+
+```{r}
+# Function to identify reciprocal best hits
+identify_rbh <- function(blast_file1, blast_file2, min_identity = 30, min_coverage = 50) {
+  
+  # Column names for BLAST output
+  blast_cols <- c("qseqid", "sseqid", "pident", "length", "mismatch", "gapopen", 
+                  "qstart", "qend", "sstart", "send", "evalue", "bitscore", "qlen", "slen")
+  
+  # Read BLAST results
+  blast1 <- read_tsv(paste0(output_dir, "/", blast_file1), col_names = blast_cols, show_col_types = FALSE)
+  blast2 <- read_tsv(paste0(output_dir, "/", blast_file2), col_names = blast_cols, show_col_types = FALSE)
+  
+  # Filter by identity and coverage
+  blast1_filtered <- blast1 %>%
+    mutate(qcoverage = (qend - qstart + 1) / qlen * 100,
+           scoverage = (send - sstart + 1) / slen * 100) %>%
+    filter(pident >= min_identity, 
+           qcoverage >= min_coverage | scoverage >= min_coverage) %>%
+    group_by(qseqid) %>%
+    slice_max(bitscore, n = 1, with_ties = FALSE) %>%
+    ungroup()
+  
+  blast2_filtered <- blast2 %>%
+    mutate(qcoverage = (qend - qstart + 1) / qlen * 100,
+           scoverage = (send - sstart + 1) / slen * 100) %>%
+    filter(pident >= min_identity,
+           qcoverage >= min_coverage | scoverage >= min_coverage) %>%
+    group_by(qseqid) %>%
+    slice_max(bitscore, n = 1, with_ties = FALSE) %>%
+    ungroup()
+  
+  # Find reciprocal best hits
+  rbh <- inner_join(
+    blast1_filtered %>% select(qseqid, sseqid, pident, evalue, bitscore),
+    blast2_filtered %>% select(qseqid, sseqid, pident, evalue, bitscore),
+    by = c("qseqid" = "sseqid", "sseqid" = "qseqid")
+  ) %>%
+    rename(
+      query = qseqid,
+      subject = sseqid,
+      identity1 = pident.x,
+      identity2 = pident.y,
+      evalue1 = evalue.x,
+      evalue2 = evalue.y,
+      bitscore1 = bitscore.x,
+      bitscore2 = bitscore.y
+    ) %>%
+    mutate(
+      avg_identity = (identity1 + identity2) / 2,
+      min_evalue = pmin(evalue1, evalue2),
+      max_bitscore = pmax(bitscore1, bitscore2)
+    )
+  
+  return(rbh)
+}
+
+# Identify RBH for each species pair
+cat("Identifying reciprocal best hits...\n")
+
+# Apul-Peve orthologs
+apul_peve_rbh <- identify_rbh("Apul_vs_Peve.blastp", "Peve_vs_Apul.blastp")
+cat("Apul-Peve orthologs:", nrow(apul_peve_rbh), "\n")
+
+# Apul-Ptua orthologs  
+apul_ptua_rbh <- identify_rbh("Apul_vs_Ptua.blastp", "Ptua_vs_Apul.blastp")
+cat("Apul-Ptua orthologs:", nrow(apul_ptua_rbh), "\n")
+
+# Peve-Ptua orthologs
+peve_ptua_rbh <- identify_rbh("Peve_vs_Ptua.blastp", "Ptua_vs_Peve.blastp")  
+cat("Peve-Ptua orthologs:", nrow(peve_ptua_rbh), "\n")
+```
+
+# Create Ortholog Groups
+
+```{r}
+# Function to create ortholog groups from pairwise RBH
+create_ortholog_groups <- function(apul_peve, apul_ptua, peve_ptua) {
+  
+  # Create all possible combinations
+  ortholog_groups <- list()
+  group_id <- 1
+  
+  # Track processed proteins
+  processed_apul <- character(0)
+  processed_peve <- character(0) 
+  processed_ptua <- character(0)
+  
+  # Three-way orthologs (present in all species)
+  for (i in 1:nrow(apul_peve)) {
+    apul_gene <- apul_peve$query[i]
+    peve_gene <- apul_peve$subject[i]
+    
+    # Check if this Apul gene also has ortholog in Ptua
+    apul_ptua_match <- apul_ptua[apul_ptua$query == apul_gene, ]
+    if (nrow(apul_ptua_match) > 0) {
+      ptua_gene <- apul_ptua_match$subject[1]
+      
+      # Check if Peve and Ptua are also orthologs
+      peve_ptua_match <- peve_ptua[peve_ptua$query == peve_gene & peve_ptua$subject == ptua_gene, ]
+      if (nrow(peve_ptua_match) > 0) {
+        # Three-way ortholog found
+        ortholog_groups[[group_id]] <- list(
+          group_id = paste0("OG_", sprintf("%05d", group_id)),
+          apul = apul_gene,
+          peve = peve_gene, 
+          ptua = ptua_gene,
+          type = "three_way",
+          avg_identity = mean(c(apul_peve$avg_identity[i], 
+                               apul_ptua_match$avg_identity[1],
+                               peve_ptua_match$avg_identity[1]))
+        )
+        
+        processed_apul <- c(processed_apul, apul_gene)
+        processed_peve <- c(processed_peve, peve_gene)
+        processed_ptua <- c(processed_ptua, ptua_gene)
+        group_id <- group_id + 1
+      }
+    }
+  }
+  
+  # Two-way orthologs (remaining pairs)
+  # Apul-Peve only
+  remaining_apul_peve <- apul_peve[!apul_peve$query %in% processed_apul & 
+                                  !apul_peve$subject %in% processed_peve, ]
+  for (i in 1:nrow(remaining_apul_peve)) {
+    ortholog_groups[[group_id]] <- list(
+      group_id = paste0("OG_", sprintf("%05d", group_id)),
+      apul = remaining_apul_peve$query[i],
+      peve = remaining_apul_peve$subject[i],
+      ptua = NA,
+      type = "apul_peve",
+      avg_identity = remaining_apul_peve$avg_identity[i]
+    )
+    processed_apul <- c(processed_apul, remaining_apul_peve$query[i])
+    processed_peve <- c(processed_peve, remaining_apul_peve$subject[i])
+    group_id <- group_id + 1
+  }
+  
+  # Apul-Ptua only  
+  remaining_apul_ptua <- apul_ptua[!apul_ptua$query %in% processed_apul & 
+                                  !apul_ptua$subject %in% processed_ptua, ]
+  for (i in 1:nrow(remaining_apul_ptua)) {
+    ortholog_groups[[group_id]] <- list(
+      group_id = paste0("OG_", sprintf("%05d", group_id)),
+      apul = remaining_apul_ptua$query[i],
+      peve = NA,
+      ptua = remaining_apul_ptua$subject[i], 
+      type = "apul_ptua",
+      avg_identity = remaining_apul_ptua$avg_identity[i]
+    )
+    processed_apul <- c(processed_apul, remaining_apul_ptua$query[i])
+    processed_ptua <- c(processed_ptua, remaining_apul_ptua$subject[i])
+    group_id <- group_id + 1
+  }
+  
+  # Peve-Ptua only
+  remaining_peve_ptua <- peve_ptua[!peve_ptua$query %in% processed_peve & 
+                                  !peve_ptua$subject %in% processed_ptua, ]
+  for (i in 1:nrow(remaining_peve_ptua)) {
+    ortholog_groups[[group_id]] <- list(
+      group_id = paste0("OG_", sprintf("%05d", group_id)),
+      apul = NA,
+      peve = remaining_peve_ptua$query[i],
+      ptua = remaining_peve_ptua$subject[i],
+      type = "peve_ptua", 
+      avg_identity = remaining_peve_ptua$avg_identity[i]
+    )
+    processed_peve <- c(processed_peve, remaining_peve_ptua$query[i])
+    processed_ptua <- c(processed_ptua, remaining_peve_ptua$subject[i])
+    group_id <- group_id + 1
+  }
+  
+  return(ortholog_groups)
+}
+
+# Create ortholog groups
+cat("Creating ortholog groups...\n")
+ortholog_groups <- create_ortholog_groups(apul_peve_rbh, apul_ptua_rbh, peve_ptua_rbh)
+
+# Convert to data frame
+ortholog_df <- map_dfr(ortholog_groups, as_tibble)
+
+cat("Total ortholog groups:", nrow(ortholog_df), "\n")
+cat("Three-way orthologs:", sum(ortholog_df$type == "three_way"), "\n")
+cat("Apul-Peve pairs:", sum(ortholog_df$type == "apul_peve"), "\n") 
+cat("Apul-Ptua pairs:", sum(ortholog_df$type == "apul_ptua"), "\n")
+cat("Peve-Ptua pairs:", sum(ortholog_df$type == "peve_ptua"), "\n")
+```
+
+# Save Results
+
+```{r}
+# Save ortholog groups
+write_csv(ortholog_df, file.path(output_dir, "ortholog_groups.csv"))
+
+# Save individual RBH results
+write_csv(apul_peve_rbh, file.path(output_dir, "apul_peve_rbh.csv"))
+write_csv(apul_ptua_rbh, file.path(output_dir, "apul_ptua_rbh.csv"))  
+write_csv(peve_ptua_rbh, file.path(output_dir, "peve_ptua_rbh.csv"))
+
+cat("Results saved to:", output_dir, "\n")
+```
+
+# Summary Statistics
+
+```{r}
+# Create summary statistics
+summary_stats <- tibble(
+  comparison = c("Total proteins (Apul)", "Total proteins (Peve)", "Total proteins (Ptua)",
+                 "Apul-Peve orthologs", "Apul-Ptua orthologs", "Peve-Ptua orthologs",
+                 "Three-way orthologs", "Two-way orthologs only", "Total ortholog groups"),
+  count = c(
+    length(unique(c(apul_peve_rbh$query, apul_ptua_rbh$query))),
+    length(unique(c(apul_peve_rbh$subject, peve_ptua_rbh$query))),
+    length(unique(c(apul_ptua_rbh$subject, peve_ptua_rbh$subject))),
+    nrow(apul_peve_rbh),
+    nrow(apul_ptua_rbh), 
+    nrow(peve_ptua_rbh),
+    sum(ortholog_df$type == "three_way"),
+    sum(ortholog_df$type != "three_way"),
+    nrow(ortholog_df)
+  )
+)
+
+knitr::kable(summary_stats, caption = "Orthology Analysis Summary")
+
+# Save summary
+write_csv(summary_stats, file.path(output_dir, "orthology_summary.csv"))
+```
+
+# Visualizations
+
+```{r}
+library(ggplot2)
+library(VennDiagram)
+
+# Plot ortholog group types
+type_counts <- ortholog_df %>%
+  count(type) %>%
+  mutate(type = factor(type, levels = c("three_way", "apul_peve", "apul_ptua", "peve_ptua")))
+
+p1 <- ggplot(type_counts, aes(x = type, y = n, fill = type)) +
+  geom_col() +
+  labs(title = "Ortholog Group Types",
+       x = "Ortholog Type", 
+       y = "Number of Groups",
+       fill = "Type") +
+  scale_fill_viridis_d() +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+print(p1)
+ggsave(file.path(output_dir, "ortholog_group_types.png"), p1, width = 8, height = 6, dpi = 300)
+
+# Identity distribution
+p2 <- ggplot(ortholog_df, aes(x = avg_identity, fill = type)) +
+  geom_histogram(bins = 30, alpha = 0.7) +
+  facet_wrap(~type, scales = "free_y") +
+  labs(title = "Distribution of Average Sequence Identity",
+       x = "Average Identity (%)",
+       y = "Count") +
+  scale_fill_viridis_d() +
+  theme_minimal()
+
+print(p2)
+ggsave(file.path(output_dir, "identity_distribution.png"), p2, width = 10, height = 8, dpi = 300)
+
+# Venn diagram for three-way comparison
+# Get protein sets for each species that have orthologs
+apul_with_orthologs <- unique(c(apul_peve_rbh$query, apul_ptua_rbh$query))
+peve_with_orthologs <- unique(c(apul_peve_rbh$subject, peve_ptua_rbh$query))  
+ptua_with_orthologs <- unique(c(apul_ptua_rbh$subject, peve_ptua_rbh$subject))
+
+# Create Venn diagram data
+venn_data <- list(
+  Apul = apul_with_orthologs,
+  Peve = peve_with_orthologs,
+  Ptua = ptua_with_orthologs
+)
+
+# Save Venn diagram
+png(file.path(output_dir, "ortholog_venn_diagram.png"), width = 800, height = 600)
+venn_plot <- venn.diagram(
+  x = venn_data,
+  category.names = c("A. pulchra", "P. evermanni", "P. tuahiniensis"),
+  filename = NULL,
+  col = "transparent",
+  fill = c("#E41A1C", "#377EB8", "#4DAF4A"),
+  alpha = 0.5,
+  cex = 1.5,
+  fontfamily = "serif",
+  cat.cex = 1.2,
+  cat.fontfamily = "serif",
+  main = "Proteins with Orthologs",
+  main.cex = 1.5
+)
+grid.draw(venn_plot)
+dev.off()
+
+cat("Visualizations saved to:", output_dir, "\n")
+```
+
+# Conclusions
+
+This analysis identified orthologous proteins across three coral species using reciprocal best hits. The results provide a foundation for:
+
+1. **Comparative genomics** - Understanding gene conservation across coral species
+2. **Functional annotation** - Transferring annotations between species  
+3. **Evolutionary analysis** - Studying gene family evolution in corals
+4. **Expression analysis** - Comparing expression of orthologous genes across species
+
+The ortholog groups can be used for downstream analyses including:
+- Cross-species gene expression comparisons
+- Functional enrichment analysis of conserved pathways
+- Phylogenetic analysis of coral evolution
+- Identification of species-specific gene expansions/losses
+
+```{r}
+sessionInfo()
+```
