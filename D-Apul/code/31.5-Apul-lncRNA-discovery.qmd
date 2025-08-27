@@ -132,8 +132,6 @@ else
 fi
 ```
 
-
-
 # HISAT
 
 ```{r, engine='bash'}
@@ -463,7 +461,7 @@ head "${OUTPUT_DIR}/lncRNA_counts.clean.txt"
 removes lines with less the 10x coverage on half of samples
 
 ```{bash}
-python 06.1-filter_count_matrix.py "${OUTPUT_DIR}/lncRNA_counts.clean.txt" "${OUTPUT_DIR}/lncRNA_counts.clean.filtered.txt"
+python ../../M-multi-species/scripts/11-filter_count_matrix.py "${OUTPUT_DIR}/lncRNA_counts.clean.txt" "${OUTPUT_DIR}/lncRNA_counts.clean.filtered.txt"
 ```
 
 ```{bash}
