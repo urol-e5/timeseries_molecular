@@ -273,8 +273,6 @@ head ${OUTPUT_DIR}/lncRNA_candidates.gtf
 wc -l ${OUTPUT_DIR}/lncRNA_candidates.gtf
 ```
 
-
-
 # Bedtools
 
 ```{r fasta2, engine='bash'}
@@ -292,6 +290,7 @@ head ${OUTPUT_DIR}/lncRNA_candidates.fasta
 #CPC2
 
 for raven
+
 ```{r, engine='bash'}
 eval "$(/opt/anaconda/anaconda3/bin/conda shell.bash hook)"
 python "${CPC2_DIR}CPC2.py" \
@@ -393,11 +392,10 @@ END {
 awk '$4==0 || $5==0 || $4==$5' "${OUTPUT_DIR}/lncRNA.gtf" | head
 ```
 
-
-
 ```{bash}
 cut -f1,4,5 "${OUTPUT_DIR}/lncRNA.gtf" | sort | uniq -d | head
 ```
+
 Drop duplicates
 
 ```{bash}
@@ -423,3 +421,110 @@ END {
   print "Average length:", sum/count
 }' "${OUTPUT_DIR}/lncRNA.gtf"
 ```
+
+
+
+UPDATED 08-27-25 below to be consistent with other species
+
+
+# Count matrix
+
+```{r, engine='bash'}
+"${FEATURECOUNTS_DIR}featureCounts" \
+  -T 42 \
+  -O \
+  --fraction \
+  -a "${OUTPUT_DIR}/lncRNA.gtf" \
+  -o "${OUTPUT_DIR}/lncRNA_counts.txt" \
+  -t lncRNA \
+  -g gene_id \
+  -p \
+"${OUTPUT_DIR}"/*sorted.bam
+```
+
+```{bash}
+head "${OUTPUT_DIR}/lncRNA_counts.txt"
+```
+
+```{bash}
+awk -v FS='\t' -v OFS='\t' '
+  NR == 2 && /^Geneid(\t|$)/ {
+    for (i=7; i<=NF; i++) {
+      gsub(/^.*\//, "", $i);          # drop path
+      sub(/\.sorted\.bam$/, "", $i);  # drop suffix
+    }
+  }
+  NR > 1 { print }
+' "${OUTPUT_DIR}/lncRNA_counts.txt" > "${OUTPUT_DIR}/lncRNA_counts.clean.txt"
+```
+
+```{bash}
+awk -v FS='\t' -v OFS='\t' '
+  # When we hit the column header line:
+  $1 == "Geneid" {
+    for (i=7; i<=NF; i++) {
+      gsub(/^.*\//, "", $i);          # drop any path
+      sub(/\.sorted\.bam$/, "", $i);  # drop suffix
+    }
+    print; header_seen=1; next
+  }
+
+  # Skip everything until we have seen the header
+  !header_seen { next }
+
+  # After header: print data rows as-is
+  { print }
+' "${OUTPUT_DIR}/lncRNA_counts.txt" > "${OUTPUT_DIR}/lncRNA_counts.clean.txt"
+```
+
+```{bash}
+head "${OUTPUT_DIR}/lncRNA_counts.clean.txt"
+```
+
+removes lines with less the 10x coverage on half of samples
+
+```{bash}
+python ../../M-multi-species/scripts/11-filter_count_matrix.py "${OUTPUT_DIR}/lncRNA_counts.clean.txt" "${OUTPUT_DIR}/lncRNA_counts.clean.filtered.txt"
+```
+
+```{bash}
+head "${OUTPUT_DIR}/lncRNA_counts.clean.filtered.txt"
+```
+
+```{bash}
+wc -l "${OUTPUT_DIR}/lncRNA_counts.clean.filtered.txt"
+```
+
+## Go back and filter GTF based on this
+
+```{bash}
+# Create a temporary file with the matching criteria from lncRNA_counts.clean.filtered.txt
+# Extract columns 2, 3, 4 (Chr, Start, End) and create a lookup pattern
+awk 'NR>1 {print $2"\t"$3"\t"$4}' "${OUTPUT_DIR}/lncRNA_counts.clean.filtered.txt" > "${OUTPUT_DIR}/temp_lookup.txt"
+
+# Filter the GTF file to keep only rows where columns 1, 4, 5 (Chr, Start, End) match the lookup
+awk 'BEGIN {
+    # Read the lookup file into an associative array
+    while ((getline line < "'${OUTPUT_DIR}'/temp_lookup.txt") > 0) {
+        lookup[line] = 1
+    }
+    close("'${OUTPUT_DIR}'/temp_lookup.txt")
+}
+{
+    # Check if columns 1, 4, 5 from GTF (Chr, Start, End) match any entry in lookup
+    key = $1"\t"$4"\t"$5
+    if (key in lookup) {
+        print $0
+    }
+}' "${OUTPUT_DIR}/lncRNA.gtf" > "${OUTPUT_DIR}/lncRNA.filtered.gtf"
+
+# Clean up temporary file
+rm "${OUTPUT_DIR}/temp_lookup.txt"
+
+# Check the results
+echo "Original GTF lines:"
+wc -l "${OUTPUT_DIR}/lncRNA.gtf"
+echo "Filtered GTF lines:"
+wc -l "${OUTPUT_DIR}/lncRNA.filtered.gtf"
+```
+
