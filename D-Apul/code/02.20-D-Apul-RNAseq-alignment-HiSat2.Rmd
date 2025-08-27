@@ -188,11 +188,11 @@ echo ""
 cat .bashvars
 ```
 
-If needed, download raw RNA-seq.
+If needed, download trimmed RNA-seq.
 
 Change `eval=FALSE` to `eval=TRUE` to execute the next two chunks to download RNA-seq and then verify MD5 checksums.
 
-```{bash download-raw-reads, engine='bash', eval=FALSE}
+```{bash download-trimmed-reads, engine='bash', eval=FALSE}
 # Load bash variables into memory
 source .bashvars
 
@@ -215,9 +215,9 @@ ${trimmed_reads_url}
 ls -lh "${trimmed_fastqs_dir}"
 ```
 
-Verify raw read checksums
+Verify trimmed read checksums
 
-```{bash verify-raw-read-checksums, engine='bash', eval=FALSE}
+```{bash verify-trimmed-read-checksums, engine='bash', eval=FALSE}
 # Load bash variables into memory
 source .bashvars
 
@@ -238,7 +238,7 @@ This requires usage of the `rna_metadata.csv`
 
 This step has a lengthy, semi-complex workflow:
 
-1. Parse `rna_metadata.csv` for _A.pulchra_ sample names and time point. This info will be used for downstream file naming and to assing the time point to the read group (`SM:`) in the alignment file.
+1. Parse `rna_metadata.csv` for _A.pulchra_ sample names and time point. This info will be used for downstream file naming and to assign the time point to the read group (`SM:`) in the alignment file.
 2. Loop through all samples and perform individual alignments using HISAT2.
 3. HISAT2 output is piped to through multiple samtools tools: flagstat (stats aggregation), sort (creates/sorts BAM), index (creates BAM index). Piping saves time and disk space, by avoiding the generation of large SAM files.
 4. Loop continues and runs StringTie on sorted BAM file to produce individual GTF file.
@@ -435,23 +435,41 @@ cd "${output_dir_top}"
 # Load bash variables into memory
 source .bashvars
 
-# Change to ouput directory
+# Change to output directory
 cd "${output_dir_top}"
 
-# Create file list for prepDE.py
-while read -r line
-do
-  sample_no_path=${line##*/}
-  sample=${sample_no_path%.*}
-  echo ${sample} ${line}
-done < gtf_list.txt >> prepDE-sample_list.txt
+# Check if prepDE-sample_list.txt exists
+if [ -f prepDE-sample_list.txt ]; then
+  gtf_lines=$(wc -l < gtf_list.txt)
+  prepde_lines=$(wc -l < prepDE-sample_list.txt)
+  if [ "$gtf_lines" -eq "$prepde_lines" ]; then
+    echo "prepDE-sample_list.txt exists and line count matches gtf_list.txt. Skipping sample list creation."
+  else
+    echo "prepDE-sample_list.txt exists but line count does not match. Regenerating sample list."
+    rm prepDE-sample_list.txt
+    while read -r line
+    do
+      sample_no_path=${line##*/}
+      sample=${sample_no_path%.*}
+      echo ${sample} ${line}
+    done < gtf_list.txt >> prepDE-sample_list.txt
+  fi
+else
+  echo "prepDE-sample_list.txt does not exist. Creating sample list."
+  while read -r line
+  do
+    sample_no_path=${line##*/}
+    sample=${sample_no_path%.*}
+    echo ${sample} ${line}
+  done < gtf_list.txt >> prepDE-sample_list.txt
+fi
 
 # Create count matrices for genes and transcripts
 # Compatible with import to DESeq2
 python3 "${programs_array[prepDE]}" \
 --input=prepDE-sample_list.txt \
--g apul-gene_count_matrix.csv \
--t apul-transcript_count_matrix.csv \
+--g apul-gene_count_matrix.csv \
+--t apul-transcript_count_matrix.csv \
 --length=${read_length}
 ```
 
