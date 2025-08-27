@@ -1,0 +1,263 @@
+---
+title: "Generate count matrices for physiology data"
+author: "GitHub Copilot"
+date: "2025"
+output: 
+  html_document:
+    code_folding: hide
+    toc: yes
+    toc_depth: 6
+    toc_float: yes
+editor_options: 
+  chunk_output_type: console
+--- 
+
+This script generates count matrices for physiology data (lipidomics and metabolomics) in the same format as CpG count matrices, with samples as columns and features as rows.
+
+# Set Up    
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+Load libraries. 
+
+```{r}
+library(tidyverse)
+library(readxl)
+```
+
+# 1. Lipidomics Count Matrices
+
+## Load processed lipidomics data
+
+```{r}
+# Load the processed lipidomics data
+lipid_data <- readRDS("M-multi-species/data/lipidomics/lipids.rds")
+
+# Check the structure
+str(lipid_data)
+head(lipid_data)
+
+# Check species and samples
+unique(lipid_data$species)
+unique(lipid_data$colony)
+unique(lipid_data$timepoint)
+```
+
+## Create sample names in the expected format
+
+```{r}
+# Create sample names in format "ACR-139-TP1" instead of "ACR-139_TP1"
+lipid_data <- lipid_data %>%
+  mutate(sample_name = paste(colony, timepoint, sep = "-"))
+
+# Check the sample names
+unique(lipid_data$sample_name)
+length(unique(lipid_data$sample_name))
+```
+
+## Convert to wide format for count matrix
+
+```{r}
+# Convert to wide format with lipids as rows and samples as columns
+lipid_matrix <- lipid_data %>%
+  select(lipid, sample_name, nmol.g_plasma.ug_protein) %>%
+  pivot_wider(names_from = sample_name, values_from = nmol.g_plasma.ug_protein, values_fill = 0)
+
+# Move lipid names to rownames to match CpG format
+lipid_matrix_final <- lipid_matrix %>%
+  column_to_rownames("lipid")
+
+# Check dimensions
+dim(lipid_matrix_final)
+head(lipid_matrix_final[,1:5])
+```
+
+## Save combined lipidomics count matrix
+
+```{r}
+# Save as CSV with format matching CpG count matrix
+write.csv(lipid_matrix_final, 
+          "M-multi-species/output/12-generate-physiology-count-matrices/combined-lipidomics-count-matrix.csv", 
+          quote = FALSE)
+
+print(paste("Saved combined lipidomics count matrix with", nrow(lipid_matrix_final), "lipids and", ncol(lipid_matrix_final), "samples"))
+```
+
+## Create species-specific lipidomics count matrices
+
+```{r}
+# Function to create species-specific matrix
+create_species_matrix <- function(data, species_name, species_prefix) {
+  # Filter for specific species
+  species_data <- data %>%
+    filter(species == species_name)
+  
+  # Convert to wide format
+  species_matrix <- species_data %>%
+    select(lipid, sample_name, nmol.g_plasma.ug_protein) %>%
+    pivot_wider(names_from = sample_name, values_from = nmol.g_plasma.ug_protein, values_fill = 0) %>%
+    column_to_rownames("lipid")
+  
+  # Save as CSV
+  filename <- paste0("M-multi-species/output/12-generate-physiology-count-matrices/", 
+                     species_prefix, "-lipidomics-count-matrix.csv")
+  write.csv(species_matrix, filename, quote = FALSE)
+  
+  print(paste("Saved", species_name, "lipidomics count matrix with", 
+              nrow(species_matrix), "lipids and", ncol(species_matrix), "samples"))
+  
+  return(species_matrix)
+}
+
+# Create matrices for each species
+acropora_lipids <- create_species_matrix(lipid_data, "Acropora", "D-Apul")
+porites_lipids <- create_species_matrix(lipid_data, "Porites", "E-Peve") 
+pocillopora_lipids <- create_species_matrix(lipid_data, "Pocillopora", "F-Ptua")
+```
+
+# 2. Metabolomics Count Matrices
+
+## Load and process metabolomics data
+
+```{r}
+# Load the raw metabolomics data and process it similar to the existing script
+metab_quant <- read_xlsx("M-multi-species/data/metabolomics/2025-04-15_Roberts-98.xlsx", sheet="Relative Quant Data") %>%
+  rename(compound = `Current MS Compounds`)
+
+# Format NAs
+metab_quant[metab_quant == "N/A"] <- NA
+
+# Remove KEGG/HMDB columns
+metab_quant <- metab_quant %>%
+  select(!c("HMDB ID", "KEGG ID"))
+
+# Convert to numeric format
+metab_quant_wide <- as.data.frame(lapply(names(metab_quant), function(col) {
+  if (col == "compound") {
+    return(metab_quant[[col]])  # Keep the compound column as is
+  } else {
+    return(as.numeric(as.character(metab_quant[[col]])))
+  }
+}))
+
+# Ensure the column names remain unchanged
+colnames(metab_quant_wide) <- names(metab_quant)
+
+# Convert to long format
+metab_quant_long <- metab_quant_wide %>%
+  pivot_longer(names_to = "sample", values_to = "rel.quant", cols = -c(compound))
+
+str(metab_quant_long)
+head(metab_quant_long)
+```
+
+## Add metadata to metabolomics data
+
+```{r}
+# Add metadata similar to the existing script
+metab_quant_long <- metab_quant_long %>%
+  mutate(
+    colony = str_extract(sample, "^[^_]+"),  # Extract everything before the underscore
+    timepoint = str_extract(sample, "(?<=_).*"),  # Extract everything after the underscore
+    species = case_when(
+      str_detect(sample, "ACR") ~ "Acropora",
+      str_detect(sample, "POC") ~ "Pocillopora", 
+      str_detect(sample, "POR") ~ "Porites",
+      TRUE ~ NA_character_  # Default to NA if no match
+    ),
+    type = case_when(
+      str_detect(sample, "PBQC") ~ "PBQC",
+      TRUE ~ "sample"
+    )
+  )
+
+# Filter to only sample data (remove PBQC)
+metab_quant_long <- metab_quant_long %>%
+  filter(type == "sample")
+
+# Create sample names in the expected format
+metab_quant_long <- metab_quant_long %>%
+  mutate(sample_name = paste(colony, timepoint, sep = "-"))
+
+# Check the data
+unique(metab_quant_long$species)
+unique(metab_quant_long$sample_name)
+length(unique(metab_quant_long$sample_name))
+```
+
+## Convert metabolomics to wide format for count matrix
+
+```{r}
+# Convert to wide format with compounds as rows and samples as columns
+metab_matrix <- metab_quant_long %>%
+  select(compound, sample_name, rel.quant) %>%
+  pivot_wider(names_from = sample_name, values_from = rel.quant, values_fill = 0)
+
+# Move compound names to rownames to match CpG format
+metab_matrix_final <- metab_matrix %>%
+  column_to_rownames("compound")
+
+# Check dimensions
+dim(metab_matrix_final)
+head(metab_matrix_final[,1:5])
+```
+
+## Save combined metabolomics count matrix
+
+```{r}
+# Save as CSV with format matching CpG count matrix
+write.csv(metab_matrix_final, 
+          "M-multi-species/output/12-generate-physiology-count-matrices/combined-metabolomics-count-matrix.csv", 
+          quote = FALSE)
+
+print(paste("Saved combined metabolomics count matrix with", nrow(metab_matrix_final), "compounds and", ncol(metab_matrix_final), "samples"))
+```
+
+## Create species-specific metabolomics count matrices
+
+```{r}
+# Function to create species-specific metabolomics matrix
+create_species_metab_matrix <- function(data, species_name, species_prefix) {
+  # Filter for specific species
+  species_data <- data %>%
+    filter(species == species_name)
+  
+  # Convert to wide format
+  species_matrix <- species_data %>%
+    select(compound, sample_name, rel.quant) %>%
+    pivot_wider(names_from = sample_name, values_from = rel.quant, values_fill = 0) %>%
+    column_to_rownames("compound")
+  
+  # Save as CSV
+  filename <- paste0("M-multi-species/output/12-generate-physiology-count-matrices/", 
+                     species_prefix, "-metabolomics-count-matrix.csv")
+  write.csv(species_matrix, filename, quote = FALSE)
+  
+  print(paste("Saved", species_name, "metabolomics count matrix with", 
+              nrow(species_matrix), "compounds and", ncol(species_matrix), "samples"))
+  
+  return(species_matrix)
+}
+
+# Create matrices for each species
+acropora_metab <- create_species_metab_matrix(metab_quant_long, "Acropora", "D-Apul")
+porites_metab <- create_species_metab_matrix(metab_quant_long, "Porites", "E-Peve")
+pocillopora_metab <- create_species_metab_matrix(metab_quant_long, "Pocillopora", "F-Ptua")
+```
+
+# 3. Summary
+
+```{r}
+# Print summary of generated files
+cat("Generated count matrices:\n")
+cat("========================\n")
+cat("Combined lipidomics: ", nrow(lipid_matrix_final), "lipids x", ncol(lipid_matrix_final), "samples\n")
+cat("Combined metabolomics: ", nrow(metab_matrix_final), "compounds x", ncol(metab_matrix_final), "samples\n")
+cat("\nSpecies-specific matrices created for:\n")
+cat("- D-Apul (Acropora pulchra)\n")
+cat("- E-Peve (Porites evermanni)\n") 
+cat("- F-Ptua (Pocillopora tuahiniensis)\n")
+cat("\nAll files saved in: M-multi-species/output/12-generate-physiology-count-matrices/\n")
+```
