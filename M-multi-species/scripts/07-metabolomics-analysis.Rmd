@@ -224,7 +224,31 @@ data<-data%>%
   select(!rel.quant)
 ```
 
-Metabolite concentration is now normalized to protein.  
+Metabolite concentration is now normalized to protein. 
+
+## output file 
+
+Output data count matrices. 
+```{r}
+head(data)
+
+output<-data%>%
+  mutate(sample_id=paste0(colony, "-", timepoint))%>%
+  select(!c(sample, colony, timepoint, species, site))%>%
+  pivot_wider(names_from=sample_id, values_from=rel.quant.ug)%>%
+  as.data.frame()
+
+head(output)
+
+rownames(output)<-output$compound
+
+output<-output%>%
+  select(!compound)
+
+head(output)
+
+write.csv(output, file="M-multi-species/output/metabolomics_count_matrix.csv")
+```
 
 # Imputate missing values with group median 
 

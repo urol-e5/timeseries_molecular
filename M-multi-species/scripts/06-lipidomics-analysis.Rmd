@@ -511,6 +511,26 @@ data<-lipid_quant_long_all
 saveRDS(data, file = "M-multi-species/data/lipidomics/lipids.rds")
 ```
 
+Output data count matrices. 
+```{r}
+head(data)
+
+output<-data%>%
+  mutate(sample_id=paste0(colony, "-", timepoint))%>%
+  select(!c(sample, colony, timepoint, species, type))%>%
+  pivot_wider(names_from=sample_id, values_from=nmol.g_plasma.ug_protein)%>%
+  as.data.frame()
+
+rownames(output)<-output$lipid
+
+output<-output%>%
+  select(!lipid)
+
+head(output)
+
+write.csv(output, file="M-multi-species/output/lipid_count_matrix.csv")
+```
+
 ## Plot total lipids  
 
 View a basic plot for total lipids via a stacked bar plot. 
