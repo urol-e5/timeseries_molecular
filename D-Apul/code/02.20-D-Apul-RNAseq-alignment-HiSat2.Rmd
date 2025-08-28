@@ -105,7 +105,7 @@ echo "#### Assign Variables ####"
 echo ""
 
 echo "# Data directories"
-echo 'export timeseries_dir=/mmfs1/gscratch/scrubbed/samwhite/gitrepos/urol-e5/timeseries_molecular'
+echo 'export timeseries_dir=/home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular'
 echo 'export genome_dir="${timeseries_dir}/D-Apul/data"'
 echo 'export genome_index_dir="${timeseries_dir}/D-Apul/output/02.10-D-Apul-RNAseq-genome-index-HiSat2"'
 echo 'export output_dir_top="${timeseries_dir}/D-Apul/output/02.20-D-Apul-RNAseq-alignment-HiSat2"'
@@ -132,14 +132,14 @@ echo 'export merged_bam="${output_dir_top}/sorted-bams-merged.bam"'
 echo ""
 
 echo "# Paths to programs"
-echo 'export programs_dir="/srlab/programs/"'
+echo 'export programs_dir="/home/shared"'
 echo 'export hisat2_dir="${programs_dir}/hisat2-2.2.1"'
 
-echo 'export hisat2="hisat2"'
+echo 'export hisat2="${hisat2_dir}/hisat2"'
 
-echo 'export multiqc=multiqc'
+echo 'export multiqc=/home/sam/programs/mambaforge/bin/multiqc'
 
-echo 'export samtools="samtools"'
+echo 'export samtools="${programs_dir}/samtools-1.12/samtools"'
 
 echo 'export prepDE="${programs_dir}/stringtie-2.2.1.Linux_x86_64/prepDE.py3"'
 echo 'export stringtie="${programs_dir}/stringtie-2.2.1.Linux_x86_64/stringtie"'
@@ -153,7 +153,7 @@ echo "export trimmed_fastq_pattern='*fastp-trim.fq.gz'"
 echo ""
 
 echo "# Set number of CPUs to use"
-echo 'export threads=80'
+echo 'export threads=47'
 echo ""
 
 echo "# Set average read length - for StringTie prepDE.py"
@@ -382,7 +382,7 @@ source .bashvars
 # Change to ouput directory
 cd "${output_dir_top}"
 
-${programs_array[multiqc]} .
+${multiqc} --interactive .
 
 ```
 
@@ -468,8 +468,8 @@ fi
 # Compatible with import to DESeq2
 python3 "${programs_array[prepDE]}" \
 --input=prepDE-sample_list.txt \
---g apul-gene_count_matrix.csv \
---t apul-transcript_count_matrix.csv \
+-g apul-gene_count_matrix.csv \
+-t apul-transcript_count_matrix.csv \
 --length=${read_length}
 ```
 
