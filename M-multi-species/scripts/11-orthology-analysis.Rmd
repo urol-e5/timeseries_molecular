@@ -36,11 +36,22 @@ if (!dir.exists(output_dir)) {
 
 # Input Files
 
+
+```{r}
+#| include: false
+Sys.setenv(
+  APUL_PROTEINS = "../../D-Apul/data/Apulchra-genome.pep.faa",
+  PEVE_PROTEINS = "../../E-Peve/data/Porites_evermanni_v1.annot.pep.fa",
+  PTUA_PROTEINS = "../../F-Ptua/data/Pocillopora_meandrina_HIv1.genes.pep.faa"
+)
+```
+
+
 ```{bash}
 # Define protein file paths
-APUL_PROTEINS="../../../D-Apul/data/Apulchra-genome.pep.faa"
-PEVE_PROTEINS="../../../E-Peve/data/Porites_evermanni_v1.annot.pep.fa" 
-PTUA_PROTEINS="../../../F-Ptua/data/Pocillopora_meandrina_HIv1.genes.pep.faa"
+APUL_PROTEINS="../../D-Apul/data/Apulchra-genome.pep.faa"
+PEVE_PROTEINS="../../E-Peve/data/Porites_evermanni_v1.annot.pep.fa" 
+PTUA_PROTEINS="../../F-Ptua/data/Pocillopora_meandrina_HIv1.genes.pep.faa"
 
 # Check files exist and get basic stats
 echo "=== Input Protein Files ==="
@@ -66,14 +77,15 @@ echo
 # Create BLAST databases for each species
 echo "Creating BLAST databases..."
 
+
 # Apul database
-makeblastdb -in $APUL_PROTEINS -dbtype prot -out ../output/11-orthology-analysis/Apul_proteins -title "Acropora_pulchra_proteins"
+/usr/bin/makeblastdb -dbtype prot -in $APUL_PROTEINS -out ../output/11-orthology-analysis/Apul_proteins -title "Acropora_pulchra_proteins"
 
 # Peve database  
-makeblastdb -in $PEVE_PROTEINS -dbtype prot -out ../output/11-orthology-analysis/Peve_proteins -title "Porites_evermanni_proteins"
+/usr/bin/makeblastdb -dbtype prot -in $PEVE_PROTEINS -out ../output/11-orthology-analysis/Peve_proteins -title "Porites_evermanni_proteins"
 
 # Ptua database
-makeblastdb -in $PTUA_PROTEINS -dbtype prot -out ../output/11-orthology-analysis/Ptua_proteins -title "Pocillopora_tuahiniensis_proteins"
+/usr/bin/makeblastdb -dbtype prot -in $PTUA_PROTEINS -out ../output/11-orthology-analysis/Ptua_proteins -title "Pocillopora_tuahiniensis_proteins"
 
 echo "BLAST databases created successfully"
 ```
@@ -85,7 +97,7 @@ echo "Performing all-vs-all BLAST comparisons..."
 
 # BLAST parameters
 EVALUE="1e-5"
-THREADS="4"
+THREADS="42"
 OUTFMT="6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore qlen slen"
 
 # Apul vs Peve
