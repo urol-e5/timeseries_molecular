@@ -80,8 +80,13 @@ This research addresses several key biological hypotheses about coral molecular 
   - *Acropora pulchra* (fast-growing, branching)
   - *Porites evermanni* (slow-growing, massive) 
   - *Pocillopora tuahiniensis* (intermediate growth, branching)
-- **Timepoints**: Four sampling timepoints (TP1-TP4) across experimental period
-- **Colonies**: Multiple colonies per species for biological replication
+- **Timepoints**: Four seasonal sampling timepoints in 2020
+  - **TP1**: January 2020 (Austral Summer)
+  - **TP2**: March 2020 (Austral Summer/Autumn)
+  - **TP3**: September 2020 (Austral Winter/Spring)
+  - **TP4**: November 2020 (Austral Spring)
+- **Location**: Mo'orea, French Polynesia (three lagoon sites on North shore)
+- **Colonies**: Multiple tagged colonies per species tracked across all timepoints
 - **Data Types**: RNA-seq, sRNA-seq/miRNA, WGBS (methylation), metabolomics, lipidomics, physiological measurements
 
 #### Analysis Approaches
@@ -200,6 +205,7 @@ This research addresses several key biological hypotheses about coral molecular 
 
 ## Key Datasets and Metadata
 
+- **Sampling Dates**: [`SAMPLING_DATES.md`](SAMPLING_DATES.md) - Specific dates for timepoints TP1-TP4
 - **RNA Metadata**: [`M-multi-species/data/rna_metadata.csv`](M-multi-species/data/rna_metadata.csv)
 - **Physiological Data**: [E5 Timeseries Repository](https://github.com/urol-e5/timeseries/raw/refs/heads/master/time_series_analysis/Output/master_timeseries.csv)
 - **Sample Information**: Detailed colony IDs, timepoints, and experimental design in metadata files
