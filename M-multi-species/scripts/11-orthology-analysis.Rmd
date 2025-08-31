@@ -373,7 +373,7 @@ write_csv(summary_stats, file.path(output_dir, "orthology_summary.csv"))
 
 # Visualizations
 
-```{r}
+```{r fig.width=10, fig.height=8, dpi=300, dev='png'}
 library(ggplot2)
 library(VennDiagram)
 
@@ -392,8 +392,13 @@ p1 <- ggplot(type_counts, aes(x = type, y = n, fill = type)) +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
+# Save plot manually and display
+png(file.path(output_dir, "ortholog_group_types.png"), width = 8, height = 6, units = "in", res = 300)
 print(p1)
-ggsave(file.path(output_dir, "ortholog_group_types.png"), p1, width = 8, height = 6, dpi = 300)
+dev.off()
+
+# Display the saved plot
+knitr::include_graphics(file.path(output_dir, "ortholog_group_types.png"))
 
 # Identity distribution
 p2 <- ggplot(ortholog_df, aes(x = avg_identity, fill = type)) +
@@ -405,8 +410,13 @@ p2 <- ggplot(ortholog_df, aes(x = avg_identity, fill = type)) +
   scale_fill_viridis_d() +
   theme_minimal()
 
+# Save plot manually and display
+png(file.path(output_dir, "identity_distribution.png"), width = 10, height = 8, units = "in", res = 300)
 print(p2)
-ggsave(file.path(output_dir, "identity_distribution.png"), p2, width = 10, height = 8, dpi = 300)
+dev.off()
+
+# Display the saved plot
+knitr::include_graphics(file.path(output_dir, "identity_distribution.png"))
 
 # Venn diagram for three-way comparison
 # Get protein sets for each species that have orthologs
