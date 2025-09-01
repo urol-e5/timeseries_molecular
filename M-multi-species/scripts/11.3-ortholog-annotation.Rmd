@@ -1,0 +1,704 @@
+---
+title: "Ortholog Group Functional Annotation"
+output: html_document
+date: "`r Sys.Date()`"
+author: "Multi-species comparative analysis"
+---
+
+# Ortholog Group Functional Annotation
+
+This script annotates ortholog groups identified in the previous analysis with functional information from multiple sources:
+
+- **Gene Ontology (GO) terms** - Biological processes, molecular functions, cellular components
+- **KEGG pathways** - Metabolic and signaling pathways
+- **Pfam domains** - Protein domain families
+- **InterPro signatures** - Protein family and domain signatures
+- **Swiss-Prot annotations** - Curated protein annotations
+- **Custom coral-specific annotations** - Species-specific functional information
+
+## Overview
+
+The annotation process involves:
+1. Loading ortholog groups from previous analysis
+2. Extracting protein sequences for each ortholog group
+3. Running functional annotation tools (InterProScan, BLAST against Swiss-Prot)
+4. Integrating annotations from multiple sources
+5. Creating comprehensive annotation summaries
+6. Visualizing functional distributions
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+library(tidyverse)
+library(here)
+library(Biostrings)
+library(ggplot2)
+library(VennDiagram)
+library(pheatmap)
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(AnnotationDbi)
+
+# Create output directory
+output_dir <- "../output/11.3-ortholog-annotation"
+if (!dir.exists(output_dir)) {
+  dir.create(output_dir, recursive = TRUE)
+}
+```
+
+# Load Ortholog Groups
+
+```{r load-orthologs}
+# Load ortholog groups from previous analysis
+ortholog_groups <- read.csv("../output/11-orthology-analysis/ortholog_groups.csv")
+
+# Display summary
+cat("Loaded", nrow(ortholog_groups), "ortholog groups\n")
+cat("Three-way orthologs:", sum(ortholog_groups$type == "three_way"), "\n")
+cat("Two-way orthologs:", sum(ortholog_groups$type != "three_way"), "\n")
+
+# Show distribution of ortholog types
+ortholog_groups %>%
+  count(type) %>%
+  mutate(percentage = n / sum(n) * 100) %>%
+  arrange(desc(n))
+```
+
+# Extract Protein Sequences for Annotation
+
+```{r extract-sequences}
+# Function to extract protein sequences for ortholog groups
+extract_ortholog_sequences <- function(ortholog_groups, protein_files) {
+  
+  # Load protein sequences
+  apul_proteins <- readAAStringSet(protein_files$apul)
+  peve_proteins <- readAAStringSet(protein_files$peve)
+  ptua_proteins <- readAAStringSet(protein_files$ptua)
+  
+  # Create list to store sequences for each ortholog group
+  ortholog_sequences <- list()
+  
+  for (i in 1:nrow(ortholog_groups)) {
+    group <- ortholog_groups[i, ]
+    sequences <- list()
+    
+    # Extract Apul sequence
+    if (!is.na(group$apul)) {
+      apul_idx <- which(names(apul_proteins) == group$apul)
+      if (length(apul_idx) > 0) {
+        sequences$apul <- apul_proteins[apul_idx[1]]
+      }
+    }
+    
+    # Extract Peve sequence
+    if (!is.na(group$peve)) {
+      peve_idx <- which(names(peve_proteins) == group$peve)
+      if (length(peve_idx) > 0) {
+        sequences$peve <- peve_proteins[peve_idx[1]]
+      }
+    }
+    
+    # Extract Ptua sequence
+    if (!is.na(group$ptua)) {
+      ptua_idx <- which(names(ptua_proteins) == group$ptua)
+      if (length(ptua_idx) > 0) {
+        sequences$ptua <- ptua_proteins[ptua_idx[1]]
+      }
+    }
+    
+    ortholog_sequences[[i]] <- sequences
+  }
+  
+  return(ortholog_sequences)
+}
+
+# Define protein file paths
+protein_files <- list(
+  apul = "../../D-Apul/data/Apulchra-genome.pep.faa",
+  peve = "../../E-Peve/data/Porites_evermanni_v1.annot.pep.fa",
+  ptua = "../../F-Ptua/data/Pocillopora_meandrina_HIv1.genes.pep.faa"
+)
+
+# Extract sequences for annotation
+cat("Extracting protein sequences for annotation...\n")
+ortholog_sequences <- extract_ortholog_sequences(ortholog_groups, protein_files)
+cat("Extracted sequences for", length(ortholog_sequences), "ortholog groups\n")
+```
+
+# Create Representative Sequences for Annotation
+
+```{r create-representative-sequences}
+# Function to create representative sequences for each ortholog group
+create_representative_sequences <- function(ortholog_groups, ortholog_sequences) {
+  
+  representative_sequences <- list()
+  
+  for (i in 1:length(ortholog_sequences)) {
+    group <- ortholog_groups[i, ]
+    sequences <- ortholog_sequences[[i]]
+    
+    # Choose representative sequence (prefer three-way orthologs)
+    if (group$type == "three_way" && length(sequences) == 3) {
+      # For three-way orthologs, use the sequence with highest avg_identity
+      # For now, use Apul as representative
+      if (!is.null(sequences$apul)) {
+        representative_sequences[[i]] <- sequences$apul
+        names(representative_sequences[[i]]) <- paste0(group$group_id, "_Apul")
+      }
+    } else {
+      # For two-way orthologs, use available sequence
+      if (!is.null(sequences$apul)) {
+        representative_sequences[[i]] <- sequences$apul
+        names(representative_sequences[[i]]) <- paste0(group$group_id, "_Apul")
+      } else if (!is.null(sequences$peve)) {
+        representative_sequences[[i]] <- sequences$peve
+        names(representative_sequences[[i]]) <- paste0(group$group_id, "_Peve")
+      } else if (!is.null(sequences$ptua)) {
+        representative_sequences[[i]] <- sequences$ptua
+        names(representative_sequences[[i]]) <- paste0(group$group_id, "_Ptua")
+      }
+    }
+  }
+  
+  return(representative_sequences)
+}
+
+# Create representative sequences
+cat("Creating representative sequences for annotation...\n")
+representative_sequences <- create_representative_sequences(ortholog_groups, ortholog_sequences)
+
+# Write representative sequences to FASTA file
+writeXStringSet(AAStringSet(representative_sequences), 
+                file.path(output_dir, "representative_sequences.faa"))
+
+cat("Wrote", length(representative_sequences), "representative sequences to FASTA file\n")
+```
+
+# Run InterProScan for Functional Annotation
+
+```{bash}
+# Run InterProScan on representative sequences
+echo "Running InterProScan for functional annotation..."
+
+# Check if InterProScan is available
+if command -v interproscan.sh &> /dev/null; then
+    echo "InterProScan found, running annotation..."
+    
+    # Run InterProScan
+    interproscan.sh \
+        -i ../output/11.3-ortholog-annotation/representative_sequences.faa \
+        -o ../output/11.3-ortholog-annotation/interproscan_results.tsv \
+        -f TSV \
+        -dp \
+        -pa \
+        -goterms \
+        -pathways \
+        -appl Pfam,ProDom,SMART,SUPERFAMILY,PRINTS,ProSiteProfiles,ProSitePatterns
+    
+    echo "InterProScan completed"
+else
+    echo "InterProScan not found, skipping InterProScan annotation"
+    echo "You can install InterProScan or use alternative annotation methods"
+fi
+```
+
+# BLAST Against Swiss-Prot Database
+
+```{bash}
+# BLAST against Swiss-Prot for additional annotations
+echo "Running BLAST against Swiss-Prot database..."
+
+# Check if Swiss-Prot database exists, if not download it
+if [ ! -f "../data/swissprot.faa" ]; then
+    echo "Downloading Swiss-Prot database..."
+    mkdir -p ../data
+    wget -O ../data/swissprot.faa.gz "https://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.fasta.gz"
+    gunzip ../data/swissprot.faa.gz
+fi
+
+# Create BLAST database for Swiss-Prot
+if [ ! -f "../data/swissprot.pin" ]; then
+    echo "Creating BLAST database for Swiss-Prot..."
+    makeblastdb -in ../data/swissprot.faa -dbtype prot -out ../data/swissprot
+fi
+
+# Run BLAST
+blastp \
+    -query ../output/11.3-ortholog-annotation/representative_sequences.faa \
+    -db ../data/swissprot \
+    -out ../output/11.3-ortholog-annotation/swissprot_blast.tsv \
+    -outfmt "6 qseqid sseqid pident qcovs evalue bitscore stitle" \
+    -evalue 1e-5 \
+    -max_target_seqs 5
+
+echo "BLAST against Swiss-Prot completed"
+```
+
+# Parse and Integrate Annotations
+
+```{r parse-annotations}
+# Function to parse InterProScan results
+parse_interproscan <- function(file_path) {
+  if (!file.exists(file_path)) {
+    cat("InterProScan results file not found, skipping\n")
+    return(NULL)
+  }
+  
+  # Read InterProScan results
+  interpro_data <- read.delim(file_path, header = FALSE, 
+                             col.names = c("protein_id", "md5", "length", "analysis", 
+                                          "signature_accession", "signature_description", 
+                                          "start", "stop", "score", "status", "date", 
+                                          "interpro_accession", "interpro_description", 
+                                          "go_terms", "pathways"))
+  
+  return(interpro_data)
+}
+
+# Function to parse BLAST results
+parse_blast_results <- function(file_path) {
+  if (!file.exists(file_path)) {
+    cat("BLAST results file not found, skipping\n")
+    return(NULL)
+  }
+  
+  # Read BLAST results
+  blast_data <- read.delim(file_path, header = FALSE,
+                          col.names = c("query_id", "subject_id", "pident", "qcovs", 
+                                       "evalue", "bitscore", "subject_title"))
+  
+  # Get best hit for each query
+  best_hits <- blast_data %>%
+    group_by(query_id) %>%
+    filter(evalue == min(evalue)) %>%
+    slice(1) %>%
+    ungroup()
+  
+  return(best_hits)
+}
+
+# Parse annotation results
+cat("Parsing annotation results...\n")
+
+# Parse InterProScan results
+interpro_data <- parse_interproscan(file.path(output_dir, "interproscan_results.tsv"))
+
+# Parse BLAST results
+blast_data <- parse_blast_results(file.path(output_dir, "swissprot_blast.tsv"))
+
+# Create integrated annotation table
+create_integrated_annotations <- function(ortholog_groups, interpro_data, blast_data) {
+  
+  annotations <- data.frame(
+    group_id = ortholog_groups$group_id,
+    type = ortholog_groups$type,
+    avg_identity = ortholog_groups$avg_identity,
+    apul = ortholog_groups$apul,
+    peve = ortholog_groups$peve,
+    ptua = ortholog_groups$ptua,
+    swissprot_hit = NA,
+    swissprot_description = NA,
+    swissprot_evalue = NA,
+    pfam_domains = NA,
+    go_terms = NA,
+    kegg_pathways = NA,
+    interpro_terms = NA,
+    stringsAsFactors = FALSE
+  )
+  
+  # Add Swiss-Prot annotations
+  if (!is.null(blast_data)) {
+    for (i in 1:nrow(annotations)) {
+      group_id <- annotations$group_id[i]
+      # Find corresponding protein ID
+      protein_id <- paste0(group_id, "_Apul")  # Assuming Apul as representative
+      
+      blast_match <- blast_data[blast_data$query_id == protein_id, ]
+      if (nrow(blast_match) > 0) {
+        annotations$swissprot_hit[i] <- blast_match$subject_id[1]
+        annotations$swissprot_description[i] <- blast_match$subject_title[1]
+        annotations$swissprot_evalue[i] <- blast_match$evalue[1]
+      }
+    }
+  }
+  
+  # Add InterPro annotations
+  if (!is.null(interpro_data)) {
+    for (i in 1:nrow(annotations)) {
+      group_id <- annotations$group_id[i]
+      protein_id <- paste0(group_id, "_Apul")
+      
+      interpro_match <- interpro_data[interpro_data$protein_id == protein_id, ]
+      if (nrow(interpro_match) > 0) {
+        # Extract Pfam domains
+        pfam_domains <- interpro_match$signature_accession[interpro_match$analysis == "Pfam"]
+        annotations$pfam_domains[i] <- paste(unique(pfam_domains), collapse = ";")
+        
+        # Extract GO terms
+        go_terms <- interpro_match$go_terms[!is.na(interpro_match$go_terms)]
+        annotations$go_terms[i] <- paste(unique(unlist(strsplit(go_terms, "\\|"))), collapse = ";")
+        
+        # Extract KEGG pathways
+        kegg_pathways <- interpro_match$pathways[!is.na(interpro_match$pathways)]
+        annotations$kegg_pathways[i] <- paste(unique(unlist(strsplit(kegg_pathways, "\\|"))), collapse = ";")
+        
+        # Extract InterPro terms
+        interpro_terms <- interpro_match$interpro_accession[!is.na(interpro_match$interpro_accession)]
+        annotations$interpro_terms[i] <- paste(unique(interpro_terms), collapse = ";")
+      }
+    }
+  }
+  
+  return(annotations)
+}
+
+# Create integrated annotations
+annotations <- create_integrated_annotations(ortholog_groups, interpro_data, blast_data)
+
+# Save integrated annotations
+write.csv(annotations, file.path(output_dir, "integrated_annotations.csv"), row.names = FALSE)
+
+cat("Created integrated annotations for", nrow(annotations), "ortholog groups\n")
+```
+
+# Functional Analysis and Visualization
+
+```{r functional-analysis}
+# Load integrated annotations
+annotations <- read.csv(file.path(output_dir, "integrated_annotations.csv"))
+
+# Summary statistics
+cat("Annotation Summary:\n")
+cat("Total ortholog groups:", nrow(annotations), "\n")
+cat("With Swiss-Prot hits:", sum(!is.na(annotations$swissprot_hit)), "\n")
+cat("With Pfam domains:", sum(!is.na(annotations$pfam_domains) & annotations$pfam_domains != ""), "\n")
+cat("With GO terms:", sum(!is.na(annotations$go_terms) & annotations$go_terms != ""), "\n")
+cat("With KEGG pathways:", sum(!is.na(annotations$kegg_pathways) & annotations$kegg_pathways != ""), "\n")
+
+# Analyze Pfam domain distribution
+analyze_pfam_domains <- function(annotations) {
+  # Extract all Pfam domains
+  pfam_domains <- annotations$pfam_domains[!is.na(annotations$pfam_domains) & annotations$pfam_domains != ""]
+  
+  # Split and count domains
+  all_domains <- unlist(strsplit(pfam_domains, ";"))
+  domain_counts <- table(all_domains)
+  
+  # Create data frame
+  domain_df <- data.frame(
+    domain = names(domain_counts),
+    count = as.numeric(domain_counts),
+    stringsAsFactors = FALSE
+  ) %>%
+    arrange(desc(count)) %>%
+    head(50)  # Top 50 domains
+  
+  return(domain_df)
+}
+
+# Analyze GO term distribution
+analyze_go_terms <- function(annotations) {
+  # Extract all GO terms
+  go_terms <- annotations$go_terms[!is.na(annotations$go_terms) & annotations$go_terms != ""]
+  
+  # Split and count terms
+  all_terms <- unlist(strsplit(go_terms, ";"))
+  term_counts <- table(all_terms)
+  
+  # Create data frame
+  go_df <- data.frame(
+    term = names(term_counts),
+    count = as.numeric(term_counts),
+    stringsAsFactors = FALSE
+  ) %>%
+    arrange(desc(count)) %>%
+    head(50)  # Top 50 terms
+  
+  return(go_df)
+}
+
+# Perform analyses
+pfam_analysis <- analyze_pfam_domains(annotations)
+go_analysis <- analyze_go_terms(annotations)
+
+# Save analysis results
+write.csv(pfam_analysis, file.path(output_dir, "pfam_domain_analysis.csv"), row.names = FALSE)
+write.csv(go_analysis, file.path(output_dir, "go_term_analysis.csv"), row.names = FALSE)
+```
+
+# Create Visualizations
+
+```{r visualizations, fig.width=12, fig.height=8}
+# Plot Pfam domain distribution
+p1 <- ggplot(pfam_analysis[1:20, ], aes(x = reorder(domain, count), y = count)) +
+  geom_col(fill = "steelblue", alpha = 0.8) +
+  coord_flip() +
+  labs(title = "Top 20 Pfam Domains in Ortholog Groups",
+       x = "Pfam Domain",
+       y = "Count") +
+  theme_minimal() +
+  theme(axis.text.y = element_text(size = 8))
+
+# Save plot
+ggsave(file.path(output_dir, "pfam_domain_distribution.png"), p1, width = 10, height = 8, dpi = 300)
+
+# Plot GO term distribution
+p2 <- ggplot(go_analysis[1:20, ], aes(x = reorder(term, count), y = count)) +
+  geom_col(fill = "darkgreen", alpha = 0.8) +
+  coord_flip() +
+  labs(title = "Top 20 GO Terms in Ortholog Groups",
+       x = "GO Term",
+       y = "Count") +
+  theme_minimal() +
+  theme(axis.text.y = element_text(size = 8))
+
+# Save plot
+ggsave(file.path(output_dir, "go_term_distribution.png"), p2, width = 10, height = 8, dpi = 300)
+
+# Annotation coverage by ortholog type
+annotation_coverage <- annotations %>%
+  group_by(type) %>%
+  summarise(
+    total = n(),
+    with_swissprot = sum(!is.na(swissprot_hit)),
+    with_pfam = sum(!is.na(pfam_domains) & pfam_domains != ""),
+    with_go = sum(!is.na(go_terms) & go_terms != ""),
+    with_kegg = sum(!is.na(kegg_pathways) & kegg_pathways != "")
+  ) %>%
+  mutate(
+    swissprot_pct = with_swissprot / total * 100,
+    pfam_pct = with_pfam / total * 100,
+    go_pct = with_go / total * 100,
+    kegg_pct = with_kegg / total * 100
+  )
+
+# Plot annotation coverage
+coverage_long <- annotation_coverage %>%
+  select(type, swissprot_pct, pfam_pct, go_pct, kegg_pct) %>%
+  pivot_longer(cols = -type, names_to = "annotation_type", values_to = "percentage") %>%
+  mutate(annotation_type = factor(annotation_type, 
+                                levels = c("swissprot_pct", "pfam_pct", "go_pct", "kegg_pct"),
+                                labels = c("Swiss-Prot", "Pfam", "GO Terms", "KEGG")))
+
+p3 <- ggplot(coverage_long, aes(x = type, y = percentage, fill = annotation_type)) +
+  geom_col(position = "dodge", alpha = 0.8) +
+  labs(title = "Annotation Coverage by Ortholog Type",
+       x = "Ortholog Type",
+       y = "Percentage (%)",
+       fill = "Annotation Type") +
+  scale_fill_viridis_d() +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Save plot
+ggsave(file.path(output_dir, "annotation_coverage.png"), p3, width = 10, height = 6, dpi = 300)
+
+# Display plots
+print(p1)
+print(p2)
+print(p3)
+```
+
+# Create Annotation Summary Report
+
+```{r create-summary-report}
+# Create comprehensive summary report
+create_annotation_summary <- function(annotations, ortholog_groups) {
+  
+  # Basic statistics
+  total_groups <- nrow(annotations)
+  three_way_groups <- sum(annotations$type == "three_way")
+  two_way_groups <- sum(annotations$type != "three_way")
+  
+  # Annotation statistics
+  annotated_groups <- sum(!is.na(annotations$swissprot_hit) | 
+                         (!is.na(annotations$pfam_domains) & annotations$pfam_domains != "") |
+                         (!is.na(annotations$go_terms) & annotations$go_terms != ""))
+  
+  # Create summary data frame
+  summary_stats <- data.frame(
+    Metric = c("Total Ortholog Groups", "Three-way Orthologs", "Two-way Orthologs",
+               "Annotated Groups", "Swiss-Prot Annotations", "Pfam Domain Annotations",
+               "GO Term Annotations", "KEGG Pathway Annotations"),
+    Count = c(total_groups, three_way_groups, two_way_groups,
+              annotated_groups,
+              sum(!is.na(annotations$swissprot_hit)),
+              sum(!is.na(annotations$pfam_domains) & annotations$pfam_domains != ""),
+              sum(!is.na(annotations$go_terms) & annotations$go_terms != ""),
+              sum(!is.na(annotations$kegg_pathways) & annotations$kegg_pathways != "")),
+    Percentage = c(100, 
+                  round(three_way_groups/total_groups*100, 1),
+                  round(two_way_groups/total_groups*100, 1),
+                  round(annotated_groups/total_groups*100, 1),
+                  round(sum(!is.na(annotations$swissprot_hit))/total_groups*100, 1),
+                  round(sum(!is.na(annotations$pfam_domains) & annotations$pfam_domains != "")/total_groups*100, 1),
+                  round(sum(!is.na(annotations$go_terms) & annotations$go_terms != "")/total_groups*100, 1),
+                  round(sum(!is.na(annotations$kegg_pathways) & annotations$kegg_pathways != "")/total_groups*100, 1))
+  )
+  
+  return(summary_stats)
+}
+
+# Create and save summary
+summary_report <- create_annotation_summary(annotations, ortholog_groups)
+write.csv(summary_report, file.path(output_dir, "annotation_summary_report.csv"), row.names = FALSE)
+
+# Display summary
+print(summary_report)
+```
+
+# Create Functional Enrichment Analysis
+
+```{r functional-enrichment}
+# Perform functional enrichment analysis for three-way orthologs
+perform_functional_enrichment <- function(annotations) {
+  
+  # Filter for three-way orthologs with GO terms
+  three_way_annotated <- annotations %>%
+    filter(type == "three_way",
+           !is.na(go_terms),
+           go_terms != "")
+  
+  if (nrow(three_way_annotated) == 0) {
+    cat("No three-way orthologs with GO terms found for enrichment analysis\n")
+    return(NULL)
+  }
+  
+  # Extract GO terms
+  all_go_terms <- unlist(strsplit(three_way_annotated$go_terms, ";"))
+  
+  # Count GO terms
+  go_counts <- table(all_go_terms)
+  
+  # Create enrichment data frame
+  enrichment_df <- data.frame(
+    go_term = names(go_counts),
+    count = as.numeric(go_counts),
+    percentage = as.numeric(go_counts) / nrow(three_way_annotated) * 100,
+    stringsAsFactors = FALSE
+  ) %>%
+    arrange(desc(count)) %>%
+    head(100)  # Top 100 terms
+  
+  return(enrichment_df)
+}
+
+# Perform enrichment analysis
+enrichment_results <- perform_functional_enrichment(annotations)
+
+if (!is.null(enrichment_results)) {
+  # Save enrichment results
+  write.csv(enrichment_results, file.path(output_dir, "functional_enrichment_analysis.csv"), row.names = FALSE)
+  
+  # Plot top enriched terms
+  p4 <- ggplot(enrichment_results[1:20, ], aes(x = reorder(go_term, count), y = count)) +
+    geom_col(fill = "purple", alpha = 0.8) +
+    coord_flip() +
+    labs(title = "Top 20 Enriched GO Terms in Three-way Orthologs",
+         x = "GO Term",
+         y = "Count") +
+    theme_minimal() +
+    theme(axis.text.y = element_text(size = 8))
+  
+  # Save plot
+  ggsave(file.path(output_dir, "functional_enrichment.png"), p4, width = 10, height = 8, dpi = 300)
+  
+  print(p4)
+}
+```
+
+# Create Annotation Database
+
+```{r create-annotation-database}
+# Create a comprehensive annotation database for downstream analysis
+create_annotation_database <- function(annotations) {
+  
+  # Create lookup tables
+  annotation_db <- list()
+  
+  # 1. Ortholog group to annotation mapping
+  annotation_db$ortholog_annotations <- annotations %>%
+    select(group_id, type, avg_identity, swissprot_hit, swissprot_description,
+           pfam_domains, go_terms, kegg_pathways, interpro_terms)
+  
+  # 2. Gene ID to ortholog group mapping
+  gene_mapping <- data.frame(
+    gene_id = c(annotations$apul, annotations$peve, annotations$ptua),
+    species = rep(c("Apul", "Peve", "Ptua"), each = nrow(annotations)),
+    group_id = rep(annotations$group_id, 3),
+    stringsAsFactors = FALSE
+  ) %>%
+    filter(!is.na(gene_id))
+  
+  annotation_db$gene_mapping <- gene_mapping
+  
+  # 3. Functional term databases
+  annotation_db$pfam_terms <- data.frame(
+    domain = unique(unlist(strsplit(annotations$pfam_domains[!is.na(annotations$pfam_domains) & annotations$pfam_domains != ""], ";"))),
+    stringsAsFactors = FALSE
+  )
+  
+  annotation_db$go_terms <- data.frame(
+    term = unique(unlist(strsplit(annotations$go_terms[!is.na(annotations$go_terms) & annotations$go_terms != ""], ";"))),
+    stringsAsFactors = FALSE
+  )
+  
+  annotation_db$kegg_pathways <- data.frame(
+    pathway = unique(unlist(strsplit(annotations$kegg_pathways[!is.na(annotations$kegg_pathways) & annotations$kegg_pathways != ""], ";"))),
+    stringsAsFactors = FALSE
+  )
+  
+  return(annotation_db)
+}
+
+# Create annotation database
+annotation_database <- create_annotation_database(annotations)
+
+# Save annotation database components
+write.csv(annotation_database$ortholog_annotations, 
+          file.path(output_dir, "ortholog_annotations_database.csv"), row.names = FALSE)
+write.csv(annotation_database$gene_mapping, 
+          file.path(output_dir, "gene_to_ortholog_mapping.csv"), row.names = FALSE)
+write.csv(annotation_database$pfam_terms, 
+          file.path(output_dir, "pfam_terms_database.csv"), row.names = FALSE)
+write.csv(annotation_database$go_terms, 
+          file.path(output_dir, "go_terms_database.csv"), row.names = FALSE)
+write.csv(annotation_database$kegg_pathways, 
+          file.path(output_dir, "kegg_pathways_database.csv"), row.names = FALSE)
+
+cat("Created comprehensive annotation database with", nrow(annotation_database$ortholog_annotations), "ortholog groups\n")
+```
+
+# Conclusions
+
+This annotation analysis provides comprehensive functional information for ortholog groups across three coral species. The results include:
+
+1. **Swiss-Prot annotations** - Curated protein descriptions and functions
+2. **Pfam domain annotations** - Protein family and domain information
+3. **GO term annotations** - Biological process, molecular function, and cellular component terms
+4. **KEGG pathway annotations** - Metabolic and signaling pathway information
+5. **InterPro signatures** - Integrated protein family and domain signatures
+
+## Key Applications
+
+The annotated ortholog groups can be used for:
+
+- **Comparative functional genomics** - Understanding functional conservation across coral species
+- **Pathway analysis** - Identifying conserved metabolic and signaling pathways
+- **Gene set enrichment analysis** - Finding overrepresented functional terms in expression studies
+- **Evolutionary analysis** - Studying functional evolution of gene families
+- **Cross-species expression analysis** - Comparing expression of functionally annotated orthologs
+
+## Output Files
+
+All annotation results are saved in the `../output/11.3-ortholog-annotation/` directory:
+
+- `integrated_annotations.csv` - Complete annotation table
+- `annotation_summary_report.csv` - Summary statistics
+- `functional_enrichment_analysis.csv` - Enriched functional terms
+- `ortholog_annotations_database.csv` - Annotation database
+- `gene_to_ortholog_mapping.csv` - Gene ID to ortholog group mapping
+- Various visualization plots (PNG format)
+
+```{r}
+sessionInfo()
+```
