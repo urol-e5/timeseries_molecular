@@ -114,16 +114,19 @@ head(epi_mach_exp[, 1:5])  # Show first 5 columns
 
 
 
+```{bash}
+mkdir -p ../output/36-Apul-epimachine-counts/
+```
 
 
 ```{r}
 # Save the epimachinery expression data
-write.csv(epi_mach_exp, file = "../output/29-Apul-epimachine-exp/Apul-epimachine-expression.csv", row.names = FALSE)
+write.csv(epi_mach_exp, file = "../output/36-Apul-epimachine-counts/Apul-epimachine-expression.csv", row.names = FALSE)
 
-cat("Saved epimachinery expression data to ../output/29-Apul-epimachine-exp/Apul-epimachine-expression.csv")
+cat("Saved epimachinery expression data to ../output/36-Apul-epimachine-counts/Apul-epimachine-expression.csv")
 ```
 
 ```{bash}
-head ../output/29-Apul-epimachine-exp/Apul-epimachine-expression.csv
+head ../output/36-Apul-epimachine-counts/Apul-epimachine-expression.csv
 ```
 
