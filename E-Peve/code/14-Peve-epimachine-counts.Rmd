@@ -1,7 +1,6 @@
 ---
 title: "36-Epimachinary Counts"
 author: "Steven Roberts"
-date: "`r format(Sys.Date(), '%d %B)`"
 output: 
   github_document:
     toc: true
@@ -35,42 +34,27 @@ Based on blast we have list of genes..
 # Epi Machinery
 
 ```{r, engine='bash'}
-head ../output/25-Apul-epimods-blast/Mach-blastp-Apul_out.tab
+head ../output/06-Peve-epimods-blast/Mach-blastp-Peve_out.tab
 ```
 
-## why the T1
-
-```{r,engine='bash'}
-
-grep ">" ../data/Apulchra-genome.pep.faa | head -40
-
-```
-
-
-# Expresssion Matrix
-
-```{r, engine='bash'}
-tail ../output/02.20-D-Apul-RNAseq-alignment-HiSat2/apul-gene_count_matrix.csv
-
-```
 
 
 
 ```{r}
 ### Load gene expression data ###
 # The gene count matrix already has properly formatted column names (ACR-139-TP1 format)
-Apul_genes <- read_csv("https://gannet.fish.washington.edu/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/02.20-D-Apul-RNAseq-alignment-HiSat2/apul-gene_count_matrix.csv")
-Apul_genes <- as.data.frame(Apul_genes)
+Peve_genes <- read_csv("https://gannet.fish.washington.edu/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/02.20-E-Peve-RNAseq-alignment-HiSat2/peve-gene_count_matrix.csv")
+Peve_genes <- as.data.frame(Peve_genes)
 
 # Set gene_id as rownames for easier merging
-rownames(Apul_genes) <- Apul_genes$gene_id
+rownames(Peve_genes) <- Peve_genes$gene_id
 ```
 
 
 
 ```{r}
 # Read blast results and clean gene IDs
-blast_data <- read.delim("../output/25-Apul-epimods-blast/Mach-blastp-Apul_out.tab", header = FALSE)
+blast_data <- read.delim("../output/06-Peve-epimods-blast/Mach-blastp-Peve_out.tab", header = FALSE)
 
 # Remove the "-T1" (or any "-T<number>") suffix from gene IDs in column 2
 blast_data$V2 <- sub("-T[0-9]+$", "", blast_data$V2)
@@ -80,9 +64,13 @@ head(blast_data[, 1:3])  # Show first 3 columns for clarity
 ```
 
 ```{r}
+
+
+blast_data$V2 <- paste0("gene-", blast_data$V2)
+
 # Merge blast results with gene expression data
 # Keep gene_id as a column for merging, then merge by gene IDs
-epi_mach_exp <- merge(blast_data, Apul_genes, by.x = "V2", by.y = "gene_id", all.x = TRUE)
+epi_mach_exp <- merge(blast_data, Peve_genes, by.x = "V2", by.y = "gene_id", all.x = TRUE)
 
 # Handle duplicate gene_ids by keeping only the row with the lowest e-value (V11)
 # First, convert V11 to numeric for proper comparison
@@ -113,17 +101,23 @@ head(epi_mach_exp[, 1:5])  # Show first 5 columns
 
 
 
+```{bash}
+mkdir -p ../output/14-Peve-epimachine-exp
+```
 
 
 
 ```{r}
 # Save the epimachinery expression data
-write.csv(epi_mach_exp, file = "../output/29-Apul-epimachine-exp/Apul-epimachine-expression.csv", row.names = FALSE)
 
-cat("Saved epimachinery expression data to ../output/29-Apul-epimachine-exp/Apul-epimachine-expression.csv")
+
+
+write.csv(epi_mach_exp, file = "../output/14-Peve-epimachine-exp/Peve-epimachine-expression.csv", row.names = FALSE)
+
+cat("Saved epimachinery expression data to ../output/14-Peve-epimachine-exp/Peve-epimachine-expression.csv")
 ```
 
 ```{bash}
-head ../output/29-Apul-epimachine-exp/Apul-epimachine-expression.csv
+head ../output/14-Peve-epimachine-exp/Peve-epimachine-expression.csv
 ```
 
