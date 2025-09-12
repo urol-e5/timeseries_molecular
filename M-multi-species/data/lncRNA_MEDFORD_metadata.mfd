@@ -1,0 +1,146 @@
+MEDFORD File for Multi-species Coral lncRNA Discovery and Expression
+
+@Date 2025-09-12
+
+@Method Long non-coding RNA (lncRNA) discovery and expression quantification from RNA-Seq libraries
+
+@Method-Type lncRNA discovery from polyA RNA-seq
+
+@Method-Note lncRNA discovery performed using splice-aware alignment, transcript assembly, transcript class filtering (gffcompare),
+   and coding-potential assessment (CPC2), followed by quantification and differential expression analysis.
+
+@Species Acropora pulchra
+
+@Species-Type Fast-growing branching coral
+
+@Species-Samples 40 libraries across 4 timepoints (same RNA-seq libraries as mRNA experiment)
+
+@Species Porites evermanni
+
+@Species-Type Slow-growing massive coral
+
+@Species-Samples 38 libraries across 4 timepoints (same RNA-seq libraries as mRNA experiment)
+
+@Species Pocillopora tuahiniensis
+
+@Species-Type Intermediate-growth branching coral
+
+@Species-Samples 39 libraries across 4 timepoints (same RNA-seq libraries as mRNA experiment)
+
+@Experimental_Design Time series
+
+@Experimental_Design-Timepoints TP1, TP2, TP3, TP4
+
+@Experimental_Design-Note lncRNA discovery and expression based on the same time-series RNA-seq libraries used in the mRNA analysis.
+
+@Sample_Preparation RNA extraction and library preparation as in RNA-seq experiment
+
+@Sample_Preparation-Method Column clean-up using Zymo Miniprep
+
+@Sample_Preparation-QC Qubit fluorescence quantification,
+   1.5% TAE agarose gel electrophoresis
+
+@Sample_Preparation-Note Libraries identical to those used for mRNA-seq; see RNA-seq MEDFORD file for details.
+
+@Code_Ref fastp
+
+@Code_Ref-Type Read trimming and quality filtering
+
+@Code_Ref-Note 15bp trimmed per read (as per RNA-seq QC) prior to alignment
+
+@Code_Ref HISAT2
+
+@Code_Ref-Type Splice-aware alignment of RNA-seq reads to species-specific reference genomes
+
+@Code_Ref-Note Alignment indexes generated with exon and splice-site annotations
+
+@Code_Ref StringTie
+
+@Code_Ref-Type Transcript assembly per sample and merged assembly across samples
+
+@Code_Ref-Note Used to assemble candidate lncRNA transcripts from aligned reads
+
+@Code_Ref gffcompare
+
+@Code_Ref-Type Transcript classification relative to reference annotations
+
+@Code_Ref-Note Candidate selection included gffcompare classes: u (intergenic), x (antisense), o (generic exonic overlap), i (intronic)
+
+@Code_Ref CPC2
+
+@Code_Ref-Type Coding potential assessment
+
+@Code_Ref-Note Used to filter out putative protein-coding transcripts, retaining non-coding candidates
+
+@Code_Ref featureCounts
+
+@Code_Ref-Type Read summarization/quantification over lncRNA features
+
+@Code_Ref-Note Gene-level counts for lncRNA features generated for downstream analysis
+
+@Code_Ref DESeq2
+
+@Code_Ref-Type Differential expression analysis of lncRNA counts across timepoints
+
+@Code_Ref-Note R/Bioconductor package used for normalization, variance stabilization, PCA, and pairwise contrasts
+
+@Code_Ref 31.5-Apul-lncRNA-discovery.qmd
+
+@Code_Ref-Type Reproducible pipeline document (Acropora pulchra lncRNA discovery)
+
+@Code_Ref-Note See D-Apul/code/31.5-Apul-lncRNA-discovery.qmd
+
+@Code_Ref 12-Peve-lncRNA-discovery.qmd
+
+@Code_Ref-Type Reproducible pipeline document (Porites evermanni lncRNA discovery)
+
+@Code_Ref-Note See E-Peve/code/12-Peve-lncRNA-discovery.qmd
+
+@Code_Ref 06-Ptua-lncRNA-discovery.qmd
+
+@Code_Ref-Type Reproducible pipeline document (Pocillopora tuahiniensis lncRNA discovery)
+
+@Code_Ref-Note See F-Ptua/code/06-Ptua-lncRNA-discovery.qmd
+
+@Code_Ref 03.20-D-Apul-lncRNA-expression-DESeq2.Rmd
+
+@Code_Ref-Type Reproducible analysis document (Acropora pulchra lncRNA expression)
+
+@Code_Ref-Note See D-Apul/code/03.20-D-Apul-lncRNA-expression-DESeq2.Rmd
+
+@Data_Processing Trimming
+
+@Data_Processing-Note Adapters and low-quality bases removed; 15bp trimmed per read
+
+@Data_Processing Alignment
+
+@Data_Processing-Note Reads aligned to species-specific reference genomes using HISAT2 (exon/ss guided)
+
+@Data_Processing Assembly
+
+@Data_Processing-Note StringTie assembly per sample followed by merged assembly; transcripts classified with gffcompare (u, x, o, i)
+
+@Data_Processing Coding_Potential_Filtering
+
+@Data_Processing-Note CPC2 used to retain non-coding transcripts
+
+@Data_Processing Quantification
+
+@Data_Processing-Note featureCounts used to generate gene-level count matrices for lncRNA features
+
+@Data_Processing Expression_Analysis
+
+@Data_Processing-Note DESeq2 used for normalization, variance stabilization, and differential expression across timepoints
+
+@Data_Products Count_Matrices
+
+@Data_Products-Note Example outputs include:
+   - D-Apul/output/33-Apul-lncRNA-matrix/Apul_lncRNA_counts.txt
+   - E-Peve/output/13-Peve-lncRNA-matrix/Peve_lncRNA_counts.txt
+   - F-Ptua/output/06-Ptua-lncRNA-discovery/lncRNA_counts.txt
+
+@Repository_Info GitHub
+
+@Repository_Info-URL https://github.com/urol-e5/timeseries_molecular
+
+@Repository_Info-Note Multi-species lncRNA discovery and expression analysis added to the existing time-series transcriptomic pipeline

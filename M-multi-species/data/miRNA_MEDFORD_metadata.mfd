@@ -1,0 +1,103 @@
+MEDFORD File for Multi-species Coral miRNA Discovery and Expression
+
+@Date 2025-09-12
+
+@Method microRNA (miRNA) discovery and expression quantification from small RNA (sRNA-seq) libraries
+
+@Method-Type miRNA discovery from sRNA-seq
+
+@Method-Note miRNA discovery performed with ShortStack using genome-guided mode and known miRNA curation; expression quantified
+   and analyzed across timepoints using DESeq2.
+
+@Species Acropora pulchra
+
+@Species-Type Fast-growing branching coral
+
+@Species-Samples 40 sRNA libraries across 4 timepoints
+
+@Species Porites evermanni
+
+@Species-Type Slow-growing massive coral
+
+@Species-Samples 38 sRNA libraries across 4 timepoints
+
+@Species Pocillopora tuahiniensis
+
+@Species-Type Intermediate-growth branching coral
+
+@Species-Samples 39 sRNA libraries across 4 timepoints
+
+@Experimental_Design Time series
+
+@Experimental_Design-Timepoints TP1, TP2, TP3, TP4
+
+@Experimental_Design-Note sRNA-seq collected alongside mRNA-seq; miRNA discovery and expression assessed over environmental gradients.
+
+@Sample_Preparation sRNA extraction and library preparation per standard sRNA-seq protocols
+
+@Sample_Preparation-Note Libraries correspond to small RNA fractions of coral time-series samples; see RNA-seq MEDFORD for shared context.
+
+@Code_Ref fastp
+
+@Code_Ref-Type Adapter and quality trimming for sRNA reads
+
+@Code_Ref ShortStack
+
+@Code_Ref-Type miRNA discovery and quantification
+
+@Code_Ref-Note Genome-guided mode; identifies known and novel miRNAs, reports gff3 and count tables
+
+@Code_Ref 10-format-miRNA-counts.R
+
+@Code_Ref-Type Formatting script to generate species-level count matrices
+
+@Code_Ref-Note See M-multi-species/scripts/10-format-miRNA-counts.R; outputs in M-multi-species/output/10-format-miRNA-counts/
+
+@Code_Ref DESeq2
+
+@Code_Ref-Type Differential expression analysis of miRNA counts across timepoints
+
+@Code_Ref-Note Normalization, variance stabilization, PCA, and pairwise contrasts
+
+@Code_Ref 03.10-D-Apul-sRNAseq-expression-DESeq2
+
+@Code_Ref-Type Reproducible analysis document (Acropora pulchra miRNA expression)
+
+@Code_Ref-Note See D-Apul/code/03.10-D-Apul-sRNAseq-expression-DESeq2.Rmd and derived outputs
+
+@Data_Processing Trimming
+
+@Data_Processing-Note Adapter removal and quality trimming on sRNA reads
+
+@Data_Processing Discovery
+
+@Data_Processing-Note ShortStack used for miRNA discovery and per-locus quantification
+
+@Data_Processing Quantification
+
+@Data_Processing-Note Counts aggregated into species-level matrices; formatted via 10-format-miRNA-counts.R
+
+@Data_Processing Expression_Analysis
+
+@Data_Processing-Note DESeq2 used for normalization and differential expression across timepoints
+
+@Data_Products ShortStack_Outputs
+
+@Data_Products-Note Examples:
+   - D-Apul/output/04-Apul-sRNA-discovery-ShortStack/ShortStack_out/known_miRNAs.gff3
+   - F-Ptua/output/04-Ptua-sRNA-discovery-ShortStack/ShortStack_out/known_miRNAs.gff3
+   - E-Peve/output/08-Peve-sRNA-discovery-ShortStack/ShortStack_out/known_miRNAs.gff3
+
+@Data_Products Count_Matrices
+
+@Data_Products-Note Examples:
+   - M-multi-species/output/10-format-miRNA-counts/Apul_miRNA_counts_formatted.txt
+   - M-multi-species/output/10-format-miRNA-counts/Peve_miRNA_counts_formatted.txt
+   - M-multi-species/output/10-format-miRNA-counts/Ptuh_miRNA_counts_formatted.txt
+   - D-Apul/output/03.10-D-Apul-sRNAseq-expression-DESeq2/Apul_miRNA_ShortStack_counts_formatted.txt
+
+@Repository_Info GitHub
+
+@Repository_Info-URL https://github.com/urol-e5/timeseries_molecular
+
+@Repository_Info-Note Multi-species miRNA discovery and expression analysis integrated into the time-series molecular pipeline
