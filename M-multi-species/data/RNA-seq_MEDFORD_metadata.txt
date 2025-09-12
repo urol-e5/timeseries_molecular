@@ -1,0 +1,107 @@
+MEDFORD File for Multi-species Coral RNA-Seq Data
+
+@Method Illumina Sequencing Platform
+
+@Method-Type RNA Sequencing
+
+@Method-Company Azenta Life Sciences,
+   South Plainfield, NJ, USA
+
+@Method-Sample Time series coral samples
+
+@Method-Note Paired-end sequencing, 
+   Azenta project 30-1047560508
+
+@Species Acropora pulchra
+
+@Species-Type Fast-growing branching coral
+
+@Species-Samples 40 samples across 4 timepoints
+
+@Species Porites evermanni  
+
+@Species-Type Slow-growing massive coral
+
+@Species-Samples 38 samples across 4 timepoints
+
+@Species Pocillopora tuahiniensis
+
+@Species-Type Intermediate-growth branching coral
+
+@Species-Samples 39 samples across 4 timepoints
+
+@Experimental_Design Time series
+
+@Experimental_Design-Timepoints TP1, TP2, TP3, TP4
+
+@Experimental_Design-Note Samples collected across environmental stress gradient
+
+@Sample_Preparation RNA extraction
+
+@Sample_Preparation-Method Column clean-up using Zymo Miniprep
+
+@Sample_Preparation-QC Qubit fluorescence quantification,
+   1.5% TAE agarose gel electrophoresis
+
+@Sample_Preparation-Buffer DNAse/RNAse-free water
+
+@Code_Ref fastp
+
+@Code_Ref-Type Read trimming and quality filtering
+
+@Code_Ref FastQC
+
+@Code_Ref-Type Quality assessment of 
+   sequencing reads
+
+@Code_Ref MultiQC
+
+@Code_Ref-Type Aggregation of bioinformatics 
+   analysis results
+
+@Code_Ref HISAT2
+
+@Code_Ref-Type RNA-seq read alignment to 
+   reference genome
+
+@Code_Ref-Note Splice-aware aligner for RNA-seq data
+
+@Code_Ref StringTie
+
+@Code_Ref-Type Transcript assembly and 
+   quantification
+
+@Code_Ref-Note Used for generating count matrices
+
+@Code_Ref DESeq2
+
+@Code_Ref-Type Differential gene expression 
+   analysis
+
+@Code_Ref-Note R/Bioconductor package for 
+   RNA-seq analysis
+
+@Code_Ref ShortStack
+
+@Code_Ref-Type Small RNA discovery and analysis
+
+@Code_Ref-Note Used for sRNA-seq component 
+   of the study
+
+@Data_Processing Trimming
+
+@Data_Processing-Note 15bp trimmed from each read based on quality assessment
+
+@Data_Processing Alignment
+
+@Data_Processing-Note Reads aligned to species-specific reference genomes
+
+@Data_Processing Expression_quantification
+
+@Data_Processing-Note Gene-level count matrices generated for differential expression analysis
+
+@Repository_Info GitHub
+
+@Repository_Info-URL https://github.com/urol-e5/timeseries_molecular
+
+@Repository_Info-Note Multi-species comparative transcriptomic analysis pipeline
