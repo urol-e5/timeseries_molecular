@@ -1,0 +1,444 @@
+---
+title: "22.20-Apul-multiomics-MOFA2"
+author: "Sam White"
+date: "2025-09-15"
+output: 
+  github_document:
+    toc: true
+    number_sections: true
+  bookdown::html_document2:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+  html_document:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+---
+# BACKGROUND
+
+## Setup and Libraries
+```{r setup, include=FALSE}
+library(knitr)
+library(data.table)
+library(MOFA2)
+library(ggplot2)
+library(tidyverse)
+library(ggpubr)
+knitr::opts_chunk$set(
+  echo = TRUE,         # Display code chunks
+  eval = FALSE,        # Evaluate code chunks
+  warning = FALSE,     # Hide warnings
+  message = FALSE,     # Hide messages
+  comment = ""         # Prevents appending '##' to beginning of lines in code output
+)
+```
+
+# Data Structure Overview
+```{r data-structure, eval=TRUE}
+# Show structure and preview of each data file in the data folder using tidyverse/dplyr
+library(dplyr)
+data_files <- list(
+  gene_counts = "../data/apul-gene_count_matrix.csv",
+  transcript_counts = "../data/apul-transcript_count_matrix.csv",
+  lncRNA_counts = "../data/lncRNA_counts.clean.filtered.txt",
+  methylation = "../data/merged-WGBS-CpG-counts_filtered_n20.csv"
+)
+
+for (name in names(data_files)) {
+  cat("\n\n===== ", name, " =====\n")
+  file <- data_files[[name]]
+  dat <- fread(file)
+  print(glimpse(dat))
+  print(dat %>% slice_head(n = 3))
+}
+```
+
+# Data Preparation for MOFA2
+```{r mofa2-data-prep, eval=TRUE}
+# Prepare data for MOFA2: ensure features are rows, samples are columns using dplyr/tidyverse
+lncRNA_raw <- fread("../data/lncRNA_counts.clean.filtered.txt") %>% as_tibble()
+lncRNA_counts <- lncRNA_raw %>% select(-(1:6))
+lncRNA_counts <- lncRNA_counts %>% mutate(Geneid = lncRNA_raw$Geneid) %>% relocate(Geneid)
+
+gene_counts <- fread("../data/apul-gene_count_matrix.csv") %>% as_tibble()
+transcript_counts <- fread("../data/apul-transcript_count_matrix.csv") %>% as_tibble()
+methylation_counts <- fread("../data/merged-WGBS-CpG-counts_filtered_n20.csv") %>% as_tibble()
+
+# Show structure of processed data
+cat("\n\n===== lncRNA_counts (processed) =====\n")
+print(glimpse(lncRNA_counts))
+print(lncRNA_counts %>% slice_head(n = 3))
+
+cat("\n\n===== gene_counts (original) =====\n")
+print(glimpse(gene_counts))
+print(gene_counts %>% slice_head(n = 3))
+
+cat("\n\n===== transcript_counts (original) =====\n")
+print(glimpse(transcript_counts))
+print(transcript_counts %>% slice_head(n = 3))
+
+cat("\n\n===== methylation_counts (original) =====\n")
+print(glimpse(methylation_counts))
+print(methylation_counts %>% slice_head(n = 3))
+```
+
+# Compare Column Names Across Input Data
+```{r compare-column-names, eval=TRUE}
+# List of all data frames
+input_dfs <- list(
+  gene_counts = gene_counts,
+  transcript_counts = transcript_counts,
+  lncRNA_counts = lncRNA_counts,
+  methylation_counts = methylation_counts
+)
+
+# Get column names for each (excluding feature/ID column)
+colnames_list <- lapply(input_dfs, function(df) colnames(df)[-1])
+
+# Use the first as reference
+ref_names <- colnames_list[[1]]
+ref_file <- names(colnames_list)[1]
+
+for (i in seq_along(colnames_list)) {
+  this_names <- colnames_list[[i]]
+  this_file <- names(colnames_list)[i]
+  if (!identical(ref_names, this_names)) {
+    cat("\nFile with different column names:", this_file, "\n")
+    cat("Columns in", this_file, "not in", ref_file, ":\n")
+    print(setdiff(this_names, ref_names))
+    cat("Columns in", ref_file, "not in", this_file, ":\n")
+    print(setdiff(ref_names, this_names))
+  }
+}
+cat("\nColumn name comparison complete.\n")
+```
+
+# Harmonize Columns Across Data Frames
+```{r harmonize-columns, eval=TRUE}
+# Use the intersection of all sample columns (excluding feature/ID column)
+colnames_list <- lapply(list(
+  gene_counts = gene_counts,
+  transcript_counts = transcript_counts,
+  lncRNA_counts = lncRNA_counts,
+  methylation_counts = methylation_counts
+), function(df) colnames(df)[-1])
+
+common_cols <- Reduce(intersect, colnames_list)
+
+# Function to remove extra columns and print what is removed
+remove_extra_cols <- function(df, df_name) {
+  orig_cols <- colnames(df)[-1]
+  extra <- setdiff(orig_cols, common_cols)
+  if (length(extra) > 0) {
+    cat("\nRemoving columns from", df_name, ":\n")
+    print(extra)
+  }
+  # Keep only the ID column and common columns
+  df <- df[, c(colnames(df)[1], common_cols)]
+  return(df)
+}
+
+gene_counts <- remove_extra_cols(gene_counts, "gene_counts")
+transcript_counts <- remove_extra_cols(transcript_counts, "transcript_counts")
+lncRNA_counts <- remove_extra_cols(lncRNA_counts, "lncRNA_counts")
+methylation_counts <- remove_extra_cols(methylation_counts, "methylation_counts")
+
+# Print final structure
+cat("\nFinal structure after harmonizing columns:\n")
+print(str(gene_counts))
+print(str(transcript_counts))
+print(str(lncRNA_counts))
+print(str(methylation_counts))
+```
+
+# Remove Zero-Variance Features
+```{r remove-zero-variance-features, eval=TRUE}
+remove_zero_var <- function(df) {
+  feature_data <- df[ , -1, drop=FALSE]
+  # Compute variance for each row (feature)
+  vars <- apply(feature_data, 1, function(x) var(as.numeric(x), na.rm=TRUE))
+  zero_var_idx <- which(vars == 0 | is.na(vars))
+  keep_idx <- which(vars > 0 & !is.na(vars))
+  removed <- df[zero_var_idx, , drop=FALSE]
+  filtered <- df[keep_idx, , drop=FALSE]
+  list(filtered=filtered, removed=removed)
+}
+
+# Apply to each data frame
+gene_counts_zero <- remove_zero_var(gene_counts)
+transcript_counts_zero <- remove_zero_var(transcript_counts)
+lncRNA_counts_zero <- remove_zero_var(lncRNA_counts)
+methylation_counts_zero <- remove_zero_var(methylation_counts)
+
+# Extract filtered and removed data frames
+gene_counts_nzv <- gene_counts_zero$filtered
+gene_counts_zero_removed <- gene_counts_zero$removed
+transcript_counts_nzv <- transcript_counts_zero$filtered
+transcript_counts_zero_removed <- transcript_counts_zero$removed
+lncRNA_counts_nzv <- lncRNA_counts_zero$filtered
+lncRNA_counts_zero_removed <- lncRNA_counts_zero$removed
+methylation_counts_nzv <- methylation_counts_zero$filtered
+methylation_counts_zero_removed <- methylation_counts_zero$removed
+
+# Print structure of all created data frames
+cat("\nFiltered data frames (zero-variance features removed):\n")
+print(str(gene_counts_nzv))
+print(str(transcript_counts_nzv))
+print(str(lncRNA_counts_nzv))
+print(str(methylation_counts_nzv))
+
+cat("\nData frames of removed zero-variance features:\n")
+print(str(gene_counts_zero_removed))
+print(str(transcript_counts_zero_removed))
+print(str(lncRNA_counts_zero_removed))
+print(str(methylation_counts_zero_removed))
+```
+
+# Create Matrices After Zero-Variance Removal
+
+```{r create-matrices, eval=TRUE}
+
+# Create matrices from filtered data frames
+gene_mat_nzv <- gene_counts_nzv %>% 
+  column_to_rownames(var = colnames(gene_counts_nzv)[1]) %>% 
+  as.matrix()
+
+transcript_mat_nzv <- transcript_counts_nzv %>% 
+  column_to_rownames(var = colnames(transcript_counts_nzv)[1]) %>% 
+  as.matrix()
+
+lncRNA_mat_nzv <- lncRNA_counts_nzv %>% 
+  column_to_rownames(var = "Geneid") %>% 
+  as.matrix()
+
+methylation_mat_nzv <- methylation_counts_nzv %>% 
+  column_to_rownames(var = colnames(methylation_counts_nzv)[1]) %>% 
+  as.matrix()
+
+# Combine into a named list for MOFA2
+data_list_nzv <- list(
+  gene = gene_mat_nzv,
+  transcript = transcript_mat_nzv,
+  lncRNA = lncRNA_mat_nzv,
+  methylation = methylation_mat_nzv
+)
+# Show structure of the new list
+str(data_list_nzv, max.level = 1)
+cat("\nList of matrices after zero-variance feature removal ready for MOFA2 object creation.\n")
+```
+
+# Create MOFA Object
+```{r mofa2-create-object, eval=TRUE}
+# Create a MOFA object from the list of matrices
+MOFAobject <- create_mofa(data_list_nzv)
+
+# Show summary of the MOFA object
+print(MOFAobject)
+cat("\nMOFA object created.\n")
+```
+
+## Plot data overview
+```{r plot-data-overview, eval=TRUE}
+plot_data_overview(MOFAobject)
+```
+
+# Define MOFA options
+
+## Set data options
+```{r, set-data-options, eval=TRUE}
+data_opts <- get_default_data_options(MOFAobject)
+data_opts
+```
+
+## Model options
+```{r, model-options, eval=TRUE}
+model_opts <- get_default_model_options(MOFAobject)
+model_opts$num_factors <- 10
+
+model_opts
+```
+
+## Training options
+```{r training-options, eval=TRUE}
+train_opts <- get_default_training_options(MOFAobject)
+train_opts$convergence_mode <- "fast"
+train_opts$seed <- 42
+
+train_opts
+```
+
+# Train the model
+
+## Prepare MOFA object
+```{r prepare-mofa-for-training, eval=TRUE}
+MOFAobject <- prepare_mofa(MOFAobject,
+  data_options = data_opts,
+  model_options = model_opts,
+  training_options = train_opts
+)
+```
+
+## Training
+```{r training, eval=TRUE}
+output_dir <- "../outputs/00.00-MOFA-model-training"
+
+MOFAobject <- run_mofa(MOFAobject, outfile = file.path(output_dir, "MOFA2_model.hdf5"), use_basilisk = TRUE)
+
+saveRDS(MOFAobject, file.path(output_dir, "MOFA2_model.rds"))
+```
+
+# Model Overview
+
+## Slots
+```{r model-slots, eval=TRUE}
+slotNames(MOFAobject)
+```
+
+## Data
+```{r model-data, eval=TRUE}
+names(MOFAobject@data)
+```
+
+## Factor and Weight values
+
+expectations of the posterior distributions
+
+Organized by features/samples by factors (factors was set to 15 above)
+
+```{r model-expectations, eval=TRUE}
+names(MOFAobject@expectations)
+```
+
+```{r model-sample-by-factors, eval=TRUE}
+# Dimensionality of the factor matrix: 40 samples, 15 factors
+dim(MOFAobject@expectations$Z$group1)
+```
+
+```{r model-genes, eval=TRUE}
+dim(MOFAobject@expectations$W$gene)
+```
+
+```{r model-transcripts, eval=TRUE}
+
+dim(MOFAobject@expectations$W$transcript)
+```
+
+```{r model-lncRNA, eval=TRUE}
+
+dim(MOFAobject@expectations$W$lncRNA)
+```
+
+```{r model-methylation, eval=TRUE}
+
+dim(MOFAobject@expectations$W$methylation)
+```
+
+## Factor correlation
+
+```{r plot-factor-correlation, eval=TRUE}
+plot_factor_cor(MOFAobject)
+```
+
+## Variance decomposition
+
+```{r plot-variance-decomposition, eval=TRUE}
+plot_variance_explained(MOFAobject, max_r2=5)
+```
+
+## Variance explained
+
+```{r plot-variance-explained, eval=TRUE}
+plot_variance_explained(MOFAobject, plot_total = T)[[2]]
+
+```
+
+# Factor Characterization
+
+## Plot Factor 6 values
+```{r plot-factor-values, eval=TRUE}
+plot_factor(MOFAobject, 
+  factors = 6, 
+  color_by = "Factor1"
+)
+```
+
+## Plot Factor 6 gene weights
+```{r plot-gene-weights, eval=TRUE}
+plot_weights(MOFAobject,
+ view = "methylation",
+ factor = 6,
+ nfeatures = 10,     # Top number of features to highlight
+ scale = T           # Scale weights from -1 to 1
+)
+```
+
+## Plot top gene weights
+```{r plot-top-gene-weights, eval=TRUE}
+plot_top_weights(MOFAobject,
+ view = "methylation",
+ factor = 6,
+ nfeatures = 10,     # Top number of features to highlight
+ scale = T           # Scale weights from -1 to 1
+)
+```
+
+## Plot Factor 1 lncRNA weights
+```{r plot-lncRNA-weights, eval=TRUE}
+plot_weights(MOFAobject, 
+  view = "lncRNA", 
+  factor = 6, 
+  nfeatures = 10
+)
+```
+
+## Plot top lncRNA weights
+```{r plot-top-lncRNA-weights, eval=TRUE}
+plot_top_weights(MOFAobject,
+ view = "lncRNA",
+ factor = 6,
+ nfeatures = 10,     # Top number of features to highlight
+ scale = T           # Scale weights from -1 to 1
+)
+
+```
+## Plot top lncRNA
+```{r plot-top-lncRNA-factor01, eval=TRUE}
+plot_factor(MOFAobject, 
+  factors = 1, 
+  color_by = "lncRNA_33354",
+  add_violin = TRUE,
+  dodge = TRUE
+)
+```
+
+## Plot lncRNA_33354 by gene
+```{r plot-lncRNA_33354-by-gene, eval=TRUE}
+plot_data_scatter(MOFAobject, 
+  view = "gene",
+  factor = 6,  
+  features = 12,
+  sign = "positive",
+  color_by = "lncRNA_33354"
+) + labs(y="Gene expression")
+```
+
+## Plot Factor 1 heatmap
+```{r plot-heatmap, eval=TRUE}
+plot_data_heatmap(MOFAobject, 
+  view = "gene",
+  factor = 6,  
+  features = 25,
+  denoise = TRUE,
+  cluster_rows = FALSE, cluster_cols = TRUE,
+  show_rownames = TRUE, show_colnames = TRUE,
+  scale = "row"
+)
+
+```
