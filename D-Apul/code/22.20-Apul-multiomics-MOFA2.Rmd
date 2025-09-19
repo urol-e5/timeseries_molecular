@@ -26,31 +26,17 @@ citeproc: true
 
 # SUMMARY
 
-This script performs multiomics data integration and analysis for _A. pulchra_ using the MOFA2 framework ([MOFA2 documentation](https://biofam.github.io/MOFA2/)).
+This script performs multiomics data integration and analysis for *A. pulchra* using the MOFA2 framework ([MOFA2 documentation](https://biofam.github.io/MOFA2/)).
 
-**Software:**
-- MOFA2: Multi-Omics Factor Analysis v2, a statistical framework for comprehensive integration of multi-modal data [@Argelaguet2020].
+**Software:** - MOFA2: Multi-Omics Factor Analysis v2, a statistical framework for comprehensive integration of multi-modal data [@Argelaguet2020].
 
-**Input files:**
-- Genes: [apul-gene_count_matrix.csv](https://gannet.fish.washington.edu/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/02.20-D-Apul-RNAseq-alignment-HiSat2/apul-gene_count_matrix.csv)
-- Transcripts: [apul-transcript_count_matrix.csv](https://gannet.fish.washington.edu/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/02.20-D-Apul-RNAseq-alignment-HiSat2/apul-transcript_count_matrix.csv)
-- lncRNA: [lncRNA_counts.clean.filtered.txt](https://gannet.fish.washington.edu/v1_web/owlshell/bu-github/timeseries_molecular/D-Apul/output/31.5-Apul-lncRNA-discovery/lncRNA_counts.clean.filtered.txt)
-- Methylated CpGs: [merged-WGBS-CpG-counts_filtered.csv](https://gannet.fish.washington.edu/metacarcinus/E5/20250903_meth_Apul/merged-WGBS-CpG-counts_filtered.csv)
+**Input files:** - Genes: [apul-gene_count_matrix.csv](https://gannet.fish.washington.edu/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/02.20-D-Apul-RNAseq-alignment-HiSat2/apul-gene_count_matrix.csv) - Transcripts: [apul-transcript_count_matrix.csv](https://gannet.fish.washington.edu/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/02.20-D-Apul-RNAseq-alignment-HiSat2/apul-transcript_count_matrix.csv) - lncRNA: [lncRNA_counts.clean.filtered.txt](https://gannet.fish.washington.edu/v1_web/owlshell/bu-github/timeseries_molecular/D-Apul/output/31.5-Apul-lncRNA-discovery/lncRNA_counts.clean.filtered.txt) - Methylated CpGs: [merged-WGBS-CpG-counts_filtered.csv](https://gannet.fish.washington.edu/metacarcinus/E5/20250903_meth_Apul/merged-WGBS-CpG-counts_filtered.csv)
 
-**Output files:**
-- MOFA2 model HDF5 files: `MOFA2_model_factors-<N>.hdf5` (where `<N>` is the number of factors, e.g. 10-15)
-- MOFA2 model RDS files: `MOFA2_model_factors-<N>.rds` (where `<N>` is the number of factors, e.g. 10-15)
-- Output files are written to: `../output/22.20-Apul-multiomics-MOFA2/`
+**Output files:** - MOFA2 model HDF5 files: `MOFA2_model_factors-<N>.hdf5` (where `<N>` is the number of factors, e.g. 10-15) - MOFA2 model RDS files: `MOFA2_model_factors-<N>.rds` (where `<N>` is the number of factors, e.g. 10-15) - Output files are written to: `../output/22.20-Apul-multiomics-MOFA2/`
 
-**Script workflow:**
-- Loads and harmonizes multiomics input data (gene, transcript, lncRNA, methylation counts)
-- Preprocesses data (removes zero-variance features, harmonizes sample columns)
-- Trains MOFA2 models for a range of factor numbers (10-15) or loads pre-trained models from disk
-- Performs downstream analysis and visualization of MOFA2 results (variance explained, factor characterization, feature weights)
+**Script workflow:** - Loads and harmonizes multiomics input data (gene, transcript, lncRNA, methylation counts) - Preprocesses data (removes zero-variance features, harmonizes sample columns) - Trains MOFA2 models for a range of factor numbers (10-15) or loads pre-trained models from disk - Performs downstream analysis and visualization of MOFA2 results (variance explained, factor characterization, feature weights)
 
-**MOFA2 reference:**
-See [@Argelaguet2020] for details.
----
+**MOFA2 reference:** See [@Argelaguet2020] for details. ---
 
 # BACKGROUND
 
@@ -491,7 +477,9 @@ plot_factor(mofa_objects[["MOFAobject_factors10"]],
 )
 ```
 
-## Plot Factor 6 gene weights
+## Plot Factor 6 weights
+
+### Genes
 
 ```{r plot-gene-weights, eval=TRUE}
 plot_weights(mofa_objects[["MOFAobject_factors10"]],
@@ -502,7 +490,7 @@ plot_weights(mofa_objects[["MOFAobject_factors10"]],
 )
 ```
 
-## Plot top gene weights
+#### Plot top weights
 
 ```{r plot-top-gene-weights, eval=TRUE}
 plot_top_weights(mofa_objects[["MOFAobject_factors10"]],
@@ -513,7 +501,7 @@ plot_top_weights(mofa_objects[["MOFAobject_factors10"]],
 )
 ```
 
-## Print top 10 gene weights
+#### Print top 10 weights
 
 ```{r print-top-gene-weights, eval=TRUE}
 # Print top 10 gene features (by absolute weight) and their actual weights for factor 6
@@ -530,7 +518,190 @@ top_df <- data.frame(Feature = top_feature_names, Weight = top_feature_weights)
 print(top_df)
 ```
 
-## Plot lncRNA weights
+
+#### Plot heatmap
+
+```{r plot-heatmap-gene, eval=TRUE}
+plot_data_heatmap(mofa_objects[["MOFAobject_factors10"]], 
+  view = "gene",
+  factor = 6,  
+  features = 25,
+  denoise = TRUE,
+  cluster_rows = FALSE, cluster_cols = TRUE,
+  show_rownames = TRUE, show_colnames = TRUE,
+  scale = "row"
+)
+```
+
+#### Plot top gene
+
+```{r plot-top-gene-factor6, eval=TRUE}
+# Programmatically get top gene by absolute weight for factor 6
+weights <- get_weights(mofa_objects[["MOFAobject_factors10"]], view = "gene", factor = 6)
+weights_vec <- weights[[1]][,1]
+names(weights_vec) <- rownames(weights[[1]])
+top_n <- 1
+top_features <- sort(abs(weights_vec), decreasing = TRUE)[1:top_n]
+top_gene <- names(top_features)[1]
+cat("Top gene by absolute weight for factor 6:", top_gene, "\n")
+
+plot_factor(mofa_objects[["MOFAobject_factors10"]], 
+  factors = 6, 
+  color_by = top_gene,
+  add_violin = TRUE,
+  dodge = TRUE
+)
+```
+
+#### Plot gene by transcript scatter
+
+```{r plot-top-gene-by-transcript, eval=TRUE}
+plot_data_scatter(mofa_objects[["MOFAobject_factors10"]], 
+  view = "transcript",
+  factor = 6,  
+  features = 12,
+  sign = "positive",
+  color_by = top_gene
+) + labs(y="Transcript expression")
+```
+
+#### Plot gene by lncRNA scatter
+
+```{r plot-top-gene-by-lncRNA, eval=TRUE}
+plot_data_scatter(mofa_objects[["MOFAobject_factors10"]], 
+  view = "lncRNA",
+  factor = 6,  
+  features = 12,
+  sign = "positive",
+  color_by = top_gene
+) + labs(y="lncRNA expression")
+```
+
+#### Plot gene by methylation scatter
+
+```{r plot-top-gene-by-methylation, eval=TRUE}
+plot_data_scatter(mofa_objects[["MOFAobject_factors10"]], 
+  view = "methylation",
+  factor = 6,  
+  features = 12,
+  sign = "positive",
+  color_by = top_gene
+) + labs(y="Methylated CpG counts")
+```
+
+### Transcripts
+
+```{r plot-transcripts-weights, eval=TRUE}
+plot_weights(mofa_objects[["MOFAobject_factors10"]],
+ view = "transcript",
+ factor = 6,
+ nfeatures = 10,     # Top number of features to highlight
+ scale = T           # Scale weights from -1 to 1
+)
+```
+
+#### Plot top weights
+
+```{r plot-top-transcripts-weights, eval=TRUE}
+plot_top_weights(mofa_objects[["MOFAobject_factors10"]],
+ view = "transcript",
+ factor = 6,
+ nfeatures = 10,     # Top number of features to highlight
+ scale = T           # Scale weights from -1 to 1
+)
+```
+
+#### Print top 10 weights
+
+```{r print-top-transcripts-weights, eval=TRUE}
+# Print top 10 transcripts features (by absolute weight) and their actual weights for factor 6
+weights <- get_weights(mofa_objects[["MOFAobject_factors10"]], view = "transcript", factor = 6)
+
+# Extract the matrix from the list
+weights_vec <- weights[[1]][,1]
+names(weights_vec) <- rownames(weights[[1]])
+top_n <- 10
+top_features <- sort(abs(weights_vec), decreasing = TRUE)[1:top_n]
+top_feature_names <- names(top_features)
+top_feature_weights <- weights_vec[top_feature_names]
+top_df <- data.frame(Feature = top_feature_names, Weight = top_feature_weights)
+print(top_df)
+```
+
+
+#### Plot heatmap
+
+```{r plot-heatmap-transcripts, eval=TRUE}
+plot_data_heatmap(mofa_objects[["MOFAobject_factors10"]], 
+  view = "transcript",
+  factor = 6,  
+  features = 25,
+  denoise = TRUE,
+  cluster_rows = FALSE, cluster_cols = TRUE,
+  show_rownames = TRUE, show_colnames = TRUE,
+  scale = "row"
+)
+```
+
+#### Plot top transcript
+
+```{r plot-top-transcripts-factor01, eval=TRUE}
+# Programmatically get top transcripts by absolute weight for factor 6
+weights <- get_weights(mofa_objects[["MOFAobject_factors10"]], view = "transcript", factor = 6)
+weights_vec <- weights[[1]][,1]
+names(weights_vec) <- rownames(weights[[1]])
+top_n <- 1
+top_features <- sort(abs(weights_vec), decreasing = TRUE)[1:top_n]
+top_transcript <- names(top_features)[1]
+cat("Top transcript by absolute weight for factor 6:", top_transcript, "\n")
+
+plot_factor(mofa_objects[["MOFAobject_factors10"]], 
+  factors = 6, 
+  color_by = top_transcript,
+  add_violin = TRUE,
+  dodge = TRUE
+)
+```
+
+#### Plot transcript by gene scatter
+
+```{r plot-top-transcript-by-gene, eval=TRUE}
+plot_data_scatter(mofa_objects[["MOFAobject_factors10"]], 
+  view = "gene",
+  factor = 6,  
+  features = 12,
+  sign = "positive",
+  color_by = top_transcript
+) + labs(y="Transcript expression")
+```
+
+#### Plot transcript by lncRNA scatter
+
+```{r plot-top-transcript-by-lncRNA, eval=TRUE}
+plot_data_scatter(mofa_objects[["MOFAobject_factors10"]], 
+  view = "lncRNA",
+  factor = 6,  
+  features = 12,
+  sign = "positive",
+  color_by = top_transcript
+) + labs(y="lncRNA expression")
+```
+
+#### Plot transcript by methylation scatter
+
+```{r plot-top-transcript-by-methylation, eval=TRUE}
+plot_data_scatter(mofa_objects[["MOFAobject_factors10"]], 
+  view = "methylation",
+  factor = 6,  
+  features = 12,
+  sign = "positive",
+  color_by = top_transcript
+) + labs(y="Methylated CpG counts")
+```
+
+### lncRNA
+
+#### Plot weights
 
 ```{r plot-lncRNA-weights, eval=TRUE}
 plot_weights(mofa_objects[["MOFAobject_factors10"]], 
@@ -540,7 +711,7 @@ plot_weights(mofa_objects[["MOFAobject_factors10"]],
 )
 ```
 
-## Plot top lncRNA weights
+#### Plot top weights
 
 ```{r plot-top-lncRNA-weights, eval=TRUE}
 plot_top_weights(mofa_objects[["MOFAobject_factors10"]],
@@ -551,7 +722,7 @@ plot_top_weights(mofa_objects[["MOFAobject_factors10"]],
 )
 ```
 
-## Print top lncRNA weights
+#### Print top 10 weights
 
 ```{r print-top-lncRNA-weights, eval=TRUE}
 # Print top 10 lncRNA features (by absolute weight) and their actual weights for factor 6
@@ -568,34 +739,11 @@ top_df <- data.frame(Feature = top_feature_names, Weight = top_feature_weights)
 print(top_df)
 ```
 
-## Plot top lncRNA
+#### Plot heatmap
 
-```{r plot-top-lncRNA-factor01, eval=TRUE}
-plot_factor(mofa_objects[["MOFAobject_factors10"]], 
-  factors = 1, 
-  color_by = "lncRNA_33354",
-  add_violin = TRUE,
-  dodge = TRUE
-)
-```
-
-## Plot lncRNA_33354 by gene
-
-```{r plot-lncRNA_33354-by-gene, eval=TRUE}
-plot_data_scatter(mofa_objects[["MOFAobject_factors10"]], 
-  view = "gene",
-  factor = 6,  
-  features = 12,
-  sign = "positive",
-  color_by = "lncRNA_33354"
-) + labs(y="Gene expression")
-```
-
-## Plot gene heatmap
-
-```{r plot-heatmap, eval=TRUE}
+```{r plot-heatmap-lncRNA, eval=TRUE}
 plot_data_heatmap(mofa_objects[["MOFAobject_factors10"]], 
-  view = "gene",
+  view = "lncRNA",
   factor = 6,  
   features = 25,
   denoise = TRUE,
@@ -603,5 +751,179 @@ plot_data_heatmap(mofa_objects[["MOFAobject_factors10"]],
   show_rownames = TRUE, show_colnames = TRUE,
   scale = "row"
 )
-
 ```
+
+#### Plot top lncRNA
+
+```{r plot-top-lncRNA-factor01, eval=TRUE}
+# Programmatically get top lncRNA by absolute weight for factor 6
+weights <- get_weights(mofa_objects[["MOFAobject_factors10"]], view = "lncRNA", factor = 6)
+weights_vec <- weights[[1]][,1]
+names(weights_vec) <- rownames(weights[[1]])
+top_n <- 1
+top_features <- sort(abs(weights_vec), decreasing = TRUE)[1:top_n]
+top_lncRNA <- names(top_features)[1]
+cat("Top lncRNA by absolute weight for factor 6:", top_lncRNA, "\n")
+
+plot_factor(mofa_objects[["MOFAobject_factors10"]], 
+  factors = 6, 
+  color_by = top_lncRNA,
+  add_violin = TRUE,
+  dodge = TRUE
+)
+```
+
+#### Plot lncRNA by gene scatter
+
+```{r plot-top-lncRNA-by-gene, eval=TRUE}
+plot_data_scatter(mofa_objects[["MOFAobject_factors10"]], 
+  view = "gene",
+  factor = 6,  
+  features = 12,
+  sign = "positive",
+  color_by = top_lncRNA
+) + labs(y="Gene expression")
+```
+
+#### Plot lncRNA by transcript scatter
+
+```{r plot-top-lncRNA-by-transcript, eval=TRUE}
+plot_data_scatter(mofa_objects[["MOFAobject_factors10"]], 
+  view = "transcript",
+  factor = 6,  
+  features = 12,
+  sign = "positive",
+  color_by = top_lncRNA
+) + labs(y="Transcript expression")
+```
+
+#### Plot lncRNA by methylation scatter
+
+```{r plot-top-lncRNA-by-methylation, eval=TRUE}
+plot_data_scatter(mofa_objects[["MOFAobject_factors10"]], 
+  view = "methylation",
+  factor = 6,  
+  features = 12,
+  sign = "positive",
+  color_by = top_lncRNA
+) + labs(y="Methylated CpG counts")
+```
+
+### Methylation
+
+#### Plot weights
+
+```{r plot-methylation-weights, eval=TRUE}
+plot_weights(mofa_objects[["MOFAobject_factors10"]], 
+  view = "methylation", 
+  factor = 6, 
+  nfeatures = 10
+)
+```
+
+#### Plot top weights
+
+```{r plot-top-methylation-weights, eval=TRUE}
+plot_top_weights(mofa_objects[["MOFAobject_factors10"]],
+ view = "methylation",
+ factor = 6,
+ nfeatures = 10,     # Top number of features to highlight
+ scale = T           # Scale weights from -1 to 1
+)
+```
+
+#### Print top 10 weights
+
+```{r print-top-methylation-weights, eval=TRUE}
+# Print top 10 methylation features (by absolute weight) and their actual weights for factor 6
+weights <- get_weights(mofa_objects[["MOFAobject_factors10"]], view = "methylation", factor = 6)
+
+# Extract the matrix from the list
+weights_vec <- weights[[1]][,1]
+names(weights_vec) <- rownames(weights[[1]])
+top_n <- 10
+top_features <- sort(abs(weights_vec), decreasing = TRUE)[1:top_n]
+top_feature_names <- names(top_features)
+top_feature_weights <- weights_vec[top_feature_names]
+top_df <- data.frame(Feature = top_feature_names, Weight = top_feature_weights)
+print(top_df)
+```
+
+#### Plot heatmap
+
+```{r plot-heatmap-methylation, eval=TRUE}
+plot_data_heatmap(mofa_objects[["MOFAobject_factors10"]], 
+  view = "methylation",
+  factor = 6,  
+  features = 25,
+  denoise = TRUE,
+  cluster_rows = FALSE, cluster_cols = TRUE,
+  show_rownames = TRUE, show_colnames = TRUE,
+  scale = "row"
+)
+```
+
+#### Plot top methylation
+
+```{r plot-top-methylation-factor01, eval=TRUE}
+# Programmatically get top methylation by absolute weight for factor 6
+weights <- get_weights(mofa_objects[["MOFAobject_factors10"]], view = "methylation", factor = 6)
+weights_vec <- weights[[1]][,1]
+names(weights_vec) <- rownames(weights[[1]])
+top_n <- 1
+top_features <- sort(abs(weights_vec), decreasing = TRUE)[1:top_n]
+top_methylation <- names(top_features)[1]
+cat("Top methylation by absolute weight for factor 6:", top_methylation, "\n")
+
+plot_factor(mofa_objects[["MOFAobject_factors10"]], 
+  factors = 6, 
+  color_by = top_methylation,
+  add_violin = TRUE,
+  dodge = TRUE
+)
+```
+
+#### Plot methylation by gene scatter
+
+```{r plot-top-methylation-by-gene, eval=TRUE}
+plot_data_scatter(mofa_objects[["MOFAobject_factors10"]], 
+  view = "gene",
+  factor = 6,  
+  features = 12,
+  sign = "negative",
+  color_by = top_methylation
+) + labs(y="Gene expression")
+```
+
+#### Plot methylation by transcript scatter
+
+```{r plot-top-methylation-by-transcript, eval=TRUE}
+plot_data_scatter(mofa_objects[["MOFAobject_factors10"]], 
+  view = "transcript",
+  factor = 6,  
+  features = 12,
+  sign = "negative",
+  color_by = top_methylation
+) + labs(y="Transcript expression")
+```
+
+#### Plot methylation by lncRNA scatter
+
+```{r plot-top-methylation-by-gene, eval=TRUE}
+plot_data_scatter(mofa_objects[["MOFAobject_factors10"]], 
+  view = "lncRNA",
+  factor = 6,  
+  features = 12,
+  sign = "negative",
+  color_by = top_methylation
+) + labs(y="lncRNA expression")
+```
+
+
+
+# SESSION INFO
+```{r session-info, eval=TRUE}
+sessionInfo()
+```
+
+# REFERENCES
