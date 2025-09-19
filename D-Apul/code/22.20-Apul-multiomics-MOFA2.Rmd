@@ -46,7 +46,7 @@ This script performs multi-omics data integration and analysis for *A. pulchra* 
 
 **Input files:**
 
-Data files downloaded from [*A.pulchra* Expression Count GitHub wiki](https://github.com/urol-e5/timeseries_molecular/wiki/02%E2%80%90Expression-Count-Matrices#a-pulchra)
+Data files downloaded from [*A.pulchra* Expression Count GitHub wiki](https://github.com/urol-e5/timeseries_molecular/wiki/02%E2%80%90Expression-Count-Matrices#a-pulchra).
 
 -   Genes: [apul-gene_count_matrix.csv](https://gannet.fish.washington.edu/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/02.20-D-Apul-RNAseq-alignment-HiSat2/apul-gene_count_matrix.csv)
 -   Transcripts: [apul-transcript_count_matrix.csv](https://gannet.fish.washington.edu/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/02.20-D-Apul-RNAseq-alignment-HiSat2/apul-transcript_count_matrix.csv)
@@ -430,7 +430,7 @@ for (obj_name in names(mofa_objects)) {
 
 ## Variance decomposition
 
-```{r plot-variance-decomposition, eval=TRUE}
+```{r plot-variance-decomposition-all, eval=TRUE}
 for (obj_name in names(mofa_objects)) {
   cat("\nVariance explained for", obj_name, ":\n")
   print(plot_variance_explained(mofa_objects[[obj_name]], max_r2=10))
@@ -445,7 +445,7 @@ Looks like the MOFA object with Factor count of `10` is the most informative. It
 
 Let's reduce the `max_r2` value (percent variation) to see if we can better see an effect from the methylation view on the other views.
 
-```{r plot-variance-decomposition, eval=TRUE}
+```{r plot-variance-decomposition-10factors, eval=TRUE}
 cat("\nVariance explained for MOFAobject_factors10:\n")
 print(plot_variance_explained(mofa_objects[["MOFAobject_factors10"]], max_r2=4))
 ```
@@ -865,7 +865,7 @@ plot_data_heatmap(mofa_objects[["MOFAobject_factors10"]],
 
 #### Plot top methylation
 
-```{r plot-top-methylation-factor01, eval=TRUE}
+```{r plot-top-methylation-factor6, eval=TRUE}
 # Programmatically get top methylation by absolute weight for factor 6
 weights <- get_weights(mofa_objects[["MOFAobject_factors10"]], view = "methylation", factor = 6)
 weights_vec <- weights[[1]][,1]
@@ -909,7 +909,7 @@ plot_data_scatter(mofa_objects[["MOFAobject_factors10"]],
 
 #### Plot methylation by lncRNA scatter
 
-```{r plot-top-methylation-by-gene, eval=TRUE}
+```{r plot-top-methylation-by-lncRNA, eval=TRUE}
 plot_data_scatter(mofa_objects[["MOFAobject_factors10"]], 
   view = "lncRNA",
   factor = 6,  
