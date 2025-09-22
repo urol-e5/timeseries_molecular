@@ -36,7 +36,7 @@ This script performs multiomics data integration and analysis for *A. pulchra* u
 
 **Script workflow:** - Loads and harmonizes multiomics input data (gene, transcript, lncRNA, methylation counts) - Preprocesses data (removes zero-variance features, harmonizes sample columns) - Trains MOFA2 models for a range of factor numbers (10-15) or loads pre-trained models from disk - Performs downstream analysis and visualization of MOFA2 results (variance explained, factor characterization, feature weights)
 
-**MOFA2 reference:** See [@Argelaguet2020] for details. ---
+**MOFA2 reference:** See [@Argelaguet2020] for details.
 
 # BACKGROUND
 
@@ -53,9 +53,23 @@ Data files downloaded from [*A.pulchra* Expression Count GitHub wiki](https://gi
 -   lncRNA: [lncRNA_counts.clean.filtered.txt](https://gannet.fish.washington.edu/v1_web/owlshell/bu-github/timeseries_molecular/D-Apul/output/31.5-Apul-lncRNA-discovery/lncRNA_counts.clean.filtered.txt)
 -   Methylated CpGs: [merged-WGBS-CpG-counts_filtered.csv](https://gannet.fish.washington.edu/metacarcinus/E5/20250903_meth_Apul/merged-WGBS-CpG-counts_filtered.csv)
 
-**Output files:** - MOFA2 model HDF5 files: `MOFA2_model_factors-<N>.hdf5` (where `<N>` is the number of factors, e.g. 10-15) - MOFA2 model RDS files: `MOFA2_model_factors-<N>.rds` (where `<N>` is the number of factors, e.g. 10-15) - Output files are written to: `../output/22.20-Apul-multiomics-MOFA2/`
+**Output files:**
 
-**Script workflow:** - Loads and harmonizes multi-omics input data (gene, transcript, lncRNA, methylation counts) - Preprocesses data (removes zero-variance features, harmonizes sample columns) - Trains MOFA2 models for a range of factor numbers (10-15) or loads pre-trained models from disk - Performs downstream analysis and visualization of MOFA2 results (variance explained, factor characterization, feature weights)
+NOTE: Due to the large file sizes of the output files, they are not uploaded to GitHub.
+
+They are available here: https://gannet.fish.washington.edu/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/22.20-Apul-multiomics-MOFA2/
+
+Creating these files (MOFA2 model HDF5 and RDS files) requires running the MOFA2 training steps in this script, which can take several hours depending on the number of factors and computational resources. It will be faster to download these output files from the above link and then run this script.
+
+- Output files are written to: `../output/22.20-Apul-multiomics-MOFA2/`
+    - MOFA2 model HDF5 files: `MOFA2_model_factors-<N>.hdf5` (where `<N>` is the number of factors, e.g. 10-15)
+    - MOFA2 model RDS files: `MOFA2_model_factors-<N>.rds` (where `<N>` is the number of factors, e.g. 10-15)
+
+**Script workflow:**
+- Loads and harmonizes multi-omics input data (gene, transcript, lncRNA, methylation counts)
+- Preprocesses data (removes zero-variance features, harmonizes sample columns)
+- Trains MOFA2 models for a range of factor numbers (10-15) or loads pre-trained models from disk
+- Performs downstream analysis and visualization of MOFA2 results (variance explained, factor characterization, feature weights)
 
 # Setup
 
@@ -82,9 +96,6 @@ knitr::opts_chunk$set(
 ```{r variables, eval=TRUE}
 # Output directory
 output_dir <- "../output/22.20-Apul-multiomics-MOFA2"
-
-# Set factors used in model options
-number_of_factors <- 11
 
 # Model seed
 model_seed <- 42
@@ -340,7 +351,7 @@ data_opts
 
 ```{r, model-options, eval=TRUE}
 model_opts <- get_default_model_options(MOFAobject)
-model_opts$num_factors <- number_of_factors
+model_opts$num_factors <- 10
 
 model_opts
 ```
