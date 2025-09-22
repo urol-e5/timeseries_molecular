@@ -24,25 +24,12 @@ bibliography: references.bib
 citeproc: true
 ---
 
-# SUMMARY
-
-This script performs multiomics data integration and analysis for *A. pulchra* using the MOFA2 framework ([MOFA2 documentation](https://biofam.github.io/MOFA2/)).
-
-**Software:** - MOFA2: Multi-Omics Factor Analysis v2, a statistical framework for comprehensive integration of multi-modal data [@Argelaguet2020].
-
-**Input files:** - Genes: [apul-gene_count_matrix.csv](https://gannet.fish.washington.edu/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/02.20-D-Apul-RNAseq-alignment-HiSat2/apul-gene_count_matrix.csv) - Transcripts: [apul-transcript_count_matrix.csv](https://gannet.fish.washington.edu/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/02.20-D-Apul-RNAseq-alignment-HiSat2/apul-transcript_count_matrix.csv) - lncRNA: [lncRNA_counts.clean.filtered.txt](https://gannet.fish.washington.edu/v1_web/owlshell/bu-github/timeseries_molecular/D-Apul/output/31.5-Apul-lncRNA-discovery/lncRNA_counts.clean.filtered.txt) - Methylated CpGs: [merged-WGBS-CpG-counts_filtered.csv](https://gannet.fish.washington.edu/metacarcinus/E5/20250903_meth_Apul/merged-WGBS-CpG-counts_filtered.csv)
-
-**Output files:** - MOFA2 model HDF5 files: `MOFA2_model_factors-<N>.hdf5` (where `<N>` is the number of factors, e.g. 10-15) - MOFA2 model RDS files: `MOFA2_model_factors-<N>.rds` (where `<N>` is the number of factors, e.g. 10-15) - Output files are written to: `../output/22.20-Apul-multiomics-MOFA2/`
-
-**Script workflow:** - Loads and harmonizes multiomics input data (gene, transcript, lncRNA, methylation counts) - Preprocesses data (removes zero-variance features, harmonizes sample columns) - Trains MOFA2 models for a range of factor numbers (10-15) or loads pre-trained models from disk - Performs downstream analysis and visualization of MOFA2 results (variance explained, factor characterization, feature weights)
-
-**MOFA2 reference:** See [@Argelaguet2020] for details.
-
 # BACKGROUND
 
 This script performs multi-omics data integration and analysis for *A. pulchra* using the MOFA2 framework ([MOFA2 documentation](https://biofam.github.io/MOFA2/)) .
 
-**Software:** - MOFA2: Multi-Omics Factor Analysis v2, a statistical framework for comprehensive integration of multi-modal data.
+**Software:**
+- MOFA2: Multi-Omics Factor Analysis v2, a statistical framework for comprehensive integration of multi-modal data.
 
 **Input files:**
 
