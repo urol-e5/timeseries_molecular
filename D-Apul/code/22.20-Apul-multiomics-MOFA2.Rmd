@@ -308,6 +308,24 @@ str(data_list_nzv, max.level = 1)
 cat("\nList of matrices after zero-variance feature removal ready for MOFA2 object creation.\n")
 ```
 
+```{r}
+# Get sample names (columns) from the harmonized data
+sample_names <- colnames(gene_counts_nzv)[-1]
+
+# Extract time point from sample names using regex
+time_point <- stringr::str_extract(sample_names, "TP[1-4]")
+
+# Create metadata data frame
+sample_metadata <- data.frame(
+  sample = sample_names,
+  time_point = time_point,
+  stringsAsFactors = FALSE
+)
+
+# Preview
+head(sample_metadata)
+```
+
 # CREATE MOFA2 OBJECT
 
 ```{r mofa2-create-object, eval=TRUE}
@@ -317,6 +335,11 @@ MOFAobject <- create_mofa(data_list_nzv)
 # Show summary of the MOFA object
 print(MOFAobject)
 cat("\nMOFA object created.\n")
+```
+
+## Add sample metadata to MOFA object
+```{r add-timepoints-to-MOFA2-object, eval=TRUE}
+samples_metadata(MOFAobject) <- sample_metadata
 ```
 
 ## Plot data overview
@@ -925,3 +948,5 @@ sessionInfo()
 ```
 
 # REFERENCES
+
+
