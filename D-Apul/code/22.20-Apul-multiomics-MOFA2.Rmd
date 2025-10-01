@@ -494,34 +494,32 @@ for (obj_name in names(mofa_objects)) {
 ```{r plot-variance-decomposition-all, eval=TRUE}
 for (obj_name in names(mofa_objects)) {
   cat("\nVariance explained for", obj_name, ":\n")
-  print(plot_variance_explained(mofa_objects[[obj_name]], max_r2=10))
+  print(plot_variance_explained(mofa_objects[[obj_name]], max_r2=0.1))
 }
 ```
 
-Looks like the MOFA object with Factor count of `10` is the most informative. It shows a variance range in methylation (i.e. variation percentage isn't pegged at the max/min colors across all factors), as well as some possible effects in Factor 6 within `gene`, `transcript`, and `lncRNA`.
+Looks like the MOFA object with Factor count of `15` is the most informative, or at least provides some of the best resulotion. It shows a variance range in methylation (i.e. variation percentage isn't pegged at the max/min colors across all factors), as well as some possible effects in:
 
-# FACTOR 6 CHARACTERIZATION
+- Factor 1 showing variation across all views, so possibly important.
 
-## Factor 6 Variance decomposition
+- Factor 8 showing co-variation in only methylation and miRNA, suggesting some level of importance.
 
-Let's reduce the `max_r2` value (percent variation) to see if we can better see an effect from the methylation view on the other views.
+- Factor 9 showing co-variation in only methylation lncRNA, suggesting some level of importance.
 
-```{r plot-variance-decomposition-10factors, eval=TRUE}
-cat("\nVariance explained for MOFAobject_factors10:\n")
-print(plot_variance_explained(mofa_objects[["MOFAobject_factors10"]], max_r2=4))
-```
+# FACTOR 1 CHARACTERIZATION
+
 
 ## Plot variance explained per view
 
 ```{r plot-variance-explained-view, eval=TRUE}
-cat("\nVariance explained per view for MOFAobject_factors10:\n")
-print(plot_variance_explained(mofa_objects[["MOFAobject_factors10"]], plot_total = T)[[2]])
+cat("\nVariance explained per view for MOFAobject_factors15:\n")
+print(plot_variance_explained(mofa_objects[["MOFAobject_factors15"]], plot_total = T)[[2]])
 ```
 
 ## Print percent variance explained per view as a table
 
 ```{r print-variance-explained-table, eval=TRUE}
-var_list <- plot_variance_explained(mofa_objects[["MOFAobject_factors10"]], plot_total = TRUE)
+var_list <- plot_variance_explained(mofa_objects[["MOFAobject_factors15"]], plot_total = TRUE)
 # Extract the ggplot object
 var_gg <- var_list[[2]]
 # Get the data frame from the ggplot object
@@ -529,23 +527,23 @@ var_df <- var_gg$data
 print(var_df)
 ```
 
-## Plot Factor 6 values
+## Plot Factor 1 values
 
-```{r plot-factor-values, eval=TRUE}
-plot_factor(mofa_objects[["MOFAobject_factors10"]], 
-  factors = 6, 
-  color_by = "Factor6"
+```{r plot-factor1-factor-values, eval=TRUE}
+plot_factor(mofa_objects[["MOFAobject_factors15"]], 
+  factors = 1, 
+  color_by = "Factor1"
 )
 ```
 
-## Plot Factor 6 weights
+## Plot Factor 1 weights
 
 ### Genes
 
-```{r plot-gene-weights, eval=TRUE}
-plot_weights(mofa_objects[["MOFAobject_factors10"]],
+```{r plot-factor1-gene-weights, eval=TRUE}
+plot_weights(mofa_objects[["MOFAobject_factors15"]],
  view = "gene",
- factors = 6,
+ factors = 1,
  nfeatures = 10,     # Top number of features to highlight
  scale = T           # Scale weights from -1 to 1
 )
@@ -553,10 +551,10 @@ plot_weights(mofa_objects[["MOFAobject_factors10"]],
 
 #### Plot top weights
 
-```{r plot-top-gene-weights, eval=TRUE}
-plot_top_weights(mofa_objects[["MOFAobject_factors10"]],
+```{r plot-factor1-top-gene-weights, eval=TRUE}
+plot_top_weights(mofa_objects[["MOFAobject_factors15"]],
  view = "gene",
- factors = 6,
+ factors = 1,
  nfeatures = 10,     # Top number of features to highlight
  scale = T           # Scale weights from -1 to 1
 )
@@ -565,8 +563,8 @@ plot_top_weights(mofa_objects[["MOFAobject_factors10"]],
 #### Print top 10 weights
 
 ```{r print-top-gene-weights, eval=TRUE}
-# Print top 10 gene features (by absolute weight) and their actual weights for factor 6
-weights <- get_weights(mofa_objects[["MOFAobject_factors10"]], view = "gene", factor = 6)
+# Print top 10 gene features (by absolute weight) and their actual weights for factor 1
+weights <- get_weights(mofa_objects[["MOFAobject_factors15"]], view = "gene", factor = 1)
 
 # Extract the matrix from the list
 weights_vec <- weights[[1]][,1]
@@ -582,10 +580,10 @@ print(top_df)
 
 #### Plot heatmap
 
-```{r plot-heatmap-gene, eval=TRUE}
-plot_data_heatmap(mofa_objects[["MOFAobject_factors10"]], 
+```{r plot-factor1-heatmap-gene, eval=TRUE}
+plot_data_heatmap(mofa_objects[["MOFAobject_factors15"]], 
   view = "gene",
-  factor = 6,
+  factor = 1,
   features = 25,
   denoise = TRUE,
   cluster_rows = FALSE, cluster_cols = TRUE,
@@ -596,26 +594,26 @@ plot_data_heatmap(mofa_objects[["MOFAobject_factors10"]],
 
 #### Plot top 10 genes
 
-```{r plot-top-gene-factor6, eval=TRUE}
-# Programmatically get top gene by absolute weight for factor 6
+```{r plot-factor1-top-gene-factor1, eval=TRUE}
+# Programmatically get top gene by absolute weight for factor 1
 
-# Get top 10 genes by absolute weight for factor 6
-weights <- get_weights(mofa_objects[["MOFAobject_factors10"]], view = "gene", factor = 6)
+# Get top 10 genes by absolute weight for factor 1
+weights <- get_weights(mofa_objects[["MOFAobject_factors15"]], view = "gene", factor = 1)
 weights_vec <- weights[[1]][,1]
 names(weights_vec) <- rownames(weights[[1]])
 top_n <- 10
 top_features <- sort(abs(weights_vec), decreasing = TRUE)[1:top_n]
 top_gene <- names(sort(abs(weights_vec), decreasing = TRUE))[1]
 top_genes <- names(top_features)
-cat("Top 10 genes by absolute weight for factor 6:\n")
+cat("Top 10 genes by absolute weight for factor 1:\n")
 print(top_genes)
 
 # Create a separate plot for each top gene
 for (gene in top_genes) {
-  cat("\nPlotting factor 6 colored by time point:", gene, "\n")
+  cat("\nPlotting factor 1 colored by time point:", gene, "\n")
   print(
-    plot_factor(mofa_objects[["MOFAobject_factors10"]], 
-      factors = 6,
+    plot_factor(mofa_objects[["MOFAobject_factors15"]], 
+      factors = 1,
       color_by = gene,
       group_by = "time_point",
       add_violin = TRUE,
@@ -627,10 +625,10 @@ for (gene in top_genes) {
 
 #### Plot gene by transcript scatter
 
-```{r plot-top-gene-by-transcript, eval=TRUE}
-plot_data_scatter(mofa_objects[["MOFAobject_factors10"]], 
+```{r plot-factor1-top-gene-by-transcript, eval=TRUE}
+plot_data_scatter(mofa_objects[["MOFAobject_factors15"]], 
   view = "transcript",
-  factor = 6,  
+  factor = 1,  
   features = 12,
   sign = "positive",
   color_by = top_gene
@@ -639,10 +637,10 @@ plot_data_scatter(mofa_objects[["MOFAobject_factors10"]],
 
 #### Plot gene by lncRNA scatter
 
-```{r plot-top-gene-by-lncRNA, eval=TRUE}
-plot_data_scatter(mofa_objects[["MOFAobject_factors10"]], 
+```{r plot-factor1-top-gene-by-lncRNA, eval=TRUE}
+plot_data_scatter(mofa_objects[["MOFAobject_factors15"]], 
   view = "lncRNA",
-  factor = 6,  
+  factor = 1,  
   features = 12,
   sign = "positive",
   color_by = top_gene
@@ -651,10 +649,10 @@ plot_data_scatter(mofa_objects[["MOFAobject_factors10"]],
 
 #### Plot gene by miRNA scatter
 
-```{r plot-top-gene-by-miRNA, eval=TRUE}
-plot_data_scatter(mofa_objects[["MOFAobject_factors10"]], 
+```{r plot-factor1-top-gene-by-miRNA, eval=TRUE}
+plot_data_scatter(mofa_objects[["MOFAobject_factors15"]], 
   view = "miRNA",
-  factor = 6,  
+  factor = 1,  
   features = 12,
   sign = "positive",
   color_by = top_gene
@@ -663,10 +661,10 @@ plot_data_scatter(mofa_objects[["MOFAobject_factors10"]],
 
 #### Plot gene by methylation scatter
 
-```{r plot-top-gene-by-methylation, eval=TRUE}
-plot_data_scatter(mofa_objects[["MOFAobject_factors10"]], 
+```{r plot-factor1-top-gene-by-methylation, eval=TRUE}
+plot_data_scatter(mofa_objects[["MOFAobject_factors15"]], 
   view = "methylation",
-  factor = 6,  
+  factor = 1,  
   features = 12,
   sign = "positive",
   color_by = top_gene
@@ -675,10 +673,10 @@ plot_data_scatter(mofa_objects[["MOFAobject_factors10"]],
 
 ### Transcripts
 
-```{r plot-transcripts-weights, eval=TRUE}
-plot_weights(mofa_objects[["MOFAobject_factors10"]],
+```{r plot-factor1-transcripts-weights, eval=TRUE}
+plot_weights(mofa_objects[["MOFAobject_factors15"]],
  view = "transcript",
- factor = 6,
+ factor = 1,
  nfeatures = 10,     # Top number of features to highlight
  scale = T           # Scale weights from -1 to 1
 )
@@ -686,10 +684,10 @@ plot_weights(mofa_objects[["MOFAobject_factors10"]],
 
 #### Plot top weights
 
-```{r plot-top-transcripts-weights, eval=TRUE}
-plot_top_weights(mofa_objects[["MOFAobject_factors10"]],
+```{r plot-factor1-top-transcripts-weights, eval=TRUE}
+plot_top_weights(mofa_objects[["MOFAobject_factors15"]],
  view = "transcript",
- factor = 6,
+ factor = 1,
  nfeatures = 10,     # Top number of features to highlight
  scale = T           # Scale weights from -1 to 1
 )
@@ -698,8 +696,8 @@ plot_top_weights(mofa_objects[["MOFAobject_factors10"]],
 #### Print top 10 weights
 
 ```{r print-top-transcripts-weights, eval=TRUE}
-# Print top 10 transcripts features (by absolute weight) and their actual weights for factor 6
-weights <- get_weights(mofa_objects[["MOFAobject_factors10"]], view = "transcript", factor = 6)
+# Print top 10 transcripts features (by absolute weight) and their actual weights for factor 1
+weights <- get_weights(mofa_objects[["MOFAobject_factors15"]], view = "transcript", factor = 1)
 
 # Extract the matrix from the list
 weights_vec <- weights[[1]][,1]
@@ -715,10 +713,10 @@ print(top_df)
 
 #### Plot heatmap
 
-```{r plot-heatmap-transcripts, eval=TRUE}
-plot_data_heatmap(mofa_objects[["MOFAobject_factors10"]], 
+```{r plot-factor1-heatmap-transcripts, eval=TRUE}
+plot_data_heatmap(mofa_objects[["MOFAobject_factors15"]], 
   view = "transcript",
-  factor = 6,  
+  factor = 1,  
   features = 25,
   denoise = TRUE,
   cluster_rows = FALSE, cluster_cols = TRUE,
@@ -729,26 +727,26 @@ plot_data_heatmap(mofa_objects[["MOFAobject_factors10"]],
 
 #### Plot top 10 transcripts
 
-```{r plot-top-transcripts-factor6, eval=TRUE}
-# Programmatically get top transcripts by absolute weight for factor 6
+```{r plot-factor1-top-transcripts, eval=TRUE}
+# Programmatically get top transcripts by absolute weight for factor 1
 
-# Get top 10 transcripts by absolute weight for factor 6
-weights <- get_weights(mofa_objects[["MOFAobject_factors10"]], view = "transcript", factor = 6)
+# Get top 10 transcripts by absolute weight for factor 1
+weights <- get_weights(mofa_objects[["MOFAobject_factors15"]], view = "transcript", factor = 1)
 weights_vec <- weights[[1]][,1]
 names(weights_vec) <- rownames(weights[[1]])
 top_n <- 10
 top_features <- sort(abs(weights_vec), decreasing = TRUE)[1:top_n]
 top_transcript <- names(sort(abs(weights_vec), decreasing = TRUE))[1]
 top_transcripts <- names(top_features)
-cat("Top 10 transcripts by absolute weight for factor 6:\n")
+cat("Top 10 transcripts by absolute weight for factor 1:\n")
 print(top_transcripts)
 
 # Create a separate plot for each top transcript
 for (transcript in top_transcripts) {
-  cat("\nPlotting factor 6 colored by transcript:", transcript, "\n")
+  cat("\nPlotting factor 1 colored by transcript:", transcript, "\n")
   print(
-    plot_factor(mofa_objects[["MOFAobject_factors10"]], 
-      factors = 6, 
+    plot_factor(mofa_objects[["MOFAobject_factors15"]], 
+      factors = 1, 
       color_by = transcript,
       group_by = "time_point",
       add_violin = TRUE,
@@ -760,10 +758,10 @@ for (transcript in top_transcripts) {
 
 #### Plot transcript by gene scatter
 
-```{r plot-top-transcript-by-gene, eval=TRUE}
-plot_data_scatter(mofa_objects[["MOFAobject_factors10"]], 
+```{r plot-factor1-top-transcript-by-gene, eval=TRUE}
+plot_data_scatter(mofa_objects[["MOFAobject_factors15"]], 
   view = "gene",
-  factor = 6,  
+  factor = 1,  
   features = 12,
   sign = "positive",
   color_by = top_transcript
@@ -772,10 +770,10 @@ plot_data_scatter(mofa_objects[["MOFAobject_factors10"]],
 
 #### Plot transcript by lncRNA scatter
 
-```{r plot-top-transcript-by-lncRNA, eval=TRUE}
-plot_data_scatter(mofa_objects[["MOFAobject_factors10"]], 
+```{r plot-factor1-top-transcript-by-lncRNA, eval=TRUE}
+plot_data_scatter(mofa_objects[["MOFAobject_factors15"]], 
   view = "lncRNA",
-  factor = 6,  
+  factor = 1,  
   features = 12,
   sign = "positive",
   color_by = top_transcript
@@ -784,10 +782,10 @@ plot_data_scatter(mofa_objects[["MOFAobject_factors10"]],
 
 #### Plot transcript by miRNA scatter
 
-```{r plot-top-transcript-by-miRNA, eval=TRUE}
-plot_data_scatter(mofa_objects[["MOFAobject_factors10"]], 
+```{r plot-factor1-top-transcript-by-miRNA, eval=TRUE}
+plot_data_scatter(mofa_objects[["MOFAobject_factors15"]], 
   view = "miRNA",
-  factor = 6,  
+  factor = 1,  
   features = 12,
   sign = "positive",
   color_by = top_transcript
@@ -796,10 +794,10 @@ plot_data_scatter(mofa_objects[["MOFAobject_factors10"]],
 
 #### Plot transcript by methylation scatter
 
-```{r plot-top-transcript-by-methylation, eval=TRUE}
-plot_data_scatter(mofa_objects[["MOFAobject_factors10"]], 
+```{r plot-factor1-top-transcript-by-methylation, eval=TRUE}
+plot_data_scatter(mofa_objects[["MOFAobject_factors15"]], 
   view = "methylation",
-  factor = 6,  
+  factor = 1,  
   features = 12,
   sign = "positive",
   color_by = top_transcript
@@ -810,20 +808,20 @@ plot_data_scatter(mofa_objects[["MOFAobject_factors10"]],
 
 #### Plot weights
 
-```{r plot-lncRNA-weights, eval=TRUE}
-plot_weights(mofa_objects[["MOFAobject_factors10"]], 
+```{r plot-factor1-lncRNA-weights, eval=TRUE}
+plot_weights(mofa_objects[["MOFAobject_factors15"]], 
   view = "lncRNA", 
-  factor = 6, 
+  factor = 1, 
   nfeatures = 10
 )
 ```
 
 #### Plot top weights
 
-```{r plot-top-lncRNA-weights, eval=TRUE}
-plot_top_weights(mofa_objects[["MOFAobject_factors10"]],
+```{r plot-factor1-top-lncRNA-weights, eval=TRUE}
+plot_top_weights(mofa_objects[["MOFAobject_factors15"]],
  view = "lncRNA",
- factor = 6,
+ factor = 1,
  nfeatures = 10,     # Top number of features to highlight
  scale = T           # Scale weights from -1 to 1
 )
@@ -832,8 +830,8 @@ plot_top_weights(mofa_objects[["MOFAobject_factors10"]],
 #### Print top 10 weights
 
 ```{r print-top-lncRNA-weights, eval=TRUE}
-# Print top 10 lncRNA features (by absolute weight) and their actual weights for factor 6
-weights <- get_weights(mofa_objects[["MOFAobject_factors10"]], view = "lncRNA", factor = 6)
+# Print top 10 lncRNA features (by absolute weight) and their actual weights for factor 1
+weights <- get_weights(mofa_objects[["MOFAobject_factors15"]], view = "lncRNA", factor = 1)
 
 # Extract the matrix from the list
 weights_vec <- weights[[1]][,1]
@@ -848,10 +846,10 @@ print(top_df)
 
 #### Plot heatmap
 
-```{r plot-heatmap-lncRNA, eval=TRUE}
-plot_data_heatmap(mofa_objects[["MOFAobject_factors10"]], 
+```{r plot-factor1-heatmap-lncRNA, eval=TRUE}
+plot_data_heatmap(mofa_objects[["MOFAobject_factors15"]], 
   view = "lncRNA",
-  factor = 6,  
+  factor = 1,  
   features = 25,
   denoise = TRUE,
   cluster_rows = FALSE, cluster_cols = TRUE,
@@ -862,26 +860,26 @@ plot_data_heatmap(mofa_objects[["MOFAobject_factors10"]],
 
 #### Plot top lncRNA
 
-```{r plot-top-lncRNA-factor6, eval=TRUE}
-# Programmatically get top lncRNA by absolute weight for factor 6
+```{r plot-factor1-top-lncRNA, eval=TRUE}
+# Programmatically get top lncRNA by absolute weight for factor 1
 
-# Get top 10 lncRNAs by absolute weight for factor 6
-weights <- get_weights(mofa_objects[["MOFAobject_factors10"]], view = "lncRNA", factor = 6)
+# Get top 10 lncRNAs by absolute weight for factor 1
+weights <- get_weights(mofa_objects[["MOFAobject_factors15"]], view = "lncRNA", factor = 1)
 weights_vec <- weights[[1]][,1]
 names(weights_vec) <- rownames(weights[[1]])
 top_n <- 10
 top_features <- sort(abs(weights_vec), decreasing = TRUE)[1:top_n]
 top_lncRNA <- names(sort(abs(weights_vec), decreasing = TRUE))[1]
 top_lncRNAs <- names(top_features)
-cat("Top 10 lncRNAs by absolute weight for factor 6:\n")
+cat("Top 10 lncRNAs by absolute weight for factor 1:\n")
 print(top_lncRNAs)
 
 # Create a separate plot for each top lncRNA
 for (lncRNA in top_lncRNAs) {
-  cat("\nPlotting factor 6 colored by lncRNA:", lncRNA, "\n")
+  cat("\nPlotting factor 1 colored by lncRNA:", lncRNA, "\n")
   print(
-    plot_factor(mofa_objects[["MOFAobject_factors10"]], 
-      factors = 6,
+    plot_factor(mofa_objects[["MOFAobject_factors15"]], 
+      factors = 1,
       color_by = lncRNA,
       group_by = "time_point",
       add_violin = TRUE,
@@ -893,12 +891,12 @@ for (lncRNA in top_lncRNAs) {
 
 #### Plot lncRNA by gene scatter
 
-```{r plot-top-lncRNA-by-gene, eval=TRUE}
-plot_data_scatter(mofa_objects[["MOFAobject_factors10"]], 
+```{r plot-factor1-top-lncRNA-by-gene, eval=TRUE}
+plot_data_scatter(mofa_objects[["MOFAobject_factors15"]], 
   view = "gene",
-  factor = 6,  
+  factor = 1,  
   features = 12,
-  sign = "positive",
+  sign = "negative",
   color_by = top_lncRNA,
   shape_by = "time_point"
 ) + labs(y="Gene expression")
@@ -906,12 +904,12 @@ plot_data_scatter(mofa_objects[["MOFAobject_factors10"]],
 
 #### Plot lncRNA by transcript scatter
 
-```{r plot-top-lncRNA-by-transcript, eval=TRUE}
-plot_data_scatter(mofa_objects[["MOFAobject_factors10"]], 
+```{r plot-factor1-top-lncRNA-by-transcript, eval=TRUE}
+plot_data_scatter(mofa_objects[["MOFAobject_factors15"]], 
   view = "transcript",
-  factor = 6,  
+  factor = 1,  
   features = 12,
-  sign = "positive",
+  sign = "negative",
   color_by = top_lncRNA,
   shape_by = "time_point"
 ) + labs(y="Transcript expression")
@@ -919,12 +917,12 @@ plot_data_scatter(mofa_objects[["MOFAobject_factors10"]],
 
 #### Plot lncRNA by miRNA scatter
 
-```{r plot-top-lncRNA-by-miRNA, eval=TRUE}
-plot_data_scatter(mofa_objects[["MOFAobject_factors10"]], 
+```{r plot-factor1-top-lncRNA-by-miRNA, eval=TRUE}
+plot_data_scatter(mofa_objects[["MOFAobject_factors15"]], 
   view = "miRNA",
-  factor = 6,  
+  factor = 1,  
   features = 12,
-  sign = "positive",
+  sign = "negative",
   color_by = top_lncRNA,
   shape_by = "time_point"
 ) + labs(y="miRNA expression")
@@ -932,12 +930,12 @@ plot_data_scatter(mofa_objects[["MOFAobject_factors10"]],
 
 #### Plot lncRNA by methylation scatter
 
-```{r plot-top-lncRNA-by-methylation, eval=TRUE}
-plot_data_scatter(mofa_objects[["MOFAobject_factors10"]], 
+```{r plot-factor1-top-lncRNA-by-methylation, eval=TRUE}
+plot_data_scatter(mofa_objects[["MOFAobject_factors15"]], 
   view = "methylation",
-  factor = 6,  
+  factor = 1,  
   features = 12,
-  sign = "positive",
+  sign = "negative",
   color_by = top_lncRNA,
   shape_by = "time_point"
 ) + labs(y="Methylated CpG counts")
@@ -947,20 +945,20 @@ plot_data_scatter(mofa_objects[["MOFAobject_factors10"]],
 
 #### Plot weights
 
-```{r plot-miRNA-weights, eval=TRUE}
-plot_weights(mofa_objects[["MOFAobject_factors10"]], 
+```{r plot-factor1-miRNA-weights, eval=TRUE}
+plot_weights(mofa_objects[["MOFAobject_factors15"]], 
   view = "miRNA", 
-  factor = 6, 
+  factor = 1, 
   nfeatures = 10
 )
 ```
 
 #### Plot top weights
 
-```{r plot-top-miRNA-weights, eval=TRUE}
-plot_top_weights(mofa_objects[["MOFAobject_factors10"]],
+```{r plot-factor1-top-miRNA-weights, eval=TRUE}
+plot_top_weights(mofa_objects[["MOFAobject_factors15"]],
  view = "miRNA",
- factor = 6,
+ factor = 1,
  nfeatures = 10,     # Top number of features to highlight
  scale = T           # Scale weights from -1 to 1
 )
@@ -969,8 +967,8 @@ plot_top_weights(mofa_objects[["MOFAobject_factors10"]],
 #### Print top 10 weights
 
 ```{r print-top-miRNA-weights, eval=TRUE}
-# Print top 10 miRNA features (by absolute weight) and their actual weights for factor 6
-weights <- get_weights(mofa_objects[["MOFAobject_factors10"]], view = "miRNA", factor = 6)
+# Print top 10 miRNA features (by absolute weight) and their actual weights for factor 1
+weights <- get_weights(mofa_objects[["MOFAobject_factors15"]], view = "miRNA", factor = 1)
 
 # Extract the matrix from the list
 weights_vec <- weights[[1]][,1]
@@ -985,10 +983,10 @@ print(top_df)
 
 #### Plot heatmap
 
-```{r plot-heatmap-miRNA, eval=TRUE}
-plot_data_heatmap(mofa_objects[["MOFAobject_factors10"]], 
+```{r plot-factor1-heatmap-miRNA, eval=TRUE}
+plot_data_heatmap(mofa_objects[["MOFAobject_factors15"]], 
   view = "miRNA",
-  factor = 6,  
+  factor = 1,  
   features = 25,
   denoise = TRUE,
   cluster_rows = FALSE, cluster_cols = TRUE,
@@ -999,26 +997,26 @@ plot_data_heatmap(mofa_objects[["MOFAobject_factors10"]],
 
 #### Plot top miRNA
 
-```{r plot-top-miRNA-factor6, eval=TRUE}
-# Programmatically get top miRNA by absolute weight for factor 6
+```{r plot-factor1-top-miRNA, eval=TRUE}
+# Programmatically get top miRNA by absolute weight for factor 1
 
-# Get top 10 miRNAs by absolute weight for factor 6
-weights <- get_weights(mofa_objects[["MOFAobject_factors10"]], view = "miRNA", factor = 6)
+# Get top 10 miRNAs by absolute weight for factor 1
+weights <- get_weights(mofa_objects[["MOFAobject_factors15"]], view = "miRNA", factor = 1)
 weights_vec <- weights[[1]][,1]
 names(weights_vec) <- rownames(weights[[1]])
 top_n <- 10
 top_features <- sort(abs(weights_vec), decreasing = TRUE)[1:top_n]
 top_miRNA <- names(sort(abs(weights_vec), decreasing = TRUE))[1]
 top_miRNAs <- names(top_features)
-cat("Top 10 miRNAs by absolute weight for factor 6:\n")
+cat("Top 10 miRNAs by absolute weight for factor 1:\n")
 print(top_miRNAs)
 
 # Create a separate plot for each top miRNA
 for (miRNA in top_miRNAs) {
-  cat("\nPlotting factor 6 colored by miRNA:", miRNA, "\n")
+  cat("\nPlotting factor 1 colored by miRNA:", miRNA, "\n")
   print(
-    plot_factor(mofa_objects[["MOFAobject_factors10"]], 
-      factors = 6,
+    plot_factor(mofa_objects[["MOFAobject_factors15"]], 
+      factors = 1,
       color_by = miRNA,
       group_by = "time_point",
       add_violin = TRUE,
@@ -1030,10 +1028,10 @@ for (miRNA in top_miRNAs) {
 
 #### Plot miRNA by gene scatter
 
-```{r plot-top-miRNA-by-gene, eval=TRUE}
-plot_data_scatter(mofa_objects[["MOFAobject_factors10"]], 
+```{r plot-factor1-top-miRNA-by-gene, eval=TRUE}
+plot_data_scatter(mofa_objects[["MOFAobject_factors15"]], 
   view = "gene",
-  factor = 6,  
+  factor = 1,  
   features = 12,
   sign = "positive",
   color_by = top_miRNA,
@@ -1043,10 +1041,10 @@ plot_data_scatter(mofa_objects[["MOFAobject_factors10"]],
 
 #### Plot miRNA by transcript scatter
 
-```{r plot-top-miRNA-by-transcript, eval=TRUE}
-plot_data_scatter(mofa_objects[["MOFAobject_factors10"]], 
+```{r plot-factor1-top-miRNA-by-transcript, eval=TRUE}
+plot_data_scatter(mofa_objects[["MOFAobject_factors15"]], 
   view = "transcript",
-  factor = 6,  
+  factor = 1,  
   features = 12,
   sign = "positive",
   color_by = top_miRNA,
@@ -1056,10 +1054,10 @@ plot_data_scatter(mofa_objects[["MOFAobject_factors10"]],
 
 #### Plot miRNA by lncRNA scatter
 
-```{r plot-top-miRNA-by-lncRNA, eval=TRUE}
-plot_data_scatter(mofa_objects[["MOFAobject_factors10"]], 
+```{r plot-factor1-top-miRNA-by-lncRNA, eval=TRUE}
+plot_data_scatter(mofa_objects[["MOFAobject_factors15"]], 
   view = "lncRNA",
-  factor = 6,  
+  factor = 1,  
   features = 12,
   sign = "positive",
   color_by = top_miRNA,
@@ -1069,10 +1067,10 @@ plot_data_scatter(mofa_objects[["MOFAobject_factors10"]],
 
 #### Plot miRNA by methylation scatter
 
-```{r plot-top-miRNA-by-methylation, eval=TRUE}
-plot_data_scatter(mofa_objects[["MOFAobject_factors10"]], 
+```{r plot-factor1-top-miRNA-by-methylation, eval=TRUE}
+plot_data_scatter(mofa_objects[["MOFAobject_factors15"]], 
   view = "methylation",
-  factor = 6,  
+  factor = 1,  
   features = 12,
   sign = "positive",
   color_by = top_miRNA,
@@ -1084,20 +1082,20 @@ plot_data_scatter(mofa_objects[["MOFAobject_factors10"]],
 
 #### Plot weights
 
-```{r plot-methylation-weights, eval=TRUE}
-plot_weights(mofa_objects[["MOFAobject_factors10"]], 
+```{r plot-factor1-methylation-weights, eval=TRUE}
+plot_weights(mofa_objects[["MOFAobject_factors15"]], 
   view = "methylation", 
-  factor = 6, 
+  factor = 1, 
   nfeatures = 10
 )
 ```
 
 #### Plot top weights
 
-```{r plot-top-methylation-weights, eval=TRUE}
-plot_top_weights(mofa_objects[["MOFAobject_factors10"]],
+```{r plot-factor1-top-methylation-weights, eval=TRUE}
+plot_top_weights(mofa_objects[["MOFAobject_factors15"]],
  view = "methylation",
- factor = 6,
+ factor = 1,
  nfeatures = 10,     # Top number of features to highlight
  scale = T           # Scale weights from -1 to 1
 )
@@ -1106,8 +1104,8 @@ plot_top_weights(mofa_objects[["MOFAobject_factors10"]],
 #### Print top 10 weights
 
 ```{r print-top-methylation-weights, eval=TRUE}
-# Print top 10 methylation features (by absolute weight) and their actual weights for factor 6
-weights <- get_weights(mofa_objects[["MOFAobject_factors10"]], view = "methylation", factor = 6)
+# Print top 10 methylation features (by absolute weight) and their actual weights for factor 1
+weights <- get_weights(mofa_objects[["MOFAobject_factors15"]], view = "methylation", factor = 1)
 
 # Extract the matrix from the list
 weights_vec <- weights[[1]][,1]
@@ -1122,10 +1120,10 @@ print(top_df)
 
 #### Plot heatmap
 
-```{r plot-heatmap-methylation, eval=TRUE}
-plot_data_heatmap(mofa_objects[["MOFAobject_factors10"]], 
+```{r plot-factor1-heatmap-methylation, eval=TRUE}
+plot_data_heatmap(mofa_objects[["MOFAobject_factors15"]], 
   view = "methylation",
-  factor = 6,  
+  factor = 1,  
   features = 25,
   denoise = TRUE,
   cluster_rows = FALSE, cluster_cols = TRUE,
@@ -1136,11 +1134,11 @@ plot_data_heatmap(mofa_objects[["MOFAobject_factors10"]],
 
 #### Plot top methylation
 
-```{r plot-top-methylation-factor6, eval=TRUE}
-# Programmatically get top methylation by absolute weight for factor 6
+```{r plot-factor1-top-methylation, eval=TRUE}
+# Programmatically get top methylation by absolute weight for factor 1
 
-# Get top 10 methylation features by absolute weight for factor 6
-weights <- get_weights(mofa_objects[["MOFAobject_factors10"]], view = "methylation", factor = 6)
+# Get top 10 methylation features by absolute weight for factor 1
+weights <- get_weights(mofa_objects[["MOFAobject_factors15"]], view = "methylation", factor = 1)
 weights_vec <- weights[[1]][,1]
 names(weights_vec) <- rownames(weights[[1]])
 top_n <- 10
@@ -1149,15 +1147,15 @@ top_methylations <- names(top_features)
 
 top_methylation <- names(sort(abs(weights_vec), decreasing = TRUE))[1]
 
-cat("Top 10 methylation features by absolute weight for factor 6:\n")
+cat("Top 10 methylation features by absolute weight for factor 1:\n")
 print(top_methylations)
 
 # Create a separate plot for each top methylation feature
 for (meth in top_methylations) {
-  cat("\nPlotting factor 6 colored by methylation feature:", meth, "\n")
+  cat("\nPlotting factor 1 colored by methylation feature:", meth, "\n")
   print(
-    plot_factor(mofa_objects[["MOFAobject_factors10"]], 
-      factors = 6, 
+    plot_factor(mofa_objects[["MOFAobject_factors15"]], 
+      factors = 1, 
       color_by = meth,
       group_by = "time_point",
       dodge = TRUE
@@ -1168,12 +1166,12 @@ for (meth in top_methylations) {
 
 #### Plot methylation by gene scatter
 
-```{r plot-top-methylation-by-gene, eval=TRUE}
-plot_data_scatter(mofa_objects[["MOFAobject_factors10"]], 
+```{r plot-factor1-top-methylation-by-gene, eval=TRUE}
+plot_data_scatter(mofa_objects[["MOFAobject_factors15"]], 
   view = "gene",
-  factor = 6,  
+  factor = 1,  
   features = 12,
-  sign = "negative",
+  sign = "positive",
   color_by = top_methylation,
   shape_by = "time_point"
 ) + labs(y="Gene expression")
@@ -1181,12 +1179,12 @@ plot_data_scatter(mofa_objects[["MOFAobject_factors10"]],
 
 #### Plot methylation by transcript scatter
 
-```{r plot-top-methylation-by-transcript, eval=TRUE}
-plot_data_scatter(mofa_objects[["MOFAobject_factors10"]], 
+```{r plot-factor1-top-methylation-by-transcript, eval=TRUE}
+plot_data_scatter(mofa_objects[["MOFAobject_factors15"]], 
   view = "transcript",
-  factor = 6,  
+  factor = 1,  
   features = 12,
-  sign = "negative",
+  sign = "positive",
   color_by = top_methylation,
   shape_by = "time_point"
 ) + labs(y="Transcript expression")
@@ -1194,12 +1192,12 @@ plot_data_scatter(mofa_objects[["MOFAobject_factors10"]],
 
 #### Plot methylation by lncRNA scatter
 
-```{r plot-top-methylation-by-lncRNA, eval=TRUE}
-plot_data_scatter(mofa_objects[["MOFAobject_factors10"]], 
+```{r plot-factor1-top-methylation-by-lncRNA, eval=TRUE}
+plot_data_scatter(mofa_objects[["MOFAobject_factors15"]], 
   view = "lncRNA",
-  factor = 6,  
+  factor = 1,  
   features = 12,
-  sign = "negative",
+  sign = "positive",
   color_by = top_methylation,
   shape_by = "time_point"
 ) + labs(y="lncRNA expression")
@@ -1207,12 +1205,12 @@ plot_data_scatter(mofa_objects[["MOFAobject_factors10"]],
 
 #### Plot methylation by miRNA scatter
 
-```{r plot-top-methylation-by-miRNA, eval=TRUE}
-plot_data_scatter(mofa_objects[["MOFAobject_factors10"]], 
+```{r plot-factor1-top-methylation-by-miRNA, eval=TRUE}
+plot_data_scatter(mofa_objects[["MOFAobject_factors15"]], 
   view = "miRNA",
-  factor = 6,  
+  factor = 1,  
   features = 12,
-  sign = "negative",
+  sign = "positive",
   color_by = top_methylation,
   shape_by = "time_point"
 ) + labs(y="miRNA expression")
