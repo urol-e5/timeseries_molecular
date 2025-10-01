@@ -1,0 +1,39 @@
+run_name: Apulchra_PPI
+sequence_path: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/data/Apulchra-genome.pep.fa
+work_dir: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil
+go_filter_path: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/assets/go_filter_02.txt
+
+use_llm: false          # <-- required by your Snakefile (line ~217)
+
+seed: 42
+
+hmmscan:
+  path: hmmscan
+  threads: 48
+
+dscript:
+  path: dscript
+  model: samsl/dscript_human_v1
+  n_pairs: -1
+  device: 0            # use -1 to force CPU
+
+dsd:
+  path: fastdsd
+  t: 0.5
+  confidence: true
+
+clustering:
+  init_k: 500
+  min_cluster_size: 3
+  cluster_divisor: 20
+  sparsity_thresh: 1e-5
+
+recipe:
+  lr: 0.1
+  cthresh: 0.75
+  max_proteins: 20
+  metric: degree
+
+llm:                    # keep present to avoid NoneType on nested access
+  use: false
+  model: ""

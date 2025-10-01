@@ -1,0 +1,1589 @@
+Traceback (most recent call last):
+
+  File "/opt/anaconda/anaconda3/envs/philharmonic_py311_env/lib/python3.11/site-packages/snakemake/cli.py", line 2044, in args_to_api
+    config_settings=ConfigSettings(
+                    ^^^^^^^^^^^^^^^
+
+  File "<string>", line 6, in __init__
+
+  File "/opt/anaconda/anaconda3/envs/philharmonic_py311_env/lib/python3.11/site-packages/snakemake/settings/types.py", line 353, in __post_init__
+    self.overwrite_config = self._get_overwrite_config()
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+  File "/opt/anaconda/anaconda3/envs/philharmonic_py311_env/lib/python3.11/site-packages/snakemake/settings/types.py", line 361, in _get_overwrite_config
+    update_config(overwrite_config, load_configfile(f))
+                                    ^^^^^^^^^^^^^^^^^^
+
+  File "/opt/anaconda/anaconda3/envs/philharmonic_py311_env/lib/python3.11/site-packages/snakemake/common/configfile.py", line 38, in load_configfile
+    config = _load_configfile(configpath)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+  File "/opt/anaconda/anaconda3/envs/philharmonic_py311_env/lib/python3.11/site-packages/snakemake/common/configfile.py", line 12, in _load_configfile
+    obj = open(configpath_or_obj, encoding="utf-8")
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+FileNotFoundError: [Errno 2] No such file or directory: '/home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/code/phil_config.yml'
+
+Traceback (most recent call last):
+
+  File "/opt/anaconda/anaconda3/envs/philharmonic_py311_env/lib/python3.11/site-packages/snakemake/cli.py", line 2044, in args_to_api
+    config_settings=ConfigSettings(
+                    ^^^^^^^^^^^^^^^
+
+  File "<string>", line 6, in __init__
+
+  File "/opt/anaconda/anaconda3/envs/philharmonic_py311_env/lib/python3.11/site-packages/snakemake/settings/types.py", line 353, in __post_init__
+    self.overwrite_config = self._get_overwrite_config()
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+  File "/opt/anaconda/anaconda3/envs/philharmonic_py311_env/lib/python3.11/site-packages/snakemake/settings/types.py", line 361, in _get_overwrite_config
+    update_config(overwrite_config, load_configfile(f))
+                                    ^^^^^^^^^^^^^^^^^^
+
+  File "/opt/anaconda/anaconda3/envs/philharmonic_py311_env/lib/python3.11/site-packages/snakemake/common/configfile.py", line 38, in load_configfile
+    config = _load_configfile(configpath)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+  File "/opt/anaconda/anaconda3/envs/philharmonic_py311_env/lib/python3.11/site-packages/snakemake/common/configfile.py", line 12, in _load_configfile
+    obj = open(configpath_or_obj, encoding="utf-8")
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+FileNotFoundError: [Errno 2] No such file or directory: '/home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/code/37-phil_config.yml'
+
+TypeError in file /home/shared/philharmonic/philharmonic/philharmonic_snakefile, line 68:
+'NoneType' object is not subscriptable
+  File "/home/shared/philharmonic/philharmonic/philharmonic_snakefile", line 68, in <module>
+KeyError in file /home/shared/philharmonic/philharmonic/philharmonic_snakefile, line 72:
+'path'
+  File "/home/shared/philharmonic/philharmonic/philharmonic_snakefile", line 72, in <module>
+KeyError in file /home/shared/philharmonic/philharmonic/philharmonic_snakefile, line 100:
+'n_pairs'
+  File "/home/shared/philharmonic/philharmonic/philharmonic_snakefile", line 100, in <module>
+KeyError in file /home/shared/philharmonic/philharmonic/philharmonic_snakefile, line 217:
+'use_llm'
+  File "/home/shared/philharmonic/philharmonic/philharmonic_snakefile", line 217, in <module>
+Assuming unrestricted shared filesystem usage.
+host: raven
+Building DAG of jobs...
+MissingInputException in rule annotate_seqs_pfam in file /home/shared/philharmonic/philharmonic/philharmonic_snakefile, line 58:
+Missing input files for rule annotate_seqs_pfam:
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Apulchra_PPI_hmmscan.tblout
+    affected files:
+        /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/data/Apulchra-genome.pep.fa
+Assuming unrestricted shared filesystem usage.
+host: raven
+Building DAG of jobs...
+MissingInputException in rule generate_candidates in file /home/shared/philharmonic/philharmonic/philharmonic_snakefile, line 90:
+Missing input files for rule generate_candidates:
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Apulchra_PPI_kept_proteins.txt, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Apulchra_PPI_candidates.tsv
+    affected files:
+        /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/assets/go_filter.txt
+Assuming unrestricted shared filesystem usage.
+host: raven
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 10
+Rules claiming more threads will be scaled down.
+Job stats:
+job                        count
+-----------------------  -------
+PHILHARMONIC                   1
+add_cluster_functions          1
+annotate_seqs_go               1
+annotate_seqs_pfam             1
+cluster_graph                  1
+cluster_network                1
+compute_distances              1
+download_required_files        1
+generate_candidates            1
+predict_network                1
+prepare_hmmdb                  1
+reconnect_recipe               1
+summarize_clusters             1
+total                         13
+
+Select jobs to execute...
+Execute 1 jobs...
+
+[Sat Sep 27 05:17:42 2025]
+localrule download_required_files:
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/go.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/goslim_generic.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Pfam-A.hmm.gz, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/pfam_gobp_most_specific.txt
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/logs/01_download_required_files.log
+    jobid: 3
+    reason: Missing output files: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/go.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/goslim_generic.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Pfam-A.hmm.gz, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/pfam_gobp_most_specific.txt
+    resources: tmpdir=/tmp
+
+host: raven
+[Sat Sep 27 05:18:14 2025]
+Finished job 3.
+1 of 13 steps (8%) done
+Select jobs to execute...
+Execute 1 jobs...
+
+[Sat Sep 27 05:18:14 2025]
+localrule prepare_hmmdb:
+    input: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Pfam-A.hmm.gz
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Pfam-A.hmm, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Pfam-A.hmm.h3m, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Pfam-A.hmm.h3i, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Pfam-A.hmm.h3f, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Pfam-A.hmm.h3p
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/logs/02_prepare_hmmdb.log
+    jobid: 6
+    reason: Missing output files: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Pfam-A.hmm.h3f, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Pfam-A.hmm.h3p, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Pfam-A.hmm.h3m, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Pfam-A.hmm.h3i, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Pfam-A.hmm; Input files updated by another job: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Pfam-A.hmm.gz
+    resources: tmpdir=/tmp
+
+host: raven
+[Sat Sep 27 05:18:59 2025]
+Finished job 6.
+2 of 13 steps (15%) done
+Select jobs to execute...
+Execute 1 jobs...
+
+[Sat Sep 27 05:18:59 2025]
+localrule annotate_seqs_pfam:
+    input: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/data/Apulchra-genome.pep.fa, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Pfam-A.hmm, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Pfam-A.hmm.h3m, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Pfam-A.hmm.h3i, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Pfam-A.hmm.h3f, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Pfam-A.hmm.h3p
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Apulchra_PPI_hmmscan.tblout
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/logs/03_annotate_seqs_pfam.log
+    jobid: 5
+    reason: Missing output files: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Apulchra_PPI_hmmscan.tblout; Input files updated by another job: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Pfam-A.hmm.h3i, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Pfam-A.hmm.h3m, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Pfam-A.hmm.h3f, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Pfam-A.hmm.h3p, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Pfam-A.hmm
+    threads: 10
+    resources: tmpdir=/tmp
+
+Assuming unrestricted shared filesystem usage.
+host: raven
+Building DAG of jobs...
+IncompleteFilesException:
+The files below seem to be incomplete. If you are sure that certain files are not incomplete, mark them as complete with
+
+    snakemake --cleanup-metadata <filenames>
+
+To re-generate the files rerun your command with the --rerun-incomplete flag.
+Incomplete files:
+/home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Apulchra_PPI_hmmscan.tblout
+Assuming unrestricted shared filesystem usage.
+host: raven
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 48
+Rules claiming more threads will be scaled down.
+Job stats:
+job                        count
+-----------------------  -------
+PHILHARMONIC                   1
+add_cluster_functions          1
+annotate_seqs_go               1
+annotate_seqs_pfam             1
+cluster_graph                  1
+cluster_network                1
+compute_distances              1
+download_required_files        1
+generate_candidates            1
+predict_network                1
+prepare_hmmdb                  1
+reconnect_recipe               1
+summarize_clusters             1
+total                         13
+
+Select jobs to execute...
+Execute 1 jobs...
+
+[Sat Sep 27 05:20:33 2025]
+localrule download_required_files:
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/go.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/goslim_generic.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Pfam-A.hmm.gz, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/pfam_gobp_most_specific.txt
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/logs/01_download_required_files.log
+    jobid: 3
+    reason: Missing output files: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/pfam_gobp_most_specific.txt, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Pfam-A.hmm.gz, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/goslim_generic.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/go.obo
+    resources: tmpdir=/tmp
+
+host: raven
+[Sat Sep 27 05:21:00 2025]
+Finished job 3.
+1 of 13 steps (8%) done
+Select jobs to execute...
+Execute 1 jobs...
+
+[Sat Sep 27 05:21:00 2025]
+localrule prepare_hmmdb:
+    input: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Pfam-A.hmm.gz
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Pfam-A.hmm, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Pfam-A.hmm.h3m, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Pfam-A.hmm.h3i, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Pfam-A.hmm.h3f, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Pfam-A.hmm.h3p
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/logs/02_prepare_hmmdb.log
+    jobid: 6
+    reason: Missing output files: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Pfam-A.hmm.h3i, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Pfam-A.hmm, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Pfam-A.hmm.h3p, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Pfam-A.hmm.h3m, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Pfam-A.hmm.h3f; Input files updated by another job: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Pfam-A.hmm.gz
+    resources: tmpdir=/tmp
+
+host: raven
+[Sat Sep 27 05:21:43 2025]
+Finished job 6.
+2 of 13 steps (15%) done
+Select jobs to execute...
+Execute 1 jobs...
+
+[Sat Sep 27 05:21:43 2025]
+localrule annotate_seqs_pfam:
+    input: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/data/Apulchra-genome.pep.fa, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Pfam-A.hmm, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Pfam-A.hmm.h3m, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Pfam-A.hmm.h3i, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Pfam-A.hmm.h3f, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Pfam-A.hmm.h3p
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Apulchra_PPI_hmmscan.tblout
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/logs/03_annotate_seqs_pfam.log
+    jobid: 5
+    reason: Missing output files: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Apulchra_PPI_hmmscan.tblout; Input files updated by another job: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Pfam-A.hmm.h3i, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Pfam-A.hmm.h3m, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Pfam-A.hmm.h3f, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Pfam-A.hmm, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/output/philharmonic_output/Pfam-A.hmm.h3p
+    threads: 10
+    resources: tmpdir=/tmp
+
+Assuming unrestricted shared filesystem usage.
+host: raven
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 48
+Rules claiming more threads will be scaled down.
+Job stats:
+job                        count
+-----------------------  -------
+PHILHARMONIC                   1
+add_cluster_functions          1
+annotate_seqs_go               1
+annotate_seqs_pfam             1
+cluster_graph                  1
+cluster_network                1
+compute_distances              1
+download_required_files        1
+generate_candidates            1
+predict_network                1
+prepare_hmmdb                  1
+reconnect_recipe               1
+summarize_clusters             1
+total                         13
+
+Select jobs to execute...
+Execute 1 jobs...
+
+[Sat Sep 27 05:39:47 2025]
+localrule download_required_files:
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37-Apul-phil/go.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37-Apul-phil/goslim_generic.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37-Apul-phil/Pfam-A.hmm.gz, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37-Apul-phil/pfam_gobp_most_specific.txt
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37-Apul-phil/logs/01_download_required_files.log
+    jobid: 3
+    reason: Missing output files: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37-Apul-phil/pfam_gobp_most_specific.txt, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37-Apul-phil/go.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37-Apul-phil/goslim_generic.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37-Apul-phil/Pfam-A.hmm.gz
+    resources: tmpdir=/tmp
+
+host: raven
+[Sat Sep 27 05:40:28 2025]
+Finished job 3.
+1 of 13 steps (8%) done
+Select jobs to execute...
+Execute 1 jobs...
+
+[Sat Sep 27 05:40:28 2025]
+localrule prepare_hmmdb:
+    input: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37-Apul-phil/Pfam-A.hmm.gz
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37-Apul-phil/Pfam-A.hmm, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37-Apul-phil/Pfam-A.hmm.h3m, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37-Apul-phil/Pfam-A.hmm.h3i, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37-Apul-phil/Pfam-A.hmm.h3f, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37-Apul-phil/Pfam-A.hmm.h3p
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37-Apul-phil/logs/02_prepare_hmmdb.log
+    jobid: 6
+    reason: Missing output files: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37-Apul-phil/Pfam-A.hmm.h3i, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37-Apul-phil/Pfam-A.hmm, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37-Apul-phil/Pfam-A.hmm.h3m, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37-Apul-phil/Pfam-A.hmm.h3f, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37-Apul-phil/Pfam-A.hmm.h3p; Input files updated by another job: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37-Apul-phil/Pfam-A.hmm.gz
+    resources: tmpdir=/tmp
+
+host: raven
+[Sat Sep 27 05:41:11 2025]
+Finished job 6.
+2 of 13 steps (15%) done
+Select jobs to execute...
+Execute 1 jobs...
+
+[Sat Sep 27 05:41:11 2025]
+localrule annotate_seqs_pfam:
+    input: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/data/Apulchra-genome.pep.fa, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37-Apul-phil/Pfam-A.hmm, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37-Apul-phil/Pfam-A.hmm.h3m, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37-Apul-phil/Pfam-A.hmm.h3i, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37-Apul-phil/Pfam-A.hmm.h3f, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37-Apul-phil/Pfam-A.hmm.h3p
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37-Apul-phil/Apulchra_PPI_hmmscan.tblout
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37-Apul-phil/logs/03_annotate_seqs_pfam.log
+    jobid: 5
+    reason: Missing output files: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37-Apul-phil/Apulchra_PPI_hmmscan.tblout; Input files updated by another job: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37-Apul-phil/Pfam-A.hmm.h3m, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37-Apul-phil/Pfam-A.hmm.h3i, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37-Apul-phil/Pfam-A.hmm.h3f, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37-Apul-phil/Pfam-A.hmm, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37-Apul-phil/Pfam-A.hmm.h3p
+    threads: 48
+    resources: tmpdir=/tmp
+
+KeyError in file /home/shared/philharmonic/philharmonic/philharmonic_snakefile, line 217:
+'OPENAI_API_KEY'
+  File "/home/shared/philharmonic/philharmonic/philharmonic_snakefile", line 217, in <module>
+  File "<frozen os>", line 679, in __getitem__
+Assuming unrestricted shared filesystem usage.
+host: raven
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 48
+Rules claiming more threads will be scaled down.
+Job stats:
+job                        count
+-----------------------  -------
+PHILHARMONIC                   1
+add_cluster_functions          1
+annotate_seqs_go               1
+annotate_seqs_pfam             1
+cluster_graph                  1
+cluster_network                1
+compute_distances              1
+download_required_files        1
+generate_candidates            1
+predict_network                1
+prepare_hmmdb                  1
+reconnect_recipe               1
+summarize_clusters             1
+total                         13
+
+Select jobs to execute...
+Execute 1 jobs...
+
+[Sat Sep 27 05:48:12 2025]
+localrule download_required_files:
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/go.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/goslim_generic.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/Pfam-A.hmm.gz, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/pfam_gobp_most_specific.txt
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/logs/01_download_required_files.log
+    jobid: 3
+    reason: Missing output files: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/Pfam-A.hmm.gz, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/go.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/pfam_gobp_most_specific.txt, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/goslim_generic.obo
+    resources: tmpdir=/tmp
+
+host: raven
+[Sat Sep 27 05:48:45 2025]
+Finished job 3.
+1 of 13 steps (8%) done
+Select jobs to execute...
+Execute 1 jobs...
+
+[Sat Sep 27 05:48:45 2025]
+localrule prepare_hmmdb:
+    input: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/Pfam-A.hmm.gz
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/Pfam-A.hmm, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/Pfam-A.hmm.h3m, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/Pfam-A.hmm.h3i, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/Pfam-A.hmm.h3f, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/Pfam-A.hmm.h3p
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/logs/02_prepare_hmmdb.log
+    jobid: 6
+    reason: Missing output files: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/Pfam-A.hmm.h3f, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/Pfam-A.hmm.h3p, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/Pfam-A.hmm.h3i, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/Pfam-A.hmm, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/Pfam-A.hmm.h3m; Input files updated by another job: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/Pfam-A.hmm.gz
+    resources: tmpdir=/tmp
+
+host: raven
+[Sat Sep 27 05:49:38 2025]
+Finished job 6.
+2 of 13 steps (15%) done
+Select jobs to execute...
+Execute 1 jobs...
+
+[Sat Sep 27 05:49:38 2025]
+localrule annotate_seqs_pfam:
+    input: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/data/Apulchra-genome.pep.fa, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/Pfam-A.hmm, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/Pfam-A.hmm.h3m, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/Pfam-A.hmm.h3i, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/Pfam-A.hmm.h3f, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/Pfam-A.hmm.h3p
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/philharmonic_hmmscan.tblout
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/logs/03_annotate_seqs_pfam.log
+    jobid: 5
+    reason: Missing output files: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/philharmonic_hmmscan.tblout; Input files updated by another job: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/Pfam-A.hmm.h3f, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/Pfam-A.hmm.h3i, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/Pfam-A.hmm, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/Pfam-A.hmm.h3m, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/Pfam-A.hmm.h3p
+    threads: 32
+    resources: tmpdir=/tmp
+
+Assuming unrestricted shared filesystem usage.
+host: raven
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 48
+Rules claiming more threads will be scaled down.
+Job stats:
+job                        count
+-----------------------  -------
+PHILHARMONIC                   1
+add_cluster_functions          1
+annotate_seqs_go               1
+annotate_seqs_pfam             1
+cluster_graph                  1
+cluster_network                1
+compute_distances              1
+download_required_files        1
+generate_candidates            1
+predict_network                1
+prepare_hmmdb                  1
+reconnect_recipe               1
+summarize_clusters             1
+total                         13
+
+Select jobs to execute...
+Execute 1 jobs...
+
+[Sat Sep 27 06:03:44 2025]
+localrule download_required_files:
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/go.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/goslim_generic.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Pfam-A.hmm.gz, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/pfam_gobp_most_specific.txt
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/logs/01_download_required_files.log
+    jobid: 3
+    reason: Missing output files: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/goslim_generic.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/pfam_gobp_most_specific.txt, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/go.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Pfam-A.hmm.gz
+    resources: tmpdir=/tmp
+
+host: raven
+[Sat Sep 27 06:04:18 2025]
+Finished job 3.
+1 of 13 steps (8%) done
+Select jobs to execute...
+Execute 1 jobs...
+
+[Sat Sep 27 06:04:18 2025]
+localrule prepare_hmmdb:
+    input: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Pfam-A.hmm.gz
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Pfam-A.hmm, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Pfam-A.hmm.h3m, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Pfam-A.hmm.h3i, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Pfam-A.hmm.h3f, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Pfam-A.hmm.h3p
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/logs/02_prepare_hmmdb.log
+    jobid: 6
+    reason: Missing output files: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Pfam-A.hmm.h3f, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Pfam-A.hmm, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Pfam-A.hmm.h3p, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Pfam-A.hmm.h3i, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Pfam-A.hmm.h3m; Input files updated by another job: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Pfam-A.hmm.gz
+    resources: tmpdir=/tmp
+
+host: raven
+KeyError in file /home/shared/philharmonic/philharmonic/philharmonic_snakefile, line 217:
+'OPENAI_API_KEY'
+  File "/home/shared/philharmonic/philharmonic/philharmonic_snakefile", line 217, in <module>
+  File "<frozen os>", line 679, in __getitem__
+[Sat Sep 27 06:05:12 2025]
+Finished job 6.
+2 of 13 steps (15%) done
+Select jobs to execute...
+Execute 1 jobs...
+
+[Sat Sep 27 06:05:12 2025]
+localrule annotate_seqs_pfam:
+    input: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/data/Apulchra-genome.pep.fa, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Pfam-A.hmm, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Pfam-A.hmm.h3m, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Pfam-A.hmm.h3i, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Pfam-A.hmm.h3f, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Pfam-A.hmm.h3p
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Apulchra_PPI_hmmscan.tblout
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/logs/03_annotate_seqs_pfam.log
+    jobid: 5
+    reason: Missing output files: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Apulchra_PPI_hmmscan.tblout; Input files updated by another job: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Pfam-A.hmm.h3p, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Pfam-A.hmm.h3f, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Pfam-A.hmm, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Pfam-A.hmm.h3i, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Pfam-A.hmm.h3m
+    threads: 48
+    resources: tmpdir=/tmp
+
+Assuming unrestricted shared filesystem usage.
+host: raven
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 48
+Rules claiming more threads will be scaled down.
+Job stats:
+job                        count
+-----------------------  -------
+PHILHARMONIC                   1
+add_cluster_functions          1
+annotate_seqs_go               1
+annotate_seqs_pfam             1
+cluster_graph                  1
+cluster_network                1
+compute_distances              1
+download_required_files        1
+generate_candidates            1
+predict_network                1
+prepare_hmmdb                  1
+reconnect_recipe               1
+summarize_clusters             1
+total                         13
+
+Select jobs to execute...
+Execute 1 jobs...
+
+[Sat Sep 27 06:10:59 2025]
+localrule download_required_files:
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/go.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/goslim_generic.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/Pfam-A.hmm.gz, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/pfam_gobp_most_specific.txt
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/logs/01_download_required_files.log
+    jobid: 3
+    reason: Missing output files: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/Pfam-A.hmm.gz, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/goslim_generic.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/go.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/pfam_gobp_most_specific.txt
+    resources: tmpdir=/tmp
+
+host: raven
+RuleException:
+CalledProcessError in file /home/shared/philharmonic/philharmonic/philharmonic_snakefile, line 35:
+Command 'set -euo pipefail;  curl ftp://ftp.ebi.ac.uk/pub/databases/Pfam/current_release/Pfam-A.hmm.gz -o /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/Pfam-A.hmm.gz > /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/logs/01_download_required_files.log 2>&1' returned non-zero exit status 56.
+[Sat Sep 27 06:11:01 2025]
+Error in rule download_required_files:
+    jobid: 0
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/go.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/goslim_generic.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/Pfam-A.hmm.gz, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/pfam_gobp_most_specific.txt
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/logs/01_download_required_files.log (check log file(s) for error details)
+
+Exiting because a job execution failed. Look above for error message
+WorkflowError:
+At least one job did not complete successfully.
+Traceback (most recent call last):
+
+  File "/opt/anaconda/anaconda3/envs/philharmonic_py311_env/lib/python3.11/site-packages/snakemake/executors/local.py", line 232, in spawn_job
+    subprocess.check_call(cmd, shell=True)
+
+  File "/opt/anaconda/anaconda3/envs/philharmonic_py311_env/lib/python3.11/subprocess.py", line 413, in check_call
+    raise CalledProcessError(retcode, cmd)
+
+subprocess.CalledProcessError: Command 'cd /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular && /opt/anaconda/anaconda3/envs/philharmonic_py311_env/bin/python -m snakemake --snakefile '/home/shared/philharmonic/philharmonic/philharmonic_snakefile' --target-jobs 'download_required_files:' --allowed-rules download_required_files --cores 48 --attempt 1 --force-use-threads  --force --target-files-omit-workdir-adjustment --keep-storage-local-copies --max-inventory-time 0 --nocolor --notemp --no-hooks --nolock --ignore-incomplete --rerun-triggers mtime input code software-env params --conda-frontend 'conda' --shared-fs-usage persistence software-deployment sources input-output source-cache storage-local-copies --wrapper-prefix 'https://github.com/snakemake/snakemake-wrappers/raw/' --latency-wait 5 --scheduler 'greedy' --local-storage-prefix base64//LnNuYWtlbWFrZS9zdG9yYWdl --scheduler-solver-path '/opt/anaconda/anaconda3/envs/philharmonic_py311_env/bin' --configfiles /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/code/38.02-phil-config.yml --default-resources base64//dG1wZGlyPXN5c3RlbV90bXBkaXI= --quiet progress rules --mode 'subprocess' --local-groupid 'local'' returned non-zero exit status 1.
+
+
+During handling of the above exception, another exception occurred:
+
+
+Traceback (most recent call last):
+
+  File "/opt/anaconda/anaconda3/envs/philharmonic_py311_env/lib/python3.11/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+  File "/opt/anaconda/anaconda3/envs/philharmonic_py311_env/lib/python3.11/site-packages/snakemake/executors/local.py", line 247, in cached_or_run
+    run_func(*args)
+
+  File "/opt/anaconda/anaconda3/envs/philharmonic_py311_env/lib/python3.11/site-packages/snakemake/executors/local.py", line 234, in spawn_job
+    raise SpawnedJobError()
+
+snakemake.exceptions.SpawnedJobError
+
+[Sat Sep 27 06:11:01 2025]
+Error in rule download_required_files:
+    jobid: 3
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/go.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/goslim_generic.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/Pfam-A.hmm.gz, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/pfam_gobp_most_specific.txt
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/logs/01_download_required_files.log (check log file(s) for error details)
+
+Shutting down, this might take some time.
+Exiting because a job execution failed. Look above for error message
+Complete log: .snakemake/log/2025-09-27T061059.395083.snakemake.log
+WorkflowError:
+At least one job did not complete successfully.
+Assuming unrestricted shared filesystem usage.
+host: raven
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 48
+Rules claiming more threads will be scaled down.
+Job stats:
+job                        count
+-----------------------  -------
+PHILHARMONIC                   1
+add_cluster_functions          1
+annotate_seqs_go               1
+annotate_seqs_pfam             1
+cluster_graph                  1
+cluster_network                1
+compute_distances              1
+download_required_files        1
+generate_candidates            1
+predict_network                1
+prepare_hmmdb                  1
+reconnect_recipe               1
+summarize_clusters             1
+total                         13
+
+Select jobs to execute...
+Execute 1 jobs...
+
+[Sat Sep 27 06:12:18 2025]
+localrule download_required_files:
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/go.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/goslim_generic.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/Pfam-A.hmm.gz, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/pfam_gobp_most_specific.txt
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/logs/01_download_required_files.log
+    jobid: 3
+    reason: Missing output files: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/go.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/Pfam-A.hmm.gz, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/pfam_gobp_most_specific.txt, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/goslim_generic.obo
+    resources: tmpdir=/tmp
+
+host: raven
+[Sat Sep 27 06:12:53 2025]
+Finished job 3.
+1 of 13 steps (8%) done
+Select jobs to execute...
+Execute 1 jobs...
+
+[Sat Sep 27 06:12:53 2025]
+localrule prepare_hmmdb:
+    input: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/Pfam-A.hmm.gz
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/Pfam-A.hmm, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/Pfam-A.hmm.h3m, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/Pfam-A.hmm.h3i, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/Pfam-A.hmm.h3f, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/Pfam-A.hmm.h3p
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/logs/02_prepare_hmmdb.log
+    jobid: 6
+    reason: Missing output files: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/Pfam-A.hmm, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/Pfam-A.hmm.h3m, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/Pfam-A.hmm.h3f, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/Pfam-A.hmm.h3i, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/Pfam-A.hmm.h3p; Input files updated by another job: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/Pfam-A.hmm.gz
+    resources: tmpdir=/tmp
+
+host: raven
+[Sat Sep 27 06:13:49 2025]
+Finished job 6.
+2 of 13 steps (15%) done
+Select jobs to execute...
+Execute 1 jobs...
+
+[Sat Sep 27 06:13:49 2025]
+localrule annotate_seqs_pfam:
+    input: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/data/Apulchra-genome.pep.fa, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/Pfam-A.hmm, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/Pfam-A.hmm.h3m, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/Pfam-A.hmm.h3i, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/Pfam-A.hmm.h3f, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/Pfam-A.hmm.h3p
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_hmmscan.tblout
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/logs/03_annotate_seqs_pfam.log
+    jobid: 5
+    reason: Missing output files: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_hmmscan.tblout; Input files updated by another job: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/Pfam-A.hmm.h3m, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/Pfam-A.hmm.h3f, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/Pfam-A.hmm, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/Pfam-A.hmm.h3i, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/Pfam-A.hmm.h3p
+    threads: 32
+    resources: tmpdir=/tmp
+
+Assuming unrestricted shared filesystem usage.
+host: raven
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 48
+Rules claiming more threads will be scaled down.
+Job stats:
+job                        count
+-----------------------  -------
+PHILHARMONIC                   1
+add_cluster_functions          1
+annotate_seqs_go               1
+annotate_seqs_pfam             1
+cluster_graph                  1
+cluster_network                1
+compute_distances              1
+download_required_files        1
+generate_candidates            1
+predict_network                1
+prepare_hmmdb                  1
+reconnect_recipe               1
+summarize_clusters             1
+total                         13
+
+Select jobs to execute...
+Execute 1 jobs...
+
+[Sat Sep 27 07:26:26 2025]
+localrule download_required_files:
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/go.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/goslim_generic.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/Pfam-A.hmm.gz, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/pfam_gobp_most_specific.txt
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/logs/01_download_required_files.log
+    jobid: 3
+    reason: Missing output files: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/pfam_gobp_most_specific.txt, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/goslim_generic.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/go.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/Pfam-A.hmm.gz
+    resources: tmpdir=/tmp
+
+host: raven
+[Sat Sep 27 07:26:49 2025]
+Finished job 3.
+1 of 13 steps (8%) done
+Select jobs to execute...
+Execute 1 jobs...
+
+[Sat Sep 27 07:26:49 2025]
+localrule prepare_hmmdb:
+    input: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/Pfam-A.hmm.gz
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/Pfam-A.hmm, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/Pfam-A.hmm.h3m, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/Pfam-A.hmm.h3i, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/Pfam-A.hmm.h3f, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/Pfam-A.hmm.h3p
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/logs/02_prepare_hmmdb.log
+    jobid: 6
+    reason: Missing output files: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/Pfam-A.hmm.h3m, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/Pfam-A.hmm.h3p, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/Pfam-A.hmm.h3f, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/Pfam-A.hmm, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/Pfam-A.hmm.h3i; Input files updated by another job: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/Pfam-A.hmm.gz
+    resources: tmpdir=/tmp
+
+host: raven
+[Sat Sep 27 07:27:43 2025]
+Finished job 6.
+2 of 13 steps (15%) done
+Select jobs to execute...
+Execute 1 jobs...
+
+[Sat Sep 27 07:27:43 2025]
+localrule annotate_seqs_pfam:
+    input: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/data/Apulchra-genome.pep.fa, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/Pfam-A.hmm, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/Pfam-A.hmm.h3m, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/Pfam-A.hmm.h3i, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/Pfam-A.hmm.h3f, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/Pfam-A.hmm.h3p
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/philharmonic_hmmscan.tblout
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/logs/03_annotate_seqs_pfam.log
+    jobid: 5
+    reason: Missing output files: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/philharmonic_hmmscan.tblout; Input files updated by another job: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/Pfam-A.hmm.h3p, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/Pfam-A.hmm.h3m, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/Pfam-A.hmm.h3f, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/Pfam-A.hmm, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38-Apul-phil/Pfam-A.hmm.h3i
+    threads: 32
+    resources: tmpdir=/tmp
+
+RuleException:
+CalledProcessError in file /home/shared/philharmonic/philharmonic/philharmonic_snakefile, line 76:
+KeyError in file /home/shared/philharmonic/philharmonic/philharmonic_snakefile, line 217:
+'OPENAI_API_KEY'
+  File "/home/shared/philharmonic/philharmonic/philharmonic_snakefile", line 217, in <module>
+  File "<frozen os>", line 679, in __getitem__
+KeyError in file /home/shared/philharmonic/philharmonic/philharmonic_snakefile, line 217:
+'OPENAI_API_KEY'
+  File "/home/shared/philharmonic/philharmonic/philharmonic_snakefile", line 217, in <module>
+  File "<frozen os>", line 679, in __getitem__
+Assuming unrestricted shared filesystem usage.
+host: raven
+Building DAG of jobs...
+LockException:
+Error: Directory cannot be locked. Please make sure that no other Snakemake process is trying to create the same files in the following directory:
+/home/shared/16TB_HDD_01/sr320/github/timeseries_molecular
+If you are sure that no other instances of snakemake are running on this directory, the remaining lock was likely caused by a kill signal or a power loss. It can be removed with the --unlock argument.
+Assuming unrestricted shared filesystem usage.
+host: raven
+Building DAG of jobs...
+LockException:
+Error: Directory cannot be locked. Please make sure that no other Snakemake process is trying to create the same files in the following directory:
+/home/shared/16TB_HDD_01/sr320/github/timeseries_molecular
+If you are sure that no other instances of snakemake are running on this directory, the remaining lock was likely caused by a kill signal or a power loss. It can be removed with the --unlock argument.
+Assuming unrestricted shared filesystem usage.
+host: raven
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 48
+Rules claiming more threads will be scaled down.
+Job stats:
+job                        count
+-----------------------  -------
+PHILHARMONIC                   1
+add_cluster_functions          1
+annotate_seqs_go               1
+annotate_seqs_pfam             1
+cluster_graph                  1
+cluster_network                1
+compute_distances              1
+download_required_files        1
+generate_candidates            1
+predict_network                1
+prepare_hmmdb                  1
+reconnect_recipe               1
+summarize_clusters             1
+total                         13
+
+Select jobs to execute...
+Execute 1 jobs...
+
+[Sat Sep 27 07:35:35 2025]
+localrule download_required_files:
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/go.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/goslim_generic.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.gz, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/pfam_gobp_most_specific.txt
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/logs/01_download_required_files.log
+    jobid: 3
+    reason: Missing output files: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/goslim_generic.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/pfam_gobp_most_specific.txt, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.gz, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/go.obo
+    resources: tmpdir=/tmp
+
+host: raven
+[Sat Sep 27 07:36:04 2025]
+Finished job 3.
+1 of 13 steps (8%) done
+Select jobs to execute...
+Execute 1 jobs...
+
+[Sat Sep 27 07:36:04 2025]
+localrule prepare_hmmdb:
+    input: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.gz
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3m, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3i, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3f, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3p
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/logs/02_prepare_hmmdb.log
+    jobid: 6
+    reason: Missing output files: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3m, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3p, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3i, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3f; Input files updated by another job: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.gz
+    resources: tmpdir=/tmp
+
+host: raven
+[Sat Sep 27 07:36:59 2025]
+Finished job 6.
+2 of 13 steps (15%) done
+Select jobs to execute...
+Execute 1 jobs...
+
+[Sat Sep 27 07:36:59 2025]
+localrule annotate_seqs_pfam:
+    input: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/data/Apulchra-genome.pep.fa, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3m, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3i, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3f, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3p
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/philharmonic_hmmscan.tblout
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/logs/03_annotate_seqs_pfam.log
+    jobid: 5
+    reason: Missing output files: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/philharmonic_hmmscan.tblout; Input files updated by another job: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3i, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3f, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3m, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3p
+    threads: 32
+    resources: tmpdir=/tmp
+
+Assuming unrestricted shared filesystem usage.
+host: raven
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 48
+Rules claiming more threads will be scaled down.
+Job stats:
+job                        count
+-----------------------  -------
+PHILHARMONIC                   1
+add_cluster_functions          1
+annotate_seqs_go               1
+annotate_seqs_pfam             1
+cluster_graph                  1
+cluster_network                1
+compute_distances              1
+download_required_files        1
+generate_candidates            1
+predict_network                1
+prepare_hmmdb                  1
+reconnect_recipe               1
+summarize_clusters             1
+total                         13
+
+Select jobs to execute...
+Execute 1 jobs...
+
+[Sat Sep 27 07:49:53 2025]
+localrule download_required_files:
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/go.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/goslim_generic.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.gz, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/pfam_gobp_most_specific.txt
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/logs/01_download_required_files.log
+    jobid: 3
+    reason: Missing output files: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.gz, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/pfam_gobp_most_specific.txt, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/goslim_generic.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/go.obo
+    resources: tmpdir=/tmp
+
+host: raven
+[Sat Sep 27 07:50:22 2025]
+Finished job 3.
+1 of 13 steps (8%) done
+Select jobs to execute...
+Execute 1 jobs...
+
+[Sat Sep 27 07:50:22 2025]
+localrule prepare_hmmdb:
+    input: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.gz
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3m, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3i, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3f, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3p
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/logs/02_prepare_hmmdb.log
+    jobid: 6
+    reason: Missing output files: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3m, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3i, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3p, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3f; Input files updated by another job: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.gz
+    resources: tmpdir=/tmp
+
+host: raven
+[Sat Sep 27 07:51:16 2025]
+Finished job 6.
+2 of 13 steps (15%) done
+Select jobs to execute...
+Execute 1 jobs...
+
+[Sat Sep 27 07:51:16 2025]
+localrule annotate_seqs_pfam:
+    input: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/data/Apulchra-genome.pep.fa, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3m, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3i, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3f, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3p
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/philharmonic_hmmscan.tblout
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/logs/03_annotate_seqs_pfam.log
+    jobid: 5
+    reason: Missing output files: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/philharmonic_hmmscan.tblout; Input files updated by another job: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3p, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3m, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3f, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3i
+    threads: 32
+    resources: tmpdir=/tmp
+
+KeyError in file /home/shared/philharmonic/philharmonic/philharmonic_snakefile, line 217:
+'OPENAI_API_KEY'
+  File "/home/shared/philharmonic/philharmonic/philharmonic_snakefile", line 217, in <module>
+  File "<frozen os>", line 679, in __getitem__
+Assuming unrestricted shared filesystem usage.
+host: raven
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 48
+Rules claiming more threads will be scaled down.
+Job stats:
+job                        count
+-----------------------  -------
+PHILHARMONIC                   1
+add_cluster_functions          1
+annotate_seqs_go               1
+annotate_seqs_pfam             1
+cluster_graph                  1
+cluster_network                1
+compute_distances              1
+download_required_files        1
+generate_candidates            1
+predict_network                1
+prepare_hmmdb                  1
+reconnect_recipe               1
+summarize_clusters             1
+total                         13
+
+Select jobs to execute...
+Execute 1 jobs...
+
+[Sat Sep 27 08:19:26 2025]
+localrule download_required_files:
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/go.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/goslim_generic.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.gz, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/pfam_gobp_most_specific.txt
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/logs/01_download_required_files.log
+    jobid: 3
+    reason: Missing output files: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/pfam_gobp_most_specific.txt, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/goslim_generic.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/go.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.gz
+    resources: tmpdir=/tmp
+
+host: raven
+RuleException:
+CalledProcessError in file /home/shared/philharmonic/philharmonic/philharmonic_snakefile, line 35:
+Command 'set -euo pipefail;  curl ftp://ftp.ebi.ac.uk/pub/databases/Pfam/current_release/Pfam-A.hmm.gz -o /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.gz > /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/logs/01_download_required_files.log 2>&1' returned non-zero exit status 56.
+[Sat Sep 27 08:19:28 2025]
+Error in rule download_required_files:
+    jobid: 0
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/go.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/goslim_generic.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.gz, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/pfam_gobp_most_specific.txt
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/logs/01_download_required_files.log (check log file(s) for error details)
+
+Exiting because a job execution failed. Look above for error message
+WorkflowError:
+At least one job did not complete successfully.
+Traceback (most recent call last):
+
+  File "/opt/anaconda/anaconda3/envs/philharmonic_py311_env/lib/python3.11/site-packages/snakemake/executors/local.py", line 232, in spawn_job
+    subprocess.check_call(cmd, shell=True)
+
+  File "/opt/anaconda/anaconda3/envs/philharmonic_py311_env/lib/python3.11/subprocess.py", line 413, in check_call
+    raise CalledProcessError(retcode, cmd)
+
+subprocess.CalledProcessError: Command 'cd /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular && /opt/anaconda/anaconda3/envs/philharmonic_py311_env/bin/python -m snakemake --snakefile '/home/shared/philharmonic/philharmonic/philharmonic_snakefile' --target-jobs 'download_required_files:' --allowed-rules download_required_files --cores 48 --attempt 1 --force-use-threads  --force --target-files-omit-workdir-adjustment --keep-storage-local-copies --max-inventory-time 0 --nocolor --notemp --no-hooks --nolock --ignore-incomplete --rerun-triggers code input software-env mtime params --conda-frontend 'conda' --shared-fs-usage source-cache software-deployment input-output storage-local-copies sources persistence --wrapper-prefix 'https://github.com/snakemake/snakemake-wrappers/raw/' --latency-wait 5 --scheduler 'greedy' --local-storage-prefix base64//LnNuYWtlbWFrZS9zdG9yYWdl --scheduler-solver-path '/opt/anaconda/anaconda3/envs/philharmonic_py311_env/bin' --configfiles /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/code/38-phil-config.yml --default-resources base64//dG1wZGlyPXN5c3RlbV90bXBkaXI= --quiet progress rules --mode 'subprocess' --local-groupid 'local'' returned non-zero exit status 1.
+
+
+During handling of the above exception, another exception occurred:
+
+
+Traceback (most recent call last):
+
+  File "/opt/anaconda/anaconda3/envs/philharmonic_py311_env/lib/python3.11/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+  File "/opt/anaconda/anaconda3/envs/philharmonic_py311_env/lib/python3.11/site-packages/snakemake/executors/local.py", line 247, in cached_or_run
+    run_func(*args)
+
+  File "/opt/anaconda/anaconda3/envs/philharmonic_py311_env/lib/python3.11/site-packages/snakemake/executors/local.py", line 234, in spawn_job
+    raise SpawnedJobError()
+
+snakemake.exceptions.SpawnedJobError
+
+[Sat Sep 27 08:19:28 2025]
+Error in rule download_required_files:
+    jobid: 3
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/go.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/goslim_generic.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.gz, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/pfam_gobp_most_specific.txt
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/logs/01_download_required_files.log (check log file(s) for error details)
+
+Shutting down, this might take some time.
+Exiting because a job execution failed. Look above for error message
+Complete log: .snakemake/log/2025-09-27T081926.020514.snakemake.log
+WorkflowError:
+At least one job did not complete successfully.
+Assuming unrestricted shared filesystem usage.
+host: raven
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 48
+Rules claiming more threads will be scaled down.
+Job stats:
+job                        count
+-----------------------  -------
+PHILHARMONIC                   1
+add_cluster_functions          1
+annotate_seqs_go               1
+annotate_seqs_pfam             1
+cluster_graph                  1
+cluster_network                1
+compute_distances              1
+download_required_files        1
+generate_candidates            1
+predict_network                1
+prepare_hmmdb                  1
+reconnect_recipe               1
+summarize_clusters             1
+total                         13
+
+Select jobs to execute...
+Execute 1 jobs...
+
+[Sat Sep 27 08:20:25 2025]
+localrule download_required_files:
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/go.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/goslim_generic.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.gz, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/pfam_gobp_most_specific.txt
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/logs/01_download_required_files.log
+    jobid: 3
+    reason: Missing output files: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.gz, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/go.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/goslim_generic.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/pfam_gobp_most_specific.txt
+    resources: tmpdir=/tmp
+
+host: raven
+[Sat Sep 27 08:20:52 2025]
+Finished job 3.
+1 of 13 steps (8%) done
+Select jobs to execute...
+Execute 1 jobs...
+
+[Sat Sep 27 08:20:52 2025]
+localrule prepare_hmmdb:
+    input: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.gz
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3m, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3i, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3f, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3p
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/logs/02_prepare_hmmdb.log
+    jobid: 6
+    reason: Missing output files: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3i, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3m, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3f, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3p, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm; Input files updated by another job: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.gz
+    resources: tmpdir=/tmp
+
+host: raven
+[Sat Sep 27 08:21:47 2025]
+Finished job 6.
+2 of 13 steps (15%) done
+Select jobs to execute...
+Execute 1 jobs...
+
+[Sat Sep 27 08:21:47 2025]
+localrule annotate_seqs_pfam:
+    input: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/data/Apulchra-genome.pep.fa, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3m, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3i, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3f, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3p
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/philharmonic_hmmscan.tblout
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/logs/03_annotate_seqs_pfam.log
+    jobid: 5
+    reason: Missing output files: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/philharmonic_hmmscan.tblout; Input files updated by another job: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3p, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3i, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3m, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3f
+    threads: 32
+    resources: tmpdir=/tmp
+
+RuleException:
+CalledProcessError in file /home/shared/philharmonic/philharmonic/philharmonic_snakefile, line 76:
+Command 'set -euo pipefail;  hmmscan --cpu 32 -o /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_hmmscan.out --tblout /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_hmmscan.tblout --domtblout /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_hmmscan.domtblout --acc --noali --notextw --cut_ga /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/Pfam-A.hmm /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/data/Apulchra-genome.pep.fa > /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/logs/03_annotate_seqs_pfam.log 2>&1' returned non-zero exit status 241.
+[Sat Sep 27 08:30:48 2025]
+Error in rule annotate_seqs_pfam:
+    jobid: 5
+    input: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/data/Apulchra-genome.pep.fa, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/Pfam-A.hmm, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/Pfam-A.hmm.h3m, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/Pfam-A.hmm.h3i, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/Pfam-A.hmm.h3f, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/Pfam-A.hmm.h3p
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_hmmscan.tblout
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/logs/03_annotate_seqs_pfam.log (check log file(s) for error details)
+    shell:
+        hmmscan --cpu 32 -o /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_hmmscan.out --tblout /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_hmmscan.tblout --domtblout /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_hmmscan.domtblout --acc --noali --notextw --cut_ga /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/Pfam-A.hmm /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/data/Apulchra-genome.pep.fa > /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/logs/03_annotate_seqs_pfam.log 2>&1
+        (one of the commands exited with non-zero exit code; note that snakemake uses bash strict mode!)
+
+Removing output files of failed job annotate_seqs_pfam since they might be corrupted:
+/home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_hmmscan.tblout
+Shutting down, this might take some time.
+Exiting because a job execution failed. Look above for error message
+Complete log: .snakemake/log/2025-09-27T061218.593668.snakemake.log
+WorkflowError:
+At least one job did not complete successfully.
+RuleException:
+CalledProcessError in file /home/shared/philharmonic/philharmonic/philharmonic_snakefile, line 76:
+Command 'set -euo pipefail;  hmmscan --cpu 48 -o /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Apulchra_PPI_hmmscan.out --tblout /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Apulchra_PPI_hmmscan.tblout --domtblout /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Apulchra_PPI_hmmscan.domtblout --acc --noali --notextw --cut_ga /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Pfam-A.hmm /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/data/Apulchra-genome.pep.fa > /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/logs/03_annotate_seqs_pfam.log 2>&1' returned non-zero exit status 241.
+[Sat Sep 27 08:30:50 2025]
+Error in rule annotate_seqs_pfam:
+    jobid: 5
+    input: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/data/Apulchra-genome.pep.fa, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Pfam-A.hmm, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Pfam-A.hmm.h3m, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Pfam-A.hmm.h3i, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Pfam-A.hmm.h3f, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Pfam-A.hmm.h3p
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Apulchra_PPI_hmmscan.tblout
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/logs/03_annotate_seqs_pfam.log (check log file(s) for error details)
+    shell:
+        hmmscan --cpu 48 -o /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Apulchra_PPI_hmmscan.out --tblout /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Apulchra_PPI_hmmscan.tblout --domtblout /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Apulchra_PPI_hmmscan.domtblout --acc --noali --notextw --cut_ga /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Pfam-A.hmm /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/data/Apulchra-genome.pep.fa > /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/logs/03_annotate_seqs_pfam.log 2>&1
+        (one of the commands exited with non-zero exit code; note that snakemake uses bash strict mode!)
+
+Removing output files of failed job annotate_seqs_pfam since they might be corrupted:
+RuleException:
+CalledProcessError in file /home/shared/philharmonic/philharmonic/philharmonic_snakefile, line 76:
+KeyError in file /home/shared/philharmonic/philharmonic/philharmonic_snakefile, line 217:
+'OPENAI_API_KEY'
+  File "/home/shared/philharmonic/philharmonic/philharmonic_snakefile", line 217, in <module>
+  File "<frozen os>", line 679, in __getitem__
+Assuming unrestricted shared filesystem usage.
+host: raven
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 48
+Rules claiming more threads will be scaled down.
+Job stats:
+job                        count
+-----------------------  -------
+PHILHARMONIC                   1
+add_cluster_functions          1
+annotate_seqs_go               1
+annotate_seqs_pfam             1
+cluster_graph                  1
+cluster_network                1
+compute_distances              1
+download_required_files        1
+generate_candidates            1
+predict_network                1
+prepare_hmmdb                  1
+reconnect_recipe               1
+summarize_clusters             1
+total                         13
+
+Select jobs to execute...
+Execute 1 jobs...
+
+[Sat Sep 27 08:36:35 2025]
+localrule download_required_files:
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/go.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/goslim_generic.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.gz, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/pfam_gobp_most_specific.txt
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/logs/01_download_required_files.log
+    jobid: 3
+    reason: Missing output files: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/pfam_gobp_most_specific.txt, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/go.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/goslim_generic.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.gz
+    resources: tmpdir=/tmp
+
+host: raven
+[Sat Sep 27 08:37:12 2025]
+Finished job 3.
+1 of 13 steps (8%) done
+Select jobs to execute...
+Execute 1 jobs...
+
+[Sat Sep 27 08:37:12 2025]
+localrule prepare_hmmdb:
+    input: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.gz
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3m, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3i, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3f, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3p
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/logs/02_prepare_hmmdb.log
+    jobid: 6
+    reason: Missing output files: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3f, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3i, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3m, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3p; Input files updated by another job: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.gz
+    resources: tmpdir=/tmp
+
+host: raven
+[Sat Sep 27 08:38:00 2025]
+Finished job 6.
+2 of 13 steps (15%) done
+Select jobs to execute...
+Execute 1 jobs...
+
+[Sat Sep 27 08:38:00 2025]
+localrule annotate_seqs_pfam:
+    input: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/data/Apulchra-genome.pep.fa, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3m, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3i, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3f, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3p
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/philharmonic_hmmscan.tblout
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/logs/03_annotate_seqs_pfam.log
+    jobid: 5
+    reason: Missing output files: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/philharmonic_hmmscan.tblout; Input files updated by another job: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3f, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3i, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3m, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3p
+    threads: 32
+    resources: tmpdir=/tmp
+
+Assuming unrestricted shared filesystem usage.
+host: raven
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 48
+Rules claiming more threads will be scaled down.
+Job stats:
+job                        count
+-----------------------  -------
+PHILHARMONIC                   1
+add_cluster_functions          1
+annotate_seqs_go               1
+annotate_seqs_pfam             1
+cluster_graph                  1
+cluster_network                1
+compute_distances              1
+download_required_files        1
+generate_candidates            1
+predict_network                1
+prepare_hmmdb                  1
+reconnect_recipe               1
+summarize_clusters             1
+total                         13
+
+Select jobs to execute...
+Execute 1 jobs...
+
+[Sat Sep 27 08:40:55 2025]
+localrule download_required_files:
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/go.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/goslim_generic.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.gz, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/pfam_gobp_most_specific.txt
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/logs/01_download_required_files.log
+    jobid: 3
+    reason: Missing output files: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/goslim_generic.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/go.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/pfam_gobp_most_specific.txt, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.gz
+    resources: tmpdir=/tmp
+
+host: raven
+[Sat Sep 27 08:41:26 2025]
+Finished job 3.
+1 of 13 steps (8%) done
+Select jobs to execute...
+Execute 1 jobs...
+
+[Sat Sep 27 08:41:26 2025]
+localrule prepare_hmmdb:
+    input: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.gz
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3m, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3i, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3f, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3p
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/logs/02_prepare_hmmdb.log
+    jobid: 6
+    reason: Missing output files: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3m, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3f, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3p, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3i, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm; Input files updated by another job: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.gz
+    resources: tmpdir=/tmp
+
+host: raven
+[Sat Sep 27 08:42:14 2025]
+Finished job 6.
+2 of 13 steps (15%) done
+Select jobs to execute...
+Execute 1 jobs...
+
+[Sat Sep 27 08:42:14 2025]
+localrule annotate_seqs_pfam:
+    input: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/data/Apulchra-genome.pep.fa, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3m, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3i, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3f, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3p
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/philharmonic_hmmscan.tblout
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/logs/03_annotate_seqs_pfam.log
+    jobid: 5
+    reason: Missing output files: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/philharmonic_hmmscan.tblout; Input files updated by another job: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3m, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3f, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3i, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3p
+    threads: 32
+    resources: tmpdir=/tmp
+
+[Sat Sep 27 12:37:43 2025]
+Finished job 5.
+3 of 13 steps (23%) done
+Removing temporary output /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3m.
+Removing temporary output /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3p.
+Removing temporary output /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3i.
+Removing temporary output /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/Pfam-A.hmm.h3f.
+Select jobs to execute...
+Execute 1 jobs...
+
+[Sat Sep 27 12:37:43 2025]
+localrule annotate_seqs_go:
+    input: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/philharmonic_hmmscan.tblout, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/pfam_gobp_most_specific.txt
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/philharmonic_GO_map.csv
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/logs/04_annotate_seqs_go.log
+    jobid: 4
+    reason: Missing output files: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/philharmonic_GO_map.csv; Input files updated by another job: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/philharmonic_hmmscan.tblout, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/pfam_gobp_most_specific.txt
+    resources: tmpdir=/tmp
+
+[Sat Sep 27 12:38:42 2025]
+Finished job 4.
+4 of 13 steps (31%) done
+Select jobs to execute...
+Execute 1 jobs...
+
+[Sat Sep 27 12:38:42 2025]
+localrule generate_candidates:
+    input: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/data/Apulchra-genome.pep.fa, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/go.obo, assets/go_filter.txt, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/philharmonic_GO_map.csv
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/philharmonic_kept_proteins.txt, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/philharmonic_candidates.tsv
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/logs/05_generate_candidates.log
+    jobid: 2
+    reason: Missing output files: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/philharmonic_candidates.tsv; Input files updated by another job: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/philharmonic_GO_map.csv, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/go.obo
+    resources: tmpdir=/tmp
+
+RuleException:
+CalledProcessError in file /home/shared/philharmonic/philharmonic/philharmonic_snakefile, line 105:
+Command 'set -euo pipefail;  philharmonic generate-candidates --paircount -1 -o /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/philharmonic_candidates.tsv --seq_out /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/philharmonic_kept_proteins.txt --go_map /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/philharmonic_GO_map.csv --go_database /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/go.obo --go_filter assets/go_filter.txt --sequences /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/data/Apulchra-genome.pep.fa --seed 42 > /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/logs/05_generate_candidates.log 2>&1' returned non-zero exit status 1.
+[Sat Sep 27 12:38:50 2025]
+Error in rule generate_candidates:
+    jobid: 2
+    input: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/data/Apulchra-genome.pep.fa, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/go.obo, assets/go_filter.txt, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/philharmonic_GO_map.csv
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/philharmonic_kept_proteins.txt, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/philharmonic_candidates.tsv
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/logs/05_generate_candidates.log (check log file(s) for error details)
+    shell:
+        philharmonic generate-candidates --paircount -1 -o /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/philharmonic_candidates.tsv --seq_out /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/philharmonic_kept_proteins.txt --go_map /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/philharmonic_GO_map.csv --go_database /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/go.obo --go_filter assets/go_filter.txt --sequences /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/data/Apulchra-genome.pep.fa --seed 42 > /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.01-Apul-phil/logs/05_generate_candidates.log 2>&1
+        (one of the commands exited with non-zero exit code; note that snakemake uses bash strict mode!)
+
+Shutting down, this might take some time.
+Exiting because a job execution failed. Look above for error message
+Complete log: .snakemake/log/2025-09-27T084055.168891.snakemake.log
+WorkflowError:
+At least one job did not complete successfully.
+Assuming unrestricted shared filesystem usage.
+host: raven
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 48
+Rules claiming more threads will be scaled down.
+Job stats:
+job                      count
+---------------------  -------
+PHILHARMONIC                 1
+add_cluster_functions        1
+annotate_seqs_go             1
+annotate_seqs_pfam           1
+cluster_graph                1
+cluster_network              1
+compute_distances            1
+generate_candidates          1
+predict_network              1
+reconnect_recipe             1
+summarize_clusters           1
+total                       11
+
+Select jobs to execute...
+Execute 1 jobs...
+
+[Sat Sep 27 13:58:29 2025]
+localrule annotate_seqs_pfam:
+    input: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/data/Apulchra-genome.pep.fa, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/Pfam-A.hmm, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/Pfam-A.hmm.h3m, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/Pfam-A.hmm.h3i, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/Pfam-A.hmm.h3f, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/Pfam-A.hmm.h3p
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_hmmscan.tblout
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/logs/03_annotate_seqs_pfam.log
+    jobid: 5
+    reason: Missing output files: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_hmmscan.tblout
+    threads: 32
+    resources: tmpdir=/tmp
+
+Assuming unrestricted shared filesystem usage.
+host: raven
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 48
+Rules claiming more threads will be scaled down.
+Job stats:
+job                      count
+---------------------  -------
+PHILHARMONIC                 1
+add_cluster_functions        1
+annotate_seqs_go             1
+annotate_seqs_pfam           1
+cluster_graph                1
+cluster_network              1
+compute_distances            1
+generate_candidates          1
+predict_network              1
+reconnect_recipe             1
+summarize_clusters           1
+total                       11
+
+Select jobs to execute...
+Execute 1 jobs...
+
+[Sat Sep 27 14:17:47 2025]
+localrule annotate_seqs_pfam:
+    input: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/data/Apulchra-genome.pep.fa, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Pfam-A.hmm, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Pfam-A.hmm.h3m, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Pfam-A.hmm.h3i, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Pfam-A.hmm.h3f, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Pfam-A.hmm.h3p
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Apulchra_PPI_hmmscan.tblout
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/logs/03_annotate_seqs_pfam.log
+    jobid: 5
+    reason: Missing output files: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Apulchra_PPI_hmmscan.tblout
+    threads: 48
+    resources: tmpdir=/tmp
+
+[Sat Sep 27 17:52:16 2025]
+Finished job 5.
+1 of 11 steps (9%) done
+Removing temporary output /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/Pfam-A.hmm.h3f.
+Removing temporary output /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/Pfam-A.hmm.h3i.
+Removing temporary output /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/Pfam-A.hmm.h3p.
+Removing temporary output /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/Pfam-A.hmm.h3m.
+Select jobs to execute...
+Execute 1 jobs...
+
+[Sat Sep 27 17:52:16 2025]
+localrule annotate_seqs_go:
+    input: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_hmmscan.tblout, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/pfam_gobp_most_specific.txt
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_GO_map.csv
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/logs/04_annotate_seqs_go.log
+    jobid: 4
+    reason: Missing output files: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_GO_map.csv; Input files updated by another job: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_hmmscan.tblout
+    resources: tmpdir=/tmp
+
+[Sat Sep 27 17:53:16 2025]
+Finished job 4.
+2 of 11 steps (18%) done
+Select jobs to execute...
+Execute 1 jobs...
+
+[Sat Sep 27 17:53:16 2025]
+localrule generate_candidates:
+    input: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/data/Apulchra-genome.pep.fa, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/go.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/assets/go_filter_02.txt, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_GO_map.csv
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_kept_proteins.txt, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_candidates.tsv
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/logs/05_generate_candidates.log
+    jobid: 2
+    reason: Missing output files: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_candidates.tsv; Input files updated by another job: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_GO_map.csv
+    resources: tmpdir=/tmp
+
+RuleException:
+CalledProcessError in file /home/shared/philharmonic/philharmonic/philharmonic_snakefile, line 105:
+Command 'set -euo pipefail;  philharmonic generate-candidates --paircount -1 -o /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_candidates.tsv --seq_out /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_kept_proteins.txt --go_map /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_GO_map.csv --go_database /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/go.obo --go_filter /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/assets/go_filter_02.txt --sequences /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/data/Apulchra-genome.pep.fa --seed 42 > /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/logs/05_generate_candidates.log 2>&1' returned non-zero exit status 1.
+[Sat Sep 27 17:53:23 2025]
+Error in rule generate_candidates:
+    jobid: 2
+    input: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/data/Apulchra-genome.pep.fa, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/go.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/assets/go_filter_02.txt, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_GO_map.csv
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_kept_proteins.txt, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_candidates.tsv
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/logs/05_generate_candidates.log (check log file(s) for error details)
+    shell:
+        philharmonic generate-candidates --paircount -1 -o /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_candidates.tsv --seq_out /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_kept_proteins.txt --go_map /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_GO_map.csv --go_database /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/go.obo --go_filter /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/assets/go_filter_02.txt --sequences /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/data/Apulchra-genome.pep.fa --seed 42 > /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/logs/05_generate_candidates.log 2>&1
+        (one of the commands exited with non-zero exit code; note that snakemake uses bash strict mode!)
+
+Shutting down, this might take some time.
+Exiting because a job execution failed. Look above for error message
+Complete log: .snakemake/log/2025-09-27T135828.658013.snakemake.log
+WorkflowError:
+At least one job did not complete successfully.
+Assuming unrestricted shared filesystem usage.
+host: raven
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 48
+Rules claiming more threads will be scaled down.
+Job stats:
+job                      count
+---------------------  -------
+PHILHARMONIC                 1
+add_cluster_functions        1
+cluster_graph                1
+cluster_network              1
+compute_distances            1
+generate_candidates          1
+predict_network              1
+reconnect_recipe             1
+summarize_clusters           1
+total                        9
+
+Select jobs to execute...
+Execute 1 jobs...
+
+[Sat Sep 27 18:03:04 2025]
+localrule generate_candidates:
+    input: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/data/Apulchra-genome.pep.fa, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/go.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/assets/go_filter_02.txt, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_GO_map.csv
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_kept_proteins.txt, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_candidates.tsv
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/logs/05_generate_candidates.log
+    jobid: 2
+    reason: Missing output files: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_candidates.tsv
+    resources: tmpdir=/tmp
+
+RuleException:
+CalledProcessError in file /home/shared/philharmonic/philharmonic/philharmonic_snakefile, line 105:
+Command 'set -euo pipefail;  philharmonic generate-candidates --paircount -1 -o /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_candidates.tsv --seq_out /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_kept_proteins.txt --go_map /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_GO_map.csv --go_database /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/go.obo --go_filter /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/assets/go_filter_02.txt --sequences /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/data/Apulchra-genome.pep.fa --seed 42 > /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/logs/05_generate_candidates.log 2>&1' returned non-zero exit status 1.
+[Sat Sep 27 18:03:11 2025]
+Error in rule generate_candidates:
+    jobid: 2
+    input: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/data/Apulchra-genome.pep.fa, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/go.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/assets/go_filter_02.txt, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_GO_map.csv
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_kept_proteins.txt, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_candidates.tsv
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/logs/05_generate_candidates.log (check log file(s) for error details)
+    shell:
+        philharmonic generate-candidates --paircount -1 -o /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_candidates.tsv --seq_out /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_kept_proteins.txt --go_map /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_GO_map.csv --go_database /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/go.obo --go_filter /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/assets/go_filter_02.txt --sequences /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/data/Apulchra-genome.pep.fa --seed 42 > /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/logs/05_generate_candidates.log 2>&1
+        (one of the commands exited with non-zero exit code; note that snakemake uses bash strict mode!)
+
+Shutting down, this might take some time.
+Exiting because a job execution failed. Look above for error message
+Complete log: .snakemake/log/2025-09-27T180303.501764.snakemake.log
+WorkflowError:
+At least one job did not complete successfully.
+[Sat Sep 27 18:10:44 2025]
+Finished job 5.
+1 of 11 steps (9%) done
+Removing temporary output /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Pfam-A.hmm.h3i.
+Removing temporary output /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Pfam-A.hmm.h3m.
+Removing temporary output /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Pfam-A.hmm.h3p.
+Removing temporary output /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Pfam-A.hmm.h3f.
+Select jobs to execute...
+Execute 1 jobs...
+
+[Sat Sep 27 18:10:44 2025]
+localrule annotate_seqs_go:
+    input: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Apulchra_PPI_hmmscan.tblout, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/pfam_gobp_most_specific.txt
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Apulchra_PPI_GO_map.csv
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/logs/04_annotate_seqs_go.log
+    jobid: 4
+    reason: Missing output files: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Apulchra_PPI_GO_map.csv; Input files updated by another job: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Apulchra_PPI_hmmscan.tblout
+    resources: tmpdir=/tmp
+
+[Sat Sep 27 18:11:35 2025]
+Finished job 4.
+2 of 11 steps (18%) done
+Select jobs to execute...
+Execute 1 jobs...
+
+[Sat Sep 27 18:11:35 2025]
+localrule generate_candidates:
+    input: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/data/Apulchra-genome.pep.fa, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/go.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/assets/go_filter_02.txt, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Apulchra_PPI_GO_map.csv
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Apulchra_PPI_kept_proteins.txt, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Apulchra_PPI_candidates.tsv
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/logs/05_generate_candidates.log
+    jobid: 2
+    reason: Missing output files: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Apulchra_PPI_candidates.tsv; Input files updated by another job: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Apulchra_PPI_GO_map.csv
+    resources: tmpdir=/tmp
+
+RuleException:
+CalledProcessError in file /home/shared/philharmonic/philharmonic/philharmonic_snakefile, line 105:
+Command 'set -euo pipefail;  philharmonic generate-candidates --paircount -1 -o /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Apulchra_PPI_candidates.tsv --seq_out /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Apulchra_PPI_kept_proteins.txt --go_map /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Apulchra_PPI_GO_map.csv --go_database /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/go.obo --go_filter /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/assets/go_filter_02.txt --sequences /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/data/Apulchra-genome.pep.fa --seed 42 > /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/logs/05_generate_candidates.log 2>&1' returned non-zero exit status 1.
+[Sat Sep 27 18:11:42 2025]
+Error in rule generate_candidates:
+    jobid: 2
+    input: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/data/Apulchra-genome.pep.fa, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/go.obo, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/assets/go_filter_02.txt, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Apulchra_PPI_GO_map.csv
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Apulchra_PPI_kept_proteins.txt, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Apulchra_PPI_candidates.tsv
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/logs/05_generate_candidates.log (check log file(s) for error details)
+    shell:
+        philharmonic generate-candidates --paircount -1 -o /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Apulchra_PPI_candidates.tsv --seq_out /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Apulchra_PPI_kept_proteins.txt --go_map /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/Apulchra_PPI_GO_map.csv --go_database /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/go.obo --go_filter /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/assets/go_filter_02.txt --sequences /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/data/Apulchra-genome.pep.fa --seed 42 > /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/37.02-Apul-phil/logs/05_generate_candidates.log 2>&1
+        (one of the commands exited with non-zero exit code; note that snakemake uses bash strict mode!)
+
+Shutting down, this might take some time.
+Exiting because a job execution failed. Look above for error message
+Complete log: .snakemake/log/2025-09-27T141746.347857.snakemake.log
+WorkflowError:
+At least one job did not complete successfully.
+Assuming unrestricted shared filesystem usage.
+host: raven
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 48
+Rules claiming more threads will be scaled down.
+Job stats:
+job                      count
+---------------------  -------
+PHILHARMONIC                 1
+add_cluster_functions        1
+cluster_graph                1
+cluster_network              1
+compute_distances            1
+predict_network              1
+reconnect_recipe             1
+summarize_clusters           1
+total                        8
+
+Select jobs to execute...
+Execute 1 jobs...
+
+[Sat Sep 27 18:18:34 2025]
+localrule predict_network:
+    input: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/data/Apulchra-genome.pep.fa, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_candidates.tsv
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_network.positive.tsv
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/logs/06_predict_network.log
+    jobid: 1
+    reason: Missing output files: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_network.positive.tsv
+    resources: tmpdir=/tmp, nvidia_gpu=1
+
+  0%|          | 0/16384 [00:00<?, ?it/s]  0%|          | 0/16384 [00:01<?, ?it/s]
+RuleException:
+CalledProcessError in file /home/shared/philharmonic/philharmonic/philharmonic_snakefile, line 125:
+Command 'set -euo pipefail;  dscript predict --pairs /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_candidates.tsv --seqs /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/data/Apulchra-genome.pep.fa --model samsl/dscript_human_v1 --outfile /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_network --device 0 --thresh 0.5 > /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/logs/06_predict_network.log' returned non-zero exit status 1.
+[Sat Sep 27 18:19:28 2025]
+Error in rule predict_network:
+    jobid: 1
+    input: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/data/Apulchra-genome.pep.fa, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_candidates.tsv
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_network.positive.tsv
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/logs/06_predict_network.log (check log file(s) for error details)
+    shell:
+        dscript predict --pairs /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_candidates.tsv --seqs /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/data/Apulchra-genome.pep.fa --model samsl/dscript_human_v1 --outfile /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_network --device 0 --thresh 0.5 > /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/logs/06_predict_network.log
+        (one of the commands exited with non-zero exit code; note that snakemake uses bash strict mode!)
+
+Shutting down, this might take some time.
+Exiting because a job execution failed. Look above for error message
+Complete log: .snakemake/log/2025-09-27T181833.377241.snakemake.log
+WorkflowError:
+At least one job did not complete successfully.
+Assuming unrestricted shared filesystem usage.
+host: raven
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 48
+Rules claiming more threads will be scaled down.
+Job stats:
+job                      count
+---------------------  -------
+PHILHARMONIC                 1
+add_cluster_functions        1
+cluster_graph                1
+cluster_network              1
+compute_distances            1
+predict_network              1
+reconnect_recipe             1
+summarize_clusters           1
+total                        8
+
+Select jobs to execute...
+Execute 1 jobs...
+
+[Sat Sep 27 18:25:49 2025]
+localrule predict_network:
+    input: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/data/Apulchra-genome.pep.fa, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_candidates.tsv
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_network.positive.tsv
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/logs/06_predict_network.log
+    jobid: 1
+    reason: Missing output files: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_network.positive.tsv; Params have changed since last execution: Union of exclusive params before and now across all output: before: 0 now: -1 
+    resources: tmpdir=/tmp, nvidia_gpu=1
+
+  0%|          | 0/16384 [00:00<?, ?it/s]  0%|          | 0/16384 [00:01<?, ?it/s]
+RuleException:
+CalledProcessError in file /home/shared/philharmonic/philharmonic/philharmonic_snakefile, line 125:
+Command 'set -euo pipefail;  dscript predict --pairs /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_candidates.tsv --seqs /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/data/Apulchra-genome.pep.fa --model samsl/dscript_human_v1 --outfile /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_network --device -1 --thresh 0.5 > /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/logs/06_predict_network.log' returned non-zero exit status 1.
+[Sat Sep 27 18:26:42 2025]
+Error in rule predict_network:
+    jobid: 1
+    input: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/data/Apulchra-genome.pep.fa, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_candidates.tsv
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_network.positive.tsv
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/logs/06_predict_network.log (check log file(s) for error details)
+    shell:
+        dscript predict --pairs /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_candidates.tsv --seqs /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/data/Apulchra-genome.pep.fa --model samsl/dscript_human_v1 --outfile /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_network --device -1 --thresh 0.5 > /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/logs/06_predict_network.log
+        (one of the commands exited with non-zero exit code; note that snakemake uses bash strict mode!)
+
+Shutting down, this might take some time.
+Exiting because a job execution failed. Look above for error message
+Complete log: .snakemake/log/2025-09-27T182548.482837.snakemake.log
+WorkflowError:
+At least one job did not complete successfully.
+Assuming unrestricted shared filesystem usage.
+host: raven
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 48
+Rules claiming more threads will be scaled down.
+Job stats:
+job                      count
+---------------------  -------
+PHILHARMONIC                 1
+add_cluster_functions        1
+cluster_graph                1
+cluster_network              1
+compute_distances            1
+predict_network              1
+reconnect_recipe             1
+summarize_clusters           1
+total                        8
+
+Select jobs to execute...
+Execute 1 jobs...
+
+[Sun Sep 28 06:48:29 2025]
+localrule predict_network:
+    input: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/data/Apulchra-genome.pep.fa, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_candidates.tsv
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_network.positive.tsv
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/logs/06_predict_network.log
+    jobid: 1
+    reason: Missing output files: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_network.positive.tsv; Params have changed since last execution: Union of exclusive params before and now across all output: before: -1 now: 'cpu' 
+    resources: tmpdir=/tmp, nvidia_gpu=1
+
+usage: dscript predict [-h] [--proteins PROTEINS] [--pairs PAIRS]
+                       [--model MODEL] --embeddings EMBEDDINGS
+                       [--foldseek_fasta FOLDSEEK_FASTA] [-o OUTFILE]
+                       [-d DEVICE] [--store_cmaps] [--thresh THRESH]
+                       [--load_proc LOAD_PROC] [--blocks BLOCKS]
+                       [--sparse_loading]
+dscript predict: error: the following arguments are required: --embeddings
+RuleException:
+CalledProcessError in file /home/shared/philharmonic/philharmonic/philharmonic_snakefile, line 125:
+Command 'set -euo pipefail;  dscript predict --pairs /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_candidates.tsv --seqs /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/data/Apulchra-genome.pep.fa --model samsl/dscript_human_v1 --outfile /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_network --device cpu --thresh 0.5 > /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/logs/06_predict_network.log' returned non-zero exit status 2.
+[Sun Sep 28 06:48:36 2025]
+Error in rule predict_network:
+    jobid: 1
+    input: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/data/Apulchra-genome.pep.fa, /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_candidates.tsv
+    output: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_network.positive.tsv
+    log: /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/logs/06_predict_network.log (check log file(s) for error details)
+    shell:
+        dscript predict --pairs /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_candidates.tsv --seqs /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/data/Apulchra-genome.pep.fa --model samsl/dscript_human_v1 --outfile /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/philharmonic_network --device cpu --thresh 0.5 > /home/shared/16TB_HDD_01/sr320/github/timeseries_molecular/D-Apul/output/38.02-Apul-phil/logs/06_predict_network.log
+        (one of the commands exited with non-zero exit code; note that snakemake uses bash strict mode!)
+
+Shutting down, this might take some time.
+Exiting because a job execution failed. Look above for error message
+Complete log: .snakemake/log/2025-09-28T064828.281022.snakemake.log
+WorkflowError:
+At least one job did not complete successfully.
