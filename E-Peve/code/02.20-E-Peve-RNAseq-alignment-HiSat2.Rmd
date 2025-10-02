@@ -46,7 +46,9 @@ Outputs:
   
   - `peve-gene_count_matrix.csv`: Gene count matrix for use in [DESeq2](https://github.com/thelovelab/DESeq2).
   
-  - `peve-transcript_count_matrix.csv`: Transcript count matrix for use in [DESeq2](https://github.com/thelovelab/DESeq2). 
+  - `peve-transcript_count_matrix.csv`: Transcript count matrix for use in [DESeq2](https://github.com/thelovelab/DESeq2).
+  
+  - `peve-transcript_count_matrix_with_gene_ids.csv`: Transcript count matrix which includes corresponding gene IDs.
   
   - `prepDE-sample_list.txt`: Sample file list provided as input to StringTie for DESeq2 count matrix generation. Also serves as documentation of which files were used   for this step. 
   
@@ -106,7 +108,7 @@ echo "#### Assign Variables ####"
 echo ""
 
 echo "# Data directories"
-echo 'export timeseries_dir=/home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular'
+echo 'export timeseries_dir=/home/shared/16TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular'
 echo 'export genome_dir="${timeseries_dir}/E-Peve/data"'
 echo 'export genome_index_dir="${timeseries_dir}/E-Peve/output/02.10-E-Peve-RNAseq-genome-index-HiSat2"'
 echo 'export output_dir_top="${timeseries_dir}/E-Peve/output/02.20-E-Peve-RNAseq-alignment-HiSat2"'
@@ -420,6 +422,95 @@ python3 "${programs_array[prepDE]}" \
 -g peve-gene_count_matrix.csv \
 -t peve-transcript_count_matrix.csv \
 --length=${read_length}
+```
+
+# Add Gene IDs to Transcript Count Matrix
+
+Create an enhanced version of the transcript count matrix that includes
+the corresponding gene ID for each transcript.
+
+```{bash add-gene-ids-to-transcript-matrix, engine='bash', eval=TRUE}
+# Load bash variables into memory
+source .bashvars
+
+# Change to output directory
+cd "${output_dir_top}"
+
+# Extract transcript_id to ref_gene_id mapping from GTF file
+echo "Extracting transcript to gene ID mappings from GTF file..."
+
+grep -E $'\ttranscript\t' "${genome_index_name}.stringtie.gtf" | \
+awk -F'\t' '{
+    # Extract transcript_id
+    match($9, /transcript_id "([^"]+)"/, transcript_arr)
+    transcript_id = transcript_arr[1]
+    
+    # Extract ref_gene_id
+    match($9, /ref_gene_id "([^"]+)"/, gene_arr)
+    ref_gene_id = gene_arr[1]
+    
+    # Print mapping if both IDs found
+    if (transcript_id && ref_gene_id) {
+        print transcript_id "\t" ref_gene_id
+    }
+}' > transcript_gene_mapping.txt
+
+# Check if mapping file was created successfully
+if [ ! -s transcript_gene_mapping.txt ]; then
+    echo "Error: Failed to create transcript-gene mapping file"
+    exit 1
+fi
+
+echo "Found $(wc -l < transcript_gene_mapping.txt) transcript-gene mappings"
+
+# Create enhanced transcript count matrix with gene IDs
+echo "Creating enhanced transcript count matrix with gene IDs..."
+
+# Read header from original transcript count matrix
+head -1 peve-transcript_count_matrix.csv > temp_header.txt
+
+# Add ref_gene_id to header (insert after transcript_id column)
+sed 's/transcript_id,/transcript_id,ref_gene_id,/' temp_header.txt > peve-transcript_count_matrix_with_gene_ids.csv
+
+# Process data rows
+tail -n +2 peve-transcript_count_matrix.csv | while IFS=',' read -r transcript_id rest_of_line; do
+    # Look up gene ID for this transcript
+    gene_id=$(grep "^${transcript_id}[[:space:]]" transcript_gene_mapping.txt | cut -f2)
+    
+    # If no gene ID found, use empty field
+    if [ -z "$gene_id" ]; then
+        gene_id=""
+    fi
+    
+    # Output line with gene ID inserted after transcript ID
+    echo "${transcript_id},${gene_id},${rest_of_line}"
+done >> peve-transcript_count_matrix_with_gene_ids.csv
+
+# Generate summary statistics
+echo ""
+echo "Summary of enhanced transcript count matrix:"
+original_lines=$(wc -l < peve-transcript_count_matrix.csv)
+enhanced_lines=$(wc -l < peve-transcript_count_matrix_with_gene_ids.csv)
+echo "Original transcript count matrix lines: $original_lines"
+echo "Enhanced transcript count matrix lines: $enhanced_lines"
+
+# Count transcripts with and without gene ID mappings
+transcripts_with_genes=$(tail -n +2 peve-transcript_count_matrix_with_gene_ids.csv | awk -F',' '$2 != ""' | wc -l)
+transcripts_without_genes=$(tail -n +2 peve-transcript_count_matrix_with_gene_ids.csv | awk -F',' '$2 == ""' | wc -l)
+
+echo "Number of transcripts with gene ID mappings: $transcripts_with_genes"
+echo "Number of transcripts without gene ID mappings: $transcripts_without_genes"
+
+# Display first few lines of enhanced matrix
+echo ""
+echo "First 5 rows of enhanced transcript count matrix (first 5 columns):"
+head -6 peve-transcript_count_matrix_with_gene_ids.csv | cut -d',' -f1-5
+
+# Clean up temporary files
+rm temp_header.txt transcript_gene_mapping.txt
+
+echo ""
+echo "Enhanced transcript count matrix saved as: peve-transcript_count_matrix_with_gene_ids.csv"
 ```
 
 # Generate checksums
