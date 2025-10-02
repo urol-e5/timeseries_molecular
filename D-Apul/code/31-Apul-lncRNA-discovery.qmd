@@ -4,11 +4,6 @@ format: html
 editor: visual
 ---
 
-
-
-# set variables
-
-
 ```{r}
 # Global R options
 knitr::opts_chunk$set(echo = TRUE)
@@ -85,6 +80,7 @@ mkdir -p "${OUTPUT_DIR}"
 ```
 
 
+
 ```{r, engine='bash'}
 wget -nv -r \
 --no-directories --no-parent \
@@ -97,6 +93,7 @@ wget -nv -r \
 ```{r ls, engine='bash'}
 ls ${FASTQ_DIR}
 ```
+
 
 
 ```{r fasta, engine='bash'}
@@ -131,6 +128,9 @@ fi
 ```
 
 
+
+
+# HISAT
 
 ```{r, engine='bash'}
 "${HISAT2_DIR}hisat2_extract_exons.py" "${GENOME_GTF}" > "${OUTPUT_DIR}/exon.txt"
@@ -195,6 +195,8 @@ done
 ```
 
 
+
+
 # StringTie
 
 StringTie uses the sorted BAM files to assemble transcripts for each sample, outputting them as GTF (Gene Transfer Format) files. And then merges all individual GTF assemblies into a single merged GTF file. This step extracts transcript information and merges GTFs from all samples–an important step in creating a canonical list of lncRNAs across all samples included in the pipeline.
@@ -238,6 +240,8 @@ head ${OUTPUT_DIR}/stringtie_merged.gtf
 ![](http://gannet.fish.washington.edu/seashell/snaps/Monosnap_687474703a2f2f67616e6e65742e666973682e77617368696e67746f6e2e6564752f7365617368656c6c2f736e6170732f323032332d31312d30335f30392d3_2024-12-20_04-02-37.png)
 
 
+
+
 ```{r gffcomp, engine='bash'}
 "${GFFCOMPARE_DIR}gffcompare" \
 -r "${GENOME_GFF}" \
@@ -259,11 +263,8 @@ echo "${GFFPATTERN}"
 echo "${OUTPUT_DIR}"
 ```
 
-<<<<<<< HEAD
 
 
-=======
->>>>>>> 38a157f1ec70735ba11e7f2c573ad4205ab7b846
 ```{r gff filter, engine='bash'}
 awk '$3 == "transcript" && $1 !~ /^#/' "${OUTPUT_DIR}/gffcompare_merged.annotated.gtf" | \
 grep -E "${GFFPATTERN}" | \
@@ -284,6 +285,8 @@ sort ../output/17-Ptuh-lncRNA/lncRNA_candidates.gtf | uniq -d
 ```
 
 
+
+
 # Bedtools
 
 ```{r fasta2, engine='bash'}
@@ -297,7 +300,6 @@ sort ../output/17-Ptuh-lncRNA/lncRNA_candidates.gtf | uniq -d
 ```{r, engine='bash'}
 head ${OUTPUT_DIR}/lncRNA_candidates.fasta
 ```
-
 
 
 
@@ -324,14 +326,7 @@ python /mmfs1/gscratch/scrubbed/sr320/github/deep-dive-expression/F-Ptuh/code/CP
 
 
 
-
-```{r, engine='bash'}
-"${CPC2_DIR}CPC2.py" \
--i "${OUTPUT_DIR}/lncRNA_candidates.fasta" \
--o "${OUTPUT_DIR}/CPC2"
-```
-
-
+Filter
 
 ```{r filCPC, engine='bash'}
 awk '$8 == "noncoding" {print $1}' "${OUTPUT_DIR}/CPC2.txt" > "${OUTPUT_DIR}/noncoding_transcripts_ids.txt"
@@ -360,7 +355,7 @@ head -2 "${OUTPUT_DIR}/lncRNA.fasta"
 grep -c ">" "${OUTPUT_DIR}/lncRNA.fasta"
 ```
 
-<<<<<<< HEAD
+
 
 
 
@@ -383,8 +378,6 @@ while IFS= read -r line; do
     
     # Convert the start position to 0-based by subtracting 1
     start=$((start - 1))
-    #start=$((start - 0))
-
     
     # Write the chromosome, updated start, and end positions to the output file (tab-separated)
     printf "%s\t%s\t%s\n" "$chromosome" "$start" "$end"
@@ -404,6 +397,7 @@ awk 'BEGIN{OFS="\t"; count=1} {printf "%s\t.\tlncRNA\t%d\t%d\t.\t+\t.\tgene_id \
 head "${OUTPUT_DIR}/lncRNA.gtf"
 wc -l "${OUTPUT_DIR}/lncRNA.gtf"
 ```
+
 
 
 # Summary Table
@@ -462,20 +456,4 @@ END {
     }
 }
 ' "$tf_file"
-
 ```
-
-
-
-# Common questions (negatives and dups)
-
-```{bash}
-grep -E '\s-+[0-9]+' "${OUTPUT_DIR}/lncRNA.gtf"
-```
-
-
-```{bash}
-sort "${OUTPUT_DIR}/lncRNA.gtf" | uniq -d | wc -l
-```
-
-
