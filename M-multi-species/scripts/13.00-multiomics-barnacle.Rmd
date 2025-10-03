@@ -97,15 +97,15 @@ head(ortholog_groups)
 # Read in transcript count matrices for each species
 cat("Loading transcript count matrices...\n")
 
-# D. apulosum (Apul)
+
 apul_transcripts <- read.csv(apul_transcript_matrix_file, row.names = 1)
 cat("D. apulosum transcript matrix dimensions:", dim(apul_transcripts), "\n")
 
-# E. pevenensis (Peve)
+
 peve_transcripts <- read.csv(peve_transcript_matrix_file, row.names = 1)
 cat("E. pevenensis transcript matrix dimensions:", dim(peve_transcripts), "\n")
 
-# F. tuae (Ptua)
+
 ptua_transcripts <- read.csv(ptua_transcript_matrix_file, row.names = 1)
 cat("F. tuae transcript matrix dimensions:", dim(ptua_transcripts), "\n")
 
