@@ -32,6 +32,7 @@ citeproc: true
 
 ```{r setup, include=FALSE}
 library(knitr)
+library(tidyverse)
 library(reticulate)
 knitr::opts_chunk$set(
   echo = TRUE,         # Display code chunks
@@ -42,3 +43,26 @@ knitr::opts_chunk$set(
 )
 ```
 
+## Set R variables
+
+```{r R-variables, eval=TRUE}
+conda_env_name <- c("/home/sam/programs/mambaforge/envs/barnacle_py311_env")
+conda_path <- c("/opt/anaconda/anaconda3/bin/conda")
+```
+
+## Load [barnacle](https://github.com/blasks/barnacle) conda environment
+
+If this is successful, the first line of output should show that the Python being used is the one in your [barnacle](https://github.com/blasks/barnacle) conda environment path.
+
+E.g.
+
+`python:         /home/sam/programs/mambaforge/envs/barnacle_py311_env/bin/python`
+
+```{r load-barnacle-conda-env, eval=TRUE}
+use_condaenv(condaenv = conda_env_name, conda = conda_path)
+py_config()
+```
+
+Note: I sometimes get an error "failed to initialize requested version of Python," which seems to stem from the `reticulate` package default loading a python environment. I've been able to fix this by manually uninstalling the `reticulate` package, then restarting R and reinstalling `reticulate` before rerunning this code document.
+
+# REFERENCES
