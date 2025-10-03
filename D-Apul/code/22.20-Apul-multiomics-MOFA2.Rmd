@@ -1,0 +1,1013 @@
+---
+title: "22.20-Apul-multiomics-MOFA2"
+author: "Sam White"
+date: "2025-09-15"
+output: 
+  github_document:
+    toc: true
+    number_sections: true
+  bookdown::html_document2:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+  html_document:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+bibliography: references.bib
+citeproc: true
+---
+
+# BACKGROUND
+
+This script performs multi-omics data integration and analysis for *A. pulchra* using the MOFA2 framework ([MOFA2 documentation](https://biofam.github.io/MOFA2/)) .
+
+**Software:**
+- MOFA2: Multi-Omics Factor Analysis v2, a statistical framework for comprehensive integration of multi-modal data.
+
+**Input files:**
+
+Data files downloaded from [*A.pulchra* Expression Count GitHub wiki](https://github.com/urol-e5/timeseries_molecular/wiki/02%E2%80%90Expression-Count-Matrices#a-pulchra).
+
+-   Genes: [apul-gene_count_matrix.csv](https://gannet.fish.washington.edu/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/02.20-D-Apul-RNAseq-alignment-HiSat2/apul-gene_count_matrix.csv)
+-   Transcripts: [apul-transcript_count_matrix.csv](https://gannet.fish.washington.edu/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/02.20-D-Apul-RNAseq-alignment-HiSat2/apul-transcript_count_matrix.csv)
+-   lncRNA: [lncRNA_counts.clean.filtered.txt](https://gannet.fish.washington.edu/v1_web/owlshell/bu-github/timeseries_molecular/D-Apul/output/31.5-Apul-lncRNA-discovery/lncRNA_counts.clean.filtered.txt)
+-   Methylated CpGs: [merged-WGBS-CpG-counts_filtered.csv](https://gannet.fish.washington.edu/metacarcinus/E5/20250903_meth_Apul/merged-WGBS-CpG-counts_filtered.csv)
+
+**Output files:**
+
+NOTE: Due to the large file sizes of the output files, they are not uploaded to GitHub.
+
+They are available here: https://gannet.fish.washington.edu/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/22.20-Apul-multiomics-MOFA2/
+
+Creating these files (MOFA2 model HDF5 and RDS files) requires running the MOFA2 training steps in this script, which can take several hours depending on the number of factors and computational resources. It will be faster to download these output files from the above link and then run this script.
+
+- Output files are written to: `../output/22.20-Apul-multiomics-MOFA2/`
+    - MOFA2 model HDF5 files: `MOFA2_model_factors-<N>.hdf5` (where `<N>` is the number of factors, e.g. 10-15)
+    - MOFA2 model RDS files: `MOFA2_model_factors-<N>.rds` (where `<N>` is the number of factors, e.g. 10-15)
+
+**Script workflow:**
+- Loads and harmonizes multi-omics input data (gene, transcript, lncRNA, methylation counts)
+- Preprocesses data (removes zero-variance features, harmonizes sample columns)
+- Trains MOFA2 models for a range of factor numbers (10-15) or loads pre-trained models from disk
+- Performs downstream analysis and visualization of MOFA2 results (variance explained, factor characterization, feature weights)
+
+# Setup
+
+## Libraries
+
+```{r setup, include=FALSE}
+library(knitr)
+library(data.table)
+library(MOFA2)
+library(ggplot2)
+library(tidyverse)
+library(ggpubr)
+knitr::opts_chunk$set(
+  echo = TRUE,         # Display code chunks
+  eval = FALSE,        # Evaluate code chunks
+  warning = FALSE,     # Hide warnings
+  message = FALSE,     # Hide messages
+  comment = ""         # Prevents appending '##' to beginning of lines in code output
+)
+```
+
+## Variables
+
+```{r variables, eval=TRUE}
+# Output directory
+output_dir <- "../output/22.20-Apul-multiomics-MOFA2"
+
+# Model seed
+model_seed <- 42
+
+# INPUT FILES
+data_files <- list(
+  gene_counts = "../data/apul-gene_count_matrix.csv",
+  transcript_counts = "../data/apul-transcript_count_matrix.csv",
+  lncRNA_counts = "../data/lncRNA_counts.clean.filtered.txt",
+  methylation_counts = "../data/merged-WGBS-CpG-counts_filtered_n20.csv"
+)
+
+# Covariate: Time point
+# Will be extracted from sample names after harmonization
+```
+
+# Data Structure Overview
+
+```{r data-structure, eval=TRUE}
+# Show structure and preview of each data file in the data folder using tidyverse/dplyr
+
+for (name in names(data_files)) {
+  cat("\n\n===== ", name, " =====\n")
+  file <- data_files[[name]]
+  dat <- fread(file)
+  print(glimpse(dat))
+  print(dat %>% slice_head(n = 3))
+}
+```
+
+# DATA PREP FOR MOFA2
+
+## View data structures
+
+Primarily converts data to tibbles for easier viewing/compatability with tidyverse.
+
+```{r view-data-structures, eval=TRUE}
+# Prepare data for MOFA2: ensure features are rows, samples are columns using dplyr/tidyverse
+lncRNA_raw <- fread(data_files$lncRNA_counts) %>% as_tibble()
+lncRNA_counts <- lncRNA_raw %>% select(-(1:6))
+lncRNA_counts <- lncRNA_counts %>% mutate(Geneid = lncRNA_raw$Geneid) %>% relocate(Geneid)
+
+gene_counts <- fread(data_files$gene_counts) %>% as_tibble()
+
+transcript_counts <- fread(data_files$transcript_counts) %>% as_tibble()
+
+methylation_counts <- fread(data_files$methylation_counts) %>% as_tibble()
+
+# Show structure of processed data
+cat("\n\n===== lncRNA_counts (processed) =====\n")
+print(glimpse(lncRNA_counts))
+print(lncRNA_counts %>% slice_head(n = 3))
+
+cat("\n\n===== gene_counts (original) =====\n")
+print(glimpse(gene_counts))
+print(gene_counts %>% slice_head(n = 3))
+
+cat("\n\n===== transcript_counts (original) =====\n")
+print(glimpse(transcript_counts))
+print(transcript_counts %>% slice_head(n = 3))
+
+cat("\n\n===== methylation_counts (original) =====\n")
+print(glimpse(methylation_counts))
+print(methylation_counts %>% slice_head(n = 3))
+```
+
+## Compare Column Names Across Input Data
+
+```{r compare-column-names, eval=TRUE}
+# List of all data frames
+input_dfs <- list(
+  gene_counts = gene_counts,
+  transcript_counts = transcript_counts,
+  lncRNA_counts = lncRNA_counts,
+  methylation_counts = methylation_counts
+)
+
+# Get column names for each (excluding feature/ID column)
+colnames_list <- lapply(input_dfs, function(df) colnames(df)[-1])
+
+# Use the first as reference
+ref_names <- colnames_list[[1]]
+ref_file <- names(colnames_list)[1]
+
+for (i in seq_along(colnames_list)) {
+  this_names <- colnames_list[[i]]
+  this_file <- names(colnames_list)[i]
+  if (!identical(ref_names, this_names)) {
+    cat("\nFile with different column names:", this_file, "\n")
+    cat("Columns in", this_file, "not in", ref_file, ":\n")
+    print(setdiff(this_names, ref_names))
+    cat("Columns in", ref_file, "not in", this_file, ":\n")
+    print(setdiff(ref_names, this_names))
+  }
+}
+cat("\nColumn name comparison complete.\n")
+```
+
+## Harmonize Columns Across Data Frames
+
+```{r harmonize-columns, eval=TRUE}
+# Use the intersection of all sample columns (excluding feature/ID column)
+colnames_list <- lapply(list(
+  gene_counts = gene_counts,
+  transcript_counts = transcript_counts,
+  lncRNA_counts = lncRNA_counts,
+  methylation_counts = methylation_counts
+), function(df) colnames(df)[-1])
+
+common_cols <- Reduce(intersect, colnames_list)
+
+# Function to remove extra columns and print what is removed
+remove_extra_cols <- function(df, df_name) {
+  orig_cols <- colnames(df)[-1]
+  extra <- setdiff(orig_cols, common_cols)
+  if (length(extra) > 0) {
+    cat("\nRemoving columns from", df_name, ":\n")
+    print(extra)
+  }
+  # Keep only the ID column and common columns
+  df <- df[, c(colnames(df)[1], common_cols)]
+  return(df)
+}
+
+gene_counts <- remove_extra_cols(gene_counts, "gene_counts")
+transcript_counts <- remove_extra_cols(transcript_counts, "transcript_counts")
+lncRNA_counts <- remove_extra_cols(lncRNA_counts, "lncRNA_counts")
+methylation_counts <- remove_extra_cols(methylation_counts, "methylation_counts")
+
+
+# Print final structure
+cat("\nFinal structure after harmonizing columns:\n")
+cat("\ngene_counts:\n")
+print(str(gene_counts))
+cat("\ntranscript_counts:\n")
+print(str(transcript_counts))
+cat("\nlncRNA_counts:\n")
+print(str(lncRNA_counts))
+cat("\nmethylation_counts:\n")
+print(str(methylation_counts))
+
+# Create sample metadata with time point covariate
+sample_names <- colnames(gene_counts)[-1]
+time_point <- stringr::str_extract(sample_names, "TP[1-4]")
+sample_metadata <- data.frame(
+  sample = sample_names,
+  time_point = time_point,
+  stringsAsFactors = FALSE
+)
+cat("\nSample metadata with time point covariate:\n")
+print(head(sample_metadata))
+```
+
+## Remove Zero-Variance Features
+
+MOFA2 model training recommends removing features with no variance.
+
+```{r remove-zero-variance-features, eval=TRUE}
+remove_zero_var <- function(df) {
+  feature_data <- df[ , -1, drop=FALSE]
+  # Compute variance for each row (feature)
+  vars <- apply(feature_data, 1, function(x) var(as.numeric(x), na.rm=TRUE))
+  zero_var_idx <- which(vars == 0 | is.na(vars))
+  keep_idx <- which(vars > 0 & !is.na(vars))
+  removed <- df[zero_var_idx, , drop=FALSE]
+  filtered <- df[keep_idx, , drop=FALSE]
+  list(filtered=filtered, removed=removed)
+}
+
+# Apply to each data frame
+gene_counts_zero <- remove_zero_var(gene_counts)
+transcript_counts_zero <- remove_zero_var(transcript_counts)
+lncRNA_counts_zero <- remove_zero_var(lncRNA_counts)
+methylation_counts_zero <- remove_zero_var(methylation_counts)
+
+# Extract filtered and removed data frames
+gene_counts_nzv <- gene_counts_zero$filtered
+gene_counts_zero_removed <- gene_counts_zero$removed
+transcript_counts_nzv <- transcript_counts_zero$filtered
+transcript_counts_zero_removed <- transcript_counts_zero$removed
+lncRNA_counts_nzv <- lncRNA_counts_zero$filtered
+lncRNA_counts_zero_removed <- lncRNA_counts_zero$removed
+methylation_counts_nzv <- methylation_counts_zero$filtered
+methylation_counts_zero_removed <- methylation_counts_zero$removed
+
+# Print structure of all created data frames
+cat("\nFiltered data frames (zero-variance features removed):\n")
+cat("\ngene_counts_nzv:\n")
+print(str(gene_counts_nzv))
+cat("\ntranscript_counts_nzv:\n")
+print(str(transcript_counts_nzv))
+cat("\nlncRNA_counts_nzv:\n")
+print(str(lncRNA_counts_nzv))
+cat("\nmethylation_counts_nzv:\n")
+print(str(methylation_counts_nzv))
+
+cat("\nData frames of removed zero-variance features:\n")
+cat("\ngene_counts_zero_removed:\n")
+print(str(gene_counts_zero_removed))
+cat("\ntranscript_counts_zero_removed:\n")
+print(str(transcript_counts_zero_removed))
+cat("\nlncRNA_counts_zero_removed:\n")
+print(str(lncRNA_counts_zero_removed))
+cat("\nmethylation_counts_zero_removed:\n")
+print(str(methylation_counts_zero_removed))
+```
+
+## Create Matrices After Zero-Variance Removal
+
+```{r create-matrices, eval=TRUE}
+
+# Create matrices from filtered data frames
+gene_mat_nzv <- gene_counts_nzv %>% 
+  column_to_rownames(var = colnames(gene_counts_nzv)[1]) %>% 
+  as.matrix()
+
+transcript_mat_nzv <- transcript_counts_nzv %>% 
+  column_to_rownames(var = colnames(transcript_counts_nzv)[1]) %>% 
+  as.matrix()
+
+lncRNA_mat_nzv <- lncRNA_counts_nzv %>% 
+  column_to_rownames(var = "Geneid") %>% 
+  as.matrix()
+
+methylation_mat_nzv <- methylation_counts_nzv %>% 
+  column_to_rownames(var = colnames(methylation_counts_nzv)[1]) %>% 
+  as.matrix()
+
+# Combine into a named list for MOFA2
+data_list_nzv <- list(
+  gene = gene_mat_nzv,
+  transcript = transcript_mat_nzv,
+  lncRNA = lncRNA_mat_nzv,
+  methylation = methylation_mat_nzv
+)
+# Show structure of the new list
+str(data_list_nzv, max.level = 1)
+cat("\nList of matrices after zero-variance feature removal ready for MOFA2 object creation.\n")
+```
+
+```{r}
+# Get sample names (columns) from the harmonized data
+sample_names <- colnames(gene_counts_nzv)[-1]
+
+# Extract time point from sample names using regex
+time_point <- stringr::str_extract(sample_names, "TP[1-4]")
+
+# Create metadata data frame
+sample_metadata <- data.frame(
+  sample = sample_names,
+  time_point = time_point,
+  stringsAsFactors = FALSE
+)
+
+# Preview
+head(sample_metadata)
+```
+
+# CREATE MOFA2 OBJECT
+
+
+```{r mofa2-create-object, eval=TRUE}
+# Create a MOFA object from the list of matrices
+MOFAobject <- create_mofa(data_list_nzv)
+
+# Add sample metadata (with time point) to MOFA object
+samples_metadata(MOFAobject) <- sample_metadata
+
+# Show summary of the MOFA object
+print(MOFAobject)
+cat("\nMOFA object created.\n")
+```
+
+## Plot data overview
+
+```{r plot-data-overview, eval=TRUE}
+plot_data_overview(MOFAobject)
+```
+
+# DEFINE MOFA2 OPTIONS
+
+## Data options
+
+```{r, data-options, eval=TRUE}
+data_opts <- get_default_data_options(MOFAobject)
+data_opts
+```
+
+## Model options
+
+```{r, model-options, eval=TRUE}
+model_opts <- get_default_model_options(MOFAobject)
+model_opts$num_factors <- 10
+
+model_opts
+```
+
+## Training options
+
+```{r training-options, eval=TRUE}
+train_opts <- get_default_training_options(MOFAobject)
+train_opts$convergence_mode <- "fast"
+train_opts$seed <- model_seed
+
+train_opts
+```
+
+# TRAIN MOFA2 OBJECT
+
+A range from 10 - 15 factors is recommended by the developers.
+
+## Load saved MOFA objects from disk
+
+If this has been previously run, this will load existing, trained models.
+
+```{r load-mofa-objects, eval=TRUE}
+# Create a new list to store loaded MOFA objects
+mofa_objects <- list()
+for (nf in 10:15) {
+  rds_file <- file.path(output_dir, paste0("MOFA2_model_factors-", nf, ".rds"))
+  obj_name <- paste0("MOFAobject_factors", nf)
+  if (file.exists(rds_file)) {
+    mofa_objects[[obj_name]] <- readRDS(rds_file)
+  } else {
+    warning(paste("File not found:", rds_file))
+  }
+}
+```
+
+## Train MOFA objects for different numbers of factors
+
+If this is the first time running this, this will train the models.
+
+```{r train-mofa-multi-factors, eval=FALSE}
+# List to store MOFA objects
+mofa_objects <- list()
+
+data_opts <- get_default_data_options(MOFAobject)
+
+for (nf in 10:15) {
+  # Set model options for this number of factors
+  model_opts_i <- get_default_model_options(MOFAobject)
+  model_opts_i$num_factors <- nf
+  train_opts_i <- get_default_training_options(MOFAobject)
+  train_opts_i$convergence_mode <- "fast"
+  train_opts_i$seed <- model_seed
+
+  # Prepare MOFA object (no covariate)
+  MOFAobject_i <- prepare_mofa(MOFAobject,
+    data_options = data_opts,
+    model_options = model_opts_i,
+    training_options = train_opts_i
+  )
+
+  # Output filenames and object name
+  model_hdf5_file_i <- file.path(output_dir, paste0("MOFA2_model_factors-", nf, ".hdf5"))
+  model_rds_file_i <- file.path(output_dir, paste0("MOFA2_model_factors-", nf, ".rds"))
+  mofa_obj_name <- paste0("MOFAobject_factors", nf)
+
+  # Train and save
+  MOFAobject_i <- run_mofa(MOFAobject_i, outfile = model_hdf5_file_i, use_basilisk = TRUE)
+  saveRDS(MOFAobject_i, model_rds_file_i)
+
+  # Store in list with descriptive name
+  mofa_objects[[mofa_obj_name]] <- MOFAobject_i
+  cat("\nTrained and saved MOFA object with", nf, "factors.\n")
+}
+```
+
+# PLOTS
+
+## Factor correlation
+
+```{r plot-factor-correlation, eval=TRUE}
+for (obj_name in names(mofa_objects)) {
+  cat("\nFactor correlation for", obj_name, ":\n")
+  print(plot_factor_cor(mofa_objects[[obj_name]]))
+}
+```
+
+## Variance decomposition
+
+```{r plot-variance-decomposition-all, eval=TRUE}
+for (obj_name in names(mofa_objects)) {
+  cat("\nVariance explained for", obj_name, ":\n")
+  print(plot_variance_explained(mofa_objects[[obj_name]], max_r2=10))
+}
+```
+
+Looks like the MOFA object with Factor count of `10` is the most informative. It shows a variance range in methylation (i.e. variation percentage isn't pegged at the max/min colors across all factors), as well as some possible effects in Factor 6 within `gene`, `transcript`, and `lncRNA`.
+
+# FACTOR 6 CHARACTERIZATION
+
+## Factor 6 Variance decomposition
+
+Let's reduce the `max_r2` value (percent variation) to see if we can better see an effect from the methylation view on the other views.
+
+```{r plot-variance-decomposition-10factors, eval=TRUE}
+cat("\nVariance explained for MOFAobject_factors10:\n")
+print(plot_variance_explained(mofa_objects[["MOFAobject_factors10"]], max_r2=4))
+```
+
+## Plot variance explained per view
+
+```{r plot-variance-explained-view, eval=TRUE}
+cat("\nVariance explained per view for MOFAobject_factors10:\n")
+print(plot_variance_explained(mofa_objects[["MOFAobject_factors10"]], plot_total = T)[[2]])
+```
+
+## Print percent variance explained per view as a table
+
+```{r print-variance-explained-table, eval=TRUE}
+var_list <- plot_variance_explained(mofa_objects[["MOFAobject_factors10"]], plot_total = TRUE)
+# Extract the ggplot object
+var_gg <- var_list[[2]]
+# Get the data frame from the ggplot object
+var_df <- var_gg$data
+print(var_df)
+```
+
+## Plot Factor 6 values
+
+```{r plot-factor-values, eval=TRUE}
+plot_factor(mofa_objects[["MOFAobject_factors10"]], 
+  factors = 6, 
+  color_by = "Factor6"
+)
+```
+
+## Plot Factor 6 weights
+
+### Genes
+
+```{r plot-gene-weights, eval=TRUE}
+plot_weights(mofa_objects[["MOFAobject_factors10"]],
+ view = "gene",
+ factors = 6,
+ nfeatures = 10,     # Top number of features to highlight
+ scale = T           # Scale weights from -1 to 1
+)
+```
+
+#### Plot top weights
+
+```{r plot-top-gene-weights, eval=TRUE}
+plot_top_weights(mofa_objects[["MOFAobject_factors10"]],
+ view = "gene",
+ factors = 6,
+ nfeatures = 10,     # Top number of features to highlight
+ scale = T           # Scale weights from -1 to 1
+)
+```
+
+#### Print top 10 weights
+
+```{r print-top-gene-weights, eval=TRUE}
+# Print top 10 gene features (by absolute weight) and their actual weights for factor 6
+weights <- get_weights(mofa_objects[["MOFAobject_factors10"]], view = "gene", factor = 6)
+
+# Extract the matrix from the list
+weights_vec <- weights[[1]][,1]
+names(weights_vec) <- rownames(weights[[1]])
+top_n <- 10
+top_features <- sort(abs(weights_vec), decreasing = TRUE)[1:top_n]
+top_feature_names <- names(top_features)
+top_feature_weights <- weights_vec[top_feature_names]
+top_df <- data.frame(Feature = top_feature_names, Weight = top_feature_weights)
+print(top_df)
+```
+
+
+#### Plot heatmap
+
+```{r plot-heatmap-gene, eval=TRUE}
+plot_data_heatmap(mofa_objects[["MOFAobject_factors10"]], 
+  view = "gene",
+  factor = 6,
+  features = 25,
+  denoise = TRUE,
+  cluster_rows = FALSE, cluster_cols = TRUE,
+  show_rownames = TRUE, show_colnames = TRUE,
+  scale = "row"
+)
+```
+
+#### Plot top gene
+
+```{r plot-top-gene-factor6, eval=TRUE}
+# Programmatically get top gene by absolute weight for factor 6
+
+# Get top 10 genes by absolute weight for factor 6
+weights <- get_weights(mofa_objects[["MOFAobject_factors10"]], view = "gene", factor = 6)
+weights_vec <- weights[[1]][,1]
+names(weights_vec) <- rownames(weights[[1]])
+top_n <- 10
+top_features <- sort(abs(weights_vec), decreasing = TRUE)[1:top_n]
+top_genes <- names(top_features)
+cat("Top 10 genes by absolute weight for factor 6:\n")
+print(top_genes)
+
+# Create a separate plot for each top gene
+for (gene in top_genes) {
+  cat("\nPlotting factor 6 colored by time point:", gene, "\n")
+  print(
+    plot_factor(mofa_objects[["MOFAobject_factors10"]], 
+      factors = 6,
+      color_by = "time_point",
+      add_violin = TRUE,
+      dodge = TRUE
+    )
+  )
+}
+```
+
+#### Plot gene by transcript scatter
+
+```{r plot-top-gene-by-transcript, eval=TRUE}
+plot_data_scatter(mofa_objects[["MOFAobject_factors10"]], 
+  view = "transcript",
+  factor = 6,  
+  features = 12,
+  sign = "positive",
+  color_by = top_gene
+) + labs(y="Transcript expression")
+```
+
+#### Plot gene by lncRNA scatter
+
+```{r plot-top-gene-by-lncRNA, eval=TRUE}
+plot_data_scatter(mofa_objects[["MOFAobject_factors10"]], 
+  view = "lncRNA",
+  factor = 6,  
+  features = 12,
+  sign = "positive",
+  color_by = top_gene
+) + labs(y="lncRNA expression")
+```
+
+#### Plot gene by methylation scatter
+
+```{r plot-top-gene-by-methylation, eval=TRUE}
+plot_data_scatter(mofa_objects[["MOFAobject_factors10"]], 
+  view = "methylation",
+  factor = 6,  
+  features = 12,
+  sign = "positive",
+  color_by = top_gene
+) + labs(y="Methylated CpG counts")
+```
+
+### Transcripts
+
+```{r plot-transcripts-weights, eval=TRUE}
+plot_weights(mofa_objects[["MOFAobject_factors10"]],
+ view = "transcript",
+ factor = 6,
+ nfeatures = 10,     # Top number of features to highlight
+ scale = T           # Scale weights from -1 to 1
+)
+```
+
+#### Plot top weights
+
+```{r plot-top-transcripts-weights, eval=TRUE}
+plot_top_weights(mofa_objects[["MOFAobject_factors10"]],
+ view = "transcript",
+ factor = 6,
+ nfeatures = 10,     # Top number of features to highlight
+ scale = T           # Scale weights from -1 to 1
+)
+```
+
+#### Print top 10 weights
+
+```{r print-top-transcripts-weights, eval=TRUE}
+# Print top 10 transcripts features (by absolute weight) and their actual weights for factor 6
+weights <- get_weights(mofa_objects[["MOFAobject_factors10"]], view = "transcript", factor = 6)
+
+# Extract the matrix from the list
+weights_vec <- weights[[1]][,1]
+names(weights_vec) <- rownames(weights[[1]])
+top_n <- 10
+top_features <- sort(abs(weights_vec), decreasing = TRUE)[1:top_n]
+top_feature_names <- names(top_features)
+top_feature_weights <- weights_vec[top_feature_names]
+top_df <- data.frame(Feature = top_feature_names, Weight = top_feature_weights)
+print(top_df)
+```
+
+
+#### Plot heatmap
+
+```{r plot-heatmap-transcripts, eval=TRUE}
+plot_data_heatmap(mofa_objects[["MOFAobject_factors10"]], 
+  view = "transcript",
+  factor = 6,  
+  features = 25,
+  denoise = TRUE,
+  cluster_rows = FALSE, cluster_cols = TRUE,
+  show_rownames = TRUE, show_colnames = TRUE,
+  scale = "row"
+)
+```
+
+#### Plot top transcript
+
+```{r plot-top-transcripts-factor6, eval=TRUE}
+# Programmatically get top transcripts by absolute weight for factor 6
+
+# Get top 10 transcripts by absolute weight for factor 6
+weights <- get_weights(mofa_objects[["MOFAobject_factors10"]], view = "transcript", factor = 6)
+weights_vec <- weights[[1]][,1]
+names(weights_vec) <- rownames(weights[[1]])
+top_n <- 10
+top_features <- sort(abs(weights_vec), decreasing = TRUE)[1:top_n]
+top_transcripts <- names(top_features)
+cat("Top 10 transcripts by absolute weight for factor 6:\n")
+print(top_transcripts)
+
+# Create a separate plot for each top transcript
+for (transcript in top_transcripts) {
+  cat("\nPlotting factor 6 colored by transcript:", transcript, "\n")
+  print(
+    plot_factor(mofa_objects[["MOFAobject_factors10"]], 
+      factors = 6, 
+      color_by = "time_point",
+      add_violin = TRUE,
+      dodge = TRUE
+    )
+  )
+}
+```
+
+#### Plot transcript by gene scatter
+
+```{r plot-top-transcript-by-gene, eval=TRUE}
+plot_data_scatter(mofa_objects[["MOFAobject_factors10"]], 
+  view = "gene",
+  factor = 6,  
+  features = 12,
+  sign = "positive",
+  color_by = top_transcript
+) + labs(y="Transcript expression")
+```
+
+#### Plot transcript by lncRNA scatter
+
+```{r plot-top-transcript-by-lncRNA, eval=TRUE}
+plot_data_scatter(mofa_objects[["MOFAobject_factors10"]], 
+  view = "lncRNA",
+  factor = 6,  
+  features = 12,
+  sign = "positive",
+  color_by = top_transcript
+) + labs(y="lncRNA expression")
+```
+
+#### Plot transcript by methylation scatter
+
+```{r plot-top-transcript-by-methylation, eval=TRUE}
+plot_data_scatter(mofa_objects[["MOFAobject_factors10"]], 
+  view = "methylation",
+  factor = 6,  
+  features = 12,
+  sign = "positive",
+  color_by = top_transcript
+) + labs(y="Methylated CpG counts")
+```
+
+### lncRNA
+
+#### Plot weights
+
+```{r plot-lncRNA-weights, eval=TRUE}
+plot_weights(mofa_objects[["MOFAobject_factors10"]], 
+  view = "lncRNA", 
+  factor = 6, 
+  nfeatures = 10
+)
+```
+
+#### Plot top weights
+
+```{r plot-top-lncRNA-weights, eval=TRUE}
+plot_top_weights(mofa_objects[["MOFAobject_factors10"]],
+ view = "lncRNA",
+ factor = 6,
+ nfeatures = 10,     # Top number of features to highlight
+ scale = T           # Scale weights from -1 to 1
+)
+```
+
+#### Print top 10 weights
+
+```{r print-top-lncRNA-weights, eval=TRUE}
+# Print top 10 lncRNA features (by absolute weight) and their actual weights for factor 6
+weights <- get_weights(mofa_objects[["MOFAobject_factors10"]], view = "lncRNA", factor = 6)
+
+# Extract the matrix from the list
+weights_vec <- weights[[1]][,1]
+names(weights_vec) <- rownames(weights[[1]])
+top_n <- 10
+top_features <- sort(abs(weights_vec), decreasing = TRUE)[1:top_n]
+top_feature_names <- names(top_features)
+top_feature_weights <- weights_vec[top_feature_names]
+top_df <- data.frame(Feature = top_feature_names, Weight = top_feature_weights)
+print(top_df)
+```
+
+#### Plot heatmap
+
+```{r plot-heatmap-lncRNA, eval=TRUE}
+plot_data_heatmap(mofa_objects[["MOFAobject_factors10"]], 
+  view = "lncRNA",
+  factor = 6,  
+  features = 25,
+  denoise = TRUE,
+  cluster_rows = FALSE, cluster_cols = TRUE,
+  show_rownames = TRUE, show_colnames = TRUE,
+  scale = "row"
+)
+```
+
+#### Plot top lncRNA
+
+```{r plot-top-lncRNA-factor6, eval=TRUE}
+# Programmatically get top lncRNA by absolute weight for factor 6
+
+# Get top 10 lncRNAs by absolute weight for factor 6
+weights <- get_weights(mofa_objects[["MOFAobject_factors10"]], view = "lncRNA", factor = 6)
+weights_vec <- weights[[1]][,1]
+names(weights_vec) <- rownames(weights[[1]])
+top_n <- 10
+top_features <- sort(abs(weights_vec), decreasing = TRUE)[1:top_n]
+top_lncRNA <- names(sort(abs(weights_vec), decreasing = TRUE))[1]
+top_lncRNAs <- names(top_features)
+cat("Top 10 lncRNAs by absolute weight for factor 6:\n")
+print(top_lncRNAs)
+
+# Create a separate plot for each top lncRNA
+for (lncRNA in top_lncRNAs) {
+  cat("\nPlotting factor 6 colored by lncRNA:", lncRNA, "\n")
+  print(
+    plot_factor(mofa_objects[["MOFAobject_factors10"]], 
+      factors = 6,
+      color_by = lncRNA,
+      group_by = "time_point",
+      add_violin = TRUE,
+      dodge = TRUE
+    )
+  )
+}
+```
+
+#### Plot lncRNA by gene scatter
+
+```{r plot-top-lncRNA-by-gene, eval=TRUE}
+plot_data_scatter(mofa_objects[["MOFAobject_factors10"]], 
+  view = "gene",
+  factor = 6,  
+  features = 12,
+  sign = "positive",
+  color_by = top_lncRNA,
+  shape_by = "time_point"
+) + labs(y="Gene expression")
+```
+
+#### Plot lncRNA by transcript scatter
+
+```{r plot-top-lncRNA-by-transcript, eval=TRUE}
+plot_data_scatter(mofa_objects[["MOFAobject_factors10"]], 
+  view = "transcript",
+  factor = 6,  
+  features = 12,
+  sign = "positive",
+  color_by = top_lncRNA,
+  shape_by = "time_point"
+) + labs(y="Transcript expression")
+```
+
+#### Plot lncRNA by methylation scatter
+
+```{r plot-top-lncRNA-by-methylation, eval=TRUE}
+plot_data_scatter(mofa_objects[["MOFAobject_factors10"]], 
+  view = "methylation",
+  factor = 6,  
+  features = 12,
+  sign = "positive",
+  color_by = top_lncRNA,
+  shape_by = "time_point"
+) + labs(y="Methylated CpG counts")
+```
+
+### Methylation
+
+#### Plot weights
+
+```{r plot-methylation-weights, eval=TRUE}
+plot_weights(mofa_objects[["MOFAobject_factors10"]], 
+  view = "methylation", 
+  factor = 6, 
+  nfeatures = 10
+)
+```
+
+#### Plot top weights
+
+```{r plot-top-methylation-weights, eval=TRUE}
+plot_top_weights(mofa_objects[["MOFAobject_factors10"]],
+ view = "methylation",
+ factor = 6,
+ nfeatures = 10,     # Top number of features to highlight
+ scale = T           # Scale weights from -1 to 1
+)
+```
+
+#### Print top 10 weights
+
+```{r print-top-methylation-weights, eval=TRUE}
+# Print top 10 methylation features (by absolute weight) and their actual weights for factor 6
+weights <- get_weights(mofa_objects[["MOFAobject_factors10"]], view = "methylation", factor = 6)
+
+# Extract the matrix from the list
+weights_vec <- weights[[1]][,1]
+names(weights_vec) <- rownames(weights[[1]])
+top_n <- 10
+top_features <- sort(abs(weights_vec), decreasing = TRUE)[1:top_n]
+top_feature_names <- names(top_features)
+top_feature_weights <- weights_vec[top_feature_names]
+top_df <- data.frame(Feature = top_feature_names, Weight = top_feature_weights)
+print(top_df)
+```
+
+#### Plot heatmap
+
+```{r plot-heatmap-methylation, eval=TRUE}
+plot_data_heatmap(mofa_objects[["MOFAobject_factors10"]], 
+  view = "methylation",
+  factor = 6,  
+  features = 25,
+  denoise = TRUE,
+  cluster_rows = FALSE, cluster_cols = TRUE,
+  show_rownames = TRUE, show_colnames = TRUE,
+  scale = "row"
+)
+```
+
+#### Plot top methylation
+
+```{r plot-top-methylation-factor6, eval=TRUE}
+# Programmatically get top methylation by absolute weight for factor 6
+
+# Get top 10 methylation features by absolute weight for factor 6
+weights <- get_weights(mofa_objects[["MOFAobject_factors10"]], view = "methylation", factor = 6)
+weights_vec <- weights[[1]][,1]
+names(weights_vec) <- rownames(weights[[1]])
+top_n <- 10
+top_features <- sort(abs(weights_vec), decreasing = TRUE)[1:top_n]
+top_methylations <- names(top_features)
+
+top_methylation <- names(sort(abs(weights_vec), decreasing = TRUE))[1]
+
+cat("Top 10 methylation features by absolute weight for factor 6:\n")
+print(top_methylations)
+
+# Create a separate plot for each top methylation feature
+for (meth in top_methylations) {
+  cat("\nPlotting factor 6 colored by methylation feature:", meth, "\n")
+  print(
+    plot_factor(mofa_objects[["MOFAobject_factors10"]], 
+      factors = 6, 
+      color_by = meth,
+      group_by = "time_point",
+      dodge = TRUE
+    )
+  )
+}
+```
+
+#### Plot methylation by gene scatter
+
+```{r plot-top-methylation-by-gene, eval=TRUE}
+plot_data_scatter(mofa_objects[["MOFAobject_factors10"]], 
+  view = "gene",
+  factor = 6,  
+  features = 12,
+  sign = "negative",
+  color_by = top_methylation,
+  shape_by = "time_point"
+) + labs(y="Gene expression")
+```
+
+#### Plot methylation by transcript scatter
+
+```{r plot-top-methylation-by-transcript, eval=TRUE}
+plot_data_scatter(mofa_objects[["MOFAobject_factors10"]], 
+  view = "transcript",
+  factor = 6,  
+  features = 12,
+  sign = "negative",
+  color_by = top_methylation,
+  shape_by = "time_point"
+) + labs(y="Transcript expression")
+```
+
+#### Plot methylation by lncRNA scatter
+
+```{r plot-top-methylation-by-lncRNA, eval=TRUE}
+plot_data_scatter(mofa_objects[["MOFAobject_factors10"]], 
+  view = "lncRNA",
+  factor = 6,  
+  features = 12,
+  sign = "negative",
+  color_by = top_methylation,
+  shape_by = "time_point"
+) + labs(y="lncRNA expression")
+```
+
+
+
+# SESSION INFO
+```{r session-info, eval=TRUE}
+sessionInfo()
+```
+
+# REFERENCES
+
+
