@@ -46,6 +46,18 @@ knitr::opts_chunk$set(
 ## Set R variables
 
 ```{r R-variables, eval=TRUE}
+# OUTPUT DIRECTORY
+output_dir <- "../output/13.00-multiomics-barnacle"
+
+#INPUT FILE(S)
+ortholog_groups_file <- "../output/12-ortho-annot/ortholog_groups_annotated.csv"
+
+# Transcript count matrices for each species
+apul_transcript_matrix_file <- "../../D-Apul/output/02.20-D-Apul-RNAseq-alignment-HiSat2/apul-transcript_count_matrix.csv"
+peve_transcript_matrix_file <- "../../E-Peve/output/02.20-E-Peve-RNAseq-alignment-HiSat2/peve-transcript_count_matrix.csv"
+ptua_transcript_matrix_file <- "../../F-Ptua/output/02.20-F-Ptua-RNAseq-alignment-HiSat2/ptua-transcript_count_matrix.csv"
+
+# CONDA
 conda_env_name <- c("/home/sam/programs/mambaforge/envs/barnacle_py311_env")
 conda_path <- c("/opt/anaconda/anaconda3/bin/conda")
 ```
@@ -63,6 +75,49 @@ use_condaenv(condaenv = conda_env_name, conda = conda_path)
 py_config()
 ```
 
-Note: I sometimes get an error "failed to initialize requested version of Python," which seems to stem from the `reticulate` package default loading a python environment. I've been able to fix this by manually uninstalling the `reticulate` package, then restarting R and reinstalling `reticulate` before rerunning this code document.
+# DATA PREP
+
+## Load ortholog groups data
+
+```{r load-ortholog-data, eval=TRUE}
+# Read in the ortholog groups data
+ortholog_groups <- read.csv(ortholog_groups_file)
+
+
+
+# Display basic info about the data
+cat("Dimensions of ortholog groups data:", dim(ortholog_groups), "\n")
+cat("Column names:", colnames(ortholog_groups), "\n")
+head(ortholog_groups)
+```
+
+## Read in transcript expression data
+
+```{r extract-gene-expression, eval=TRUE}
+# Read in transcript count matrices for each species
+cat("Loading transcript count matrices...\n")
+
+# D. apulosum (Apul)
+apul_transcripts <- read.csv(apul_transcript_matrix_file, row.names = 1)
+cat("D. apulosum transcript matrix dimensions:", dim(apul_transcripts), "\n")
+
+# E. pevenensis (Peve)
+peve_transcripts <- read.csv(peve_transcript_matrix_file, row.names = 1)
+cat("E. pevenensis transcript matrix dimensions:", dim(peve_transcripts), "\n")
+
+# F. tuae (Ptua)
+ptua_transcripts <- read.csv(ptua_transcript_matrix_file, row.names = 1)
+cat("F. tuae transcript matrix dimensions:", dim(ptua_transcripts), "\n")
+
+# Display column names (sample names) for each species
+cat("\nD. apulosum samples:", colnames(apul_transcripts), "\n")
+cat("E. pevenensis samples:", colnames(peve_transcripts), "\n")
+cat("F. tuae samples:", colnames(ptua_transcripts), "\n")
+
+# Preview data structure
+cat("\nPreview of D. apulosum data:\n")
+head(apul_transcripts[,1:5])
+```
+
 
 # REFERENCES
