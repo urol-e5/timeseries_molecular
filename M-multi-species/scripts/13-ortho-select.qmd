@@ -1,24 +1,25 @@
 ---
 title: "13-ortho-select"
-format: md
-editor: visual
+format:
+  gfm: default
+  html: default
 ---
 
-```{bash}
+```{r, engine='bash'}
 head ../output/11-orthology-analysis/ortholog_groups.csv
 ```
 
-```{bash}
+```{r, engine='bash'}
 wc -l ../output/11-orthology-analysis/ortholog_groups.csv
 ```
 
 ## Annotated
 
-```{bash}
+```{r, engine='bash'}
 head ../output/12-ortho-annot/ortholog_groups_annotated.csv
 ```
 
-```{bash}
+```{r, engine='bash'}
 wc -l ../output/12-ortho-annot/ortholog_groups_annotated.csv
 ```
 
@@ -26,7 +27,7 @@ wc -l ../output/12-ortho-annot/ortholog_groups_annotated.csv
 
 ## Filter for specific GO terms
 
-```{bash}
+```{r, engine='bash'}
 # Filter orthologs for metabolic and stress-related processes
 echo "Filtering for:"
 echo "- Glycolysis (GO:0006096)"
@@ -54,12 +55,12 @@ echo "Total orthologs selected:"
 wc -l ../output/13-ortho-select/selected_orthologs.csv
 ```
 
-```{bash}
+```{r, engine='bash'}
 # Show first few selected orthologs
 head ../output/13-ortho-select/selected_orthologs.csv
 ```
 
-```{bash}
+```{r, engine='bash'}
 # Count orthologs by each GO category
 echo "=== Glycolysis (GO:0006096) ==="
 grep -c 'GO:0006096' ../output/13-ortho-select/selected_orthologs.csv || echo "0"
