@@ -1,6 +1,6 @@
 ---
 title: "13-ortho-select"
-format: html
+format: md
 editor: visual
 ---
 
@@ -12,7 +12,6 @@ head ../output/11-orthology-analysis/ortholog_groups.csv
 wc -l ../output/11-orthology-analysis/ortholog_groups.csv
 ```
 
-
 ## Annotated
 
 ```{bash}
@@ -23,3 +22,66 @@ head ../output/12-ortho-annot/ortholog_groups_annotated.csv
 wc -l ../output/12-ortho-annot/ortholog_groups_annotated.csv
 ```
 
+# Physiology based selection
+
+## Filter for specific GO terms
+
+```{bash}
+# Filter orthologs for metabolic and stress-related processes
+echo "Filtering for:"
+echo "- Glycolysis (GO:0006096)"
+echo "- Gluconeogenesis (GO:0006094)"
+echo "- Lipolysis/lipid catabolism (GO:0016042)"
+echo "- Fatty acid beta oxidation (GO:0006635)"
+echo "- Starvation (GO:0042594)"
+echo "- Lipid biosynthesis (GO:0008610)"
+echo "- Protein catabolic process (GO:0030163)"
+echo "- Reproductive Process (GO:0022414)"
+echo ""
+
+# Create output directory if it doesn't exist
+mkdir -p ../output/13-ortho-select
+
+# Extract header
+head -1 ../output/12-ortho-annot/ortholog_groups_annotated.csv > ../output/13-ortho-select/selected_orthologs.csv
+
+# Filter for the specified GO terms and reproduction-related processes
+grep -E 'GO:0006096|GO:0006094|GO:0016042|GO:0006635|GO:0042594|GO:0008610|GO:0030163|GO:0022414' \
+  ../output/12-ortho-annot/ortholog_groups_annotated.csv \
+  >> ../output/13-ortho-select/selected_orthologs.csv
+
+echo "Total orthologs selected:"
+wc -l ../output/13-ortho-select/selected_orthologs.csv
+```
+
+```{bash}
+# Show first few selected orthologs
+head ../output/13-ortho-select/selected_orthologs.csv
+```
+
+```{bash}
+# Count orthologs by each GO category
+echo "=== Glycolysis (GO:0006096) ==="
+grep -c 'GO:0006096' ../output/13-ortho-select/selected_orthologs.csv || echo "0"
+
+echo "=== Gluconeogenesis (GO:0006094) ==="
+grep -c 'GO:0006094' ../output/13-ortho-select/selected_orthologs.csv || echo "0"
+
+echo "=== Lipolysis/lipid catabolism (GO:0016042) ==="
+grep -c 'GO:0016042' ../output/13-ortho-select/selected_orthologs.csv || echo "0"
+
+echo "=== Fatty acid beta oxidation (GO:0006635) ==="
+grep -c 'GO:0006635' ../output/13-ortho-select/selected_orthologs.csv || echo "0"
+
+echo "=== Starvation (GO:0042594) ==="
+grep -c 'GO:0042594' ../output/13-ortho-select/selected_orthologs.csv || echo "0"
+
+echo "=== Lipid biosynthesis (GO:0008610) ==="
+grep -c 'GO:0008610' ../output/13-ortho-select/selected_orthologs.csv || echo "0"
+
+echo "=== Protein catabolic process (GO:0030163) ==="
+grep -c 'GO:0030163' ../output/13-ortho-select/selected_orthologs.csv || echo "0"
+
+echo "=== Reproductive Process (GO:0022414) ==="
+grep -c 'GO:0022414' ../output/13-ortho-select/selected_orthologs.csv || echo "0"
+```
