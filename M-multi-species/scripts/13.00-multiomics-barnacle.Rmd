@@ -86,9 +86,10 @@ ortholog_groups <- read.csv(ortholog_groups_file)
 
 
 # Display basic info about the data
-cat("Dimensions of ortholog groups data:", dim(ortholog_groups), "\n")
-cat("Column names:", colnames(ortholog_groups), "\n")
+cat("Dimensions of ortholog groups data:", dim(ortholog_groups), "\n\n")
+cat("Column names:", colnames(ortholog_groups), "\n\n")
 head(ortholog_groups)
+str(ortholog_groups)
 ```
 
 ## Read in transcript expression data
@@ -99,24 +100,50 @@ cat("Loading transcript count matrices...\n")
 
 
 apul_transcripts <- read.csv(apul_transcript_matrix_file, row.names = 1)
-cat("D. apulosum transcript matrix dimensions:", dim(apul_transcripts), "\n")
+cat("Apul transcript matrix dimensions:", dim(apul_transcripts), "\n")
 
 
 peve_transcripts <- read.csv(peve_transcript_matrix_file, row.names = 1)
-cat("E. pevenensis transcript matrix dimensions:", dim(peve_transcripts), "\n")
+cat("Peve transcript matrix dimensions:", dim(peve_transcripts), "\n")
 
 
 ptua_transcripts <- read.csv(ptua_transcript_matrix_file, row.names = 1)
-cat("F. tuae transcript matrix dimensions:", dim(ptua_transcripts), "\n")
+cat("Ptua transcript matrix dimensions:", dim(ptua_transcripts), "\n")
 
-# Display column names (sample names) for each species
-cat("\nD. apulosum samples:", colnames(apul_transcripts), "\n")
-cat("E. pevenensis samples:", colnames(peve_transcripts), "\n")
-cat("F. tuae samples:", colnames(ptua_transcripts), "\n")
+# Investigate differences in column dimensions
+cat("\n=== COLUMN DIMENSION ANALYSIS ===\n")
+cat("Expected columns: 40\n")
+cat("Actual columns:\n")
+cat("  Apul:", ncol(apul_transcripts), "\n")
+cat("  Peve:", ncol(peve_transcripts), "\n")
+cat("  Ptua:", ncol(ptua_transcripts), "\n")
 
-# Preview data structure
-cat("\nPreview of D. apulosum data:\n")
-head(apul_transcripts[,1:5])
+# Show column names for each species
+cat("\nApul column names:\n")
+print(colnames(apul_transcripts))
+cat("\nPeve column names:\n")
+print(colnames(peve_transcripts))
+cat("\nPtua column names:\n")
+print(colnames(ptua_transcripts))
+
+# Compare column names across species
+all_cols <- list(
+  Apul = colnames(apul_transcripts),
+  Peve = colnames(peve_transcripts),
+  Ptua = colnames(ptua_transcripts)
+)
+cat("\n\n")
+
+cat("Structure of apul_transcripts data frame:\n\n")
+str(apul_transcripts)
+cat("\n\n")
+
+cat("Structure of peve_transcripts data frame:\n\n")
+str(peve_transcripts)
+cat("\n\n")
+
+cat("Structure of apul_transcripts data frame:\n\n")
+str(ptua_transcripts)
 ```
 
 
