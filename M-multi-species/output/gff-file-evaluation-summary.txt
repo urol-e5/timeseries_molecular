@@ -1,0 +1,58 @@
+GFF/GFF3 File Evaluation Summary
+Generated on: Mon Oct  6 03:45:42 UTC 2025
+Repository: urol-e5/timeseries_molecular
+========================================
+
+Total GFF/GFF3 files found: 30
+
+File Properties Table:
+----------------------
+File Path                                                                        Size (bytes) Lines      Features   Attribute Count GFF3 Valid
+--------                                                                         -----------  -----      --------   --------------- ----------
+./D-Apul/data/Apulchra-genome.gff                                                46548210     499893     499892     1               Yes       
+./D-Apul/output/04-Apul-sRNA-discovery-ShortStack/ShortStack_out/Results.gff3    1948206      18987      18987      3               Yes       
+./D-Apul/output/04-Apul-sRNA-discovery-ShortStack/ShortStack_out/known_miRNAs.gff3 113111       1613       1613       1               Yes       
+./D-Apul/output/05-Apul-annotate-UTRs/Apul.GFFannotation.3UTR_1kb.gff            4093535      36447      36447      3               Yes       
+./D-Apul/output/05-Apul-annotate-UTRs/Apul.GFFannotation.3UTR_1kb_corrected.gff  4195984      37359      37359      3               Yes       
+./D-Apul/output/05-Apul-annotate-UTRs/Apul.GFFannotation.5UTR_1kb.gff            4239367      36447      36447      3               Yes       
+./D-Apul/output/05-Apul-annotate-UTRs/Apul.GFFannotation.5UTR_1kb_corrected.gff  4322206      37158      37158      3               Yes       
+./D-Apul/output/05-Apul-annotate-UTRs/Apul_GFFannotation.mRNA_sorted.gff         4202931      36447      36447      3               Yes       
+./D-Apul/output/05-Apul-annotate-UTRs/Apulcra-genome-CDS_only.gff                18605231     201613     201613     2               Yes       
+./D-Apul/output/05-Apul-annotate-UTRs/Apulcra-genome-mRNA_only.gff               4202931      36447      36447      3               Yes       
+./D-Apul/output/06-Apul-miRNA-mRNA-RNAhybrid/Apul-RNAhybrid-3UTR-compact_3utr_worm.gff 141036       1042       1041       3               Yes       
+./D-Apul/output/06-Apul-miRNA-mRNA-RNAhybrid/Apul-RNAhybrid-5UTR-compact_3utr_worm.gff 161434       1192       1191       3               Yes       
+./D-Apul/output/06-Apul-miRNA-mRNA-RNAhybrid/Apul-RNAhybrid-mRNA-compact_3utr_worm.gff 888083       6560       6559       3               Yes       
+./D-Apul/output/06-Apul-miRNA-mRNA-RNAhybrid/Apulcra-genome-mRNA_only_MAX1000.gff 26840588     232746     232746     3               No        
+./D-Apul/output/06-Apul-miRNA-mRNA-RNAhybrid/Apulcra-genome-mRNA_only_MAX1000_formatted.gff 26840588     232746     232746     3               Yes       
+./D-Apul/output/28-Apul-CpG-Annotation/CDS.gff                                   18605247     201614     201613     2               Yes       
+./D-Apul/output/28-Apul-CpG-Annotation/CGoutput-10seq.gff                        19286789     195530     195480     2               Yes       
+./D-Apul/output/28-Apul-CpG-Annotation/exon.gff                                  20020898     209538     209537     2               Yes       
+./D-Apul/output/28-Apul-CpG-Annotation/gene.gff                                  2899257      44372      44371      1               Yes       
+./D-Apul/output/28-Apul-CpG-Annotation/tRNA.gff                                  819925       7925       7924       3               Yes       
+./E-Peve/data/Porites_evermanni_v1.annot.gff                                     24867416     286807     286807     5               Yes       
+./E-Peve/data/Porites_evermanni_validated.gff3                                   55138300     620134     573614     1               Yes       
+./E-Peve/output/00.01-Peve-gene-gff/Peve_gene_only.gff3                          3304513      40389      40389      1               Yes       
+./E-Peve/output/08-Peve-sRNA-discovery-ShortStack/ShortStack_out/Results.gff3    1864930      15799      15799      3               Yes       
+./E-Peve/output/08-Peve-sRNA-discovery-ShortStack/ShortStack_out/known_miRNAs.gff3 217065       2562       2562       1               Yes       
+./F-Ptua/data/Pocillopora_meandrina_HIv1.genes-validated.gff3                    87247609     512785     480750     1               Yes       
+./F-Ptua/data/Pocillopora_meandrina_HIv1.genes.gff3                              56828984     448910     448910     1               Yes       
+./F-Ptua/output/00.01-Ptua-gene-gff/Pmea_gene_only.gff3                          4073475      31840      31840      1               Yes       
+./F-Ptua/output/04-Ptua-sRNA-discovery-ShortStack/ShortStack_out/Results.gff3    945693       7301       7301       3               Yes       
+./F-Ptua/output/04-Ptua-sRNA-discovery-ShortStack/ShortStack_out/known_miRNAs.gff3 183707       1856       1856       1               Yes       
+
+========================================
+Summary Statistics:
+-------------------
+Total files analyzed: 30
+GFF3 compliant (9 fields): 29
+Non-compliant: 1
+
+GFF3 Specification Notes:
+-------------------------
+A valid GFF3 file should have:
+1. Exactly 9 tab-separated fields per line (excluding comments)
+2. Fields: seqid, source, type, start, end, score, strand, phase, attributes
+3. Optional header line: ##gff-version 3
+4. Attributes in field 9 should be semicolon-separated key=value pairs
+5. Common attributes include: ID, Name, Parent, etc.
+

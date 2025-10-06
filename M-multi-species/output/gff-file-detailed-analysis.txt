@@ -1,0 +1,827 @@
+GFF/GFF3 File Detailed Analysis
+Generated on: Mon Oct  6 03:45:42 UTC 2025
+========================================
+
+========================================
+File: ./D-Apul/data/Apulchra-genome.gff
+----------------------------------------
+Size: 46548210 bytes
+Total Lines: 499893
+Feature Lines: 499892
+GFF3 Compliant (9 fields): Yes
+Field counts found: 9
+Attribute count (first line): 1
+
+Feature Types:
+  - CDS
+  - exon
+  - gene
+  - mRNA
+  - tRNA
+
+Feature Type Counts:
+  CDS:                           201613
+  exon:                          209537
+  gene:                          44371
+  mRNA:                          36447
+  tRNA:                          7924
+
+Has GFF3 header (##gff-version 3): Yes
+
+Sample Attributes (from first 3 feature lines):
+  ID=FUN_000001;
+  ID=FUN_000001-T1;Parent=FUN_000001;product=hypothetical protein;
+  ID=FUN_000001-T1.exon1;Parent=FUN_000001-T1;
+
+Sources: funannotate
+
+========================================
+File: ./D-Apul/output/04-Apul-sRNA-discovery-ShortStack/ShortStack_out/Results.gff3
+----------------------------------------
+Size: 1948206 bytes
+Total Lines: 18987
+Feature Lines: 18987
+GFF3 Compliant (9 fields): Yes
+Field counts found: 9
+Attribute count (first line): 3
+
+Feature Types:
+  - MIRNA_hairpin
+  - Unknown_sRNA_locus
+  - mature_miRNA
+  - miRNA-star
+  - siRNA21_locus
+  - siRNA22_locus
+  - siRNA23_locus
+  - siRNA24_locus
+
+Feature Type Counts:
+  MIRNA_hairpin:                 51
+  Unknown_sRNA_locus:            18768
+  mature_miRNA:                  51
+  miRNA-star:                    51
+  siRNA21_locus:                 8
+  siRNA22_locus:                 21
+  siRNA23_locus:                 25
+  siRNA24_locus:                 12
+
+Has GFF3 header (##gff-version 3): No
+
+Sample Attributes (from first 3 feature lines):
+  ID=Cluster_1;DicerCall=N;MIRNA=N
+  ID=Cluster_2;DicerCall=N;MIRNA=N
+  ID=Cluster_3;DicerCall=N;MIRNA=N
+
+Sources: ShortStack
+
+========================================
+File: ./D-Apul/output/04-Apul-sRNA-discovery-ShortStack/ShortStack_out/known_miRNAs.gff3
+----------------------------------------
+Size: 113111 bytes
+Total Lines: 1613
+Feature Lines: 1613
+GFF3 Compliant (9 fields): Yes
+Field counts found: 9
+Attribute count (first line): 1
+
+Feature Types:
+  - sRNA
+
+Feature Type Counts:
+  sRNA:                          1613
+
+Has GFF3 header (##gff-version 3): No
+
+Sample Attributes (from first 3 feature lines):
+  ID=bfl-miR-153
+  ID=mmu-miR-7238-3p
+  ID=dme-miR-2491-3p
+
+Sources: ShortStack
+
+========================================
+File: ./D-Apul/output/05-Apul-annotate-UTRs/Apul.GFFannotation.3UTR_1kb.gff
+----------------------------------------
+Size: 4093535 bytes
+Total Lines: 36447
+Feature Lines: 36447
+GFF3 Compliant (9 fields): Yes
+Field counts found: 9
+Attribute count (first line): 3
+
+Feature Types:
+  - 3prime_UTR
+
+Feature Type Counts:
+  3prime_UTR:                    36447
+
+Has GFF3 header (##gff-version 3): No
+
+Sample Attributes (from first 3 feature lines):
+  ID=FUN_002303-T1;Parent=FUN_002303;product=hypothetical
+  ID=FUN_002304-T1;Parent=FUN_002304;product=hypothetical
+  ID=FUN_002305-T1;Parent=FUN_002305;product=hypothetical
+
+Sources: funannotate
+
+========================================
+File: ./D-Apul/output/05-Apul-annotate-UTRs/Apul.GFFannotation.3UTR_1kb_corrected.gff
+----------------------------------------
+Size: 4195984 bytes
+Total Lines: 37359
+Feature Lines: 37359
+GFF3 Compliant (9 fields): Yes
+Field counts found: 9
+Attribute count (first line): 3
+
+Feature Types:
+  - 3prime_UTR
+
+Feature Type Counts:
+  3prime_UTR:                    37359
+
+Has GFF3 header (##gff-version 3): No
+
+Sample Attributes (from first 3 feature lines):
+  ID=FUN_002303-T1;Parent=FUN_002303;product=hypothetical
+  ID=FUN_002304-T1;Parent=FUN_002304;product=hypothetical
+  ID=FUN_002305-T1;Parent=FUN_002305;product=hypothetical
+
+Sources: funannotate
+
+========================================
+File: ./D-Apul/output/05-Apul-annotate-UTRs/Apul.GFFannotation.5UTR_1kb.gff
+----------------------------------------
+Size: 4239367 bytes
+Total Lines: 36447
+Feature Lines: 36447
+GFF3 Compliant (9 fields): Yes
+Field counts found: 9
+Attribute count (first line): 3
+
+Feature Types:
+  - five_prime_UTR
+
+Feature Type Counts:
+  five_prime_UTR:                36447
+
+Has GFF3 header (##gff-version 3): No
+
+Sample Attributes (from first 3 feature lines):
+  ID=FUN_002303-T1;Parent=FUN_002303;product=hypothetical
+  ID=FUN_002304-T1;Parent=FUN_002304;product=hypothetical
+  ID=FUN_002305-T1;Parent=FUN_002305;product=hypothetical
+
+Sources: funannotate
+
+========================================
+File: ./D-Apul/output/05-Apul-annotate-UTRs/Apul.GFFannotation.5UTR_1kb_corrected.gff
+----------------------------------------
+Size: 4322206 bytes
+Total Lines: 37158
+Feature Lines: 37158
+GFF3 Compliant (9 fields): Yes
+Field counts found: 9
+Attribute count (first line): 3
+
+Feature Types:
+  - five_prime_UTR
+
+Feature Type Counts:
+  five_prime_UTR:                37158
+
+Has GFF3 header (##gff-version 3): No
+
+Sample Attributes (from first 3 feature lines):
+  ID=FUN_002303-T1;Parent=FUN_002303;product=hypothetical
+  ID=FUN_002304-T1;Parent=FUN_002304;product=hypothetical
+  ID=FUN_002305-T1;Parent=FUN_002305;product=hypothetical
+
+Sources: funannotate
+
+========================================
+File: ./D-Apul/output/05-Apul-annotate-UTRs/Apul_GFFannotation.mRNA_sorted.gff
+----------------------------------------
+Size: 4202931 bytes
+Total Lines: 36447
+Feature Lines: 36447
+GFF3 Compliant (9 fields): Yes
+Field counts found: 9
+Attribute count (first line): 3
+
+Feature Types:
+  - mRNA
+
+Feature Type Counts:
+  mRNA:                          36447
+
+Has GFF3 header (##gff-version 3): No
+
+Sample Attributes (from first 3 feature lines):
+  ID=FUN_002303-T1;Parent=FUN_002303;product=hypothetical protein;
+  ID=FUN_002304-T1;Parent=FUN_002304;product=hypothetical protein;
+  ID=FUN_002305-T1;Parent=FUN_002305;product=hypothetical protein;
+
+Sources: funannotate
+
+========================================
+File: ./D-Apul/output/05-Apul-annotate-UTRs/Apulcra-genome-CDS_only.gff
+----------------------------------------
+Size: 18605231 bytes
+Total Lines: 201613
+Feature Lines: 201613
+GFF3 Compliant (9 fields): Yes
+Field counts found: 9
+Attribute count (first line): 2
+
+Feature Types:
+  - CDS
+
+Feature Type Counts:
+  CDS:                           201613
+
+Has GFF3 header (##gff-version 3): No
+
+Sample Attributes (from first 3 feature lines):
+  ID=FUN_000001-T1.cds;Parent=FUN_000001-T1;
+  ID=FUN_000001-T1.cds;Parent=FUN_000001-T1;
+  ID=FUN_000001-T1.cds;Parent=FUN_000001-T1;
+
+Sources: funannotate
+
+========================================
+File: ./D-Apul/output/05-Apul-annotate-UTRs/Apulcra-genome-mRNA_only.gff
+----------------------------------------
+Size: 4202931 bytes
+Total Lines: 36447
+Feature Lines: 36447
+GFF3 Compliant (9 fields): Yes
+Field counts found: 9
+Attribute count (first line): 3
+
+Feature Types:
+  - mRNA
+
+Feature Type Counts:
+  mRNA:                          36447
+
+Has GFF3 header (##gff-version 3): No
+
+Sample Attributes (from first 3 feature lines):
+  ID=FUN_000001-T1;Parent=FUN_000001;product=hypothetical protein;
+  ID=FUN_000002-T1;Parent=FUN_000002;product=hypothetical protein;
+  ID=FUN_000003-T1;Parent=FUN_000003;product=hypothetical protein;
+
+Sources: funannotate
+
+========================================
+File: ./D-Apul/output/06-Apul-miRNA-mRNA-RNAhybrid/Apul-RNAhybrid-3UTR-compact_3utr_worm.gff
+----------------------------------------
+Size: 141036 bytes
+Total Lines: 1042
+Feature Lines: 1041
+GFF3 Compliant (9 fields): Yes
+Field counts found: 9
+Attribute count (first line): 3
+
+Feature Types:
+  - miRNA_binding
+
+Feature Type Counts:
+  miRNA_binding:                 1041
+
+Has GFF3 header (##gff-version 3): Yes
+
+Sample Attributes (from first 3 feature lines):
+  ID=Cluster_1832.mature::ntLink_6:4847465-4847486(-);MFE=-27.8;Pval=0.036639
+  ID=Cluster_1832.mature::ntLink_6:4847465-4847486(-);MFE=-26.7;Pval=0.014807
+  ID=Cluster_1832.mature::ntLink_6:4847465-4847486(-);MFE=-27.7;Pval=0.038633
+
+Sources: RNAhybrid
+
+========================================
+File: ./D-Apul/output/06-Apul-miRNA-mRNA-RNAhybrid/Apul-RNAhybrid-5UTR-compact_3utr_worm.gff
+----------------------------------------
+Size: 161434 bytes
+Total Lines: 1192
+Feature Lines: 1191
+GFF3 Compliant (9 fields): Yes
+Field counts found: 9
+Attribute count (first line): 3
+
+Feature Types:
+  - miRNA_binding
+
+Feature Type Counts:
+  miRNA_binding:                 1191
+
+Has GFF3 header (##gff-version 3): Yes
+
+Sample Attributes (from first 3 feature lines):
+  ID=Cluster_1832.mature::ntLink_6:4847465-4847486(-);MFE=-33.3;Pval=0.001912
+  ID=Cluster_1832.mature::ntLink_6:4847465-4847486(-);MFE=-26.7;Pval=0.014807
+  ID=Cluster_1832.mature::ntLink_6:4847465-4847486(-);MFE=-27.4;Pval=0.045273
+
+Sources: RNAhybrid
+
+========================================
+File: ./D-Apul/output/06-Apul-miRNA-mRNA-RNAhybrid/Apul-RNAhybrid-mRNA-compact_3utr_worm.gff
+----------------------------------------
+Size: 888083 bytes
+Total Lines: 6560
+Feature Lines: 6559
+GFF3 Compliant (9 fields): Yes
+Field counts found: 9
+Attribute count (first line): 3
+
+Feature Types:
+  - miRNA_binding
+
+Feature Type Counts:
+  miRNA_binding:                 6559
+
+Has GFF3 header (##gff-version 3): Yes
+
+Sample Attributes (from first 3 feature lines):
+  ID=Cluster_1819.mature::ntLink_6:4140247-4140268(+);MFE=-25.5;Pval=0.024765
+  ID=Cluster_1819.mature::ntLink_6:4140247-4140268(+);MFE=-20.6;Pval=0.047103
+  ID=Cluster_1819.mature::ntLink_6:4140247-4140268(+);MFE=-27.2;Pval=0.020408
+
+Sources: RNAhybrid
+
+========================================
+File: ./D-Apul/output/06-Apul-miRNA-mRNA-RNAhybrid/Apulcra-genome-mRNA_only_MAX1000.gff
+----------------------------------------
+Size: 26840588 bytes
+Total Lines: 232746
+Feature Lines: 232746
+GFF3 Compliant (9 fields): No
+Field counts found: 10
+9
+Attribute count (first line): 3
+
+Feature Types:
+  - mRNA
+
+Feature Type Counts:
+  mRNA:                          232746
+
+Has GFF3 header (##gff-version 3): No
+
+Sample Attributes (from first 3 feature lines):
+  ID=FUN_000001-T1;Parent=FUN_000001;product=hypothetical
+  ID=FUN_000001-T1;Parent=FUN_000001;product=hypothetical
+  ID=FUN_000001-T1;Parent=FUN_000001;product=hypothetical
+
+Sources: funannotate
+
+========================================
+File: ./D-Apul/output/06-Apul-miRNA-mRNA-RNAhybrid/Apulcra-genome-mRNA_only_MAX1000_formatted.gff
+----------------------------------------
+Size: 26840588 bytes
+Total Lines: 232746
+Feature Lines: 232746
+GFF3 Compliant (9 fields): Yes
+Field counts found: 9
+Attribute count (first line): 3
+
+Feature Types:
+  - mRNA
+
+Feature Type Counts:
+  mRNA:                          232746
+
+Has GFF3 header (##gff-version 3): No
+
+Sample Attributes (from first 3 feature lines):
+  ID=FUN_000001-T1;Parent=FUN_000001;product=hypothetical protein;
+  ID=FUN_000001-T1;Parent=FUN_000001;product=hypothetical protein;
+  ID=FUN_000001-T1;Parent=FUN_000001;product=hypothetical protein;
+
+Sources: funannotate
+
+========================================
+File: ./D-Apul/output/28-Apul-CpG-Annotation/CDS.gff
+----------------------------------------
+Size: 18605247 bytes
+Total Lines: 201614
+Feature Lines: 201613
+GFF3 Compliant (9 fields): Yes
+Field counts found: 9
+Attribute count (first line): 2
+
+Feature Types:
+  - CDS
+
+Feature Type Counts:
+  CDS:                           201613
+
+Has GFF3 header (##gff-version 3): Yes
+
+Sample Attributes (from first 3 feature lines):
+  ID=FUN_000001-T1.cds;Parent=FUN_000001-T1;
+  ID=FUN_000001-T1.cds;Parent=FUN_000001-T1;
+  ID=FUN_000001-T1.cds;Parent=FUN_000001-T1;
+
+Sources: funannotate
+
+========================================
+File: ./D-Apul/output/28-Apul-CpG-Annotation/CGoutput-10seq.gff
+----------------------------------------
+Size: 19286789 bytes
+Total Lines: 195530
+Feature Lines: 195480
+GFF3 Compliant (9 fields): Yes
+Field counts found: 9
+Attribute count (first line): 2
+
+Feature Types:
+  - nucleotide_motif
+
+Feature Type Counts:
+  nucleotide_motif:              195480
+
+Has GFF3 header (##gff-version 3): Yes
+
+Sample Attributes (from first 3 feature lines):
+  ID=ptg000048l.1;note=*pat pattern:CG
+  ID=ptg000048l.2;note=*pat pattern:CG
+  ID=ptg000048l.3;note=*pat pattern:CG
+
+Sources: fuzznuc
+
+========================================
+File: ./D-Apul/output/28-Apul-CpG-Annotation/exon.gff
+----------------------------------------
+Size: 20020898 bytes
+Total Lines: 209538
+Feature Lines: 209537
+GFF3 Compliant (9 fields): Yes
+Field counts found: 9
+Attribute count (first line): 2
+
+Feature Types:
+  - exon
+
+Feature Type Counts:
+  exon:                          209537
+
+Has GFF3 header (##gff-version 3): Yes
+
+Sample Attributes (from first 3 feature lines):
+  ID=FUN_000001-T1.exon1;Parent=FUN_000001-T1;
+  ID=FUN_000001-T1.exon2;Parent=FUN_000001-T1;
+  ID=FUN_000001-T1.exon3;Parent=FUN_000001-T1;
+
+Sources: funannotate
+
+========================================
+File: ./D-Apul/output/28-Apul-CpG-Annotation/gene.gff
+----------------------------------------
+Size: 2899257 bytes
+Total Lines: 44372
+Feature Lines: 44371
+GFF3 Compliant (9 fields): Yes
+Field counts found: 9
+Attribute count (first line): 1
+
+Feature Types:
+  - gene
+
+Feature Type Counts:
+  gene:                          44371
+
+Has GFF3 header (##gff-version 3): Yes
+
+Sample Attributes (from first 3 feature lines):
+  ID=FUN_000001;
+  ID=FUN_000002;
+  ID=FUN_000003;
+
+Sources: funannotate
+
+========================================
+File: ./D-Apul/output/28-Apul-CpG-Annotation/tRNA.gff
+----------------------------------------
+Size: 819925 bytes
+Total Lines: 7925
+Feature Lines: 7924
+GFF3 Compliant (9 fields): Yes
+Field counts found: 9
+Attribute count (first line): 3
+
+Feature Types:
+  - tRNA
+
+Feature Type Counts:
+  tRNA:                          7924
+
+Has GFF3 header (##gff-version 3): Yes
+
+Sample Attributes (from first 3 feature lines):
+  ID=FUN_000214-T1;Parent=FUN_000214;product=tRNA-Ala;
+  ID=FUN_000218-T1;Parent=FUN_000218;product=tRNA-Gly;
+  ID=FUN_000241-T1;Parent=FUN_000241;product=tRNA-Thr;
+
+Sources: funannotate
+
+========================================
+File: ./E-Peve/data/Porites_evermanni_v1.annot.gff
+----------------------------------------
+Size: 24867416 bytes
+Total Lines: 286807
+Feature Lines: 286807
+GFF3 Compliant (9 fields): Yes
+Field counts found: 9
+Attribute count (first line): 5
+
+Feature Types:
+  - CDS
+  - UTR
+  - mRNA
+
+Feature Type Counts:
+  CDS:                           231320
+  UTR:                           15098
+  mRNA:                          40389
+
+Has GFF3 header (##gff-version 3): No
+
+Sample Attributes (from first 3 feature lines):
+  ID=Peve_00000001;Name=Peve_00000001;start=0;stop=1;cds_size=543
+  Parent=Peve_00000001
+  Parent=Peve_00000001
+
+Sources: Gmove
+
+========================================
+File: ./E-Peve/data/Porites_evermanni_validated.gff3
+----------------------------------------
+Size: 55138300 bytes
+Total Lines: 620134
+Feature Lines: 573614
+GFF3 Compliant (9 fields): Yes
+Field counts found: 9
+Attribute count (first line): 1
+
+Feature Types:
+  - CDS
+  - UTR
+  - exon
+  - gene
+  - mRNA
+
+Feature Type Counts:
+  CDS:                           231320
+  UTR:                           15098
+  exon:                          246418
+  gene:                          40389
+  mRNA:                          40389
+
+Has GFF3 header (##gff-version 3): Yes
+
+Sample Attributes (from first 3 feature lines):
+  ID=gene-Peve_00000001
+  ID=mrna-00001;Parent=gene-Peve_00000001;Name=Peve_00000001;start=0;stop=1;cds_size=543
+  ID=cds-00001;Parent=mrna-00001
+
+Sources: Gmove
+
+========================================
+File: ./E-Peve/output/00.01-Peve-gene-gff/Peve_gene_only.gff3
+----------------------------------------
+Size: 3304513 bytes
+Total Lines: 40389
+Feature Lines: 40389
+GFF3 Compliant (9 fields): Yes
+Field counts found: 9
+Attribute count (first line): 1
+
+Feature Types:
+  - gene
+
+Feature Type Counts:
+  gene:                          40389
+
+Has GFF3 header (##gff-version 3): No
+
+Sample Attributes (from first 3 feature lines):
+  ID=gene-Peve_00000001
+  ID=gene-Peve_00000039
+  ID=gene-Peve_00000112
+
+Sources: Gmove
+
+========================================
+File: ./E-Peve/output/08-Peve-sRNA-discovery-ShortStack/ShortStack_out/Results.gff3
+----------------------------------------
+Size: 1864930 bytes
+Total Lines: 15799
+Feature Lines: 15799
+GFF3 Compliant (9 fields): Yes
+Field counts found: 9
+Attribute count (first line): 3
+
+Feature Types:
+  - MIRNA_hairpin
+  - Unknown_sRNA_locus
+  - mature_miRNA
+  - miRNA-star
+  - siRNA21_locus
+  - siRNA22_locus
+  - siRNA23_locus
+  - siRNA24_locus
+
+Feature Type Counts:
+  MIRNA_hairpin:                 48
+  Unknown_sRNA_locus:            15578
+  mature_miRNA:                  48
+  miRNA-star:                    48
+  siRNA21_locus:                 16
+  siRNA22_locus:                 18
+  siRNA23_locus:                 25
+  siRNA24_locus:                 18
+
+Has GFF3 header (##gff-version 3): No
+
+Sample Attributes (from first 3 feature lines):
+  ID=Cluster_1;DicerCall=N;MIRNA=N
+  ID=Cluster_2;DicerCall=N;MIRNA=N
+  ID=Cluster_3;DicerCall=N;MIRNA=N
+
+Sources: ShortStack
+
+========================================
+File: ./E-Peve/output/08-Peve-sRNA-discovery-ShortStack/ShortStack_out/known_miRNAs.gff3
+----------------------------------------
+Size: 217065 bytes
+Total Lines: 2562
+Feature Lines: 2562
+GFF3 Compliant (9 fields): Yes
+Field counts found: 9
+Attribute count (first line): 1
+
+Feature Types:
+  - sRNA
+
+Feature Type Counts:
+  sRNA:                          2562
+
+Has GFF3 header (##gff-version 3): No
+
+Sample Attributes (from first 3 feature lines):
+  ID=mmu-miR-466i-5p
+  ID=mmu-miR-466i-5p
+  ID=mmu-miR-466i-5p
+
+Sources: ShortStack
+
+========================================
+File: ./F-Ptua/data/Pocillopora_meandrina_HIv1.genes-validated.gff3
+----------------------------------------
+Size: 87247609 bytes
+Total Lines: 512785
+Feature Lines: 480750
+GFF3 Compliant (9 fields): Yes
+Field counts found: 9
+Attribute count (first line): 1
+
+Feature Types:
+  - CDS
+  - exon
+  - gene
+  - mRNA
+
+Feature Type Counts:
+  CDS:                           208535
+  exon:                          208535
+  gene:                          31840
+  mRNA:                          31840
+
+Has GFF3 header (##gff-version 3): Yes
+
+Sample Attributes (from first 3 feature lines):
+  ID=gene-Pocillopora_meandrina_HIv1___RNAseq.g29951.t1
+  ID=mrna-Pocillopora_meandrina_HIv1___RNAseq.g29951.t1;Parent=gene-Pocillopora_meandrina_HIv1___RNAseq.g29951.t1
+  ID=cds-Pocillopora_meandrina_HIv1___RNAseq.g29951.t1;Parent=mrna-Pocillopora_meandrina_HIv1___RNAseq.g29951.t1
+
+Sources: AUGUSTUS
+
+========================================
+File: ./F-Ptua/data/Pocillopora_meandrina_HIv1.genes.gff3
+----------------------------------------
+Size: 56828984 bytes
+Total Lines: 448910
+Feature Lines: 448910
+GFF3 Compliant (9 fields): Yes
+Field counts found: 9
+Attribute count (first line): 1
+
+Feature Types:
+  - CDS
+  - exon
+  - transcript
+
+Feature Type Counts:
+  CDS:                           208535
+  exon:                          208535
+  transcript:                    31840
+
+Has GFF3 header (##gff-version 3): No
+
+Sample Attributes (from first 3 feature lines):
+  ID=Pocillopora_meandrina_HIv1___TS.g23774.t1
+  Parent=Pocillopora_meandrina_HIv1___TS.g23774.t1
+  Parent=Pocillopora_meandrina_HIv1___TS.g23774.t1
+
+Sources: AUGUSTUS
+
+========================================
+File: ./F-Ptua/output/00.01-Ptua-gene-gff/Pmea_gene_only.gff3
+----------------------------------------
+Size: 4073475 bytes
+Total Lines: 31840
+Feature Lines: 31840
+GFF3 Compliant (9 fields): Yes
+Field counts found: 9
+Attribute count (first line): 1
+
+Feature Types:
+  - gene
+
+Feature Type Counts:
+  gene:                          31840
+
+Has GFF3 header (##gff-version 3): No
+
+Sample Attributes (from first 3 feature lines):
+  ID=gene-Pocillopora_meandrina_HIv1___RNAseq.g29951.t1
+  ID=gene-Pocillopora_meandrina_HIv1___RNAseq.g29952.t1
+  ID=gene-Pocillopora_meandrina_HIv1___RNAseq.g29953.t1
+
+Sources: AUGUSTUS
+
+========================================
+File: ./F-Ptua/output/04-Ptua-sRNA-discovery-ShortStack/ShortStack_out/Results.gff3
+----------------------------------------
+Size: 945693 bytes
+Total Lines: 7301
+Feature Lines: 7301
+GFF3 Compliant (9 fields): Yes
+Field counts found: 9
+Attribute count (first line): 3
+
+Feature Types:
+  - MIRNA_hairpin
+  - Unknown_sRNA_locus
+  - mature_miRNA
+  - miRNA-star
+  - siRNA21_locus
+  - siRNA22_locus
+  - siRNA23_locus
+  - siRNA24_locus
+
+Feature Type Counts:
+  MIRNA_hairpin:                 40
+  Unknown_sRNA_locus:            7126
+  mature_miRNA:                  40
+  miRNA-star:                    40
+  siRNA21_locus:                 13
+  siRNA22_locus:                 16
+  siRNA23_locus:                 19
+  siRNA24_locus:                 7
+
+Has GFF3 header (##gff-version 3): No
+
+Sample Attributes (from first 3 feature lines):
+  ID=Cluster_1;DicerCall=N;MIRNA=N
+  ID=Cluster_2;DicerCall=N;MIRNA=N
+  ID=Cluster_3;DicerCall=N;MIRNA=N
+
+Sources: ShortStack
+
+========================================
+File: ./F-Ptua/output/04-Ptua-sRNA-discovery-ShortStack/ShortStack_out/known_miRNAs.gff3
+----------------------------------------
+Size: 183707 bytes
+Total Lines: 1856
+Feature Lines: 1856
+GFF3 Compliant (9 fields): Yes
+Field counts found: 9
+Attribute count (first line): 1
+
+Feature Types:
+  - sRNA
+
+Feature Type Counts:
+  sRNA:                          1856
+
+Has GFF3 header (##gff-version 3): No
+
+Sample Attributes (from first 3 feature lines):
+  ID=apa-mir-2050_Exaiptasia_pallida_Baumgarten_et_al._2017_miR-2050;_Nve;_Spis;_Adi
+  ID=mmu-miR-466i-5p
+  ID=mmu-miR-466i-5p
+
+Sources: ShortStack
+
