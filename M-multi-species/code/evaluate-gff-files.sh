@@ -100,6 +100,11 @@ while IFS= read -r file; do
     echo "${FEATURE_TYPES}" | tr ',' '\n' | sed 's/^/  - /' >> "${DETAILED_FILE}"
     echo "" >> "${DETAILED_FILE}"
     
+    # Count each feature type
+    echo "Feature Type Counts:" >> "${DETAILED_FILE}"
+    grep -v '^#' "${file}" 2>/dev/null | grep -v '^$' | awk -F'\t' '{print $3}' | sort | uniq -c | awk '{printf "  %-30s %s\n", $2":", $1}' >> "${DETAILED_FILE}"
+    echo "" >> "${DETAILED_FILE}"
+    
     # Check for GFF3 header
     GFF3_HEADER=$(head -1 "${file}" | grep -c '##gff-version 3' || echo "0")
     if [ "${GFF3_HEADER}" -eq 1 ]; then
