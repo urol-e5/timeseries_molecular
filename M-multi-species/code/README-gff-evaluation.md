@@ -10,7 +10,7 @@ This directory contains code to evaluate all GFF and GFF3 files in the timeserie
 
 ## Outputs
 
-The script generates two output files in `M-multi-species/output/`:
+The script generates four output files in `M-multi-species/output/`:
 
 1. **gff-file-evaluation-summary.txt** - Summary table with key properties of all GFF files
 2. **gff-file-detailed-analysis.txt** - Detailed analysis of each file including:
@@ -19,6 +19,14 @@ The script generates two output files in `M-multi-species/output/`:
    - GFF3 compliance status
    - Sample attributes
    - Source information
+3. **gff-feature-type-matrix.txt** - Cross-file feature matrix showing:
+   - All unique feature types found across all files
+   - Count of each feature type in each GFF file (matrix format)
+   - Summary statistics for each feature type
+4. **gff-feature-type-by-file.txt** - Feature counts organized by file:
+   - Each GFF file listed with all its feature types and counts
+   - Total feature count per file
+   - Easy to read, file-by-file format
 
 ## Usage
 
@@ -56,6 +64,24 @@ As of the last analysis (2025-10-06):
 - **Total files analyzed:** 30
 - **GFF3 compliant (9 fields):** 29
 - **Non-compliant:** 1
+- **Unique feature types found:** 20
+
+### Feature Type Distribution
+
+The analysis identified 20 unique feature types across all GFF files:
+- **CDS** - Present in 7 files, total: 1,484,549 features
+- **exon** - Present in 5 files, total: 1,082,562 features
+- **mRNA** - Present in 8 files, total: 687,451 features
+- **gene** - Present in 6 files, total: 233,200 features
+- **Unknown_sRNA_locus** - Present in 3 files, total: 41,472 features
+- **3prime_UTR** - Present in 2 files, total: 73,806 features
+- **five_prime_UTR** - Present in 2 files, total: 73,605 features
+- **UTR** - Present in 2 files, total: 30,196 features
+- **tRNA** - Present in 2 files, total: 15,848 features
+- **miRNA_binding** - Present in 3 files, total: 8,791 features
+- **sRNA** - Present in 3 files, total: 6,031 features
+- **nucleotide_motif** - Present in 1 file, total: 195,480 features
+- And 8 additional feature types (MIRNA_hairpin, mature_miRNA, siRNA loci, etc.)
 
 ### Non-compliant File
 
