@@ -146,5 +146,224 @@ cat("Structure of apul_transcripts data frame:\n\n")
 str(ptua_transcripts)
 ```
 
+## Extract ortholog expression data
+
+Now let's extract expression data for genes that are present in the ortholog groups. We'll use the gene count matrices with gene IDs to properly map the data.
+
+### Load gene count matrices
+
+```{r load-gene-matrices, eval=TRUE}
+# Define file paths for gene count matrices
+apul_gene_matrix_file <- "../../D-Apul/output/02.20-D-Apul-RNAseq-alignment-HiSat2/apul-gene_count_matrix.csv"
+peve_gene_matrix_file <- "../../E-Peve/output/02.20-E-Peve-RNAseq-alignment-HiSat2/peve-gene_count_matrix.csv"
+ptua_gene_matrix_file <- "../../F-Ptua/output/02.20-F-Ptua-RNAseq-alignment-HiSat2/ptua-gene_count_matrix.csv"
+
+# Load gene count matrices for each species
+cat("Loading gene count matrices...\n\n")
+
+apul_gene_matrix <- read.csv(apul_gene_matrix_file)
+cat("Apul gene matrix dimensions:", dim(apul_gene_matrix), "\n")
+
+peve_gene_matrix <- read.csv(peve_gene_matrix_file)
+cat("Peve gene matrix dimensions:", dim(peve_gene_matrix), "\n")
+
+ptua_gene_matrix <- read.csv(ptua_gene_matrix_file)
+cat("Ptua gene matrix dimensions:", dim(ptua_gene_matrix), "\n\n")
+```
+
+### Filter ortholog groups for complete three-way matches
+
+```{r filter-ortholog-groups, eval=TRUE}
+cat("Filtering for complete three-way ortholog groups...\n")
+
+# Keep only rows where all three species have entries (no NA values or empty strings)
+complete_ortholog_groups <- ortholog_groups[nzchar(ortholog_groups$apul) & 
+                                          nzchar(ortholog_groups$peve) & 
+                                          nzchar(ortholog_groups$ptua), ]
+
+cat("Total ortholog groups:", nrow(ortholog_groups), "\n")
+cat("Complete three-way ortholog groups:", nrow(complete_ortholog_groups), "\n")
+cat("Percentage of complete groups:", round(nrow(complete_ortholog_groups) / nrow(ortholog_groups) * 100, 2), "%\n\n")
+```
+
+### Filter for expression data availability
+
+```{r filter-expression-availability, eval=TRUE}
+cat("Filtering ortholog groups to ensure all genes have expression data...\n")
+
+# Clean gene IDs to check against expression data
+# For Apul: remove -T[n] suffix from ortholog groups to match gene matrix format
+apul_ortholog_genes_check <- gsub("-T[0-9]+$", "", complete_ortholog_groups$apul)
+
+# For Peve and Ptua: use as-is (will clean gene matrix IDs later)
+peve_ortholog_genes_check <- complete_ortholog_groups$peve
+ptua_ortholog_genes_check <- complete_ortholog_groups$ptua
+
+# Check which genes are present in expression data
+# (Note: We need to clean gene matrix IDs to match)
+apul_gene_matrix_ids <- gsub("^gene-", "", apul_gene_matrix$gene_id)  # Remove gene- prefix if present
+peve_gene_matrix_ids <- gsub("^gene-", "", peve_gene_matrix$gene_id)  # Remove gene- prefix
+ptua_gene_matrix_ids <- gsub("^gene-", "", ptua_gene_matrix$gene_id)  # Remove gene- prefix
+
+# Find which ortholog genes are present in each species' expression data
+apul_present <- apul_ortholog_genes_check %in% apul_gene_matrix_ids
+peve_present <- peve_ortholog_genes_check %in% peve_gene_matrix_ids
+ptua_present <- ptua_ortholog_genes_check %in% ptua_gene_matrix_ids
+
+# Keep only ortholog groups where all three species have expression data
+expression_complete_mask <- apul_present & peve_present & ptua_present
+complete_ortholog_groups <- complete_ortholog_groups[expression_complete_mask, ]
+
+cat("Ortholog groups after filtering for expression data availability:", nrow(complete_ortholog_groups), "\n")
+
+```
+
+### Gene ID cleaning examples
+
+```{r gene-id-examples-testing, eval=TRUE}
+cat("\n=== GENE ID CLEANING EXAMPLES ===\n")
+cat("Apul (clean ortholog groups to match gene matrix):\n")
+cat("Ortholog groups original:", head(complete_ortholog_groups$apul, 3), "\n")
+cat("Ortholog groups cleaned:", head(gsub("-T[0-9]+$", "", complete_ortholog_groups$apul), 3), "\n")
+cat("Gene matrix (target format):", head(apul_gene_matrix$gene_id, 3), "\n\n")
+
+cat("Peve (clean gene matrix to match ortholog groups):\n")
+cat("Ortholog groups (target format):", head(complete_ortholog_groups$peve, 3), "\n") 
+cat("Gene matrix original:", head(peve_gene_matrix$gene_id, 3), "\n")
+cat("Gene matrix cleaned:", head(peve_gene_matrix$gene_id_clean, 3), "\n\n")
+
+cat("Ptua (clean gene matrix to match ortholog groups):\n")
+cat("Ortholog groups (target format):", head(complete_ortholog_groups$ptua, 3), "\n")
+cat("Gene matrix original:", head(ptua_gene_matrix$gene_id, 3), "\n")
+cat("Gene matrix cleaned:", head(ptua_gene_matrix$gene_id_clean, 3), "\n\n")
+
+```
+
+### Clean gene IDs for matching
+
+```{r clean-gene-ids, eval=TRUE}
+cat("Cleaning gene matrix IDs to match ortholog group format...\n")
+
+# For Apul: ortholog groups have "FUN_000185-T1", gene matrix has "FUN_002326"
+# We need to remove "-T1" from ortholog groups to match gene matrix
+apul_ortholog_genes <- unique(gsub("-T[0-9]+$", "", complete_ortholog_groups$apul))
+
+# For Peve and Ptua: keep ortholog groups as-is and clean gene matrix
+peve_ortholog_genes <- unique(complete_ortholog_groups$peve)
+ptua_ortholog_genes <- unique(complete_ortholog_groups$ptua)
+
+# Clean gene matrix IDs accordingly
+# Apul: gene matrix already in correct format (no cleaning needed)
+apul_gene_matrix$gene_id_clean <- apul_gene_matrix$gene_id
+
+# Peve: gene matrix has "gene-Peve_00000032", ortholog groups have "Peve_00037402"  
+# So we need to remove "gene-" prefix from gene matrix
+peve_gene_matrix$gene_id_clean <- gsub("^gene-", "", peve_gene_matrix$gene_id)
+
+# Ptua: gene matrix has "gene-Pocillopora_meandrina_HIv1___RNAseq.g20905.t1", 
+# ortholog groups have "Pocillopora_meandrina_HIv1___RNAseq.g28886.t1"
+# So we just need to remove "gene-" prefix from gene matrix
+ptua_gene_matrix$gene_id_clean <- gsub("^gene-", "", ptua_gene_matrix$gene_id)
+
+cat("Apul ortholog genes (complete groups only):", length(apul_ortholog_genes), "\n")
+cat("Peve ortholog genes (complete groups only):", length(peve_ortholog_genes), "\n")
+cat("Ptua ortholog genes (complete groups only):", length(ptua_ortholog_genes), "\n\n")
+```
+
+### Filter expression data for ortholog genes
+
+```{r filter-expression-data, eval=TRUE}
+cat("Filtering expression data for ortholog genes...\n")
+
+# Apul: Direct match on cleaned gene_id, then remove the gene_id_clean column
+apul_ortholog_expression <- apul_gene_matrix[apul_gene_matrix$gene_id_clean %in% apul_ortholog_genes, ]
+apul_ortholog_expression <- apul_ortholog_expression[, !names(apul_ortholog_expression) %in% "gene_id_clean"]
+cat("Apul ortholog expression data dimensions:", dim(apul_ortholog_expression), "\n")
+
+# Peve: Match on cleaned gene_id, then remove the gene_id_clean column
+peve_ortholog_expression <- peve_gene_matrix[peve_gene_matrix$gene_id_clean %in% peve_ortholog_genes, ]
+peve_ortholog_expression <- peve_ortholog_expression[, !names(peve_ortholog_expression) %in% "gene_id_clean"]
+cat("Peve ortholog expression data dimensions:", dim(peve_ortholog_expression), "\n")
+
+# Ptua: Match on cleaned gene_id, then remove the gene_id_clean column
+ptua_ortholog_expression <- ptua_gene_matrix[ptua_gene_matrix$gene_id_clean %in% ptua_ortholog_genes, ]
+ptua_ortholog_expression <- ptua_ortholog_expression[, !names(ptua_ortholog_expression) %in% "gene_id_clean"]
+cat("Ptua ortholog expression data dimensions:", dim(ptua_ortholog_expression), "\n\n")
+```
+
+
+### Column structure analysis
+
+```{r column-structure-analysis, eval=TRUE}
+cat("=== COLUMN STRUCTURE ANALYSIS ===\n")
+cat("Apul columns:", ncol(apul_ortholog_expression), "\n")
+cat("Apul column names (first 10):", paste(head(colnames(apul_ortholog_expression), 10), collapse = ", "), "\n")
+cat("Apul column names (last 10):", paste(tail(colnames(apul_ortholog_expression), 10), collapse = ", "), "\n\n")
+
+cat("Peve columns:", ncol(peve_ortholog_expression), "\n")
+cat("Peve column names (first 10):", paste(head(colnames(peve_ortholog_expression), 10), collapse = ", "), "\n")
+cat("Peve column names (last 10):", paste(tail(colnames(peve_ortholog_expression), 10), collapse = ", "), "\n\n")
+
+cat("Ptua columns:", ncol(ptua_ortholog_expression), "\n")
+cat("Ptua column names (first 10):", paste(head(colnames(ptua_ortholog_expression), 10), collapse = ", "), "\n")
+cat("Ptua column names (last 10):", paste(tail(colnames(ptua_ortholog_expression), 10), collapse = ", "), "\n\n")
+
+```
+
+### Summary statistics
+
+```{r summary-statistics, eval=TRUE}
+cat("=== LINE COUNTS FOR ORTHOLOG EXPRESSION DATA ===\n")
+cat("Apul ortholog expression with info: ", nrow(apul_ortholog_expression), " rows\n")
+cat("Peve ortholog expression with info: ", nrow(peve_ortholog_expression), " rows\n")
+cat("Ptua ortholog expression with info: ", nrow(ptua_ortholog_expression), " rows\n\n")
+```
+
+### Diagnostic analysis
+
+```{r diagnostic-analysis, eval=TRUE}
+cat("\n=== VERIFICATION: THREE-WAY ORTHOLOG COUNTS ===\n")
+cat("After filtering, all species should have identical three_way ortholog counts.\n\n")
+
+# Check how many genes we have for each species
+cat("Genes found in expression data by species:\n")
+cat("Apul ortholog expression (before adding info):", nrow(apul_ortholog_expression), "\n")
+cat("Peve ortholog expression (before adding info):", nrow(peve_ortholog_expression), "\n")
+cat("Ptua ortholog expression (before adding info):", nrow(ptua_ortholog_expression), "\n\n")
+
+# Verify all ortholog groups are three-way
+cat("Complete three-way ortholog groups available:", nrow(complete_ortholog_groups), "\n")
+cat("All should be type 'three_way'? Check:", table(complete_ortholog_groups$type), "\n\n")
+
+# Verify perfect gene coverage (should be 100% for all species now)
+apul_coverage <- length(intersect(apul_ortholog_genes, apul_gene_matrix$gene_id_clean))
+peve_coverage <- length(intersect(peve_ortholog_genes, peve_gene_matrix$gene_id_clean))
+ptua_coverage <- length(intersect(ptua_ortholog_genes, ptua_gene_matrix$gene_id_clean))
+
+cat("Gene coverage in expression data (should be 100% for all):\n")
+cat("Apul: ", apul_coverage, "/", length(apul_ortholog_genes), " (", round(apul_coverage/length(apul_ortholog_genes)*100, 1), "%)\n")
+cat("Peve: ", peve_coverage, "/", length(peve_ortholog_genes), " (", round(peve_coverage/length(peve_ortholog_genes)*100, 1), "%)\n")
+cat("Ptua: ", ptua_coverage, "/", length(ptua_ortholog_genes), " (", round(ptua_coverage/length(ptua_ortholog_genes)*100, 1), "%)\n\n")
+```
+
+### Preview expression data
+
+```{r preview-expression-data, eval=TRUE}
+cat("\n=== PREVIEW OF ORTHOLOG EXPRESSION DATA ===\n")
+
+cat("Apul ortholog expression:\n\n")
+str(apul_ortholog_expression)
+cat("\n\n")
+
+cat("\nPeve ortholog expression:\n")
+str(peve_ortholog_expression)
+cat("\n\n")
+
+cat("\nPtua ortholog expression:\n")
+str(ptua_ortholog_expression)
+cat("\n\n")
+```
+
+
 
 # REFERENCES
