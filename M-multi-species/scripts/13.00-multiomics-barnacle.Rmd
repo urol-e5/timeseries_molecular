@@ -291,6 +291,28 @@ ptua_ortholog_expression <- ptua_ortholog_expression[, !names(ptua_ortholog_expr
 cat("Ptua ortholog expression data dimensions:", dim(ptua_ortholog_expression), "\n\n")
 ```
 
+### Write ortholog expression data
+
+```{r write-expression-data, eval=TRUE}
+cat("Exporting ortholog expression data to CSV files...\n")
+
+# Define output file paths
+apul_output_file <- file.path(output_dir, "apul_ortholog_expression.csv")
+peve_output_file <- file.path(output_dir, "peve_ortholog_expression.csv")
+ptua_output_file <- file.path(output_dir, "ptua_ortholog_expression.csv")
+
+# Write CSV files without quotes
+write.csv(apul_ortholog_expression, file = apul_output_file, quote = FALSE, row.names = FALSE)
+cat("Exported Apul ortholog expression data to:", apul_output_file, "\n")
+
+write.csv(peve_ortholog_expression, file = peve_output_file, quote = FALSE, row.names = FALSE)
+cat("Exported Peve ortholog expression data to:", peve_output_file, "\n")
+
+write.csv(ptua_ortholog_expression, file = ptua_output_file, quote = FALSE, row.names = FALSE)
+cat("Exported Ptua ortholog expression data to:", ptua_output_file, "\n")
+
+cat("\nAll ortholog expression data exported successfully!\n\n")
+```
 
 ### Column structure analysis
 
