@@ -26,7 +26,7 @@ citeproc: true
 
 # BACKGROUND
 
-This analysis prepares three-species ortholog expression matrices, normalizes the data, constructs a multi‑omics tensor (genes × combined species-samples × timepoints), and runs a sparse tensor decomposition using the Barnacle workflow to discover shared gene/time/species patterns.
+This analysis prepares three-species ortholog expression matrices, normalizes the data, constructs a multi‑omics tensor (genes × combined species-samples × timepoints), and runs a sparse tensor decomposition using the [barnacle](https://github.com/blasks/barnacle) [@blaskowski2024] workflow to discover shared gene/time/species patterns.
 
 Key steps performed by this script:
 
