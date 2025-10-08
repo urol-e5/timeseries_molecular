@@ -985,6 +985,159 @@ else:
     print("Only metadata saved due to decomposition failure")
 ```
 
+## Visualize Barnacle results
+
+```{python visualize-results, eval=TRUE}
+# Create a set of standard visualizations for interpreting Barnacle results
+import os
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.decomposition import PCA
+
+# Ensure factors_dir is defined (created in previous chunk)
+try:
+  factors_dir
+except NameError:
+  factors_dir = os.path.join(output_dir, "barnacle_factors")
+
+fig_dir = os.path.join(factors_dir, "figures")
+os.makedirs(fig_dir, exist_ok=True)
+
+print("Creating visualizations in:", fig_dir)
+
+# Load data (prefer in-memory variables if present, otherwise read CSVs)
+def safe_load_df(var_name, csv_name):
+  try:
+    return globals()[var_name]
+  except Exception:
+    path = os.path.join(factors_dir, csv_name)
+    if os.path.exists(path):
+      return pd.read_csv(path, index_col=0)
+    else:
+      return None
+
+gene_factor_df = safe_load_df('gene_factor_df', 'gene_factors.csv')
+sample_factor_df = safe_load_df('sample_factor_df', 'sample_factors.csv')
+time_df = safe_load_df('time_df', 'time_factors.csv')
+weights_df = None
+weights_path = os.path.join(factors_dir, 'component_weights.csv')
+if os.path.exists(weights_path):
+  weights_df = pd.read_csv(weights_path)
+
+# 1) Component weights barplot
+if weights_df is not None:
+  try:
+    plt.figure(figsize=(6,4))
+    sns.barplot(x='Component', y='Weight', data=weights_df, palette='viridis')
+    plt.xticks(rotation=45)
+    plt.title('Component weights')
+    plt.tight_layout()
+    out = os.path.join(fig_dir, 'component_weights.png')
+    plt.savefig(out, dpi=150)
+    plt.close()
+    print('Saved:', out)
+  except Exception as e:
+    print('Could not plot component weights:', e)
+else:
+  print('No component_weights.csv found; skipping weights plot')
+
+# 2) Timepoint loadings (line plot)
+if time_df is not None and not time_df.empty:
+  try:
+    plt.figure(figsize=(8,4))
+    x = list(range(len(time_df.index)))
+    for col in time_df.columns:
+      plt.plot(x, time_df[col].values, marker='o', label=col)
+    plt.xticks(x, list(time_df.index), rotation=45)
+    plt.xlabel('Timepoint')
+    plt.ylabel('Loading')
+    plt.legend(bbox_to_anchor=(1.02,1), loc='upper left')
+    plt.title('Timepoint loadings per component')
+    plt.tight_layout()
+    out = os.path.join(fig_dir, 'time_loadings.png')
+    plt.savefig(out, dpi=150)
+    plt.close()
+    print('Saved:', out)
+  except Exception as e:
+    print('Timepoint loading plot failed:', e)
+else:
+  print('No time_factors available; skipping timepoint plot')
+
+# 3) Sample-factor heatmap grouped by species
+if sample_factor_df is not None and not sample_factor_df.empty:
+  try:
+    sf = sample_factor_df.copy()
+    # If metadata columns present, separate numeric factor columns
+    meta_cols = [c for c in ['Species','Sample_ID'] if c in sf.columns]
+    factor_cols = [c for c in sf.columns if c not in meta_cols]
+    species_series = sf['Species'] if 'Species' in sf.columns else pd.Series(['unknown']*sf.shape[0], index=sf.index)
+    sample_vals = sf[factor_cols]
+
+    # sort by species for display
+    order = species_series.sort_values().index
+    sample_vals_sorted = sample_vals.loc[order]
+
+    plt.figure(figsize=(10, max(3, sample_vals_sorted.shape[0]*0.08)))
+    sns.heatmap(sample_vals_sorted, cmap='vlag', center=0)
+    plt.xlabel('Components')
+    plt.ylabel('Samples (grouped by species)')
+    plt.tight_layout()
+    out = os.path.join(fig_dir, 'sample_factors_heatmap.png')
+    plt.savefig(out, dpi=150)
+    plt.close()
+    print('Saved:', out)
+
+    # 3b) PCA of sample factors (2D scatter)
+    X = sample_vals.fillna(0).values
+    pca = PCA(n_components=2)
+    pcs = pca.fit_transform(X)
+    pcs_df = pd.DataFrame(pcs, index=sample_vals.index, columns=['PC1','PC2'])
+    pcs_df['Species'] = species_series.loc[pcs_df.index].values
+
+    plt.figure(figsize=(6,5))
+    sns.scatterplot(data=pcs_df, x='PC1', y='PC2', hue='Species', s=80)
+    plt.title('PCA of sample-factor loadings')
+    plt.tight_layout()
+    out = os.path.join(fig_dir, 'sample_factors_pca.png')
+    plt.savefig(out, dpi=150)
+    plt.close()
+    print('Saved:', out)
+
+  except Exception as e:
+    print('Sample factors plotting failed:', e)
+else:
+  print('No sample_factors available; skipping sample plots')
+
+# 4) Top genes per component (barplots)
+if gene_factor_df is not None and not gene_factor_df.empty:
+  try:
+    gf = gene_factor_df.copy()
+    # Determine number of components
+    comps = gf.columns
+    n_top = 10
+    for col in comps:
+      # rank by absolute loading
+      s = gf[col].abs().sort_values(ascending=False).head(n_top)
+      plt.figure(figsize=(6, max(2, n_top*0.25)))
+      sns.barplot(x=s.values, y=s.index, palette='magma')
+      plt.xlabel('Absolute loading')
+      plt.title(f'Top {n_top} genes - {col}')
+      plt.tight_layout()
+      out = os.path.join(fig_dir, f'top_genes_{col}.png')
+      plt.savefig(out, dpi=150)
+      plt.close()
+      print('Saved:', out)
+  except Exception as e:
+    print('Top genes plotting failed:', e)
+else:
+  print('No gene_factors available; skipping gene plots')
+
+print('\nVisualization generation complete. Review PNGs in the figures directory.')
+```
+```
+
 ## Summary
 
 ```{r barnacle-summary, eval=TRUE}
