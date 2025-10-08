@@ -866,15 +866,15 @@ if decomposition_success:
         component_cols = [f'Component_{i+1}' for i in range(rank)]
         print(species_samples[component_cols + ['Sample_ID']].head())
 
-    # Find top genes for each component
-    print("\n=== TOP GENES PER COMPONENT ===")
+    # Find top orthologs for each component
+    print("\n=== TOP ORTHOLOGS PER COMPONENT ===")
     n_top_genes = 5
     for comp in range(rank):
         gene_loadings = gene_factors[:, comp]
         top_gene_indices = np.argsort(np.abs(gene_loadings))[-n_top_genes:][::-1]
         top_genes = [common_genes_list[i] for i in top_gene_indices]
         top_loadings = gene_loadings[top_gene_indices]
-        
+
         print(f"\nComponent {comp+1} (weight: {decomposition.weights[comp]:.3f}):")
         for gene, loading in zip(top_genes, top_loadings):
             print(f"  {gene}: {loading:.3f}")
@@ -1043,8 +1043,12 @@ if weights_df is not None and not weights_df.empty:
         plt.tight_layout()
         out = os.path.join(fig_dir, 'component_weights.png')
         plt.savefig(out, dpi=150)
-        plt.close()
         print('Saved:', out)
+        try:
+            plt.show()
+        except Exception:
+            pass
+        plt.close()
     except Exception as e:
         print('Could not plot component weights:', e)
 else:
@@ -1069,8 +1073,12 @@ if time_df is not None and not time_df.empty:
         plt.tight_layout()
         out = os.path.join(fig_dir, 'time_loadings.png')
         plt.savefig(out, dpi=150)
-        plt.close()
         print('Saved:', out)
+        try:
+            plt.show()
+        except Exception:
+            pass
+        plt.close()
     except Exception as e:
         print('Timepoint loading plot failed:', e)
 else:
@@ -1091,19 +1099,41 @@ if sample_factor_df is not None and not sample_factor_df.empty:
         sample_vals = sf[factor_cols]
 
         # sort by species for display
-        order = species_series.sort_values().index
+
+        # Order samples by species, then by Sample_ID (if available) to include all samples
+        if 'Sample_ID' in sf.columns:
+            order = sf.sort_values(['Species','Sample_ID']).index
+        else:
+            order = species_series.sort_values().index
         sample_vals_sorted = sample_vals.loc[order]
 
-        plt.figure(figsize=(10, max(3, sample_vals_sorted.shape[0]*0.08)))
-        # Show a colorbar with a clear label explaining the colormap meaning
-        sns.heatmap(sample_vals_sorted, cmap='vlag', center=0, cbar_kws={'label': 'Component loading (signed)'})
-        plt.xlabel('Components')
-        plt.ylabel('Samples (grouped by species)')
+        # Create a single-axis heatmap and force display of all sample labels
+        fig = plt.figure(figsize=(10, max(3, sample_vals_sorted.shape[0]*0.08)))
+        ax_hm = fig.add_subplot(111)
+
+        # Main heatmap with slightly shrunken colorbar
+        h = sns.heatmap(sample_vals_sorted, cmap='vlag', center=0,
+                        cbar_kws={'label': 'Component loading (signed)', 'shrink': 0.8},
+                        ax=ax_hm)
+        ax_hm.set_xlabel('Components')
+        ax_hm.set_ylabel('')
+
+        # Force display of all sample labels (small font for legibility)
+        try:
+            ax_hm.set_yticks(np.arange(len(sample_vals_sorted.index)) + 0.5)
+            ax_hm.set_yticklabels(sample_vals_sorted.index, fontsize=6)
+        except Exception:
+            pass
+
         plt.tight_layout()
         out = os.path.join(fig_dir, 'sample_factors_heatmap.png')
         plt.savefig(out, dpi=150)
-        plt.close()
         print('Saved:', out)
+        try:
+            plt.show()
+        except Exception:
+            pass
+        plt.close()
 
     except Exception as e:
         print('Sample factors plotting failed:', e)
@@ -1135,8 +1165,12 @@ if sample_factor_df is not None and not sample_factor_df.empty:
         plt.tight_layout()
         out = os.path.join(fig_dir, 'sample_factors_pca.png')
         plt.savefig(out, dpi=150)
-        plt.close()
         print('Saved:', out)
+        try:
+            plt.show()
+        except Exception:
+            pass
+        plt.close()
 
     except Exception as e:
         print('Sample PCA plotting failed:', e)
@@ -1144,10 +1178,10 @@ else:
     print('No sample_factors available; skipping sample PCA')
 ```
 
-### Top genes per component
+### Top orthologs per component
 
 ```{python viz-top-genes, eval=TRUE}
-# Top genes per component (barplots)
+# Top orthologs per component (barplots)
 if gene_factor_df is not None and not gene_factor_df.empty:
     try:
         gf = gene_factor_df.copy()
@@ -1163,12 +1197,16 @@ if gene_factor_df is not None and not gene_factor_df.empty:
             plt.ylabel('Ortholog group')
             plt.title(f'Top {n_top} genes - {col}')
             plt.tight_layout()
-            out = os.path.join(fig_dir, f'top_genes_{col}.png')
+            out = os.path.join(fig_dir, f'top_orthologs_{col}.png')
             plt.savefig(out, dpi=150)
-            plt.close()
             print('Saved:', out)
+            try:
+                plt.show()
+            except Exception:
+                pass
+            plt.close()
     except Exception as e:
-        print('Top genes plotting failed:', e)
+        print('Top orthologs plotting failed:', e)
 else:
     print('No gene_factors available; skipping gene plots')
 ```
