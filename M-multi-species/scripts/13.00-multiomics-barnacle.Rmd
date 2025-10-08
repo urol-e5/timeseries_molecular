@@ -79,7 +79,9 @@ library(glmGamPoi)
 
 knitr::opts_chunk$set(
   echo = TRUE,         # Display code chunks
-  eval = FALSE,        # Evaluate code chunks
+    eval = FALSE,        # Evaluate code chunks
+    results = "hold",   # Hold outputs and show them after the full code chunk
+        collapse = TRUE,     # Collapse code and output into a single block in the output
   warning = FALSE,     # Hide warnings
   message = FALSE,     # Hide messages
   comment = ""         # Prevents appending '##' to beginning of lines in code output
