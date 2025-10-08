@@ -1,0 +1,349 @@
+---
+title: "PCA and PLSDA analysis of ortholog expression"
+author: "Ariana S Huffmyer, E5 RoL Team"
+date: "2025"
+output: 
+  html_document:
+    code_folding: hide
+    toc: yes
+    toc_depth: 6
+    toc_float: yes
+editor_options: 
+  chunk_output_type: console
+--- 
+
+# Set up 
+
+```{r}
+library(vegan)
+library(mixOmics)
+library(ggplot2)
+library(tidyverse)
+library(DESeq2)
+library(factoextra)
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# The following setting is important, do not omit.
+options(stringsAsFactors = FALSE) #Set Strings to character
+```
+
+# Load data 
+
+Read in data from MOSAIC. 
+```{r}
+orthos<-read_csv("https://raw.githubusercontent.com/urol-e5/timeseries_molecular/refs/heads/main/M-multi-species/output/12-ortho-annot/ortholog_groups_annotated.csv")
+
+apul<-read_csv("https://gannet.fish.washington.edu/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/02.20-D-Apul-RNAseq-alignment-HiSat2/apul-gene_count_matrix.csv")
+
+peve<-read_csv("https://gannet.fish.washington.edu/gitrepos/urol-e5/timeseries_molecular/E-Peve/output/02.20-E-Peve-RNAseq-alignment-HiSat2/peve-gene_count_matrix.csv")
+
+ptua<-read_csv("https://gannet.fish.washington.edu/gitrepos/urol-e5/timeseries_molecular/F-Ptua/output/02.20-F-Ptua-RNAseq-alignment-HiSat2/ptua-gene_count_matrix.csv")
+```
+
+Select orthologs and join data together into a count matrix. 
+
+Apul
+```{r}
+apul_o<-orthos%>%
+  select(group_id, apul)%>%
+  mutate(apul=gsub("-T1", "", apul))%>%
+  dplyr::rename(gene_id=apul)
+
+apul_mat<-apul%>%
+  filter(gene_id %in% apul_o$gene_id)
+
+apul_mat<-left_join(apul_mat, apul_o)
+
+apul_mat<-apul_mat%>%
+  select(group_id, gene_id, everything())%>%
+  select(!gene_id)
+
+head(apul_mat)
+```
+
+Peve
+```{r}
+peve_o<-orthos%>%
+  select(group_id, peve)%>%
+  dplyr::rename(gene_id=peve)%>%
+  mutate(gene_id = paste0("gene-", gene_id))
+
+peve_mat<-peve%>%
+  filter(gene_id %in% peve_o$gene_id)
+
+peve_mat<-left_join(peve_mat, peve_o)
+
+peve_mat<-peve_mat%>%
+  select(group_id, gene_id, everything())%>%
+  select(!gene_id)
+
+head(peve_mat)
+```
+
+Ptua
+```{r}
+ptua_o<-orthos%>%
+  select(group_id, ptua)%>%
+  dplyr::rename(gene_id=ptua)%>%
+  mutate(gene_id = paste0("gene-", gene_id))
+
+ptua_mat<-ptua%>%
+  filter(gene_id %in% ptua_o$gene_id)
+
+ptua_mat<-left_join(ptua_mat, ptua_o)
+
+ptua_mat<-ptua_mat%>%
+  select(group_id, gene_id, everything())%>%
+  select(!gene_id)
+
+head(ptua_mat)
+```
+
+Join all together. 
+
+```{r}
+dim(apul_mat)
+dim(peve_mat)
+dim(ptua_mat)
+
+mat<-full_join(apul_mat, peve_mat, by="group_id")
+mat<-full_join(mat, ptua_mat, by="group_id")
+dim(mat)
+```
+117 samples as expected 
+
+Create metadata file. 
+```{r}
+metadata<-as.data.frame(colnames(mat))%>%
+  dplyr::rename(sample="colnames(mat)")%>%
+  filter(!sample=="group_id")%>%
+  mutate(
+    # Species mapping
+    species = case_when(
+      str_detect(sample, regex("\\bACR\\b", ignore_case = TRUE)) ~ "Acropora",
+      str_detect(sample, regex("\\bPOR\\b", ignore_case = TRUE)) ~ "Porites",
+      str_detect(sample, regex("\\bPOC\\b", ignore_case = TRUE)) ~ "Pocillopora",
+      TRUE ~ NA_character_
+    ),
+    # Extract timepoint digit from TP1/TP2/TP3/TP4
+    .tp_digit = str_match(sample, regex("T\\s*P?\\s*([1-4])", ignore_case = TRUE))[, 2],
+    timepoint = if_else(!is.na(.tp_digit), paste0("T", .tp_digit), NA_character_)
+  ) %>%
+  select(-.tp_digit)
+
+head(metadata)
+```
+
+# Conduct vst transforation
+
+Remove any orthologs with NA in any sample. 
+```{r}
+dim(mat)
+#18598 orthos currently
+
+mat<-mat%>%
+  filter(if_all(everything(), ~ !is.na(.)))%>%
+  unique()
+
+dim(mat)
+#9800 orthologs present in all samples
+```
+
+Conduct VST transformation
+```{r}
+rownames(metadata)<-metadata$sample
+
+metadata<-metadata%>%
+  select(!sample)
+
+head(metadata)
+
+counts<-as.data.frame(mat)
+
+rownames(counts)<-counts$group_id
+
+counts<-counts%>%
+  select(!group_id)
+
+head(counts)
+
+# --- Construct DESeqDataSet ---
+dds <- DESeqDataSetFromMatrix(
+  countData = counts,
+  colData   = metadata,
+  design    = ~ species * timepoint  # or your formula, e.g., ~ condition
+)
+
+# --- VST ---
+# blind = TRUE ignores the design for estimating the trend (good for QC/PCA).
+# Set blind = FALSE if you have a strong design and want to retain it during transformation.
+vst_obj <- vst(dds, blind = TRUE)
+
+# Extract the transformed matrix (genes x samples, roughly homoskedastic)
+vst_mat <- assay(vst_obj)
+head(vst_mat)
+```
+
+Count matrix is now transformed and ready for PCA. 
+
+# Conduct PCA/PERMANOVA 
+
+Export data for PERMANOVA test.  
+```{r}
+test<-t(vst_mat) #export as matrix
+test<-as.data.frame(test)
+
+#add category columns
+test$sample<-rownames(test)
+test$species<-metadata$species[match(test$sample, rownames(metadata))]
+test$timepoint<-metadata$timepoint[match(test$sample, rownames(metadata))]
+```
+
+Build PERMANOVA model for all genes in the dataset.  
+```{r}
+dim(test)
+
+scaled_test <-prcomp(test[c(1:9800)], scale=TRUE, center=TRUE)
+fviz_eig(scaled_test)
+
+# scale data
+vegan <- scale(test[c(1:9800)])
+
+# PerMANOVA 
+permanova<-adonis2(vegan ~ species*timepoint, data = test, method='eu')
+permanova
+```
+
+adonis2(formula = vegan ~ species * timepoint, data = test, method = "eu")
+                   Df SumOfSqs      R2       F Pr(>F)    
+species             2   486499 0.42813 47.1107  0.001 ***
+timepoint           3    43356 0.03815  2.7990  0.001 ***
+species:timepoint   6    64327 0.05661  2.0764  0.001 ***
+Residual          105   542153 0.47711                   
+Total             116  1136336 1.00000   
+
+Ortholog expression is significantly different between species and timepoint, with significant interactions.  
+
+## Examine PCA and sample distances of all genes  
+
+Plot a PCA of samples by species and timepoint for all orthologs.          
+
+```{r}
+gPCAdata <- plotPCA(vst_obj, intgroup = c("species", "timepoint"), returnData=TRUE, ntop=9800)
+percentVar <- round(100*attr(gPCAdata, "percentVar")) #plot PCA of samples with all data
+
+allgenesfilt_PCA <- ggplot(gPCAdata, aes(PC1, PC2, color=species, shape=timepoint)) + 
+  geom_point(size=3) + 
+  ggtitle(expression(bold("All orthologs (9,800 genes)")))+
+  xlab(paste0("PC1: ",percentVar[1],"% variance")) +
+  ylab(paste0("PC2: ",percentVar[2],"% variance")) +
+  theme_classic() + #Set background color
+  ggtitle("A")+
+  theme(panel.border = element_blank(), # Set border
+                     axis.line = element_line(colour = "black"), #Set axes color
+        plot.background=element_blank())+
+  stat_ellipse(); allgenesfilt_PCA
+```
+
+View the loadings of orthologs along PC1 and PC2, which explain a majority of the variance (55%). 
+
+```{r}
+library(matrixStats)
+library(ggrepel)
+
+## 1) Get the VST matrix
+mat <- assay(vst_obj)                       # genes x samples (already variance-stabilized)
+
+## 2) Select the same top-variable genes as plotPCA(ntop = 9800)
+rv <- rowVars(mat)
+ntop <- min(9800, nrow(mat))
+top_genes <- order(rv, decreasing = TRUE)[seq_len(ntop)]
+mat_top <- mat[top_genes, ]
+
+## 3) Run PCA on (genes x samples) -> transpose for prcomp
+# center=TRUE centers each variable (gene); scale.=FALSE is typical for VST
+pr <- prcomp(t(mat_top), center = TRUE, scale. = FALSE)
+
+## 4) Percent variance (for axis labels)
+pvar <- (pr$sdev^2) / sum(pr$sdev^2)
+pv1 <- round(100 * pvar[1])
+pv2 <- round(100 * pvar[2])
+
+## 5) Build sample scores data frame and attach metadata
+scores <- as.data.frame(pr$x[, 1:2]) %>%
+  rownames_to_column("sample") %>%
+  left_join(
+    as.data.frame(colData(vst_obj)) %>%
+      rownames_to_column("sample") %>%
+      select(sample, species, timepoint),
+    by = "sample"
+  )
+
+## 6) Build loadings (genes) data frame
+loadings <- as.data.frame(pr$rotation[, 1:2]) %>%
+  rownames_to_column("ortholog") %>%
+  mutate(magnitude = sqrt(PC1^2 + PC2^2))
+
+## 7) Choose top features to display (by loading magnitude on PC1/PC2 plane)
+top_n_loadings <- 30
+loads_top <- loadings %>%
+  arrange(desc(magnitude)) %>%
+  slice_head(n = top_n_loadings)
+
+## 8) Make a biplot: samples + top loading arrows (scaled to fit nicely)
+# Compute a scale factor so arrows fit within the sample score ranges
+sx <- diff(range(scores$PC1))
+sy <- diff(range(scores$PC2))
+lx <- diff(range(loads_top$PC1))
+ly <- diff(range(loads_top$PC2))
+arrow_scale <- 0.7 * min(sx / (lx %||% 1e-9), sy / (ly %||% 1e-9))  # %||% avoids divide-by-zero
+
+biplot_gg <- ggplot(scores, aes(PC1, PC2, color = species, shape = timepoint)) +
+  geom_point(size = 3) +
+  stat_ellipse(linewidth = 0.3, linetype = 2, alpha = 0.6) +
+  # loading arrows
+  geom_segment(data = loads_top,
+               aes(x = 0, y = 0, xend = PC1 * arrow_scale, yend = PC2 * arrow_scale),
+               arrow = arrow(length = unit(0.15, "cm")), linewidth = 0.3, color = "gray30",
+               inherit.aes = FALSE) +
+  geom_text_repel(data = loads_top,
+                  aes(x = PC1 * arrow_scale, y = PC2 * arrow_scale, label = ortholog),
+                  size = 3, color = "gray20", max.overlaps = 50, segment.size = 0.2,
+                  inherit.aes = FALSE) +
+  labs(title = "PCA biplot: samples + top 30 ortholog loadings",
+       x = paste0("PC1 (", pv1, "%)"), y = paste0("PC2 (", pv2, "%)")) +
+  theme_classic();biplot_gg
+```
+
+Try lollipop plot. 
+```{r}
+# Top loadings along PC1 (abs value)
+pc1_lolli <- loadings %>%
+  slice_max(order_by = abs(PC1), n = 30) %>%
+  mutate(ortholog = reorder(ortholog, abs(PC1)))
+
+ggplot(pc1_lolli, aes(x = abs(PC1), y = ortholog)) +
+  geom_segment(aes(x = 0, xend = abs(PC1), y = ortholog, yend = ortholog)) +
+  geom_point() +
+  labs(title = "Top PC1 loadings (ortholog)", x = "PC1 loading", y = NULL) +
+  theme_classic()
+
+# Top loadings along PC2 (abs value)
+pc2_lolli <- loadings %>%
+  slice_max(order_by = abs(PC2), n = 25) %>%
+  mutate(ortholog = reorder(ortholog, abs(PC2)))
+
+ggplot(pc2_lolli, aes(x = abs(PC2), y = ortholog)) +
+  geom_segment(aes(x = 0, xend = abs(PC2), y = ortholog, yend = ortholog)) +
+  geom_point() +
+  labs(title = "Top PC2 loadings (ortholog)", x = "PC2 loading", y = NULL) +
+  theme_classic()
+```
+
+
+
+
+
