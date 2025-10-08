@@ -26,7 +26,47 @@ citeproc: true
 
 # BACKGROUND
 
-# Setup
+This analysis prepares three-species ortholog expression matrices, normalizes the data, constructs a multi‑omics tensor (genes × combined species-samples × timepoints), and runs a sparse tensor decomposition using the Barnacle workflow to discover shared gene/time/species patterns.
+
+Key steps performed by this script:
+
+- Load annotated ortholog groups and per-species count matrices.
+- Filter ortholog groups to retain complete three‑way matches with available expression data.
+- Extract per‑species expression matrices mapped to ortholog group IDs.
+- Normalize counts (preferred: `sctransform`; fallback: log2(CPM + 1)).
+- Build a 3D tensor combining species/sample and timepoint dimensions.
+- Run [barnacle](https://github.com/blasks/barnacle) [@blaskowski2024] sparse CP decomposition and save factor matrices, metadata and figures.
+
+## Input files
+
+- `../output/12-ortho-annot/ortholog_groups_annotated.csv` : annotated ortholog groups with columns for `group_id`, `apul`, `peve`, `ptua`, `type`, etc.
+- `../../D-Apul/output/02.20-D-Apul-RNAseq-alignment-HiSat2/apul-gene_count_matrix.csv` : Apul gene count matrix (contains `gene_id` plus sample columns).
+- `../../E-Peve/output/02.20-E-Peve-RNAseq-alignment-HiSat2/peve-gene_count_matrix.csv` : Peve gene count matrix.
+- `../../F-Ptua/output/02.20-F-Ptua-RNAseq-alignment-HiSat2/ptua-gene_count_matrix.csv` : Ptua gene count matrix.
+- (Also referenced) transcript-level matrices: `apul-transcript_count_matrix.csv`, `peve-transcript_count_matrix.csv`, `ptua-transcript_count_matrix.csv` when needed.
+
+## Output files
+
+- `apul_ortholog_expression.csv`, `peve_ortholog_expression.csv`, `ptua_ortholog_expression.csv` : per‑species expression matrices aligned to ortholog `group_id`.
+- `apul_normalized_expression.csv`, `peve_normalized_expression.csv`, `ptua_normalized_expression.csv` : normalized expression matrices (sctransform or log2(CPM+1)).
+- `multiomics_tensor.npy` : saved NumPy array of the 3D tensor used for decomposition (genes × combined_samples × timepoints).
+- `barnacle_factors/` directory containing:
+    - `gene_factors.csv` : gene loadings per component (genes × components).
+    - `sample_factors.csv` : combined sample (species_sample) loadings per component with `Species` and `Sample_ID` metadata.
+    - `time_factors.csv` : timepoint loadings per component.
+    - `component_weights.csv` : component weights / importance.
+    - `sample_mapping.csv` : mapping of combined sample indices to species and sample IDs.
+    - `metadata.json` : analysis parameters and tensor metadata (shape, rank, lambdas, convergence, etc.).
+    - `figures/` : generated visualizations (component weights, time loadings, sample heatmap, PCA, top ortholog plots).
+
+## Notes / assumptions:
+
+- Sample column names are parsed expecting a dot-separated format with a `TP#` timepoint token (e.g., `ACR.139.TP1`).
+- Apul ortholog IDs in the ortholog table include transcript suffixes (e.g., `-T1`) which are removed for matching to the gene count matrix.
+- Missing values in the tensor are handled by substitution (current workflow fills NaNs with zeros before decomposition).
+
+
+# SETUP
 
 ## Libraries
 
@@ -588,7 +628,7 @@ print(f"Peve: {peve_common.shape}")
 print(f"Ptua: {ptua_common.shape}")
 ```
 
-## Parse sample information and create 3D tensor
+## Parse sample information
 
 ```{python parse-sample-info, eval=TRUE}
 # Parse sample names to extract sample information for each species independently
@@ -894,6 +934,35 @@ else:
     print("Decomposition failed - skipping detailed analysis")
 ```
 
+## Summary
+
+```{r barnacle-summary, eval=TRUE}
+cat("=== BARNACLE ANALYSIS SUMMARY ===\n\n")
+
+cat("1. Data Preprocessing:\n")
+cat("   - Loaded ortholog expression data for 3 species\n")
+cat("   - Normalized using sctransform for count data\n")
+cat("   - Filtered to genes common across all species\n\n")
+
+cat("2. Tensor Construction:\n")
+cat("   - Created 3D tensor: genes × (species_samples) × timepoints\n")
+cat("   - Combined all species samples into single dimension\n")
+cat("   - Dimensions based on timeseries experimental design\n\n")
+
+cat("3. Sparse Tensor Decomposition:\n")
+cat("   - Applied barnacle SparseCP with sparsity constraints\n")
+cat("   - Extracted latent factors representing:\n")
+cat("     * Gene co-expression patterns\n")
+cat("     * Combined sample-species relationships\n") 
+cat("     * Temporal dynamics\n\n")
+
+cat("4. Results Generated:\n")
+cat("   - Factor matrices for each tensor mode\n")
+cat("   - Component weights indicating importance\n")
+cat("   - Top contributing genes per component\n")
+cat("   - Temporal and species loadings\n\n")
+```
+
 ## Save results
 
 ```{python save-results, eval=TRUE}
@@ -984,6 +1053,8 @@ if decomposition_success:
 else:
     print("Only metadata saved due to decomposition failure")
 ```
+
+
 
 ## Visualize Barnacle results
 
@@ -1210,41 +1281,13 @@ if gene_factor_df is not None and not gene_factor_df.empty:
 else:
     print('No gene_factors available; skipping gene plots')
 ```
-```
 
-## Summary
 
-```{r barnacle-summary, eval=TRUE}
-cat("=== BARNACLE ANALYSIS SUMMARY ===\n\n")
 
-cat("1. Data Preprocessing:\n")
-cat("   - Loaded ortholog expression data for 3 species\n")
-cat("   - Normalized using sctransform for count data\n")
-cat("   - Filtered to genes common across all species\n\n")
+# SYSTEM INFO
 
-cat("2. Tensor Construction:\n")
-cat("   - Created 3D tensor: genes × (species_samples) × timepoints\n")
-cat("   - Combined all species samples into single dimension\n")
-cat("   - Dimensions based on timeseries experimental design\n\n")
-
-cat("3. Sparse Tensor Decomposition:\n")
-cat("   - Applied barnacle SparseCP with sparsity constraints\n")
-cat("   - Extracted latent factors representing:\n")
-cat("     * Gene co-expression patterns\n")
-cat("     * Combined sample-species relationships\n") 
-cat("     * Temporal dynamics\n\n")
-
-cat("4. Results Generated:\n")
-cat("   - Factor matrices for each tensor mode\n")
-cat("   - Component weights indicating importance\n")
-cat("   - Top contributing genes per component\n")
-cat("   - Temporal and species loadings\n\n")
-
-cat("Next steps:\n")
-cat("- Examine component biological interpretations\n")
-cat("- Validate results with known gene functions\n")
-cat("- Compare patterns across species and timepoints\n")
-cat("- Perform gene set enrichment analysis on component genes\n")
+```{r system-info, eval=TRUE}
+sessionInfo()
 ```
 
 # REFERENCES
