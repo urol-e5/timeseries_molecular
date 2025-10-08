@@ -396,7 +396,7 @@ cat("\n\n")
 
 Based on the barnacle workflow, we need to: 1. Use `sctransform` to normalize the count data 2. Create tensors for multiomics analysis 3. Run sparse tensor decomposition
 
-## Load normalized expression data
+## Load expression data
 
 ```{r load-normalized-data, eval=TRUE}
 # Read the exported ortholog expression data
@@ -568,9 +568,9 @@ print(f"Peve: {peve_norm.shape}")
 print(f"Ptua: {ptua_norm.shape}")
 
 # Check which genes are common across all species
-apul_genes = set(apul_norm['gene_id'])
-peve_genes = set(peve_norm['gene_id'])
-ptua_genes = set(ptua_norm['gene_id'])
+apul_genes = set(apul_norm['group_id'])
+peve_genes = set(peve_norm['group_id'])
+ptua_genes = set(ptua_norm['group_id'])
 
 common_genes = apul_genes & peve_genes & ptua_genes
 print(f"\nCommon genes across all species: {len(common_genes)}")
@@ -578,9 +578,9 @@ print(f"\nCommon genes across all species: {len(common_genes)}")
 # Filter to common genes and align gene order
 common_genes_list = sorted(list(common_genes))
 
-apul_common = apul_norm[apul_norm['gene_id'].isin(common_genes_list)].set_index('gene_id').reindex(common_genes_list)
-peve_common = peve_norm[peve_norm['gene_id'].isin(common_genes_list)].set_index('gene_id').reindex(common_genes_list)
-ptua_common = ptua_norm[ptua_norm['gene_id'].isin(common_genes_list)].set_index('gene_id').reindex(common_genes_list)
+apul_common = apul_norm[apul_norm['group_id'].isin(common_genes_list)].set_index('group_id').reindex(common_genes_list)
+peve_common = peve_norm[peve_norm['group_id'].isin(common_genes_list)].set_index('group_id').reindex(common_genes_list)
+ptua_common = ptua_norm[ptua_norm['group_id'].isin(common_genes_list)].set_index('group_id').reindex(common_genes_list)
 
 print(f"\nFiltered to common genes:")
 print(f"Apul: {apul_common.shape}")
@@ -591,101 +591,174 @@ print(f"Ptua: {ptua_common.shape}")
 ## Parse sample information and create 3D tensor
 
 ```{python parse-sample-info, eval=TRUE}
-# Parse sample names to extract sample ID and timepoint information
-def parse_sample_names(columns, species_prefix):
-    """Parse sample column names to extract sample ID and timepoint"""
+# Parse sample names to extract sample information for each species independently
+def parse_species_samples(columns, species_name):
+    """Parse sample column names for a specific species"""
     sample_map = {}
-    sample_ids = set()
+    sample_ids = []
     timepoints = set()
     
     for col in columns:
-        # Expected format: ACR.139.TP1, etc.
+        # Expected format: PREFIX.NUMBER.TP# (e.g., ACR.139.TP1, POR.216.TP1, POC.201.TP1)
         parts = col.split('.')
         if len(parts) >= 3 and parts[2].startswith('TP'):
-            sample_id = f"{parts[0]}.{parts[1]}"  # e.g., ACR.139
+            prefix = parts[0]
+            numeric_id = parts[1]  
             timepoint = int(parts[2][2:])  # e.g., 1 from TP1
             
+            sample_id = f"{prefix}.{numeric_id}"  # e.g., "ACR.139"
             sample_map[(sample_id, timepoint)] = col
-            sample_ids.add(sample_id)
+            if sample_id not in sample_ids:
+                sample_ids.append(sample_id)
             timepoints.add(timepoint)
         else:
             print(f"Warning: Could not parse column name: {col}")
     
-    return sample_map, sorted(sample_ids), sorted(timepoints)
+    return sample_map, sample_ids, sorted(timepoints)
 
-# Parse sample information for each species
-print("Parsing sample information...")
+# Parse sample information for each species independently
+print("Parsing sample information for each species...")
 
-# Use Apul as reference for sample/timepoint structure
-sample_map, sample_ids, timepoints = parse_sample_names(apul_common.columns, "ACR")
-print(f"Found {len(sample_ids)} unique samples: {sample_ids[:5]}...")
-print(f"Found {len(timepoints)} timepoints: {timepoints}")
-
-# Check if all species have the same sample structure
 species_data = {
     'apul': apul_common,
     'peve': peve_common, 
     'ptua': ptua_common
 }
 
-print(f"\nSample structure consistency check:")
+species_info = {}
+all_timepoints = set()
+
 for species, data in species_data.items():
-    species_samples = []
-    for col in data.columns:
-        parts = col.split('.')
-        if len(parts) >= 3 and parts[2].startswith('TP'):
-            sample_id = f"{parts[0]}.{parts[1]}"
-            species_samples.append(sample_id)
-    unique_samples = set(species_samples)
-    print(f"{species}: {len(unique_samples)} unique samples")
+    sample_map, sample_ids, timepoints = parse_species_samples(data.columns, species)
+    species_info[species] = {
+        'sample_map': sample_map,
+        'sample_ids': sample_ids,
+        'timepoints': timepoints,
+        'n_samples': len(sample_ids)
+    }
+    all_timepoints.update(timepoints)
+    
+    print(f"{species}:")
+    print(f"  Samples: {len(sample_ids)} ({sample_ids[:3]}...)")
+    print(f"  Timepoints: {timepoints}")
+
+common_timepoints = sorted(list(all_timepoints))
+print(f"\nTimepoints found across all species: {common_timepoints}")
+
+# Find the maximum number of samples to determine tensor dimensions
+max_samples = max(info['n_samples'] for info in species_info.values())
+print(f"Maximum samples in any species: {max_samples}")
+
+# Print detailed sample structure
+print(f"\nDetailed sample structure:")
+for species, info in species_info.items():
+    print(f"{species}: {info['n_samples']} samples × {len(info['timepoints'])} timepoints")
 ```
 
-## Create 4D tensor (genes × samples × timepoints × species)
+## Create 3D tensor (genes × species_samples × timepoints)
 
-```{python create-4d-tensor, eval=TRUE}
-# Create a 4D tensor: genes × samples × timepoints × species
+```{python create-3d-tensor, eval=TRUE}
+# Create a 3D tensor: genes × (species_samples) × timepoints
+# This flattens species and samples into a single dimension that Barnacle can handle
+
+print("Creating 3D tensor by combining species and samples...")
+
+# First, collect all actual sample-timepoint combinations that have data
+all_sample_columns = []
+sample_labels = []  # Track which sample belongs to which species
+species_sample_map = {}  # Map from combined index to (species, sample_idx, sample_id)
+
+sample_idx = 0
+for species in ['apul', 'peve', 'ptua']:
+    data = species_data[species]
+    info = species_info[species]
+    
+    print(f"\nProcessing {species}:")
+    for sample_id in info['sample_ids']:
+        # Check if this sample has data for any timepoint
+        has_data = False
+        sample_timepoint_cols = []
+        
+        for timepoint in common_timepoints:
+            if (sample_id, timepoint) in info['sample_map']:
+                col_name = info['sample_map'][(sample_id, timepoint)]
+                sample_timepoint_cols.append(col_name)
+                has_data = True
+        
+        if has_data:
+            all_sample_columns.extend(sample_timepoint_cols)
+            sample_labels.append(f"{species}_{sample_id}")
+            species_sample_map[sample_idx] = {
+                'species': species,
+                'sample_id': sample_id,
+                'sample_idx_in_species': info['sample_ids'].index(sample_id)
+            }
+            sample_idx += 1
+            print(f"  Added {sample_id} with {len(sample_timepoint_cols)} timepoints")
+
 n_genes = len(common_genes_list)
-n_samples = len(sample_ids)
-n_timepoints = len(timepoints)
-n_species = 3
+n_combined_samples = len(sample_labels)
+n_timepoints = len(common_timepoints)
 
-print(f"Creating 4D tensor with shape: ({n_genes}, {n_samples}, {n_timepoints}, {n_species})")
+print(f"\nCreating 3D tensor with shape: ({n_genes}, {n_combined_samples}, {n_timepoints})")
+print(f"Combined samples from all species: {n_combined_samples}")
 
 # Initialize tensor
-tensor_4d = np.zeros((n_genes, n_samples, n_timepoints, n_species))
+tensor_3d = np.full((n_genes, n_combined_samples, n_timepoints), np.nan)
 
-# Fill tensor for each species
-species_list = ['apul', 'peve', 'ptua']
-for species_idx, species in enumerate(species_list):
-    data = species_data[species]
-    print(f"Processing {species} (species index {species_idx})...")
+# Fill tensor
+filled_count = 0
+missing_count = 0
+
+for combined_idx, sample_label in enumerate(sample_labels):
+    species_info_map = species_sample_map[combined_idx]
+    species = species_info_map['species']
+    sample_id = species_info_map['sample_id']
     
-    for sample_idx, sample_id in enumerate(sample_ids):
-        for time_idx, timepoint in enumerate(timepoints):
-            # Construct column name
-            if species == 'apul':
-                col_name = f"ACR.{sample_id.split('.')[1]}.TP{timepoint}"
-            elif species == 'peve':
-                col_name = f"POC.{sample_id.split('.')[1]}.TP{timepoint}"
-            elif species == 'ptua':
-                col_name = f"POC.{sample_id.split('.')[1]}.TP{timepoint}"
-            
-            # Find matching column (allowing for slight naming differences)
-            matching_cols = [col for col in data.columns if f".{sample_id.split('.')[1]}." in col and f"TP{timepoint}" in col]
-            
-            if matching_cols:
-                col_name = matching_cols[0]
-                tensor_4d[:, sample_idx, time_idx, species_idx] = data[col_name].values
-            else:
-                print(f"Warning: No data found for {species} sample {sample_id} timepoint {timepoint}")
-                tensor_4d[:, sample_idx, time_idx, species_idx] = np.nan
+    data = species_data[species]
+    info = species_info[species]
+    
+    for time_idx, timepoint in enumerate(common_timepoints):
+        if (sample_id, timepoint) in info['sample_map']:
+            col_name = info['sample_map'][(sample_id, timepoint)]
+            tensor_3d[:, combined_idx, time_idx] = data[col_name].values
+            filled_count += 1
+        else:
+            missing_count += 1
 
-# Check for missing data
-n_missing = np.sum(np.isnan(tensor_4d))
-print(f"\nTensor created with {n_missing} missing values")
-print(f"Tensor shape: {tensor_4d.shape}")
-print(f"Non-zero values: {np.sum(tensor_4d != 0)}")
-print(f"Sparsity: {np.sum(tensor_4d == 0) / tensor_4d.size:.2%}")
+# Check tensor statistics
+n_missing = np.sum(np.isnan(tensor_3d))
+n_total = tensor_3d.size
+n_finite = np.sum(np.isfinite(tensor_3d))
+
+print(f"\n=== TENSOR STATISTICS ===")
+print(f"Tensor shape: {tensor_3d.shape}")
+print(f"Total elements: {n_total}")
+print(f"Finite values: {n_finite}")
+print(f"Missing/NaN values: {n_missing}")
+print(f"Missing percentage: {n_missing / n_total * 100:.2f}%")
+print(f"Filled {filled_count} sample-timepoint combinations")
+print(f"Missing {missing_count} sample-timepoint combinations")
+
+# Check non-zero values among finite values
+finite_values = tensor_3d[np.isfinite(tensor_3d)]
+n_nonzero = np.sum(finite_values != 0)
+print(f"Non-zero finite values: {n_nonzero}")
+print(f"Zero finite values: {len(finite_values) - n_nonzero}")
+print(f"Sparsity among finite values: {(len(finite_values) - n_nonzero) / len(finite_values) * 100:.2f}%")
+
+# Save sample mapping for later interpretation
+sample_mapping = pd.DataFrame([
+    {
+        'combined_index': i,
+        'sample_label': label,
+        'species': species_sample_map[i]['species'],
+        'sample_id': species_sample_map[i]['sample_id']
+    }
+    for i, label in enumerate(sample_labels)
+])
+print(f"\nSample mapping:")
+print(sample_mapping.head(10))
 ```
 
 ## Run Barnacle sparse tensor decomposition
@@ -695,88 +768,130 @@ from barnacle.decomposition import SparseCP
 import matplotlib.pyplot as plt
 
 # Handle missing values by filling with zeros (could also use mean imputation)
-tensor_filled = np.nan_to_num(tensor_4d, nan=0.0)
+tensor_filled = np.nan_to_num(tensor_3d, nan=0.0)
 
 print("Running Barnacle sparse tensor decomposition...")
+print(f"Input tensor shape: {tensor_filled.shape}")
 
 # Set up sparse CP decomposition parameters
 rank = 5  # Number of components to extract
-lambdas = [0.1, 0.0, 0.1, 0.1]  # Sparsity penalties for [genes, samples, timepoints, species]
+lambdas = [0.1, 0.0, 0.1]  # Sparsity penalties for [genes, samples, timepoints]
 
 # Create model
 model = SparseCP(
     rank=rank,
     lambdas=lambdas,
     nonneg_modes=[0],  # Non-negative gene loadings only
-    n_initializations=5,  # Multiple random starts for robustness
+    n_initializations=3,  # Reduced for faster testing
     random_state=42
 )
 
 # Fit the model
 print("Fitting sparse CP decomposition...")
-decomposition = model.fit_transform(tensor_filled, verbose=1)
-
-print(f"\nDecomposition complete!")
-print(f"Converged: {model.converged_}")
-print(f"Final loss: {model.loss_[-1]:.6f}")
-print(f"Number of iterations: {len(model.loss_)}")
-
-# Examine factor matrices
-print(f"\nFactor matrix shapes:")
-for i, factor in enumerate(decomposition.factors):
-    factor_names = ['Genes', 'Samples', 'Timepoints', 'Species']
-    print(f"Mode {i} ({factor_names[i]}): {factor.shape}")
+try:
+    decomposition = model.fit_transform(tensor_filled, verbose=1)
+    
+    print(f"\nDecomposition complete!")
+    print(f"Converged: {hasattr(model, 'converged_') and model.converged_}")
+    
+    if hasattr(model, 'loss_') and model.loss_ is not None:
+        print(f"Final loss: {model.loss_[-1]:.6f}")
+        print(f"Number of iterations: {len(model.loss_)}")
+    else:
+        print("Loss information not available")
+    
+    # Examine factor matrices
+    print(f"\nFactor matrix shapes:")
+    for i, factor in enumerate(decomposition.factors):
+        factor_names = ['Genes', 'Species_Samples', 'Timepoints']
+        print(f"Mode {i} ({factor_names[i]}): {factor.shape}")
+        
+    decomposition_success = True
+    
+except Exception as e:
+    print(f"Error during decomposition: {e}")
+    print("Creating dummy decomposition for downstream code...")
+    decomposition_success = False
+    
+    # Create dummy factors for error handling
+    class DummyDecomposition:
+        def __init__(self):
+            self.factors = [
+                np.random.rand(len(common_genes_list), rank),  # genes
+                np.random.rand(len(sample_labels), rank),      # samples
+                np.random.rand(len(common_timepoints), rank)   # timepoints
+            ]
+            self.weights = np.ones(rank)
+    
+    decomposition = DummyDecomposition()
 ```
 
 ## Analyze and interpret results
 
 ```{python analyze-results, eval=TRUE}
-# Extract factor matrices
-gene_factors = decomposition.factors[0]  # genes × components
-sample_factors = decomposition.factors[1]  # samples × components  
-time_factors = decomposition.factors[2]  # timepoints × components
-species_factors = decomposition.factors[3]  # species × components
+if decomposition_success:
+    # Extract factor matrices
+    gene_factors = decomposition.factors[0]  # genes × components
+    sample_factors = decomposition.factors[1]  # combined_samples × components  
+    time_factors = decomposition.factors[2]  # timepoints × components
 
-print("=== BARNACLE DECOMPOSITION RESULTS ===")
-print(f"Number of components: {rank}")
-print(f"Component weights: {decomposition.weights}")
+    print("=== BARNACLE DECOMPOSITION RESULTS ===")
+    print(f"Number of components: {rank}")
+    print(f"Component weights: {decomposition.weights}")
 
-print("\n=== SPECIES LOADINGS ===")
-species_df = pd.DataFrame(
-    species_factors, 
-    index=['Apul', 'Peve', 'Ptua'],
-    columns=[f'Component_{i+1}' for i in range(rank)]
-)
-print(species_df)
+    print("\n=== TIMEPOINT LOADINGS ===")
+    time_df = pd.DataFrame(
+        time_factors,
+        index=[f'TP{tp}' for tp in common_timepoints],
+        columns=[f'Component_{i+1}' for i in range(rank)]
+    )
+    print(time_df)
 
-print("\n=== TIMEPOINT LOADINGS ===")
-time_df = pd.DataFrame(
-    time_factors,
-    index=[f'TP{tp}' for tp in timepoints],
-    columns=[f'Component_{i+1}' for i in range(rank)]
-)
-print(time_df)
-
-print("\n=== SAMPLE LOADINGS (first 10 samples) ===")
-sample_df = pd.DataFrame(
-    sample_factors[:10],  # Show first 10 samples
-    index=sample_ids[:10],
-    columns=[f'Component_{i+1}' for i in range(rank)]
-)
-print(sample_df)
-
-# Find top genes for each component
-print("\n=== TOP GENES PER COMPONENT ===")
-n_top_genes = 5
-for comp in range(rank):
-    gene_loadings = gene_factors[:, comp]
-    top_gene_indices = np.argsort(np.abs(gene_loadings))[-n_top_genes:][::-1]
-    top_genes = [common_genes_list[i] for i in top_gene_indices]
-    top_loadings = gene_loadings[top_gene_indices]
+    print("\n=== SAMPLE LOADINGS BY SPECIES ===")
+    # Show sample loadings grouped by species
+    sample_df_full = pd.DataFrame(
+        sample_factors,
+        index=sample_labels,
+        columns=[f'Component_{i+1}' for i in range(rank)]
+    )
     
-    print(f"\nComponent {comp+1} (weight: {decomposition.weights[comp]:.3f}):")
-    for gene, loading in zip(top_genes, top_loadings):
-        print(f"  {gene}: {loading:.3f}")
+    # Add species information
+    sample_df_full['Species'] = [species_sample_map[i]['species'] for i in range(len(sample_labels))]
+    sample_df_full['Sample_ID'] = [species_sample_map[i]['sample_id'] for i in range(len(sample_labels))]
+    
+    # Show by species
+    for species in ['apul', 'peve', 'ptua']:
+        species_samples = sample_df_full[sample_df_full['Species'] == species]
+        print(f"\n{species.upper()} samples:")
+        component_cols = [f'Component_{i+1}' for i in range(rank)]
+        print(species_samples[component_cols + ['Sample_ID']].head())
+
+    # Find top genes for each component
+    print("\n=== TOP GENES PER COMPONENT ===")
+    n_top_genes = 5
+    for comp in range(rank):
+        gene_loadings = gene_factors[:, comp]
+        top_gene_indices = np.argsort(np.abs(gene_loadings))[-n_top_genes:][::-1]
+        top_genes = [common_genes_list[i] for i in top_gene_indices]
+        top_loadings = gene_loadings[top_gene_indices]
+        
+        print(f"\nComponent {comp+1} (weight: {decomposition.weights[comp]:.3f}):")
+        for gene, loading in zip(top_genes, top_loadings):
+            print(f"  {gene}: {loading:.3f}")
+            
+    # Analyze species patterns in sample factors
+    print("\n=== SPECIES PATTERNS IN SAMPLE FACTORS ===")
+    for comp in range(rank):
+        comp_col = f'Component_{comp+1}'
+        print(f"\nComponent {comp+1} - Average loadings by species:")
+        for species in ['apul', 'peve', 'ptua']:
+            species_loadings = sample_df_full[sample_df_full['Species'] == species][comp_col]
+            avg_loading = species_loadings.mean()
+            std_loading = species_loadings.std()
+            print(f"  {species}: {avg_loading:.3f} ± {std_loading:.3f}")
+
+else:
+    print("Decomposition failed - skipping detailed analysis")
 ```
 
 ## Save results
@@ -791,65 +906,83 @@ print(f"Saved tensor to: {tensor_file}")
 factors_dir = os.path.join(output_dir, "barnacle_factors")
 os.makedirs(factors_dir, exist_ok=True)
 
-# Gene factors
-gene_factor_df = pd.DataFrame(
-    gene_factors,
-    index=common_genes_list,
-    columns=[f'Component_{i+1}' for i in range(rank)]
-)
-gene_factor_df.to_csv(os.path.join(factors_dir, "gene_factors.csv"))
+if decomposition_success:
+    # Gene factors
+    gene_factor_df = pd.DataFrame(
+        gene_factors,
+        index=common_genes_list,
+        columns=[f'Component_{i+1}' for i in range(rank)]
+    )
+    gene_factor_df.to_csv(os.path.join(factors_dir, "gene_factors.csv"))
 
-# Sample factors
-sample_factor_df = pd.DataFrame(
-    sample_factors,
-    index=sample_ids,
-    columns=[f'Component_{i+1}' for i in range(rank)]
-)
-sample_factor_df.to_csv(os.path.join(factors_dir, "sample_factors.csv"))
+    # Sample factors with species information
+    sample_factor_df = pd.DataFrame(
+        sample_factors,
+        index=sample_labels,
+        columns=[f'Component_{i+1}' for i in range(rank)]
+    )
+    # Add metadata
+    sample_factor_df['Species'] = [species_sample_map[i]['species'] for i in range(len(sample_labels))]
+    sample_factor_df['Sample_ID'] = [species_sample_map[i]['sample_id'] for i in range(len(sample_labels))]
+    sample_factor_df.to_csv(os.path.join(factors_dir, "sample_factors.csv"))
 
-# Time factors
-time_df.to_csv(os.path.join(factors_dir, "time_factors.csv"))
+    # Time factors
+    time_df.to_csv(os.path.join(factors_dir, "time_factors.csv"))
 
-# Species factors  
-species_df.to_csv(os.path.join(factors_dir, "species_factors.csv"))
+    # Save component weights
+    weights_df = pd.DataFrame({
+        'Component': [f'Component_{i+1}' for i in range(rank)],
+        'Weight': decomposition.weights
+    })
+    weights_df.to_csv(os.path.join(factors_dir, "component_weights.csv"), index=False)
+    
+    # Save sample mapping
+    sample_mapping.to_csv(os.path.join(factors_dir, "sample_mapping.csv"), index=False)
 
-# Save component weights
-weights_df = pd.DataFrame({
-    'Component': [f'Component_{i+1}' for i in range(rank)],
-    'Weight': decomposition.weights
-})
-weights_df.to_csv(os.path.join(factors_dir, "component_weights.csv"), index=False)
+    # Save metadata
+    metadata = {
+        'tensor_shape': tensor_filled.shape,
+        'tensor_type': '3D_genes_species_samples_timepoints',
+        'n_genes': len(common_genes_list),
+        'n_combined_samples': len(sample_labels),
+        'n_timepoints': len(common_timepoints),
+        'rank': rank,
+        'lambdas': lambdas,
+        'decomposition_success': True,
+        'timepoint_order': common_timepoints,
+        'species_info': {species: info['n_samples'] for species, info in species_info.items()},
+        'gene_count': len(common_genes_list)
+    }
+    
+    if hasattr(model, 'converged_'):
+        metadata['converged'] = bool(model.converged_)
+    if hasattr(model, 'loss_') and model.loss_ is not None:
+        metadata['final_loss'] = float(model.loss_[-1])
+        metadata['n_iterations'] = len(model.loss_)
 
-# Save metadata
-metadata = {
-    'tensor_shape': tensor_filled.shape,
-    'n_genes': n_genes,
-    'n_samples': n_samples, 
-    'n_timepoints': n_timepoints,
-    'n_species': n_species,
-    'rank': rank,
-    'lambdas': lambdas,
-    'converged': bool(model.converged_),
-    'final_loss': float(model.loss_[-1]),
-    'n_iterations': len(model.loss_),
-    'species_order': species_list,
-    'timepoint_order': timepoints,
-    'sample_order': sample_ids[:10],  # First 10 for brevity
-    'gene_count': len(common_genes_list)
-}
+else:
+    metadata = {
+        'tensor_shape': tensor_filled.shape,
+        'tensor_type': '3D_genes_species_samples_timepoints',
+        'decomposition_success': False,
+        'error': 'Decomposition failed'
+    }
 
 import json
 with open(os.path.join(factors_dir, "metadata.json"), 'w') as f:
     json.dump(metadata, f, indent=2)
 
 print(f"\nSaved all results to: {factors_dir}")
-print("Files created:")
-print("- gene_factors.csv: Gene loadings for each component")
-print("- sample_factors.csv: Sample loadings for each component") 
-print("- time_factors.csv: Timepoint loadings for each component")
-print("- species_factors.csv: Species loadings for each component")
-print("- component_weights.csv: Component importance weights")
-print("- metadata.json: Analysis metadata and parameters")
+if decomposition_success:
+    print("Files created:")
+    print("- gene_factors.csv: Gene loadings for each component")
+    print("- sample_factors.csv: Sample loadings for each component (with species info)")
+    print("- time_factors.csv: Timepoint loadings for each component")
+    print("- component_weights.csv: Component importance weights")
+    print("- sample_mapping.csv: Mapping of samples to species")
+    print("- metadata.json: Analysis metadata and parameters")
+else:
+    print("Only metadata saved due to decomposition failure")
 ```
 
 ## Summary
@@ -863,16 +996,16 @@ cat("   - Normalized using sctransform for count data\n")
 cat("   - Filtered to genes common across all species\n\n")
 
 cat("2. Tensor Construction:\n")
-cat("   - Created 4D tensor: genes × samples × timepoints × species\n")
+cat("   - Created 3D tensor: genes × (species_samples) × timepoints\n")
+cat("   - Combined all species samples into single dimension\n")
 cat("   - Dimensions based on timeseries experimental design\n\n")
 
 cat("3. Sparse Tensor Decomposition:\n")
 cat("   - Applied barnacle SparseCP with sparsity constraints\n")
 cat("   - Extracted latent factors representing:\n")
 cat("     * Gene co-expression patterns\n")
-cat("     * Sample relationships\n") 
-cat("     * Temporal dynamics\n")
-cat("     * Species-specific patterns\n\n")
+cat("     * Combined sample-species relationships\n") 
+cat("     * Temporal dynamics\n\n")
 
 cat("4. Results Generated:\n")
 cat("   - Factor matrices for each tensor mode\n")
