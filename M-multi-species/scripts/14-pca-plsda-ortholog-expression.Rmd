@@ -188,6 +188,11 @@ head(vst_mat)
 
 vst_df<-as.data.frame(vst_mat)
 
+vst_df$group_id<-rownames(vst_df)
+
+vst_df<-vst_df%>%
+  select(group_id, everything())
+
 #output data 
 write_csv(vst_df, "M-multi-species/output/14-pca-orthologs/vst_counts_matrix.csv")
 ```
