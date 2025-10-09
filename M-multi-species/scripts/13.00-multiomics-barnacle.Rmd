@@ -81,10 +81,11 @@ knitr::opts_chunk$set(
   echo = TRUE,         # Display code chunks
     eval = FALSE,        # Evaluate code chunks
     results = "hold",   # Hold outputs and show them after the full code chunk
-        collapse = TRUE,     # Collapse code and output into a single block in the output
   warning = FALSE,     # Hide warnings
-  message = FALSE,     # Hide messages
-  comment = ""         # Prevents appending '##' to beginning of lines in code output
+        collapse = FALSE,    # Keep code and output in separate blocks
+        warning = FALSE,     # Hide warnings
+        message = FALSE,     # Hide messages
+        comment = "##"      # Prefix output lines with '##' so output is visually distinct
 )
 ```
 
@@ -287,7 +288,7 @@ extract_species_expression <- function(ortholog_groups_df, gene_matrix, species_
   }
   
   # For each ortholog group, find the corresponding gene and extract expression
-  for(i in 1:nrow(unique_groups)) {
+    for(i in seq_len(nrow(unique_groups))) {
     target_gene <- unique_groups[[species_col]][i]
     
     # Clean target gene for matching
