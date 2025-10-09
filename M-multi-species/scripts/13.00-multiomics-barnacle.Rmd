@@ -75,6 +75,7 @@ Key steps performed by this script:
 library(knitr)
 library(tidyverse)
 library(reticulate)
+library(matrixStats)  # Required for sctransform internal functions
 library(sctransform)
 library(glmGamPoi)
 
@@ -710,18 +711,26 @@ normalize_with_sctransform <- function(count_data, species_name) {
   
   cat("  - Filtered to", nrow(count_matrix_filtered), "ortholog groups (from", nrow(count_matrix), ")\n")
   
+  # Ensure data is numeric and handle any potential issues
+  count_matrix_filtered <- apply(count_matrix_filtered, c(1,2), function(x) {
+    if(is.na(x) || !is.finite(x)) return(0)
+    return(as.numeric(x))
+  })
+  
+  # Ensure row and column names are character strings (not factors)
+  rownames(count_matrix_filtered) <- as.character(rownames(count_matrix_filtered))
+  colnames(count_matrix_filtered) <- as.character(colnames(count_matrix_filtered))
+  
   # Transpose for sctransform (expects cells as rows, genes as columns)
   count_matrix_t <- t(count_matrix_filtered)
   
   # Apply sctransform normalization with bulk RNA-seq appropriate parameters
   normalized_df <- tryCatch({
-    # Use more conservative parameters for bulk RNA-seq
+    # First try with minimal parameters to isolate the issue
+    cat("  Attempting sctransform with minimal parameters...\n")
     normalized <- sctransform::vst(
-      count_matrix_t, 
-      method = "glmGamPoi",  # More appropriate for bulk data
-      n_genes = min(2000, ncol(count_matrix_t)),  # Use fewer variable genes
-      return_cell_attr = TRUE,
-      verbosity = 2
+      count_matrix_t,
+      verbosity = 1
     )
     
     # Extract normalized data and transpose back (genes as rows, samples as columns)
@@ -745,25 +754,60 @@ normalize_with_sctransform <- function(count_data, species_name) {
     return(result_df)
     
   }, error = function(e) {
-    cat("sctransform failed for", species_name, ":", e$message, "\n")
-    cat("Falling back to log2(CPM + 1) normalization...\n")
+    cat("sctransform with minimal parameters failed for", species_name, ":", e$message, "\n")
+    cat("Trying sctransform with glmGamPoi method...\n")
     
-    # Fallback: log2(CPM + 1) normalization
-    # Calculate CPM (Counts Per Million)
-    lib_sizes <- colSums(count_matrix)
-    cpm_matrix <- sweep(count_matrix, 2, lib_sizes/1e6, FUN = "/")
-    
-    # Log2 transform with pseudocount
-    normalized_data <- log2(cpm_matrix + 1)
-    
-    result_df <- data.frame(
-      group_id = rownames(normalized_data),
-      normalized_data,
-      stringsAsFactors = FALSE
-    )
-    
-    cat("Log2(CPM + 1) normalization complete for", species_name, "\n")
-    return(result_df)
+    # Try again with glmGamPoi method
+    tryCatch({
+      normalized <- sctransform::vst(
+        count_matrix_t, 
+        method = "glmGamPoi",
+        n_genes = min(2000, ncol(count_matrix_t)),
+        return_cell_attr = TRUE,
+        verbosity = 1
+      )
+      
+      # Extract normalized data and transpose back
+      normalized_data <- t(normalized$y)
+      
+      # Create output data frame with original gene set (fill missing with zeros)
+      full_normalized_data <- matrix(0, nrow = nrow(count_matrix), ncol = ncol(count_matrix))
+      rownames(full_normalized_data) <- rownames(count_matrix)
+      colnames(full_normalized_data) <- colnames(count_matrix)
+      
+      # Fill in normalized values for kept genes
+      full_normalized_data[rownames(normalized_data), ] <- normalized_data
+      
+      result_df <- data.frame(
+        group_id = rownames(full_normalized_data),
+        full_normalized_data,
+        stringsAsFactors = FALSE
+      )
+      
+      cat("sctransform normalization with glmGamPoi successful for", species_name, "\n")
+      return(result_df)
+      
+    }, error = function(e2) {
+      cat("sctransform failed for", species_name, ":", e2$message, "\n")
+      cat("Falling back to log2(CPM + 1) normalization...\n")
+      
+      # Fallback: log2(CPM + 1) normalization
+      # Calculate CPM (Counts Per Million)
+      lib_sizes <- colSums(count_matrix)
+      cpm_matrix <- sweep(count_matrix, 2, lib_sizes/1e6, FUN = "/")
+      
+      # Log2 transform with pseudocount
+      normalized_data <- log2(cpm_matrix + 1)
+      
+      result_df <- data.frame(
+        group_id = rownames(normalized_data),
+        normalized_data,
+        stringsAsFactors = FALSE
+      )
+      
+      cat("Log2(CPM + 1) normalization complete for", species_name, "\n")
+      return(result_df)
+    })
   })
   
   cat("Input dimensions:", nrow(count_data), "rows x", ncol(count_data)-1, "samples\n")
