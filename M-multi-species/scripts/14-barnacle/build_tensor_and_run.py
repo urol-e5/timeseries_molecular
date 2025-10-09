@@ -166,10 +166,25 @@ def save_outputs(
     time_factors.to_csv(os.path.join(factors_dir, 'time_factors.csv'))
 
     # Component weights (lambdas)
-    if hasattr(decomposition, 'weights') and decomposition.weights is not None:
-        weights = np.asarray(decomposition.weights)
+    # Check if decomposition provides meaningful weights (not all ones or None)
+    weights_attr = getattr(decomposition, 'weights', None)
+    if weights_attr is not None:
+        weights = np.asarray(weights_attr).astype(float).ravel()
+        # If weights are all essentially the same (like all 1.0), compute from factor norms
+        if np.allclose(weights, weights[0]) if len(weights) > 0 else True:
+            weights = None
     else:
-        weights = np.ones(gene_factors.shape[1], dtype=float)
+        weights = None
+
+    # Compute weights from factor matrix norms if needed
+    if weights is None:
+        # Get norms for each component across all three modes
+        gene_norms = np.linalg.norm(gene_factors.values, axis=0)  # Frobenius norm per component
+        sample_norms = np.linalg.norm(sample_factors.values, axis=0)
+        time_norms = np.linalg.norm(time_factors.values, axis=0)
+        # Component weight is product of norms (represents overall magnitude of each component)
+        weights = gene_norms * sample_norms * time_norms
+
     pd.DataFrame({'weight': weights}).to_csv(os.path.join(factors_dir, 'component_weights.csv'), index=False)
 
     # Sample mapping
