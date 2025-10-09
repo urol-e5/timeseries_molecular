@@ -1,0 +1,262 @@
+---
+title: "14.1-barnacle"
+author: "GitHub Copilot"
+date: "`r format(Sys.time(), '%Y-%m-%d')`"
+output: 
+  github_document:
+    toc: true
+    number_sections: true
+  bookdown::html_document2:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+  html_document:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+library(tidyverse)
+
+knitr::opts_chunk$set(
+  echo = TRUE,         # Display code chunks
+  eval = TRUE,         # Evaluate code chunks
+  warning = FALSE,     # Hide warnings
+  message = FALSE,     # Hide messages
+  comment = "##"       # Prefix output lines with '##'
+)
+```
+
+# BACKGROUND
+
+This analysis builds a 3D tensor from normalized per-species expression matrices and runs Barnacle sparse CP decomposition to identify shared temporal and species-specific gene expression patterns.
+
+The analysis was performed using the Python CLI tool in `M-multi-species/scripts/14.1-barnacle/` which:
+
+- Loads normalized expression data for three coral species (*A. pulchra*, *P. evermanni*, *P. tuahiniensis*)
+- Constructs a 3D tensor: **genes × samples × timepoints**
+- Runs sparse CP decomposition using the [Barnacle](https://github.com/blasks/barnacle) package
+- Extracts factor matrices representing gene loadings, sample loadings, and temporal patterns
+
+## Analysis Parameters
+
+The decomposition was run with the following parameters:
+
+- **Rank**: 5 components
+- **Sparsity penalties**: 
+  - Gene mode (λ): 0.1
+  - Sample mode (λ): 0.1
+  - Time mode (λ): 0.05
+- **Max iterations**: 1000
+- **Convergence tolerance**: 1e-5
+- **Random seed**: 42
+
+## Input files
+
+Normalized expression matrices from `M-multi-species/output/13.00-multiomics-barnacle/`:
+
+- `apul_normalized_expression.csv`: *Acropora pulchra* normalized gene expression
+- `peve_normalized_expression.csv`: *Porites evermanni* normalized gene expression  
+- `ptua_normalized_expression.csv`: *Porites tuahiniensis* normalized gene expression
+
+Each CSV contains:
+- `group_id` column with ortholog group identifiers
+- Sample columns named as `<SAMPLE>.<TP#>` (e.g., `POC.201.TP3`)
+
+## Output files
+
+Written to `M-multi-species/output/14.1-barnacle/`:
+
+### Core outputs
+
+- `multiomics_tensor.npy`: The 3D tensor used for decomposition (NumPy array format)
+
+### Factor matrices (`barnacle_factors/`)
+
+- `gene_factors.csv`: Gene loadings for each component (10,223 genes × 5 components)
+- `sample_factors.csv`: Sample loadings for each component (30 samples × 5 components)
+- `time_factors.csv`: Temporal loadings for each component (4 timepoints × 5 components)
+- `component_weights.csv`: Importance weights for each component
+- `sample_mapping.csv`: Mapping of sample indices to species and sample IDs
+- `metadata.json`: Analysis metadata including tensor shape, convergence status, and final loss
+
+### Figures (`figures/`)
+
+- `component_weights.png`: Bar plot of component weights
+- `time_loadings.png`: Line plots showing temporal patterns for each component
+
+# RESULTS
+
+## Load metadata
+
+```{r load-metadata}
+library(jsonlite)
+
+# Set paths
+output_dir <- "../output/14.1-barnacle"
+factors_dir <- file.path(output_dir, "barnacle_factors")
+figures_dir <- file.path(output_dir, "figures")
+
+# Load metadata
+metadata <- fromJSON(file.path(factors_dir, "metadata.json"))
+
+# Display metadata
+cat("Analysis Timestamp:", metadata$timestamp, "\n\n")
+cat("Tensor Shape (genes × samples × timepoints):", 
+    paste(metadata$tensor_shape, collapse=" × "), "\n\n")
+cat("Number of Components:", metadata$n_components, "\n\n")
+cat("Model Converged:", metadata$model_converged, "\n\n")
+cat("Final Loss:", format(metadata$final_loss, scientific=FALSE, big.mark=","), "\n")
+```
+
+## Load factor matrices
+
+```{r load-factors}
+# Load all factor matrices
+gene_factors <- read_csv(file.path(factors_dir, "gene_factors.csv"))
+sample_factors <- read_csv(file.path(factors_dir, "sample_factors.csv"))
+time_factors <- read_csv(file.path(factors_dir, "time_factors.csv"))
+component_weights <- read_csv(file.path(factors_dir, "component_weights.csv"))
+sample_mapping <- read_csv(file.path(factors_dir, "sample_mapping.csv"))
+
+# Display dimensions
+cat("Gene factors:", dim(gene_factors), "\n")
+cat("Sample factors:", dim(sample_factors), "\n")
+cat("Time factors:", dim(time_factors), "\n")
+cat("Component weights:", dim(component_weights), "\n")
+cat("Sample mapping:", dim(sample_mapping), "\n")
+```
+
+## Component weights
+
+```{r component-weights}
+# Display component weights
+component_weights %>%
+  mutate(Component = paste0("C", 1:n())) %>%
+  select(Component, weight) %>%
+  kable(digits = 2, format.args = list(big.mark = ","),
+        caption = "Component weights from sparse CP decomposition")
+```
+
+The component weights indicate the relative importance of each latent factor. **Component 4** has the highest weight (`r format(component_weights$weight[4], big.mark=",", digits=2)`), suggesting it captures the most variance in the data, followed by **Component 2** and **Component 3**.
+
+## Sample composition by species
+
+```{r sample-composition}
+# Summarize samples by species
+sample_mapping %>%
+  group_by(species) %>%
+  summarise(n_samples = n(), .groups = "drop") %>%
+  kable(caption = "Number of samples per species in the analysis")
+```
+
+## Temporal patterns (time loadings)
+
+```{r time-loadings-table}
+# Display time factor loadings
+time_factors %>%
+  rename(Timepoint = `...1`) %>%
+  kable(digits = 3, 
+        caption = "Temporal loadings for each component across timepoints",
+        col.names = c("Timepoint", paste0("C", 1:5)))
+```
+
+The time factors reveal distinct temporal dynamics:
+
+- **Component 1**: Gradual increase across timepoints
+- **Component 2**: Stable across all timepoints  
+- **Component 3**: Sharp increase at TP4
+- **Component 4**: Relatively stable with slight decrease at TP4
+- **Component 5**: Shift from negative to positive loadings
+
+## Top gene loadings per component
+
+```{r top-genes}
+# Function to get top genes for a component
+get_top_genes <- function(gene_df, component_col, n=10) {
+  gene_df %>%
+    select(gene_id = 1, loading = all_of(component_col)) %>%
+    arrange(desc(abs(loading))) %>%
+    head(n) %>%
+    mutate(component = component_col,
+           loading = round(loading, 3))
+}
+
+# Get top 10 genes for each component
+top_genes_list <- lapply(paste0(0:4), function(comp) {
+  get_top_genes(gene_factors, comp, n=10)
+})
+
+# Display top genes for Component 0 (first component, highest weighted)
+cat("\n### Top 10 genes for Component 1 (index 0):\n\n")
+top_genes_list[[1]] %>%
+  select(gene_id, loading) %>%
+  kable(caption = "Top gene loadings for Component 1")
+```
+
+```{r top-genes-comp4}
+# Display top genes for Component 4 (highest weighted component)
+cat("\n### Top 10 genes for Component 4 (index 3 - highest weight):\n\n")
+top_genes_list[[4]] %>%
+  select(gene_id, loading) %>%
+  kable(caption = "Top gene loadings for Component 4 (highest weighted)")
+```
+
+# VISUALIZATIONS
+
+## Component weights
+
+```{r component-weights-fig, fig.cap="Component weights showing the relative importance of each latent factor. Component 4 explains the most variance in the tensor."}
+knitr::include_graphics(file.path(figures_dir, "component_weights.png"))
+```
+
+## Temporal loadings
+
+```{r time-loadings-fig, fig.cap="Temporal patterns for each component across the four timepoints. Each component captures different dynamics of gene expression over time."}
+knitr::include_graphics(file.path(figures_dir, "time_loadings.png"))
+```
+
+# SUMMARY
+
+This Barnacle sparse CP decomposition analysis identified **5 latent components** that capture temporal and species-specific patterns in multi-omics gene expression data across three coral species.
+
+## Key Findings
+
+1. **Tensor Composition**: The analysis integrated expression data from:
+   - 10,223 ortholog groups (genes)
+   - 30 samples across 3 species (*A. pulchra*: 10, *P. evermanni*: 10, *P. tuahiniensis*: 10)
+   - 4 timepoints
+
+2. **Component Importance**: Component 4 has the highest weight (7,829), explaining the most variance in the dataset, followed by Components 2 (5,531) and 3 (5,019).
+
+3. **Temporal Dynamics**: The time loadings reveal distinct patterns:
+   - Gradual temporal trends (Components 1, 5)
+   - Stable expression (Components 2, 4)
+   - Sharp temporal shifts (Component 3 at TP4)
+
+4. **Convergence**: The model did **not fully converge** (final loss: 850,175), suggesting that:
+   - Additional iterations may improve the decomposition
+   - The rank (5 components) may need adjustment
+   - The sparsity penalties could be tuned
+
+## Next Steps
+
+- Investigate biological interpretation of top genes in each component
+- Test additional ranks to find optimal decomposition
+- Annotate top genes with functional categories (GO terms, KEGG pathways)
+- Examine species-specific patterns in the sample loadings
+- Consider re-running with adjusted convergence parameters
+
+# SESSION INFO
+
+```{r session-info}
+sessionInfo()
+```
