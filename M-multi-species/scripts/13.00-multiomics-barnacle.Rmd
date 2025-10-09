@@ -64,6 +64,7 @@ Key steps performed by this script:
 - Sample column names are parsed expecting a dot-separated format with a `TP#` timepoint token (e.g., `ACR.139.TP1`).
 - Apul ortholog IDs in the ortholog table include transcript suffixes (e.g., `-T1`) which are removed for matching to the gene count matrix.
 - Missing values in the tensor are handled by substitution (current workflow fills NaNs with zeros before decomposition).
+- Samples must have all four timepoints (TP1, TP2, TP3, TP4) to be included in the analysis.
 
 
 # SETUP
@@ -262,25 +263,142 @@ cat("Peve ortholog genes (complete groups only):", length(peve_ortholog_genes), 
 cat("Ptua ortholog genes (complete groups only):", length(ptua_ortholog_genes), "\n\n")
 ```
 
-### Create ortholog expression data with group_id mapping
+### Define sample filtering function
 
-```{r create-ortholog-expression-data, eval=TRUE}
-cat("Creating ortholog expression data with proper group_id mapping...\n")
+```{r define-sample-filter-function, eval=TRUE}
+# Function to filter samples that have all four timepoints (TP1, TP2, TP3, TP4)
+filter_complete_samples <- function(gene_matrix, species_name) {
+  cat("  Filtering samples with complete timepoints for", species_name, "...\n")
+  
+  # Get expression columns (exclude gene_id column, gene_id_clean may not exist yet)
+  all_cols <- colnames(gene_matrix)
+  id_cols <- c("gene_id", "gene_id_clean")
+  expr_cols <- setdiff(all_cols, id_cols)
+  
+  if(length(expr_cols) == 0) {
+    cat("  ERROR: No expression columns found! Returning original matrix.\n")
+    return(gene_matrix)
+  }
+  
+  # Parse sample column names to identify sample groups and timepoints
+  sample_timepoint_map <- list()
+  
+  for(col in expr_cols) {
+    # Expected formats: ACR.139.TP1, POR.216.TP1, POC.201.TP1, etc.
+    # Note: Using dots (.) as separators, not hyphens (-)
+    parts <- strsplit(col, "\\.")[[1]]  # Split on dots, not hyphens
+    
+    if(length(parts) >= 3) {
+      # Extract timepoint from last part (e.g., "TP1", "TP2", etc.)
+      tp_part <- parts[length(parts)]
+      
+      if(grepl("^TP[0-9]+$", tp_part)) {
+        timepoint <- as.numeric(gsub("TP", "", tp_part))
+        
+        # Sample ID is everything except the timepoint part, joined with dots
+        sample_id <- paste(parts[1:(length(parts)-1)], collapse = ".")
+        
+        if(!sample_id %in% names(sample_timepoint_map)) {
+          sample_timepoint_map[[sample_id]] <- list()
+        }
+        sample_timepoint_map[[sample_id]][[as.character(timepoint)]] <- col
+      }
+    }
+  }
+  
+  # Identify samples with all four timepoints (1, 2, 3, 4)
+  complete_samples <- c()
+  incomplete_samples <- c()
+  required_timepoints <- c("1", "2", "3", "4")
+  
+  for(sample_id in names(sample_timepoint_map)) {
+    available_timepoints <- names(sample_timepoint_map[[sample_id]])
+    
+    if(all(required_timepoints %in% available_timepoints)) {
+      complete_samples <- c(complete_samples, sample_id)
+    } else {
+      incomplete_samples <- c(incomplete_samples, sample_id)
+      missing_tps <- setdiff(required_timepoints, available_timepoints)
+      cat("    Sample", sample_id, "missing timepoints:", paste(paste0("TP", missing_tps), collapse = ", "), "\n")
+    }
+  }
+  
+  cat("  Complete samples (all 4 timepoints):", length(complete_samples), "\n")
+  cat("  Incomplete samples:", length(incomplete_samples), "\n")
+  
+  if(length(incomplete_samples) > 0) {
+    cat("  Removing incomplete samples:", paste(incomplete_samples, collapse = ", "), "\n")
+  }
+  
+  # Build list of columns to keep (include gene_id columns plus ONLY complete sample columns)
+  if(length(complete_samples) == 0) {
+    cat("  WARNING: No complete samples found! Keeping all expression columns.\n")
+    # Fallback: keep all expression columns
+    keep_cols <- c("gene_id")
+    if("gene_id_clean" %in% colnames(gene_matrix)) {
+      keep_cols <- c(keep_cols, "gene_id_clean")
+    }
+    keep_cols <- c(keep_cols, expr_cols)
+  } else {
+    keep_cols <- c("gene_id")
+    if("gene_id_clean" %in% colnames(gene_matrix)) {
+      keep_cols <- c(keep_cols, "gene_id_clean")
+    }
+    
+    # ONLY add columns from complete samples (this excludes incomplete sample columns)
+    for(sample_id in complete_samples) {
+      for(tp in required_timepoints) {
+        if(tp %in% names(sample_timepoint_map[[sample_id]])) {
+          keep_cols <- c(keep_cols, sample_timepoint_map[[sample_id]][[tp]])
+        }
+      }
+    }
+    
+    # Double-check: ensure we're not accidentally including incomplete sample columns
+    incomplete_cols <- c()
+    for(sample_id in incomplete_samples) {
+      for(tp in names(sample_timepoint_map[[sample_id]])) {
+        incomplete_cols <- c(incomplete_cols, sample_timepoint_map[[sample_id]][[tp]])
+      }
+    }
+    
+    if(length(incomplete_cols) > 0) {
+      # Remove any incomplete sample columns that might have been included
+      keep_cols <- setdiff(keep_cols, incomplete_cols)
+    }
+  }
+  
+  # Filter the gene matrix to keep only complete samples
+  keep_cols <- intersect(keep_cols, colnames(gene_matrix))  # Ensure columns exist
+  filtered_matrix <- gene_matrix[, keep_cols, drop = FALSE]
+  
+  # Count ID vs expression columns in final result
+  final_expr_cols <- setdiff(colnames(filtered_matrix), c("gene_id", "gene_id_clean"))
+  cat("  Final expression columns:", length(final_expr_cols), "\n")
+  
+  return(filtered_matrix)
+}
+```
 
+### Define expression extraction function
+
+```{r define-expression-extraction-function, eval=TRUE}
 # Function to extract expression data for a species using ortholog group mapping
 extract_species_expression <- function(ortholog_groups_df, gene_matrix, species_col, species_name) {
   cat("Processing", species_name, "...\n")
   
+  # First, filter the gene matrix to keep only samples with complete timepoints
+  filtered_gene_matrix <- filter_complete_samples(gene_matrix, species_name)
+  
   # Remove duplicate group_ids, keeping first occurrence of each
-  cat("  Input ortholog groups:", nrow(ortholog_groups_df), "\n")
   unique_groups <- ortholog_groups_df[!duplicated(ortholog_groups_df$group_id), ]
-  cat("  After removing duplicates:", nrow(unique_groups), "unique group_ids\n")
+  cat("  Unique ortholog groups:", nrow(unique_groups), "\n")
   
   # Create results data frame starting with group_id
   result_df <- data.frame(group_id = unique_groups$group_id, stringsAsFactors = FALSE)
   
   # Get expression columns (exclude gene_id and gene_id_clean columns)
-  expr_cols <- setdiff(colnames(gene_matrix), c("gene_id", "gene_id_clean"))
+  expr_cols <- setdiff(colnames(filtered_gene_matrix), c("gene_id", "gene_id_clean"))
   
   # Initialize expression columns with NA
   for(col in expr_cols) {
@@ -288,34 +406,32 @@ extract_species_expression <- function(ortholog_groups_df, gene_matrix, species_
   }
   
   # For each ortholog group, find the corresponding gene and extract expression
-    for(i in seq_len(nrow(unique_groups))) {
+  for(i in seq_len(nrow(unique_groups))) {
     target_gene <- unique_groups[[species_col]][i]
     
     # Clean target gene for matching
     if(species_name == "Apul") {
       # Remove transcript suffix for Apul
       target_gene_clean <- gsub("-T[0-9]+$", "", target_gene)
-      matching_rows <- which(gene_matrix$gene_id_clean == target_gene_clean)
+      matching_rows <- which(filtered_gene_matrix$gene_id_clean == target_gene_clean)
     } else {
       # For Peve and Ptua, match cleaned gene_id
-      matching_rows <- which(gene_matrix$gene_id_clean == target_gene)
+      matching_rows <- which(filtered_gene_matrix$gene_id_clean == target_gene)
     }
     
     if(length(matching_rows) == 1) {
       # Single match - copy expression data
       for(col in expr_cols) {
-        result_df[i, col] <- gene_matrix[matching_rows, col]
+        result_df[i, col] <- filtered_gene_matrix[matching_rows, col]
       }
     } else if(length(matching_rows) > 1) {
       # Multiple matches - take first gene (no averaging)
-      cat("  Group", unique_groups$group_id[i], "has", length(matching_rows), "gene matches - using first match\n")
       first_match <- matching_rows[1]
       for(col in expr_cols) {
-        result_df[i, col] <- gene_matrix[first_match, col]
+        result_df[i, col] <- filtered_gene_matrix[first_match, col]
       }
     } else {
-      # No match - leave as NA
-      cat("  Warning: No expression data found for group", unique_groups$group_id[i], "gene", target_gene, "\n")
+      # No match - leave as NA (will be removed later)
     }
   }
   
@@ -328,6 +444,12 @@ extract_species_expression <- function(ortholog_groups_df, gene_matrix, species_
   
   return(result_df)
 }
+```
+
+### Extract ortholog expression data
+
+```{r extract-ortholog-expression-data, eval=TRUE}
+cat("Creating ortholog expression data with proper group_id mapping...\n")
 
 # Extract expression data for each species using the ortholog group mapping
 apul_ortholog_expression <- extract_species_expression(complete_ortholog_groups, apul_gene_matrix, "apul", "Apul")
@@ -388,6 +510,96 @@ cat("=== LINE COUNTS FOR ORTHOLOG EXPRESSION DATA ===\n")
 cat("Apul ortholog expression with info: ", nrow(apul_ortholog_expression), " rows\n")
 cat("Peve ortholog expression with info: ", nrow(peve_ortholog_expression), " rows\n")
 cat("Ptua ortholog expression with info: ", nrow(ptua_ortholog_expression), " rows\n\n")
+```
+
+### Sample filtering verification
+
+```{r sample-filtering-verification, eval=TRUE}
+cat("=== SAMPLE FILTERING VERIFICATION ===\n")
+cat("This analysis filters samples to include ONLY those with all four timepoints (TP1, TP2, TP3, TP4)\n\n")
+
+# Function to analyze sample completeness in the filtered data
+analyze_sample_completeness <- function(data_df, species_name) {
+  cat("Analyzing", species_name, "sample completeness:\n")
+  
+  # Get expression columns (exclude group_id)
+  expr_cols <- setdiff(colnames(data_df), "group_id")
+  
+  # Parse sample column names to identify sample groups and timepoints
+  sample_timepoint_map <- list()
+  
+  for(col in expr_cols) {
+    parts <- strsplit(col, "\\.")[[1]]  # Split on dots to match actual format
+    
+    if(length(parts) >= 3) {
+      tp_part <- parts[length(parts)]
+      
+      if(grepl("^TP[0-9]+$", tp_part)) {
+        timepoint <- as.numeric(gsub("TP", "", tp_part))
+        sample_id <- paste(parts[1:(length(parts)-1)], collapse = ".")
+        
+        if(!sample_id %in% names(sample_timepoint_map)) {
+          sample_timepoint_map[[sample_id]] <- c()
+        }
+        sample_timepoint_map[[sample_id]] <- c(sample_timepoint_map[[sample_id]], timepoint)
+      }
+    }
+  }
+  
+  # Check completeness
+  complete_samples <- 0
+  incomplete_samples <- 0
+  required_timepoints <- c(1, 2, 3, 4)
+  
+  for(sample_id in names(sample_timepoint_map)) {
+    available_timepoints <- sort(sample_timepoint_map[[sample_id]])
+    
+    if(all(required_timepoints %in% available_timepoints)) {
+      complete_samples <- complete_samples + 1
+    } else {
+      incomplete_samples <- incomplete_samples + 1
+      missing_tps <- setdiff(required_timepoints, available_timepoints)
+      cat("  WARNING: Sample", sample_id, "missing timepoints:", paste(paste0("TP", missing_tps), collapse = ", "), "\n")
+    }
+  }
+  
+  cat("  Total samples:", length(sample_timepoint_map), "\n")
+  cat("  Complete samples (all 4 timepoints):", complete_samples, "\n")
+  cat("  Incomplete samples:", incomplete_samples, "\n")
+  
+  if(incomplete_samples > 0) {
+    cat("  ERROR: Filtering did not work correctly!\n")
+  } else {
+    cat("  SUCCESS: All samples have complete timepoints\n")
+  }
+  
+  cat("\n")
+  
+  return(list(
+    total = length(sample_timepoint_map),
+    complete = complete_samples,
+    incomplete = incomplete_samples
+  ))
+}
+
+# Verify each species
+apul_stats <- analyze_sample_completeness(apul_ortholog_expression, "Apul")
+peve_stats <- analyze_sample_completeness(peve_ortholog_expression, "Peve")
+ptua_stats <- analyze_sample_completeness(ptua_ortholog_expression, "Ptua")
+
+cat("=== FILTERING SUMMARY ===\n")
+cat("All samples in the filtered dataset should have exactly 4 timepoints (TP1, TP2, TP3, TP4)\n")
+cat("Apul: ", apul_stats$complete, "/", apul_stats$total, " complete samples\n")
+cat("Peve: ", peve_stats$complete, "/", peve_stats$total, " complete samples\n")
+cat("Ptua: ", ptua_stats$complete, "/", ptua_stats$total, " complete samples\n")
+
+total_incomplete <- apul_stats$incomplete + peve_stats$incomplete + ptua_stats$incomplete
+if(total_incomplete == 0) {
+  cat("SUCCESS: All samples across all species have complete timepoints!\n")
+} else {
+  cat("ERROR: Found", total_incomplete, "incomplete samples - filtering needs to be fixed!\n")
+}
+cat("\n")
 ```
 
 ### Diagnostic analysis
@@ -642,14 +854,19 @@ def parse_species_samples(columns, species_name):
     timepoints = set()
     
     for col in columns:
-        # Expected format: PREFIX.NUMBER.TP# (e.g., ACR.139.TP1, POR.216.TP1, POC.201.TP1)
-        parts = col.split('.')
-        if len(parts) >= 3 and parts[2].startswith('TP'):
-            prefix = parts[0]
-            numeric_id = parts[1]  
-            timepoint = int(parts[2][2:])  # e.g., 1 from TP1
+        # Expected format: PREFIX-NUMBER-TP# (e.g., ACR-139-TP1, POR-216-TP1, POC-201-TP1)
+        # Also support legacy format: PREFIX.NUMBER.TP# for backwards compatibility
+        parts = col.split('-') if '-' in col else col.split('.')
+        
+        if len(parts) >= 3 and parts[-1].startswith('TP'):
+            # Extract timepoint from last part (e.g., "TP1", "TP2", etc.)
+            tp_part = parts[-1]
+            timepoint = int(tp_part[2:])  # e.g., 1 from TP1
             
-            sample_id = f"{prefix}.{numeric_id}"  # e.g., "ACR.139"
+            # Sample ID is everything except the timepoint part
+            sample_id_parts = parts[:-1]
+            sample_id = '-'.join(sample_id_parts) if '-' in col else '.'.join(sample_id_parts)
+            
             sample_map[(sample_id, timepoint)] = col
             if sample_id not in sample_ids:
                 sample_ids.append(sample_id)
@@ -705,6 +922,7 @@ for species, info in species_info.items():
 # This flattens species and samples into a single dimension that Barnacle can handle
 
 print("Creating 3D tensor by combining species and samples...")
+print("Note: R-level filtering has already removed samples without all 4 timepoints")
 
 # First, collect all actual sample-timepoint combinations that have data
 all_sample_columns = []
@@ -718,17 +936,18 @@ for species in ['apul', 'peve', 'ptua']:
     
     print(f"\nProcessing {species}:")
     for sample_id in info['sample_ids']:
-        # Check if this sample has data for any timepoint
-        has_data = False
+        # Check if this sample has data for ALL required timepoints
+        available_timepoints = []
         sample_timepoint_cols = []
         
         for timepoint in common_timepoints:
             if (sample_id, timepoint) in info['sample_map']:
                 col_name = info['sample_map'][(sample_id, timepoint)]
                 sample_timepoint_cols.append(col_name)
-                has_data = True
+                available_timepoints.append(timepoint)
         
-        if has_data:
+        # Only include samples that have ALL timepoints (should be all samples due to R filtering)
+        if len(available_timepoints) == len(common_timepoints):
             all_sample_columns.extend(sample_timepoint_cols)
             sample_labels.append(f"{species}_{sample_id}")
             species_sample_map[sample_idx] = {
@@ -737,7 +956,9 @@ for species in ['apul', 'peve', 'ptua']:
                 'sample_idx_in_species': info['sample_ids'].index(sample_id)
             }
             sample_idx += 1
-            print(f"  Added {sample_id} with {len(sample_timepoint_cols)} timepoints")
+            print(f"  Added {sample_id} with {len(sample_timepoint_cols)} timepoints: {sorted(available_timepoints)}")
+        else:
+            print(f"  Skipped {sample_id} - incomplete timepoints: {sorted(available_timepoints)} (expected: {sorted(common_timepoints)})")
 
 n_genes = len(common_genes_list)
 n_combined_samples = len(sample_labels)
@@ -1059,7 +1280,7 @@ else:
 
 
 
-## Visualize Barnacle results
+# VISUALIZATION
 
 ### Visualization setup
 
