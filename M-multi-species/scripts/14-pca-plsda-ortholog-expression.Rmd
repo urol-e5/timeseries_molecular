@@ -185,6 +185,11 @@ vst_obj <- vst(dds, blind = TRUE)
 # Extract the transformed matrix (genes x samples, roughly homoskedastic)
 vst_mat <- assay(vst_obj)
 head(vst_mat)
+
+vst_df<-as.data.frame(vst_mat)
+
+#output data 
+write_csv(vst_df, "M-multi-species/output/14-pca-orthologs/vst_counts_matrix.csv")
 ```
 
 Count matrix is now transformed and ready for PCA. 
