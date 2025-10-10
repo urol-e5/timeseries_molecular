@@ -1,386 +1,56 @@
 # Molecular Methods
 
-## Overview
-
-This document describes the comprehensive molecular methods used to develop genomic count matrices from sample extraction through quality-controlled count matrices for multi-omic analyses of three coral species (*Acropora pulchra*, *Porites evermanni*, and *Pocillopora tuahiniensis*). The workflow encompasses RNA-seq, small RNA-seq (miRNA), long non-coding RNA (lncRNA), and DNA methylation (WGBS) data generation and processing.
-
 ## Sample Collection and Preparation
 
-### Experimental Design
-- **Species**: Three coral species representing different life history strategies
-  - *Acropora pulchra* (fast-growing branching coral)
-  - *Porites evermanni* (slow-growing massive coral)
-  - *Pocillopora tuahiniensis* (intermediate growth branching coral)
-- **Timepoints**: Four sampling timepoints (TP1-TP4) across the experimental period
-- **Biological Replication**: Multiple colonies per species per timepoint
-- **Sample Types**: Flash-frozen tissue samples for RNA extraction and WGBS library preparation
-
-### Nucleic Acid Extraction
-Samples were processed for multiple molecular assays from the same biological material:
-- **Total RNA extraction**: For RNA-seq and small RNA-seq library preparation
-- **Genomic DNA extraction**: For whole genome bisulfite sequencing (WGBS)
-
-## RNA-seq: Gene Expression Quantification
-
-### Quality Control of Raw Reads
-Initial quality assessment of raw RNA-seq reads was performed using:
-- **FastQC** (v0.12.1): Individual sample quality metrics including per-base quality scores, sequence length distribution, GC content, adapter contamination, and overrepresented sequences
-- **MultiQC**: Aggregate quality reports across all samples for comparative assessment
-
-### Read Trimming and Quality Filtering
-Sequencing reads were trimmed using **fastp** (Chen et al., 2023):
-- **Adapter removal**: Automatic detection and removal of adapter sequences
-- **Quality trimming**: 15bp trimmed from each read end based on initial quality assessment
-- **Poly-G trimming**: Removal of poly-G tails common in two-color chemistry sequencing platforms
-- **Length filtering**: Retention of reads meeting minimum length requirements
-- **Output**: Trimmed paired-end FastQ files (`*fastp-trim.fq.gz`)
-
-Post-trimming quality verification was performed using FastQC and MultiQC to confirm improvement in read quality metrics.
-
-### Genome Indexing
-Reference genome indexing was performed using **HISAT2** (Kim et al., 2019):
-- **Input**: Species-specific reference genome FASTA files
-- **Index generation**: Created HISAT2-formatted genome indexes optimized for splice-aware alignment
-- **Species-specific indexes**: Separate indexes generated for each coral species
-
-### Read Alignment
-Trimmed paired-end reads were aligned to species-specific reference genomes using **HISAT2**:
-- **Alignment parameters**: 
-  - Splice-aware alignment for accurate intron-exon boundary detection
-  - Paired-end mode maintaining mate pair information
-  - Multi-threading for computational efficiency
-- **Output**: Sequence Alignment Map (SAM) files containing alignment coordinates and quality scores
-
-### SAM to BAM Conversion and Sorting
-Alignment files were converted and processed using **SAMtools** (v1.12):
-- **SAM to BAM conversion**: `samtools view` for binary compression and space efficiency
-- **Sorting**: `samtools sort` to organize alignments by genomic coordinates
-- **Indexing**: `samtools index` to create BAI index files enabling rapid random access
-- **Output**: Sorted and indexed BAM files (`*.sorted.bam` and `*.sorted.bam.bai`)
-
-### Transcript Assembly and Quantification
-**StringTie** (v2.2.1) (Pertea et al., 2015, 2016) was used for transcript assembly and quantification:
-
-#### Individual Sample Assembly
-- **Input**: Sorted BAM files and reference genome annotation (GFF/GTF)
-- **Parameters**: 
-  - Reference-guided assembly mode
-  - Multi-threading for efficiency
-- **Output**: Sample-specific GTF files containing assembled transcripts
-
-#### Transcript Merging
-- **StringTie merge**: Combined individual sample GTF files into a unified transcript catalog
-- **Reference integration**: Merged novel transcripts with known reference annotations
-- **Output**: Consensus GTF file (`stringtie_merged.gtf`)
-
-#### Count Matrix Generation
-StringTie **prepDE.py** script generated count matrices for differential expression analysis:
-- **Gene-level counts**: `apul-gene_count_matrix.csv` (or species-specific equivalents)
-- **Transcript-level counts**: `apul-transcript_count_matrix.csv`
-- **Matrix format**: Rows = genes/transcripts, Columns = samples, Values = read counts
-- **Compatibility**: Formatted for use with DESeq2 and other R-based differential expression tools
-
-## Small RNA-seq: miRNA Discovery and Quantification
-
-### Quality Control and Trimming
-Small RNA-seq data processing followed a specialized workflow optimized for short reads:
-
-#### Initial Quality Assessment
-- **FastQC**: Assessment of raw sRNA-seq reads (typically 15-30bp)
-- **MultiQC**: Aggregated quality metrics across samples
-
-#### Adapter Trimming
-**fastp** was used with parameters optimized for small RNAs:
-- **Adapter removal**: Aggressive adapter trimming for short inserts
-- **Poly-G removal**: Trimming of poly-G tails
-- **Length filtering**: Retention of 18-31bp reads typical of mature miRNAs
-- **Quality threshold**: Minimum quality score filtering
-- **Output**: Trimmed FastQ files (`*fastp-adapters-polyG-31bp-merged.fq.gz`)
-
-### miRNA Discovery and Annotation
-**ShortStack** (v4.1.0) (Axtell, 2013; Shahid & Axtell, 2014; Johnson et al., 2016) performed comprehensive small RNA analysis:
-
-#### Reference Database
-- **miRBase**: Customized cnidarian miRNA database (v22.1) curated by Jill Ashley
-- **Inclusion criteria**: Published cnidarian miRNAs from multiple species
-- **Database file**: `cnidarian-mirbase-mature-v22.1.fasta`
-
-#### ShortStack Analysis
-- **Alignment**: Short read alignment to species-specific reference genomes
-- **Locus identification**: Detection of small RNA-producing loci
-- **miRNA annotation**: Comparison against known miRNA database
-- **Novel miRNA prediction**: De novo identification of miRNA candidates
-- **Hairpin structure analysis**: Secondary structure prediction for miRNA precursors
-- **Strand bias assessment**: Evaluation of 5p/3p arm expression patterns
-
-#### Count Matrix Generation
-ShortStack generated raw count matrices:
-- **Format**: Tab-delimited text file with genomic coordinates and read counts per sample
-- **Features**: miRNA loci, genomic coordinates, strand information, MIRNA classification column
-
-### miRNA Count Matrix Formatting
-Custom R script (`10-format-miRNA-counts.R`) processed raw ShortStack output:
-
-#### Filtering Steps
-1. **miRNA selection**: Retained only rows with "Y" in MIRNA column (confirmed miRNAs)
-2. **Column removal**: Removed coordinate and classification columns (columns 1 and 3)
-3. **Sample name extraction**: Extracted sample identifiers from column headers
-
-#### Sample Naming Standardization
-- **Metadata integration**: Matched sequencing sample names to biological metadata
-- **Naming convention**: Reformatted to `AzentaSampleName_ColonyID_Timepoint`
-- **Validation**: Verified accurate mapping between original and renamed samples
-
-#### Output
-- **Formatted count matrix**: Tab-delimited file (`*_miRNA_counts_formatted.txt`)
-- **Row names**: miRNA identifiers
-- **Column names**: Standardized sample identifiers
-- **Values**: Raw read counts per miRNA per sample
-
-## Long Non-coding RNA (lncRNA) Discovery and Quantification
-
-lncRNA discovery employed a multi-step computational pipeline combining alignment, assembly, classification, and coding potential assessment.
-
-### Read Alignment
-Trimmed RNA-seq reads (same data as gene expression analysis) were aligned using **HISAT2**:
-- **Strategy**: Splice-aware alignment to detect novel transcripts
-- **Output**: Coordinate-sorted BAM files
-
-### Transcript Assembly
-**StringTie** assembled transcripts from alignments:
-- **Mode**: Reference-guided assembly using genome annotation
-- **Individual assemblies**: Generated per-sample GTF files
-- **Merged assembly**: Combined all samples into unified transcript catalog
-
-### Transcript Classification
-**GFFcompare** (v0.12.6) classified assembled transcripts relative to reference annotation:
-
-#### Classification Categories
-Novel transcript identification focused on specific class codes:
-- **Class code "u"**: Unknown intergenic transcripts (potential lncRNAs)
-- **Class code "x"**: Exonic overlap with reference on opposite strand
-- **Class code "o"**: Generic exonic overlap with reference
-- **Class code "i"**: Intronic (fully contained within reference intron)
-
-#### Length Filtering
-- **Minimum length**: 200 nucleotides (standard lncRNA definition)
-- **Rationale**: Distinguishes lncRNAs from small regulatory RNAs and degradation products
-
-### Coding Potential Assessment
-**Coding Potential Calculator 2 (CPC2)** (v1.0.1) predicted coding potential:
-
-#### FASTA Extraction
-**BEDtools getfasta** extracted sequences for candidate lncRNA transcripts:
-- **Input**: Genome FASTA and filtered GTF coordinates
-- **Parameters**: `-name -split` for proper handling of multi-exonic transcripts
-- **Output**: Candidate lncRNA sequences in FASTA format
-
-#### CPC2 Classification
-- **Algorithm**: Machine learning-based coding potential prediction
-- **Features**: ORF length, ORF coverage, Fickett score, isoelectric point
-- **Classification**: Binary coding/noncoding prediction
-- **Threshold**: Default CPC2 thresholds for noncoding classification
-
-#### Noncoding Transcript Selection
-- **Filtering**: Retained transcripts classified as "noncoding" by CPC2
-- **Output**: List of confirmed lncRNA transcript IDs
-
-### lncRNA Quantification
-**featureCounts** (Subread v2.0.5) quantified lncRNA expression:
-
-#### Count Generation Parameters
-- **Annotation**: Custom lncRNA GTF file from discovery pipeline
-- **Feature type**: `-t lncRNA` (custom feature designation)
-- **Gene ID**: `-g gene_id` attribute for grouping
-- **Paired-end mode**: `-p` flag for proper fragment counting
-- **Multi-overlap handling**: `-O --fraction` for fractional counting of overlapping features
-- **Multi-threading**: `-T 42` for parallel processing
-
-#### Count Matrix Processing
-Generated count matrices were processed through multiple cleaning steps:
-
-1. **Column name cleaning** (using `awk`):
-   - Removed full file paths from sample names
-   - Stripped `.sorted.bam` suffix
-   - Retained only base sample identifiers
-
-2. **Quality filtering** (using custom Python script `11-filter_count_matrix.py`):
-   - **Filtering criteria**: Removed lncRNAs with <10 reads in >50% of samples
-   - **Rationale**: Eliminates low-confidence lncRNAs with insufficient coverage
-   - **Output**: `lncRNA_counts.clean.filtered.txt`
-
-#### Final Output
-- **Clean count matrix**: Tab-delimited text file
-- **Row format**: lncRNA gene IDs
-- **Column format**: Sample identifiers
-- **Values**: Raw read counts per lncRNA per sample
-- **Quality**: Filtered for reliable quantification across samples
-
-## DNA Methylation: Whole Genome Bisulfite Sequencing (WGBS)
-
-### Quality Control of Bisulfite-Converted Reads
-WGBS data quality assessment followed similar protocols to RNA-seq:
-- **FastQC**: Evaluated raw bisulfite-converted sequencing reads
-  - Note: C-to-T conversion artifacts expected in bisulfite-treated sequences
-  - Base composition skew expected due to cytosine deamination
-- **MultiQC**: Aggregated quality metrics across all WGBS samples
-
-### Read Trimming
-**fastp** trimmed bisulfite-converted reads:
-- **Adapter removal**: Detection and removal of methylation adapter sequences
-- **Quality filtering**: Trimmed low-quality bases from read ends
-- **Output**: Trimmed paired-end FastQ files (`*fastp-trim.fq.gz`)
-
-### Bisulfite Genome Preparation
-**Bismark** (v0.24.0) prepared bisulfite-converted reference genomes:
-- **Genome conversion**: Generated C-to-T and G-to-A converted reference genomes
-- **Indexing**: Created Bowtie2 indexes (v2.4.4) for both converted strands
-- **Parameters**: 
-  - Multi-threading (`--parallel 28`)
-  - Verbose output for tracking conversion progress
-- **Output**: Bisulfite-converted genome indexes for alignment
-
-### Bisulfite Read Alignment
-**Bismark** aligned trimmed reads to bisulfite-converted genomes:
-
-#### Alignment Strategy
-- **Paired-end mode**: Maintained mate pair information for improved mapping accuracy
-- **Aligner**: Bowtie2 backend for efficient alignment
-- **Multi-threading**: Parallel processing (`-p 8`)
-- **Strand-specific mapping**: Separate alignments to OT (original top), CTOT, OB, and CTOB strands
-
-#### Score Threshold Optimization
-Multiple alignment stringency parameters were tested:
-- **Score_min values tested**:
-  - `L,0,-0.4`
-  - `L,0,-0.6`
-  - `L,0,-0.8`
-  - `L,0,-1.0`
-  - `L,-1,-0.6`
-- **Selection criteria**: Mapping efficiency and alignment quality metrics
-- **Output**: BAM files with bisulfite alignment information (`*_bismark_bt2_pe.bam`)
-
-### Deduplication
-**Bismark deduplicate_bismark** removed PCR duplicates:
-- **Strategy**: Identified and removed reads with identical mapping positions
-- **Paired-end deduplication**: Considered both mate positions for duplicate determination
-- **Output**: Deduplicated BAM files (`*deduplicated.bam`)
-
-### BAM File Processing
-**SAMtools** sorted and indexed deduplicated alignments:
-- **Sorting**: Organized by genomic coordinates (`samtools sort --threads 24`)
-- **Indexing**: Created BAI index files for rapid access
-- **Output**: Sorted, indexed BAM files ready for methylation extraction
-
-### Methylation Calling
-**Bismark methylation_extractor** quantified methylation levels:
-
-#### Extraction Parameters
-- **Context**: Extracted methylation in CpG, CHG, and CHH contexts
-- **Strand-specific**: Maintained original strand information
-- **Coverage files**: Generated coverage files for each cytosine position
-- **Bedgraph output**: Created genome-wide methylation tracks
-
-#### Methylation Metrics
-For each cytosine position, extracted:
-- **Chromosome/Position**: Genomic coordinates
-- **Strand**: DNA strand orientation (+/-)
-- **Methylated count**: Number of reads supporting methylation
-- **Unmethylated count**: Number of reads supporting no methylation
-- **Context**: CpG, CHG, or CHH
-- **Methylation percentage**: Calculated as (methylated / (methylated + unmethylated)) × 100
-
-### Coverage Filtering and Count Matrix Generation
-Methylation data were filtered and formatted for downstream analysis:
-
-#### Coverage Thresholds
-- **Minimum coverage**: Sites required minimum read depth for reliable quantification
-- **Sample representation**: Sites retained if present in sufficient number of samples
-- **Example threshold**: ≥20 reads coverage in sufficient samples (`merged-WGBS-CpG-counts_filtered_n20.csv`)
-
-#### Count Matrix Format
-- **Rows**: CpG sites (genomic coordinates)
-- **Columns**: Samples
-- **Values**: Methylation percentages or raw methylated/unmethylated counts
-- **Output**: CSV format for compatibility with R-based analysis tools
-
-## Quality Control and Filtering Summary
-
-### General QC Principles Applied Across All Data Types
-
-#### Pre-processing QC
-1. **FastQC/MultiQC**: Comprehensive quality metrics visualization
-2. **Adapter identification**: Detection of technical sequences for removal
-3. **Quality score assessment**: Evaluation of per-base and per-read quality
-4. **Length distribution**: Verification of expected fragment sizes
-
-#### Post-processing QC
-1. **Alignment statistics**: Mapping rates, duplicate rates, properly paired reads
-2. **Coverage assessment**: Sequencing depth across features/genomic regions
-3. **Count distribution**: Examination of count matrix distributions
-4. **Sample correlation**: Verification of biological replicate similarity
-
-### Data Type-Specific Filtering
-
-#### RNA-seq and lncRNA
-- **Low expression filtering**: Removal of genes/transcripts with insufficient reads
-- **Sample coverage**: Required expression in minimum percentage of samples
-- **Count threshold**: Typically ≥10 reads in ≥50% of samples
-
-#### miRNA
-- **miRNA classification**: Retained only confirmed miRNAs (MIRNA = "Y")
-- **Database matching**: Filtered based on miRBase homology
-- **Read count minimums**: Applied to remove spurious low-count features
-
-#### DNA Methylation
-- **Coverage thresholds**: Minimum read depth per CpG site (e.g., 10-20× coverage)
-- **Sample representation**: Required coverage across minimum number of samples
-- **Context-specific filtering**: Separate filters for CpG, CHG, CHH contexts
-
-## Count Matrix Generation and Normalization Philosophy
-
-### Raw Count Matrices
-All pipelines generated raw, unnormalized count matrices preserving:
-- **Integer counts**: Whole number read/fragment counts per feature
-- **No pre-normalization**: Raw counts retained for statistical modeling
-- **Complete feature set**: Initial matrices include all detected features before filtering
-
-### Matrix Structure Standards
-Consistent format across all data types:
-- **Rows**: Genomic features (genes, transcripts, lncRNAs, miRNAs, CpG sites)
-- **Columns**: Samples with standardized naming (SampleID_ColonyID_Timepoint)
-- **First column**: Feature identifiers (gene IDs, miRNA names, genomic coordinates)
-- **File formats**: Tab-delimited text (.txt) or comma-separated values (.csv)
-
-### Downstream Normalization
-Raw count matrices were prepared for various normalization approaches:
-- **DESeq2**: Size factor normalization accounting for library size and composition
-- **TMM**: Trimmed mean of M-values normalization (edgeR)
-- **TPM/FPKM**: Transcript per million or fragments per kilobase per million (length normalization)
-- **Methylation percentages**: Intrinsic normalization via (methylated/total) calculation
-
-## Data Integration and Quality Assurance
-
-### Sample Naming Standardization
-Consistent sample identifiers were applied across all data types:
-- **Format**: `SampleID_ColonyID_Timepoint`
-- **Example**: `A001_Colony1_TP1`
-- **Metadata integration**: Sample names linked to experimental metadata for downstream analysis
-- **Cross-platform consistency**: Identical naming enables multi-omic integration
-
-### Metadata Association
-Comprehensive metadata tracked:
-- **Sample information**: Species, colony ID, timepoint, extraction date
-- **Sequencing information**: Run ID, lane, barcode, read length
-- **Quality metrics**: Reads passed filter, alignment rate, library size
-- **File provenance**: Input files, software versions, parameter settings
-
-### Reproducibility and Documentation
-All analyses maintained:
-- **Script preservation**: Analysis code in version-controlled R Markdown/Quarto documents
-- **Parameter documentation**: Complete parameter sets recorded in code chunks
-- **File checksums**: MD5 checksums for all input and output files
-- **Software versions**: Documented versions of all software tools used
+We collected samples from three coral species representing different life history strategies: *Acropora pulchra* (fast-growing branching coral), *Porites evermanni* (slow-growing massive coral), and *Pocillopora tuahiniensis* (intermediate growth branching coral). Samples were collected at four timepoints (TP1-TP4) across the experimental period with multiple colonies per species per timepoint to ensure biological replication. All samples were flash-frozen immediately upon collection for subsequent RNA extraction and whole genome bisulfite sequencing (WGBS) library preparation. From each biological sample, we extracted both total RNA for RNA-seq and small RNA-seq library preparation, as well as genomic DNA for WGBS analysis, enabling comprehensive multi-omic profiling from the same biological material
+
+## RNA-seq Gene Expression Quantification
+
+We performed initial quality assessment of raw RNA-seq reads using FastQC (v0.12.1) to evaluate per-base quality scores, sequence length distribution, GC content, adapter contamination, and overrepresented sequences. MultiQC was used to generate aggregate quality reports across all samples for comparative assessment. Sequencing reads were then trimmed using fastp (Chen et al., 2023) with automatic detection and removal of adapter sequences. Based on initial quality assessment, we trimmed 15bp from each read end and removed poly-G tails common in two-color chemistry sequencing platforms. Reads were filtered to retain only those meeting minimum length and quality requirements, producing trimmed paired-end FastQ files. Post-trimming quality verification was performed using FastQC and MultiQC to confirm improvement in read quality metrics.
+
+For read alignment, we first generated species-specific reference genome indexes using HISAT2 (Kim et al., 2019), creating HISAT2-formatted genome indexes optimized for splice-aware alignment from species-specific reference genome FASTA files. Trimmed paired-end reads were then aligned to these reference genomes using HISAT2 with splice-aware alignment for accurate intron-exon boundary detection, maintaining mate pair information in paired-end mode while using multi-threading for computational efficiency. The resulting Sequence Alignment Map (SAM) files containing alignment coordinates and quality scores were converted to binary BAM format using SAMtools (v1.12) for space efficiency. BAM files were then sorted by genomic coordinates and indexed to create BAI index files enabling rapid random access.
+
+We used StringTie (v2.2.1) (Pertea et al., 2015, 2016) for transcript assembly and quantification. For each sample, sorted BAM files and reference genome annotations (GFF/GTF) were used as input for reference-guided assembly, generating sample-specific GTF files containing assembled transcripts. Individual sample GTF files were then merged using StringTie merge to create a unified transcript catalog, integrating novel transcripts with known reference annotations in a consensus GTF file. Finally, we generated count matrices for differential expression analysis using the StringTie prepDE.py script, producing both gene-level and transcript-level count matrices in CSV format with rows representing genes or transcripts, columns representing samples, and values representing raw read counts. These matrices were formatted for compatibility with DESeq2 and other R-based differential expression analysis tools.
+
+## Small RNA-seq miRNA Discovery and Quantification
+
+Small RNA-seq data processing followed a specialized workflow optimized for short reads. We assessed raw sRNA-seq reads (typically 15-30bp) using FastQC, with MultiQC providing aggregated quality metrics across samples. Adapter trimming was performed using fastp with parameters optimized for small RNAs, including aggressive adapter trimming for short inserts, removal of poly-G tails, retention of 18-31bp reads typical of mature miRNAs, and minimum quality score filtering.
+
+For miRNA discovery and annotation, we used ShortStack (v4.1.0) (Axtell, 2013; Shahid & Axtell, 2014; Johnson et al., 2016) with a customized cnidarian miRNA database (miRBase v22.1) curated by Jill Ashley, which includes published cnidarian miRNAs from multiple species. ShortStack performed short read alignment to species-specific reference genomes, detected small RNA-producing loci, compared them against the known miRNA database for annotation, and predicted novel miRNA candidates de novo. The analysis included secondary structure prediction for miRNA precursor hairpins and evaluation of 5p/3p arm expression patterns to assess strand bias.
+
+ShortStack generated raw count matrices as tab-delimited text files containing genomic coordinates and read counts per sample, with features including miRNA loci, genomic coordinates, strand information, and a MIRNA classification column. We processed these raw outputs using a custom R script to filter for confirmed miRNAs (retaining only rows with "Y" in the MIRNA column), remove coordinate and classification columns, and extract sample identifiers from column headers. Sample names were standardized by matching sequencing sample identifiers to biological metadata and reformatting to the convention AzentaSampleName_ColonyID_Timepoint. We validated accurate mapping between original and renamed samples before generating the final formatted count matrix with miRNA identifiers as row names, standardized sample identifiers as column names, and raw read counts as values.
+
+## Long Non-coding RNA Discovery and Quantification
+
+Long non-coding RNA (lncRNA) discovery employed a multi-step computational pipeline combining alignment, assembly, classification, and coding potential assessment. Using the same trimmed RNA-seq reads as the gene expression analysis, we performed splice-aware alignment to reference genomes using HISAT2 to detect novel transcripts, producing coordinate-sorted BAM files. We then used StringTie for reference-guided transcript assembly using genome annotations, generating per-sample GTF files which were subsequently combined into a unified transcript catalog.
+
+To classify assembled transcripts relative to reference annotations, we used GFFcompare (v0.12.6), focusing on novel transcripts with specific class codes: "u" (unknown intergenic transcripts representing potential lncRNAs), "x" (exonic overlap with reference on opposite strand), "o" (generic exonic overlap with reference), and "i" (intronic, fully contained within reference intron). We applied a minimum length filter of 200 nucleotides, consistent with the standard lncRNA definition, to distinguish lncRNAs from small regulatory RNAs and degradation products.
+
+To assess coding potential of candidate lncRNAs, we first extracted sequences for candidate transcripts using BEDtools getfasta with the genome FASTA and filtered GTF coordinates, using the -name and -split parameters for proper handling of multi-exonic transcripts. We then used Coding Potential Calculator 2 (CPC2 v1.0.1), which employs machine learning-based prediction using features including ORF length, ORF coverage, Fickett score, and isoelectric point to provide binary coding/noncoding classification. Transcripts classified as "noncoding" by CPC2 using default thresholds were retained as confirmed lncRNAs.
+
+We quantified lncRNA expression using featureCounts (Subread v2.0.5) with our custom lncRNA GTF file from the discovery pipeline. Count generation used the lncRNA feature type designation with gene_id attribute for grouping, paired-end mode for proper fragment counting, and fractional counting for overlapping features (-O --fraction flags), with multi-threading for parallel processing. Generated count matrices were processed through multiple cleaning steps: column names were cleaned using awk to remove full file paths and .sorted.bam suffixes, retaining only base sample identifiers. We then applied quality filtering using a custom Python script (11-filter_count_matrix.py) to remove lncRNAs with fewer than 10 reads in more than 50% of samples, eliminating low-confidence lncRNAs with insufficient coverage. The final clean count matrix was formatted as a tab-delimited text file with lncRNA gene IDs as rows, sample identifiers as columns, and raw read counts per lncRNA per sample as values.
+
+## Whole Genome Bisulfite Sequencing DNA Methylation Analysis
+
+We performed quality assessment of raw WGBS data using FastQC and MultiQC, noting that base composition skew and apparent C-to-T conversion artifacts are expected in bisulfite-treated sequences due to cytosine deamination. Reads were trimmed using fastp with detection and removal of methylation adapter sequences and trimming of low-quality bases from read ends. 
+
+For alignment, we first prepared bisulfite-converted reference genomes using Bismark (v0.24.0), which generated both C-to-T and G-to-A converted reference genomes and created Bowtie2 (v2.4.4) indexes for both converted strands using multi-threading (--parallel 28) with verbose output for tracking conversion progress. Trimmed reads were aligned to the bisulfite-converted genomes using Bismark in paired-end mode with the Bowtie2 backend, maintaining mate pair information for improved mapping accuracy while using parallel processing (-p 8) and performing strand-specific mapping to separate alignments to OT (original top), CTOT, OB, and CTOB strands. We tested multiple alignment stringency parameters (score_min values of L,0,-0.4; L,0,-0.6; L,0,-0.8; L,0,-1.0; and L,-1,-0.6) to optimize mapping efficiency and alignment quality metrics.
+
+Following alignment, we removed PCR duplicates using Bismark deduplicate_bismark, which identifies and removes reads with identical mapping positions while considering both mate positions for duplicate determination in paired-end mode. Deduplicated BAM files were then sorted by genomic coordinates and indexed using SAMtools (--threads 24) to create BAI index files for rapid access.
+
+We quantified methylation levels using Bismark methylation_extractor, which extracted methylation in CpG, CHG, and CHH contexts while maintaining original strand information and generating coverage files for each cytosine position along with genome-wide methylation tracks in bedgraph format. For each cytosine position, we extracted chromosome and position coordinates, strand orientation, counts of reads supporting methylation and unmethylation, sequence context (CpG, CHG, or CHH), and calculated methylation percentage as (methylated reads / (methylated + unmethylated reads)) × 100.
+
+Methylation data were filtered and formatted for downstream analysis by applying coverage thresholds requiring minimum read depth for reliable quantification at each site and minimum representation across samples. For example, sites were required to have at least 20 reads coverage in a sufficient number of samples. The final count matrices were formatted as CSV files with rows representing CpG sites (genomic coordinates), columns representing samples, and values representing methylation percentages or raw methylated/unmethylated counts, ensuring compatibility with R-based analysis tools.
+
+## Quality Control and Data Processing Standards
+
+Across all molecular data types, we applied consistent quality control principles throughout the analytical workflow. Pre-processing quality control included comprehensive quality metrics visualization using FastQC and MultiQC, detection of technical sequences for removal, evaluation of per-base and per-read quality scores, and verification of expected fragment size distributions. Post-processing quality control assessed alignment statistics including mapping rates, duplicate rates, and properly paired read percentages, evaluated sequencing depth across features and genomic regions, examined count matrix distributions, and verified biological replicate similarity through sample correlation analysis.
+
+Data type-specific filtering criteria were applied to ensure data quality. For RNA-seq and lncRNA data, we removed genes and transcripts with insufficient expression, requiring a minimum of 10 reads in at least 50% of samples to ensure reliable quantification. For miRNA data, we retained only confirmed miRNAs based on ShortStack classification (MIRNA = "Y") and miRBase homology, with additional read count minimums applied to remove spurious low-count features. For DNA methylation data, we required minimum read depth per CpG site (typically 10-20× coverage), adequate coverage across a minimum number of samples, and applied separate filters for CpG, CHG, and CHH sequence contexts.
+
+All analytical pipelines generated raw, unnormalized count matrices that preserved integer read or fragment counts per feature without pre-normalization, retaining complete feature sets before filtering to enable appropriate statistical modeling. Count matrices followed a consistent structure across all data types: rows represented genomic features (genes, transcripts, lncRNAs, miRNAs, or CpG sites), columns represented samples with standardized naming following the format SampleID_ColonyID_Timepoint, the first column contained feature identifiers (gene IDs, miRNA names, or genomic coordinates), and files were saved in tab-delimited text (.txt) or comma-separated values (.csv) formats. These raw count matrices were prepared for various downstream normalization approaches including DESeq2 size factor normalization accounting for library size and composition, trimmed mean of M-values (TMM) normalization in edgeR, transcripts per million (TPM) or fragments per kilobase per million (FPKM) for length normalization, and methylation percentages which provide intrinsic normalization via (methylated/total) calculation.
+
+To enable multi-omic integration, we applied consistent sample identifiers across all data types using the format SampleID_ColonyID_Timepoint (e.g., A001_Colony1_TP1). Sample names were systematically linked to experimental metadata tracking sample information (species, colony ID, timepoint, extraction date), sequencing information (run ID, lane, barcode, read length), quality metrics (reads passed filter, alignment rate, library size), and file provenance (input files, software versions, parameter settings). All analyses maintained reproducibility through preservation of analysis code in version-controlled R Markdown and Quarto documents, complete documentation of parameter sets in code chunks, generation of MD5 checksums for all input and output files, and thorough documentation of software versions for all tools used.
 
 ## Software and Tool Versions
 
