@@ -20,50 +20,61 @@ def read_normalized_csv(path: str) -> pd.DataFrame:
     return df
 
 
-def parse_sample_timepoint(column_name: str) -> Tuple[str, int]:
-    # Expect <SAMPLE>.<TP#>, e.g., POC.201.TP3
-    parts = column_name.split('.')
-    if len(parts) < 3:
-        raise ValueError(f"Unexpected column format (need SAMPLE.TP#): {column_name}")
-    # sample id is everything before the last token (TP#)
-    time_token = parts[-1]
+def parse_sample_timepoint(column_name: str) -> Tuple[str, str, int]:
+    # Expect <SAMPLE>-TP#, e.g., ACR-139-TP1
+    # Also extract species from sample prefix (ACR->apul, POR->peve, POC->ptua)
+
+    # Find the last occurrence of '-TP' to split sample_id and timepoint
+    tp_index = column_name.rfind('-TP')
+    if tp_index == -1:
+        raise ValueError(f"Expected TP# token at end of column: {column_name}")
+
+    # Extract timepoint
+    time_token = column_name[tp_index + 1:]
     if not time_token.startswith('TP'):
         raise ValueError(f"Expected TP# token at end of column: {column_name}")
     try:
         tp = int(time_token.replace('TP', ''))
     except Exception as exc:
         raise ValueError(f"Failed to parse timepoint from {column_name}") from exc
-    sample_id = '.'.join(parts[:-1])
-    return sample_id, tp
+
+    # Extract sample_id (everything before '-TP#')
+    sample_id = column_name[:tp_index]
+
+    # Extract species from sample prefix
+    sample_prefix = sample_id.split('-')[0]
+    species_map = {'ACR': 'apul', 'POR': 'peve', 'POC': 'ptua'}
+    if sample_prefix not in species_map:
+        raise ValueError(f"Unknown species prefix in column: {column_name}")
+
+    species = species_map[sample_prefix]
+
+    return species, sample_id, tp
 
 
 def build_tensor(
-    species_to_df: Dict[str, pd.DataFrame],
+    df: pd.DataFrame,
     expected_timepoints: List[int],
 ) -> Tuple[np.ndarray, List[str], Dict[int, Dict[str, str]], List[str]]:
-    # Intersect genes
-    common_genes = None
-    for _, df in species_to_df.items():
-        common_genes = df.index if common_genes is None else common_genes.intersection(df.index)
-    common_genes = sorted(list(common_genes))
-    if len(common_genes) == 0:
-        raise ValueError("No intersecting group_id genes across species")
+    # Intersect genes - all genes are already in the merged dataframe
+    common_genes = sorted(list(df.index))
 
-    # Parse columns per species
-    species_info = {}
-    for species, df in species_to_df.items():
-        sample_ids = []
-        sample_map = {}
-        for col in df.columns:
-            sample_id, tp = parse_sample_timepoint(col)
+    # Parse columns to extract species, sample_id, and timepoint
+    species_info = {'apul': {'sample_ids': [], 'sample_map': {}},
+                   'peve': {'sample_ids': [], 'sample_map': {}},
+                   'ptua': {'sample_ids': [], 'sample_map': {}}}
+
+    for col in df.columns:
+        try:
+            species, sample_id, tp = parse_sample_timepoint(col)
             if tp in expected_timepoints:
-                sample_map[(sample_id, tp)] = col
-                if sample_id not in sample_ids:
-                    sample_ids.append(sample_id)
-        species_info[species] = {
-            'sample_ids': sample_ids,
-            'sample_map': sample_map,
-        }
+                key = (sample_id, tp)
+                species_info[species]['sample_map'][key] = col
+                if sample_id not in species_info[species]['sample_ids']:
+                    species_info[species]['sample_ids'].append(sample_id)
+        except ValueError:
+            # Skip columns that don't match expected format (like 'group_id')
+            continue
 
     # Build combined sample list preserving species blocks and sample order
     sample_labels: List[str] = []
@@ -71,7 +82,6 @@ def build_tensor(
     all_columns: List[str] = []
     combined_idx = 0
     for species in ['apul', 'peve', 'ptua']:
-        df = species_to_df[species]
         info = species_info[species]
         for sample_id in info['sample_ids']:
             cols = []
@@ -102,7 +112,6 @@ def build_tensor(
     # Fill tensor
     for s_idx, label in enumerate(sample_labels):
         species, sample_id = label.split('_', 1)
-        df = species_to_df[species]
         for t_idx, tp in enumerate(expected_timepoints):
             key = (sample_id, tp)
             col = species_info[species]['sample_map'].get(key)
@@ -245,7 +254,7 @@ def save_outputs(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description='Build tensor and run Barnacle SparseCP')
-    parser.add_argument('--input-dir', required=True, help='Directory with *normalized_expression.csv files')
+    parser.add_argument('--input-file', required=True, help='Path to merged vst_counts_matrix.csv file')
     parser.add_argument('--output-dir', required=True, help='Output directory for results')
     parser.add_argument('--rank', type=int, default=5)
     parser.add_argument('--lambda-gene', type=float, default=0.1)
@@ -256,20 +265,14 @@ def main() -> None:
     parser.add_argument('--seed', type=int, default=42)
     args = parser.parse_args()
 
-    input_dir = args.input_dir
+    input_file = args.input_file
     output_dir = args.output_dir
 
-    expected_files = {
-        'apul': os.path.join(input_dir, 'apul_normalized_expression.csv'),
-        'peve': os.path.join(input_dir, 'peve_normalized_expression.csv'),
-        'ptua': os.path.join(input_dir, 'ptua_normalized_expression.csv'),
-    }
-    for sp, p in expected_files.items():
-        if not os.path.exists(p):
-            raise FileNotFoundError(f"Missing input for {sp}: {p}")
+    if not os.path.exists(input_file):
+        raise FileNotFoundError(f"Input file not found: {input_file}")
 
-    species_to_df = {sp: read_normalized_csv(p) for sp, p in expected_files.items()}
-    tensor, sample_labels, species_sample_map, genes = build_tensor(species_to_df, expected_timepoints=[1, 2, 3, 4])
+    df = read_normalized_csv(input_file)
+    tensor, sample_labels, species_sample_map, genes = build_tensor(df, expected_timepoints=[1, 2, 3, 4])
 
     model, decomposition = run_sparse_cp(
         tensor=tensor,

@@ -1,21 +1,19 @@
 # 14.1-barnacle
 
-This directory contains a Python CLI to build a 3D tensor from normalized per‑species expression matrices and run Barnacle sparse CP decomposition.
+This directory contains a Python CLI to build a 3D tensor from a merged normalized expression matrix and run Barnacle sparse CP decomposition.
 
 ## Inputs
 
-- Normalized CSVs in `M-multi-species/output/13.00-multiomics-barnacle/`:
-  - `apul_normalized_expression.csv`
-  - `peve_normalized_expression.csv`
-  - `ptua_normalized_expression.csv`
+- Merged normalized CSV in `M-multi-species/output/14-pca-orthologs/`:
+  - `vst_counts_matrix.csv`
 
-Each CSV must have a `group_id` column and columns named like `<SAMPLE>.<TP#>` (e.g., `POC.201.TP3`).
+The CSV must have a `group_id` column and columns named like `<SAMPLE>.<TP#>` (e.g., `POC.201.TP3`), where the sample prefix indicates the species (ACR=Apulchra, POR=Peve, POC=Ptua).
 
 ## Usage
 
 ```bash
 uv run python M-multi-species/scripts/14.1-barnacle/build_tensor_and_run.py \
-  --input-dir M-multi-species/output/13.00-multiomics-barnacle \
+  --input-file M-multi-species/output/14-pca-orthologs/vst_counts_matrix.csv \
   --output-dir M-multi-species/output/14.1-barnacle \
   --rank 5 --lambda-gene 0.1 --lambda-sample 0.1 --lambda-time 0.05 \
   --max-iter 1000 --tol 1e-5 --seed 42

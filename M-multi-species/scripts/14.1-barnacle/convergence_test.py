@@ -82,7 +82,7 @@ def define_parameter_grid() -> List[Dict]:
     return param_combinations
 
 
-def run_single_test(params: Dict, input_dir: str, base_output_dir: str, test_id: int) -> Dict:
+def run_single_test(params: Dict, input_file: str, base_output_dir: str, test_id: int) -> Dict:
     """
     Run a single parameter combination test.
     Returns test results including convergence status and final loss.
@@ -93,7 +93,7 @@ def run_single_test(params: Dict, input_dir: str, base_output_dir: str, test_id:
     cmd = [
         'uv', 'run', 'python',
         '/Users/sr320/GitHub/timeseries_molecular/M-multi-species/scripts/14.1-barnacle/build_tensor_and_run.py',
-        '--input-dir', input_dir,
+        '--input-file', input_file,
         '--output-dir', output_dir,
         '--rank', '5',
         '--lambda-gene', str(params['lambda_gene']),
@@ -227,7 +227,7 @@ def print_summary(results: List[Dict]):
 
 def main():
     parser = argparse.ArgumentParser(description='Systematically test Barnacle convergence parameters')
-    parser.add_argument('--input-dir', required=True, help='Directory with normalized expression CSV files')
+    parser.add_argument('--input-file', required=True, help='Path to merged vst_counts_matrix.csv file')
     parser.add_argument('--output-dir', required=True, help='Base directory for test outputs')
     parser.add_argument('--results-file', default='convergence_test_results.csv',
                        help='Output file for results summary')
@@ -242,7 +242,7 @@ def main():
     # Run tests
     results = []
     for i, params in enumerate(param_combinations):
-        result = run_single_test(params, args.input_dir, args.output_dir, i + 1)
+        result = run_single_test(params, args.input_file, args.output_dir, i + 1)
         results.append(result)
 
         # Save intermediate results every 10 tests
