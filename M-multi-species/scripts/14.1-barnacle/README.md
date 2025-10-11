@@ -1,4 +1,4 @@
-# 14-barnacle
+# 14.1-barnacle
 
 This directory contains a Python CLI to build a 3D tensor from normalized per‑species expression matrices and run Barnacle sparse CP decomposition.
 
