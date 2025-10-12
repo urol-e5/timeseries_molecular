@@ -5,11 +5,17 @@ This directory contains a Python CLI to build a 3D tensor from normalized per‑
 ## Inputs
 
 - Normalized CSVs in `M-multi-species/output/13.00-multiomics-barnacle/`:
-  - `apul_normalized_expression.csv`
-  - `peve_normalized_expression.csv`
-  - `ptua_normalized_expression.csv`
+  - `apul_normalized_expression.csv` (Acropora pulchra)
+  - `peve_normalized_expression.csv` (Pocillopora verrucosa)
+  - `ptua_normalized_expression.csv` (Pocillopora meandrina)
 
-Each CSV must have a `group_id` column and columns named like `<SAMPLE>.<TP#>` (e.g., `POC.201.TP3`).
+Each CSV must have:
+- A `group_id` column containing ortholog group identifiers
+- Sample columns named like `<SPECIES_PREFIX>.<SAMPLE_ID>.<TP#>` where:
+  - `SPECIES_PREFIX` is ACR (Acropora pulchra), POR (Pocillopora verrucosa), or POC (Pocillopora meandrina)
+  - `SAMPLE_ID` is the unique sample identifier (e.g., 139, 145, 150)
+  - `TP#` is the timepoint (TP1, TP2, TP3, TP4)
+  - Example: `ACR.139.TP3`, `POR.216.TP1`, `POC.201.TP4`
 
 ## Usage
 
@@ -23,7 +29,7 @@ uv run python M-multi-species/scripts/17-barnacle/build_tensor_and_run.py \
 
 ## Outputs
 
-Written to `M-multi-species/output/14-barnacle/`:
+Written to `M-multi-species/output/17-barnacle/`:
 
 - `multiomics_tensor.npy`
 - `barnacle_factors/`

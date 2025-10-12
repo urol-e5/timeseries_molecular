@@ -13,22 +13,84 @@ import pandas as pd
 import numpy as np
 
 
-def define_parameter_grid() -> List[Dict]:
+def find_optimal_rank(input_file: str, base_output_dir: str) -> int:
     """
-    Define a comprehensive grid of parameters to test for convergence.
-    Returns a list of parameter combinations to test.
+    Test different rank values (5-35 in increments of 5) to find the optimal rank.
+    Uses baseline parameters and returns the rank with best convergence performance.
     """
-    # Current baseline parameters (from original script)
-    baseline = {
-        'max_iter': 1000,
-        'tol': 1e-5,
+    print("🔍 STEP 1: Finding optimal rank value...")
+
+    # Define rank values to test
+    rank_values = [5, 10, 15, 20, 25, 30, 35]
+
+    # Baseline parameters for rank testing
+    baseline_params = {
+        'max_iter': 10000,
+        'tol': 1e-4,
         'lambda_gene': 0.1,
         'lambda_sample': 0.1,
         'lambda_time': 0.05
     }
 
-    # Test different max_iter values
-    max_iter_values = [1000, 2000, 5000, 10000]
+    rank_results = []
+
+    for rank in rank_values:
+        print(f"\n🧪 Testing rank {rank}...")
+
+        # Create test parameters for this rank
+        test_params = {**baseline_params, 'rank': rank}
+
+        # Run single test
+        result = run_single_test(test_params, input_file, base_output_dir, rank)
+
+        # Store results with rank info
+        rank_results.append({
+            'rank': rank,
+            'converged': result['converged'],
+            'final_loss': result['final_loss'],
+            'success': result['success'],
+            'output_dir': result['output_dir']
+        })
+
+    # Analyze results to find best rank
+    # Prioritize convergence, then lowest loss
+    converged_results = [r for r in rank_results if r['converged'] and r['success']]
+
+    if converged_results:
+        # If multiple converged, choose the one with lowest loss
+        best_result = min(converged_results, key=lambda x: x['final_loss'] if x['final_loss'] is not None else float('inf'))
+        best_rank = best_result['rank']
+        print(f"✅ Best rank found: {best_rank} (converged with loss: {best_result['final_loss']})")
+    else:
+        # If no convergence, choose the one with lowest loss among successful runs
+        successful_results = [r for r in rank_results if r['success']]
+        if successful_results:
+            best_result = min(successful_results, key=lambda x: x['final_loss'] if x['final_loss'] is not None else float('inf'))
+            best_rank = best_result['rank']
+            print(f"⚠️  No convergence achieved. Best rank: {best_rank} (lowest loss: {best_result['final_loss']})")
+        else:
+            # Fallback to middle rank if nothing worked
+            best_rank = 20
+            print(f"❌ No successful runs. Using fallback rank: {best_rank}")
+
+    print(f"\n📊 Rank testing summary:")
+    for result in rank_results:
+        status = "✅" if result['converged'] else "❌"
+        loss = f" (loss: {result['final_loss']})" if result['final_loss'] else ""
+        print(f"  Rank {result['rank']}: {status}{loss}")
+
+    return best_rank
+
+
+def define_parameter_grid(optimal_rank: int) -> List[Dict]:
+    """
+    Define a comprehensive grid of parameters to test for convergence for a specific rank.
+    Returns a list of parameter combinations to test for the optimal rank.
+    """
+    print(f"🎯 STEP 2: Optimizing parameters for rank {optimal_rank}...")
+
+    # Test different max_iter values (increased to 25000 as requested)
+    max_iter_values = [1000, 2000, 5000, 10000, 15000, 20000, 25000]
 
     # Test different tolerance values
     tol_values = [1e-5, 1e-4, 1e-3]
@@ -53,27 +115,30 @@ def define_parameter_grid() -> List[Dict]:
         {'lambda_gene': 0.1, 'lambda_sample': 0.1, 'lambda_time': 0.2},
     ]
 
-    # Generate all combinations
+    # Generate all combinations for the optimal rank
     param_combinations = []
     for max_iter in max_iter_values:
         for tol in tol_values:
             for lambda_combo in lambda_combinations:
                 combo = {
+                    'rank': optimal_rank,
                     'max_iter': max_iter,
                     'tol': tol,
                     **lambda_combo
                 }
                 param_combinations.append(combo)
 
-    # Also add some specific promising combinations
+    # Also add some specific promising combinations for the optimal rank
     promising_combos = [
         # High iterations, relaxed tolerance, moderate regularization
-        {'max_iter': 5000, 'tol': 1e-4, 'lambda_gene': 0.1, 'lambda_sample': 0.1, 'lambda_time': 0.05},
-        {'max_iter': 10000, 'tol': 1e-4, 'lambda_gene': 0.1, 'lambda_sample': 0.1, 'lambda_time': 0.05},
+        {'rank': optimal_rank, 'max_iter': 5000, 'tol': 1e-4, 'lambda_gene': 0.1, 'lambda_sample': 0.1, 'lambda_time': 0.05},
+        {'rank': optimal_rank, 'max_iter': 10000, 'tol': 1e-4, 'lambda_gene': 0.1, 'lambda_sample': 0.1, 'lambda_time': 0.05},
         # High iterations, very relaxed tolerance, moderate regularization
-        {'max_iter': 5000, 'tol': 1e-3, 'lambda_gene': 0.1, 'lambda_sample': 0.1, 'lambda_time': 0.05},
+        {'rank': optimal_rank, 'max_iter': 5000, 'tol': 1e-3, 'lambda_gene': 0.1, 'lambda_sample': 0.1, 'lambda_time': 0.05},
         # Very high iterations, relaxed tolerance, increased regularization
-        {'max_iter': 10000, 'tol': 1e-4, 'lambda_gene': 0.5, 'lambda_sample': 0.1, 'lambda_time': 0.05},
+        {'rank': optimal_rank, 'max_iter': 10000, 'tol': 1e-4, 'lambda_gene': 0.5, 'lambda_sample': 0.1, 'lambda_time': 0.05},
+        # Maximum iterations test
+        {'rank': optimal_rank, 'max_iter': 25000, 'tol': 1e-4, 'lambda_gene': 0.1, 'lambda_sample': 0.1, 'lambda_time': 0.05},
     ]
 
     param_combinations.extend(promising_combos)
@@ -95,7 +160,7 @@ def run_single_test(params: Dict, input_file: str, base_output_dir: str, test_id
         '/Users/sr320/GitHub/timeseries_molecular/M-multi-species/scripts/14.1-barnacle/build_tensor_and_run.py',
         '--input-file', input_file,
         '--output-dir', output_dir,
-        '--rank', '5',
+        '--rank', str(params['rank']),
         '--lambda-gene', str(params['lambda_gene']),
         '--lambda-sample', str(params['lambda_sample']),
         '--lambda-time', str(params['lambda_time']),
@@ -133,6 +198,7 @@ def run_single_test(params: Dict, input_file: str, base_output_dir: str, test_id
                 'converged': converged,
                 'final_loss': final_loss,
                 'n_components': n_components,
+                'rank': params['rank'],
                 'max_iter': params['max_iter'],
                 'tol': params['tol'],
                 'lambda_gene': params['lambda_gene'],
@@ -157,6 +223,7 @@ def run_single_test(params: Dict, input_file: str, base_output_dir: str, test_id
                 'final_loss': None,
                 'success': False,
                 'return_code': result.returncode,
+                'rank': params['rank'],
                 'max_iter': params['max_iter'],
                 'tol': params['tol'],
                 'lambda_gene': params['lambda_gene'],
@@ -173,6 +240,7 @@ def run_single_test(params: Dict, input_file: str, base_output_dir: str, test_id
             'final_loss': None,
             'success': False,
             'return_code': -1,
+            'rank': params['rank'],
             'max_iter': params['max_iter'],
             'tol': params['tol'],
             'lambda_gene': params['lambda_gene'],
@@ -216,7 +284,7 @@ def print_summary(results: List[Dict]):
     if converged_tests:
         print("\n🏆 CONVERGED PARAMETER COMBINATIONS:")
         for test in converged_tests:
-            print(f"  Test {test['test_id']:03d}: max_iter={test['max_iter']}, tol={test['tol']}, "
+            print(f"  Test {test['test_id']:03d}: rank={test['rank']}, max_iter={test['max_iter']}, tol={test['tol']}, "
                   f"λ_gene={test['lambda_gene']}, λ_sample={test['lambda_sample']}, λ_time={test['lambda_time']}")
             print(f"    Final loss: {test['final_loss']}")
             print(f"    Output dir: {test['output_dir']}")
@@ -226,7 +294,7 @@ def print_summary(results: List[Dict]):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Systematically test Barnacle convergence parameters')
+    parser = argparse.ArgumentParser(description='Two-step Barnacle convergence testing: rank optimization then parameter optimization')
     parser.add_argument('--input-file', required=True, help='Path to merged vst_counts_matrix.csv file')
     parser.add_argument('--output-dir', required=True, help='Base directory for test outputs')
     parser.add_argument('--results-file', default='convergence_test_results.csv',
@@ -236,10 +304,17 @@ def main():
     # Create output directory
     os.makedirs(args.output_dir, exist_ok=True)
 
-    # Define parameter grid
-    param_combinations = define_parameter_grid()
+    print(f"🚀 Starting two-step convergence testing for Barnacle")
+    print(f"📁 Input file: {args.input_file}")
+    print(f"📁 Output directory: {args.output_dir}")
 
-    # Run tests
+    # Step 1: Find optimal rank
+    optimal_rank = find_optimal_rank(args.input_file, args.output_dir)
+
+    # Step 2: Optimize parameters for the optimal rank
+    param_combinations = define_parameter_grid(optimal_rank)
+
+    # Run parameter optimization tests
     results = []
     for i, params in enumerate(param_combinations):
         result = run_single_test(params, args.input_file, args.output_dir, i + 1)

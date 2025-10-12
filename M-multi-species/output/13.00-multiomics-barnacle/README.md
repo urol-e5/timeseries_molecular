@@ -11,6 +11,7 @@ This folder contains outputs produced by `scripts/13.00-multiomics-barnacle.Rmd`
 - `apul_normalized_expression.csv` — Normalized Acropora pulchra expression matrix (sctransform::vst or log2(CPM+1) fallback).
 - `apul_ortholog_expression.csv` — Acropora pulchra expression matrix aligned to ortholog `group_id`.
 - `multiomics_tensor.npy` — NumPy binary file storing the 3D tensor used for decomposition. Tensor shape: (genes, combined_species_samples, timepoints).
+- `normalized_merged_ortholog_expression.csv` — Merged ortholog expression matrix combining all three species with sample columns in format `<SPECIES_PREFIX>-<SAMPLE_ID>-<TP#>` (e.g., `ACR-139-TP1`).
 - `peve_normalized_expression.csv` — Normalized Pocillopora verrucosa expression matrix (sctransform::vst or log2(CPM+1) fallback).
 - `peve_ortholog_expression.csv` — Pocillopora verrucosa expression matrix aligned to ortholog `group_id`.
 - `ptua_normalized_expression.csv` — Normalized Pocillopora meandrina expression matrix (sctransform::vst or log2(CPM+1) fallback).
