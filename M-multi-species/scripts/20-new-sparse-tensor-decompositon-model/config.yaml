@@ -1,0 +1,51 @@
+# Default configuration for tensor decomposition workflow
+
+# Input data settings
+input:
+  file_path: "M-multi-species/output/14-pca-orthologs/vst_counts_matrix.csv"
+  species_codes: ["ACR", "POR", "POC"]
+  timepoints: ["TP1", "TP2", "TP3", "TP4"]
+
+# Preprocessing settings
+preprocessing:
+  aggregation_method: "median"  # mean, median, trimmed_mean
+  trim_fraction: 0.1
+  normalization: "zscore"  # none, zscore, minmax, log1p
+  min_expression: 1.0
+  min_variance_percentile: 10.0
+  max_genes: null  # null for no limit
+
+# Tensor construction settings
+tensor:
+  output_dir: "output/tensor"
+
+# Optimization settings
+optimization:
+  n_trials: 100
+  rank_min: 2
+  rank_max: 12
+  lambda_min: 1e-4
+  lambda_max: 1.0
+  eval_metric: "masked_rmse"  # masked_rmse, reconstruction_error
+  output_dir: "output/optimization"
+
+# Model fitting settings
+fitting:
+  rank: 6
+  lambda_A: 0.1
+  lambda_B: 0.1
+  lambda_C: 0.1
+  non_negative: false
+  max_iter: 100
+  tolerance: 1e-6
+  output_dir: "output/fit"
+
+# Export settings
+export:
+  output_dir: "output/export"
+  plot_heatmaps: true
+
+# Logging settings
+logging:
+  level: "INFO"
+  file: null  # null for console only

@@ -1,0 +1,195 @@
+# New Sparse Tensor Decomposition Workflow
+
+A Python package for sparse CP tensor decomposition of multi-species time series molecular data using L1 regularization and Optuna hyperparameter optimization.
+
+## Installation
+
+### Using uv (recommended)
+
+```bash
+# Navigate to the package directory
+cd M-multi-species/scripts/20-new-sparse-tensor-decompositon-model
+
+# Create virtual environment and install dependencies
+uv venv
+uv pip install -e .
+```
+
+### Manual installation
+
+```bash
+pip install numpy pandas scipy tensorly optuna typer matplotlib pyyaml
+```
+
+## Quick Start
+
+### 1. Build Tensor
+
+```bash
+uv run new-tensor build-tensor \
+    --input M-multi-species/output/14-pca-orthologs/vst_counts_matrix.csv \
+    --agg median \
+    --norm zscore
+```
+
+### 2. Optimize Hyperparameters
+
+```bash
+uv run new-tensor optimize \
+    --n-trials 100 \
+    --rank-min 2 \
+    --rank-max 12
+```
+
+### 3. Fit Model
+
+```bash
+uv run new-tensor fit \
+    --rank 6 \
+    --nonneg
+```
+
+### 4. Export Results
+
+```bash
+uv run new-tensor export
+```
+
+## Command Reference
+
+### `build-tensor`
+
+Build 3D tensor from CSV data with replicate aggregation and normalization.
+
+**Options:**
+- `--input`: Path to input CSV file (required)
+- `--output-dir`: Output directory (default: output/tensor)
+- `--aggregation-method`: Replicate aggregation method (default: median)
+- `--normalization`: Normalization method (default: zscore)
+- `--min-expression`: Minimum expression threshold (default: 1.0)
+- `--min-variance-percentile`: Variance percentile threshold (default: 10.0)
+- `--config`: Path to config YAML file
+
+### `optimize`
+
+Run hyperparameter optimization using Optuna.
+
+**Options:**
+- `--tensor-path`: Path to input tensor .npz file (required)
+- `--output-dir`: Output directory (default: output/optimization)
+- `--n-trials`: Number of optimization trials (default: 100)
+- `--rank-min`: Minimum rank to try (default: 2)
+- `--rank-max`: Maximum rank to try (default: 12)
+- `--lambda-min`: Minimum L1 penalty (default: 1e-4)
+- `--lambda-max`: Maximum L1 penalty (default: 1.0)
+- `--config`: Path to config YAML file
+
+### `fit`
+
+Fit CP decomposition with specified parameters.
+
+**Options:**
+- `--tensor-path`: Path to input tensor .npz file (required)
+- `--output-dir`: Output directory (default: output/fit)
+- `--rank`: Rank for decomposition (required)
+- `--lambda-a`: L1 penalty for gene factors (default: 0.1)
+- `--lambda-b`: L1 penalty for species factors (default: 0.1)
+- `--lambda-c`: L1 penalty for time factors (default: 0.1)
+- `--non-negative`: Enforce non-negativity (default: false)
+- `--max-iter`: Maximum iterations (default: 100)
+- `--config`: Path to config YAML file
+
+### `export`
+
+Export results in various formats including plots.
+
+**Options:**
+- `--fit-dir`: Directory containing fit results (required)
+- `--mappings-dir`: Directory containing tensor mappings (required)
+- `--output-dir`: Output directory (default: output/export)
+- `--plot-heatmaps`: Generate factor heatmaps (default: true)
+
+## Configuration
+
+Use `config.yaml` to set default parameters:
+
+```yaml
+input:
+  file_path: "M-multi-species/output/14-pca-orthologs/vst_counts_matrix.csv"
+
+preprocessing:
+  aggregation_method: "median"
+  normalization: "zscore"
+
+optimization:
+  n_trials: 100
+  rank_min: 2
+  rank_max: 12
+
+fitting:
+  rank: 6
+  non_negative: false
+```
+
+## Output Structure
+
+```
+output/
+├── tensor/
+│   ├── tensor.npz
+│   ├── genes.csv
+│   ├── species.csv
+│   ├── timepoints.csv
+│   └── tensor_shapes.json
+├── optimization/
+│   ├── optuna_study.pkl
+│   ├── best_params.json
+│   ├── trials.csv
+│   └── top_trials.csv
+├── fit/
+│   ├── gene_factors.csv
+│   ├── species_factors.csv
+│   ├── time_factors.csv
+│   └── fit_metrics.json
+└── export/
+    ├── gene_factors_with_ids.csv
+    ├── species_factors_with_codes.csv
+    ├── time_factors_with_labels.csv
+    ├── decomposition_results.json
+    └── factor_heatmaps.png
+```
+
+## Algorithm Details
+
+### Sparse CP Decomposition
+
+The package implements sparse CP decomposition using Alternating Least Squares (ALS) with L1 regularization:
+
+```
+min 0.5‖X - [A,B,C]‖² + λ_A‖A‖₁ + λ_B‖B‖₁ + λ_C‖C‖₁
+```
+
+Where:
+- `X ∈ ℝ^{G×S×T}`: Gene expression tensor
+- `[A,B,C]`: CP decomposition with factors A (genes), B (species), C (time)
+- `λ_A, λ_B, λ_C`: L1 penalty parameters for sparsity
+
+### Hyperparameter Optimization
+
+Uses Optuna with cross-validation via random masking to optimize:
+- Rank R (number of components)
+- L1 penalties λ_A, λ_B, λ_C
+- Non-negativity constraints
+
+## Dependencies
+
+- **Core**: numpy, pandas, scipy
+- **Tensor operations**: tensorly
+- **Optimization**: optuna
+- **CLI**: typer
+- **Plotting**: matplotlib, seaborn
+- **Configuration**: pyyaml
+
+## License
+
+MIT License
