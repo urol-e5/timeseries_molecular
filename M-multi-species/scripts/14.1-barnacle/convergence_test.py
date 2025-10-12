@@ -15,13 +15,13 @@ import numpy as np
 
 def find_optimal_rank(input_file: str, base_output_dir: str) -> int:
     """
-    Test different rank values (5-35 in increments of 5) to find the optimal rank.
+    Test different rank values (xxxxx in increments of 5) to find the optimal rank.
     Uses baseline parameters and returns the rank with best convergence performance.
     """
     print("🔍 STEP 1: Finding optimal rank value...")
 
     # Define rank values to test
-    rank_values = [5, 10, 15, 20, 25, 30, 35]
+    rank_values = [30, 35, 40, 45, 50, 55, 60]
 
     # Baseline parameters for rank testing
     baseline_params = {
