@@ -10,49 +10,84 @@ A Python package for sparse CP tensor decomposition of multi-species time series
 # Navigate to the package directory
 cd M-multi-species/scripts/20-new-sparse-tensor-decompositon-model
 
-# Create virtual environment and install dependencies
-uv venv
+# Install package in editable mode
 uv pip install -e .
 ```
 
-### Manual installation
+### Using pip (alternative)
 
 ```bash
+# Navigate to the package directory
+cd M-multi-species/scripts/20-new-sparse-tensor-decompositon-model
+
+# Install dependencies
 pip install numpy pandas scipy tensorly optuna typer matplotlib pyyaml
+
+# The package can be run directly without installation using PYTHONPATH
 ```
 
 ## Quick Start
 
-### 1. Build Tensor
+### Using uv (if installed)
 
 ```bash
+# Navigate to the package directory
+cd M-multi-species/scripts/20-new-sparse-tensor-decompositon-model
+
+# 1. Build Tensor
 uv run new-tensor build-tensor \
-    --input M-multi-species/output/14-pca-orthologs/vst_counts_matrix.csv \
-    --agg median \
-    --norm zscore
-```
+    --input-path /Users/sr320/Documents/GitHub/timeseries_molecular/M-multi-species/output/14-pca-orthologs/vst_counts_matrix.csv \
+    --aggregation-method median \
+    --normalization zscore
 
-### 2. Optimize Hyperparameters
-
-```bash
+# 2. Optimize Hyperparameters
 uv run new-tensor optimize \
-    --n-trials 100 \
+    --tensor-path output/tensor/tensor.npz \
+    --n-trials 50 \
     --rank-min 2 \
-    --rank-max 12
-```
+    --rank-max 8
 
-### 3. Fit Model
-
-```bash
+# 3. Fit Model
 uv run new-tensor fit \
-    --rank 6 \
-    --nonneg
+    --tensor-path output/tensor/tensor.npz \
+    --rank 5 \
+    --non-negative
+
+# 4. Export Results
+uv run new-tensor export \
+    --fit-dir output/fit \
+    --mappings-dir output/tensor
 ```
 
-### 4. Export Results
+### Using direct Python execution (works without uv)
 
 ```bash
-uv run new-tensor export
+# Navigate to the package directory
+cd M-multi-species/scripts/20-new-sparse-tensor-decompositon-model
+
+# 1. Build Tensor
+PYTHONPATH=src python -m new_tensor.cli build-tensor \
+    --input-path /Users/sr320/Documents/GitHub/timeseries_molecular/M-multi-species/output/14-pca-orthologs/vst_counts_matrix.csv \
+    --aggregation-method median \
+    --normalization zscore
+
+# 2. Optimize Hyperparameters
+PYTHONPATH=src python -m new_tensor.cli optimize \
+    --tensor-path output/tensor/tensor.npz \
+    --n-trials 50 \
+    --rank-min 2 \
+    --rank-max 8
+
+# 3. Fit Model
+PYTHONPATH=src python -m new_tensor.cli fit \
+    --tensor-path output/tensor/tensor.npz \
+    --rank 5 \
+    --non-negative
+
+# 4. Export Results
+PYTHONPATH=src python -m new_tensor.cli export \
+    --fit-dir output/fit \
+    --mappings-dir output/tensor
 ```
 
 ## Command Reference
@@ -62,7 +97,7 @@ uv run new-tensor export
 Build 3D tensor from CSV data with replicate aggregation and normalization.
 
 **Options:**
-- `--input`: Path to input CSV file (required)
+- `--input-path`: Path to input CSV file (required)
 - `--output-dir`: Output directory (default: output/tensor)
 - `--aggregation-method`: Replicate aggregation method (default: median)
 - `--normalization`: Normalization method (default: zscore)
@@ -180,6 +215,26 @@ Uses Optuna with cross-validation via random masking to optimize:
 - Rank R (number of components)
 - L1 penalties λ_A, λ_B, λ_C
 - Non-negativity constraints
+
+## Alternative Execution Methods
+
+### If uv is not available
+
+If you don't have `uv` installed, you can run the workflow using direct Python execution:
+
+```bash
+# Navigate to the package directory
+cd M-multi-species/scripts/20-new-sparse-tensor-decompositon-model
+
+# Run commands with PYTHONPATH set
+PYTHONPATH=src python -m new_tensor.cli [COMMAND] [OPTIONS]
+```
+
+### Troubleshooting
+
+- **Module not found errors**: Make sure you're in the correct directory and using `PYTHONPATH=src`
+- **Command not found**: If `uv` is not installed, use the direct Python execution method above
+- **Permission errors**: Ensure you have write permissions in the output directories
 
 ## Dependencies
 
