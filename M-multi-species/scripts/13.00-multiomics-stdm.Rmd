@@ -1493,10 +1493,13 @@ if latest_dir:
     plt.figure(figsize=(16, 6))
     species_data = species_factors[:, top_5_components]
     
+    # Add a labeled colorbar so readers know what the colors represent
     sns.heatmap(species_data.T,
                 xticklabels=[f"{name[:8]}..." if len(name) > 8 else name for name in species_names],
                 yticklabels=[f'Component {i+1}' for i in top_5_components],
-                cmap='RdBu_r', center=0)
+                cmap='RdBu_r', center=0,
+                cbar=True, cbar_kws={'label': 'Species factor value (loading)'},
+                linewidths=0.5)
     plt.title('Top 5 Components: Species Patterns')
     plt.xlabel('Individual')
     plt.ylabel('Component')
