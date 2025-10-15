@@ -25,7 +25,61 @@ citeproc: true
 ---
 # BACKGROUND
 
-This notebook will use Steven's [`workflow-stdm`](https://github.com/sr320/workflow-stdm) (GitHub repo) tensor decomposition project.
+This notebook performs tensor decomposition analysis on multi-species gene expression timeseries data using Steven's [`workflow-stdm`](https://github.com/sr320/workflow-stdm) (GitHub repo) tensor decomposition project.
+
+The analysis identifies optimal tensor rank through reconstruction error analysis and provides biological interpretations of gene expression patterns across species and time.
+
+## Analysis Overview
+
+The notebook conducts the following analyses:
+
+1. **Data Transformation**: Converts wide-format gene expression data to long format required by the stdm package
+2. **Rank Comparison**: Tests tensor decomposition across multiple ranks (2-15) to identify optimal number of components
+3. **Tensor Decomposition**: Performs PARAFAC decomposition to identify gene, species, and temporal patterns
+4. **Visualization**: Creates comprehensive plots to interpret biological patterns in the decomposition results
+
+## Input Files
+
+- **Primary Input**: `/home/shared/16TB_HDD_01/sam/gitrepos/sr320/workflow-stdm/input-data/vst_counts_matrix.csv`
+  - Wide-format VST-normalized gene expression data
+  - Columns: gene IDs and sample names (format: ACR-139-TP1, POR-216-TP2, etc.)
+  - Sample names encode: Species (ACR/POR/POC) - Individual ID - Timepoint (TP1-TP4)
+
+## Expected Output Structure
+
+```
+../output/13.00-multiomics-stdm/
+├── vst_counts_matrix_long_format.csv                    # Transformed input data
+├── YYYYMMDD_HHMMSS/                                     # Main timestamped results directory
+│   ├── rank_analysis.png                               # Rank selection visualization
+│   ├── rank_selection_summary.json                     # Optimal rank determination
+│   ├── optimal_tensor_decomposition_visualization_rank_X.png  # Comprehensive plots
+│   ├── plot_01_component_strengths_optimal_rank_X.png   # Individual visualizations
+│   ├── plot_02_temporal_heatmap_optimal_rank_X.png
+│   ├── plot_03_species_heatmap_optimal_rank_X.png
+│   ├── plot_04_temporal_trajectories_optimal_rank_X.png
+│   ├── plot_05_species_clustering_optimal_rank_X.png
+│   └── rank_comparison/                                 # Rank comparison results
+│       ├── rank_comparison_results.json                # Summary of all ranks tested
+│       ├── rank_02/                                    # Results for each rank
+│       │   └── YYYYMMDD_HHMMSS/                        # Timestamped stdm output
+│       │       ├── summary.json                        # Decomposition metrics
+│       │       ├── gene_factors.npy                    # Gene factor matrix
+│       │       ├── species_factors.npy                 # Species factor matrix
+│       │       ├── time_factors.npy                    # Time factor matrix
+│       │       ├── reconstructed_tensor.npy            # Reconstructed data
+│       │       └── rank_02_comprehensive_visualization.png
+│       ├── rank_03/
+│       │   └── YYYYMMDD_HHMMSS/
+│       │       └── [same structure as rank_02]
+│       └── ...                                         # Additional ranks (up to rank_15)
+```
+
+
+
+
+
+
 
 # SETUP
 
