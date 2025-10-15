@@ -1406,10 +1406,13 @@ if latest_dir:
     # Create heatmap
     plt.figure(figsize=(10, 6))
     time_data = time_factors[:, top_5_components]
+    # Add a labeled colorbar so readers know what the colors represent
     sns.heatmap(time_data.T, 
                 xticklabels=timepoint_names,
                 yticklabels=[f'Component {i+1}' for i in top_5_components],
-                cmap='RdBu_r', center=0, annot=True, fmt='.3f')
+                cmap='RdBu_r', center=0, annot=True, fmt='.3f',
+                cbar=True, cbar_kws={'label': 'Time factor value (loading)'} ,
+                linewidths=0.5)
     plt.title('Top 5 Components: Temporal Patterns')
     plt.xlabel('Timepoint')
     plt.ylabel('Component')
