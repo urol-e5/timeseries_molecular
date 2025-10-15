@@ -375,6 +375,9 @@ import json
 import os
 import glob
 
+# Suppress matplotlib object output
+plt.ioff()  # Turn off interactive mode to prevent automatic display
+
 # Get output directory and find the main results directory
 output_dir = r.output_dir
 
@@ -709,6 +712,9 @@ import json
 plt.style.use('default')
 sns.set_palette("husl")
 
+# Suppress matplotlib object output
+plt.ioff()  # Turn off interactive mode to prevent automatic display
+
 # Get output directory and find the main results directory
 output_dir = r.output_dir
 
@@ -908,12 +914,16 @@ if os.path.exists(comparison_results_file):
                 
                 plt.tight_layout()
                 
-                # Save rank-specific visualization
-                rank_plot_file = os.path.join(result_dir, f"rank_{rank:02d}_comprehensive_visualization.png")
+                # Save rank-specific visualization in the main results directory for easy access
+                rank_plot_file = os.path.join(main_results_dir, f"rank_{rank:02d}_comprehensive_visualization.png")
                 plt.savefig(rank_plot_file, dpi=300, bbox_inches='tight')
                 print(f"  Saved: {rank_plot_file}")
                 
-                plt.show()
+                # Also save in the rank-specific subdirectory
+                rank_subdir_plot = os.path.join(result_dir, f"rank_{rank:02d}_comprehensive_visualization.png")
+                plt.savefig(rank_subdir_plot, dpi=300, bbox_inches='tight')
+                
+                plt.close()  # Close the figure to free memory instead of showing all plots
                 
             except Exception as e:
                 print(f"  Error processing rank {rank}: {e}")
@@ -941,6 +951,9 @@ import json
 # Set up plotting style
 plt.style.use('default')
 sns.set_palette("husl")
+
+# Suppress matplotlib object output
+plt.ioff()  # Turn off interactive mode to prevent automatic display
 
 # Get output directory from R environment
 output_dir = r.output_dir
@@ -1304,6 +1317,9 @@ import glob
 import os
 import json
 
+# Suppress matplotlib object output
+plt.ioff()  # Turn off interactive mode to prevent automatic display
+
 # Get output directory from R environment
 output_dir = r.output_dir
 
@@ -1410,6 +1426,9 @@ import glob
 import os
 import json
 
+# Suppress matplotlib object output
+plt.ioff()  # Turn off interactive mode to prevent automatic display
+
 # Get output directory from R environment
 output_dir = r.output_dir
 
@@ -1515,6 +1534,9 @@ import seaborn as sns
 import glob
 import os
 import json
+
+# Suppress matplotlib object output
+plt.ioff()  # Turn off interactive mode to prevent automatic display
 
 # Get output directory from R environment
 output_dir = r.output_dir
@@ -1623,6 +1645,9 @@ import glob
 import os
 import json
 
+# Suppress matplotlib object output
+plt.ioff()  # Turn off interactive mode to prevent automatic display
+
 # Get output directory from R environment
 output_dir = r.output_dir
 
@@ -1728,6 +1753,9 @@ from sklearn.decomposition import PCA
 import glob
 import os
 import json
+
+# Suppress matplotlib object output
+plt.ioff()  # Turn off interactive mode to prevent automatic display
 
 # Get output directory from R environment
 output_dir = r.output_dir
@@ -1852,6 +1880,9 @@ import glob
 import os
 import json
 
+# Suppress matplotlib object output
+plt.ioff()  # Turn off interactive mode to prevent automatic display
+
 # Get output directory from R environment
 output_dir = r.output_dir
 
@@ -1943,6 +1974,9 @@ import glob
 import os
 import json
 
+# Suppress matplotlib object output
+plt.ioff()  # Turn off interactive mode to prevent automatic display
+
 # Get output directory from R environment
 output_dir = r.output_dir
 
@@ -2028,6 +2062,9 @@ import matplotlib.pyplot as plt
 import glob
 import os
 import json
+
+# Suppress matplotlib object output
+plt.ioff()  # Turn off interactive mode to prevent automatic display
 
 # Get output directory from R environment
 output_dir = r.output_dir
@@ -2149,6 +2186,9 @@ import glob
 import os
 import json
 
+# Suppress matplotlib object output
+plt.ioff()  # Turn off interactive mode to prevent automatic display
+
 # Get output directory from R environment
 output_dir = r.output_dir
 
@@ -2242,6 +2282,9 @@ import matplotlib.pyplot as plt
 import glob
 import os
 import json
+
+# Suppress matplotlib object output
+plt.ioff()  # Turn off interactive mode to prevent automatic display
 
 # Get output directory from R environment
 output_dir = r.output_dir
@@ -2338,6 +2381,9 @@ import seaborn as sns
 import glob
 import os
 import json
+
+# Suppress matplotlib object output
+plt.ioff()  # Turn off interactive mode to prevent automatic display
 
 # Get output directory from R environment
 output_dir = r.output_dir
@@ -2454,6 +2500,9 @@ import matplotlib.pyplot as plt
 import glob
 import os
 import json
+
+# Suppress matplotlib object output
+plt.ioff()  # Turn off interactive mode to prevent automatic display
 
 # Get output directory from R environment
 output_dir = r.output_dir
