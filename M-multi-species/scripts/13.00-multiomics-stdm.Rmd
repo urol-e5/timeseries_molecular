@@ -110,22 +110,54 @@ output_dir <- "../output/13.00-multiomics-stdm"
 
 #INPUT FILE(S)
 
-# CONDA
-conda_env_name <- c("/home/sam/programs/mambaforge/envs/sr320_stdm_py312_env")
-conda_path <- c("/opt/anaconda/anaconda3/bin/conda")
+# PYTHON ENVIRONMENT - Use the project's .venv environment
+python_path <- "/home/shared/16TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/.venv/bin/python"
 ```
 
-## Load [`workflow-stdm`](https://github.com/sr320/workflow-stdm) conda environment
+## Load project Python environment
 
-If this is successful, the first line of output should show that the Python being used is the one in your [`workflow-stdm`](https://github.com/sr320/workflow-stdm) conda environment path.
+The project uses a virtual environment (`.venv`) with all required packages including `stdm`. If this is successful, the Python path should show the `.venv` environment.
 
-E.g.
+```{r load-python-env, eval=TRUE}
+# Use the project's .venv Python environment directly
+library(reticulate)
 
-`python:         /home/sam/programs/mambaforge/envs/sr320_stdm_py312_env/bin/python`
+# Set Python path to the project's .venv
+use_python(python_path, required = TRUE)
 
-```{r load-conda-env, eval=TRUE}
-use_condaenv(condaenv = conda_env_name, conda = conda_path)
+# Show final configuration
 py_config()
+```
+
+## Test Python Environment
+
+Let's verify the Python environment has all required libraries:
+
+```{python test-environment, eval=TRUE}
+import sys
+print(f"Python executable: {sys.executable}")
+
+# Test problematic imports
+try:
+    import PIL
+    print("✓ PIL imported successfully")
+except ImportError as e:
+    print(f"✗ PIL import failed: {e}")
+
+try:
+    import matplotlib.pyplot as plt
+    print("✓ matplotlib.pyplot imported successfully")
+except ImportError as e:
+    print(f"✗ matplotlib.pyplot import failed: {e}")
+
+try:
+    import pandas as pd
+    import numpy as np
+    print("✓ pandas and numpy imported successfully")
+except ImportError as e:
+    print(f"✗ pandas/numpy import failed: {e}")
+
+print("Environment test completed.")
 ```
 
 # STDM ANALYSIS
