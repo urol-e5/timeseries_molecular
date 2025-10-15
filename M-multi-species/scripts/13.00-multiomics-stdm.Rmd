@@ -74,7 +74,7 @@ use_condaenv(condaenv = conda_env_name, conda = conda_path)
 py_config()
 ```
 
-# RUN STDM ANALYSIS
+# STDM ANALYSIS
 
 ## Transform data to stdm format
 
@@ -472,91 +472,7 @@ else:
     print(f"Rank comparison results file not found: {comparison_results_file}")
 ```
 
-## Run tensor decomposition with optimal rank
 
-Based on the rank comparison analysis, let's run the final decomposition with the suggested rank:
-
-```{python run-optimal-decomposition, eval=TRUE}
-import subprocess
-import os
-import json
-
-# Get output directory from R environment
-output_dir = r.output_dir
-
-# Find the main results directory and load rank selection summary
-if 'main_results_dir' in globals():
-    main_results_dir = globals()['main_results_dir']
-else:
-    # Fallback to find the most recent main results directory
-    main_result_dirs = glob.glob(os.path.join(output_dir, "20*"))
-    if main_result_dirs:
-        main_results_dir = max(main_result_dirs)
-    else:
-        main_results_dir = output_dir
-
-summary_file = os.path.join(main_results_dir, "rank_selection_summary.json")
-
-if os.path.exists(summary_file):
-    with open(summary_file, 'r') as f:
-        rank_summary = json.load(f)
-    
-    suggested_rank = rank_summary['suggested_rank']
-    
-    print(f"Using suggested rank: {suggested_rank}")
-    print(f"Based on: {'Elbow point analysis' if rank_summary['elbow_rank'] else 'Best reconstruction error'}")
-    
-    # Use the transformed data file
-    input_file = os.path.join(output_dir, "vst_counts_matrix_long_format.csv")
-    
-    # Create output directory for final analysis within main results
-    final_output_dir = os.path.join(main_results_dir, f"final_analysis_rank_{suggested_rank}")
-    os.makedirs(final_output_dir, exist_ok=True)
-    
-    print(f"Running final stdm decomposition with rank {suggested_rank}...")
-    print(f"Output directory: {final_output_dir}")
-    
-    # Run stdm with optimal rank
-    subprocess.run([
-        "stdm", "run",
-        "--input", input_file,
-        "--output", final_output_dir,
-        "--rank", str(suggested_rank),
-        "--method", "parafac",
-        "--sparsity-threshold", "0.01",
-        "--no-log-transform",
-        "--standardize",
-        "--verbose"
-    ])
-    
-    print(f"Final decomposition completed with rank {suggested_rank}")
-    
-else:
-    print("Rank selection summary not found. Using default rank 8 for demonstration.")
-    suggested_rank = 8
-    
-    # Use the transformed data file
-    input_file = os.path.join(output_dir, "vst_counts_matrix_long_format.csv")
-    
-    # Create output directory for final analysis within main results
-    final_output_dir = os.path.join(main_results_dir, f"final_analysis_rank_{suggested_rank}")
-    os.makedirs(final_output_dir, exist_ok=True)
-    
-    print(f"Running final stdm decomposition with rank {suggested_rank}...")
-    
-    # Run stdm with default rank
-    subprocess.run([
-        "stdm", "run",
-        "--input", input_file,
-        "--output", final_output_dir,
-        "--rank", str(suggested_rank),
-        "--method", "parafac",
-        "--sparsity-threshold", "0.01",
-        "--no-log-transform",
-        "--standardize",
-        "--verbose"
-    ])
-```
 
 ## Analyze optimal decomposition results
 
@@ -571,7 +487,7 @@ import os
 # Get output directory from R environment
 output_dir = r.output_dir
 
-# Find the main results directory and final analysis directory
+# Find the main results directory
 if 'main_results_dir' in globals():
     main_results_dir = globals()['main_results_dir']
 else:
@@ -582,105 +498,112 @@ else:
     else:
         main_results_dir = output_dir
 
-# Find the final analysis directory within main results
-final_analysis_dirs = glob.glob(os.path.join(main_results_dir, "final_analysis_rank_*"))
-if final_analysis_dirs:
-    final_analysis_dir = max(final_analysis_dirs)  # Get most recent
-    print(f"Analyzing optimal results from: {final_analysis_dir}")
+# Load rank selection summary to get optimal rank
+summary_file = os.path.join(main_results_dir, "rank_selection_summary.json")
+if os.path.exists(summary_file):
+    with open(summary_file, 'r') as f:
+        rank_summary = json.load(f)
     
-    # Find the most recent results directory within final analysis
-    result_dirs = glob.glob(os.path.join(final_analysis_dir, "20*"))
-    if result_dirs:
-        latest_dir = max(result_dirs)
-        
-        # Load summary
-        with open(os.path.join(latest_dir, "summary.json")) as f:
-            summary = json.load(f)
-        
-        print("\n" + "="*60)
-        print("OPTIMAL DECOMPOSITION QUALITY ASSESSMENT")
-        print("="*60)
-        
-        # Print key metrics
-        print(f"Method: {summary['method'].upper()}")
-        print(f"Rank: {summary['rank']} (data-driven selection)")
-        print(f"Reconstruction Error: {summary['reconstruction_error']:.6f}")
-        
-        # Quality interpretation
-        error = summary['reconstruction_error']
-        if error < 0.1:
-            quality = "Excellent (may be overfitting)"
-        elif error < 0.3:
-            quality = "Good"
-        elif error < 0.5:
-            quality = "Acceptable"
+    optimal_rank = rank_summary['suggested_rank']
+    print(f"Analyzing optimal rank {optimal_rank} results from rank comparison data")
+    
+    # Find the optimal rank data in rank_comparison directory
+    comparison_dir = os.path.join(main_results_dir, "rank_comparison")
+    optimal_rank_dir = os.path.join(comparison_dir, f"rank_{optimal_rank:02d}")
+    
+    if os.path.exists(optimal_rank_dir):
+        # Find the timestamped results within the rank directory
+        result_dirs = glob.glob(os.path.join(optimal_rank_dir, "20*"))
+        if result_dirs:
+            latest_dir = max(result_dirs)
+            print(f"Analyzing optimal results from: {latest_dir}")
+            
+            # Load summary
+            with open(os.path.join(latest_dir, "summary.json")) as f:
+                summary = json.load(f)
+            
+            print("\n" + "="*60)
+            print("OPTIMAL DECOMPOSITION QUALITY ASSESSMENT")
+            print("="*60)
+            
+            # Print key metrics
+            print(f"Method: {summary['method'].upper()}")
+            print(f"Rank: {summary['rank']} (data-driven selection)")
+            print(f"Reconstruction Error: {summary['reconstruction_error']:.6f}")
+            
+            # Quality interpretation
+            error = summary['reconstruction_error']
+            if error < 0.1:
+                quality = "Excellent (may be overfitting)"
+            elif error < 0.3:
+                quality = "Good"
+            elif error < 0.5:
+                quality = "Acceptable"
+            else:
+                quality = "Poor - consider increasing rank"
+            
+            print(f"Quality Assessment: {quality}")
+            
+            # Load factor matrices
+            gene_factors = np.load(os.path.join(latest_dir, "gene_factors.npy"))
+            species_factors = np.load(os.path.join(latest_dir, "species_factors.npy"))
+            time_factors = np.load(os.path.join(latest_dir, "time_factors.npy"))
+            
+            print(f"\nFactor Matrix Shapes:")
+            print(f"  Gene factors: {gene_factors.shape}")
+            print(f"  Species factors: {species_factors.shape}")
+            print(f"  Time factors: {time_factors.shape}")
+            
+            print(f"\nConvergence Check:")
+            print(f"  All factors finite: {np.all(np.isfinite(gene_factors)) and np.all(np.isfinite(species_factors)) and np.all(np.isfinite(time_factors))}")
+            print(f"  No NaN values: {not (np.any(np.isnan(gene_factors)) or np.any(np.isnan(species_factors)) or np.any(np.isnan(time_factors)))}")
+            
+            # Show component strengths
+            print(f"\nComponent Analysis:")
+            component_strengths = []
+            for i in range(summary['rank']):
+                gene_norm = np.linalg.norm(gene_factors[:, i])
+                species_norm = np.linalg.norm(species_factors[:, i])
+                time_norm = np.linalg.norm(time_factors[:, i])
+                total_strength = gene_norm * species_norm * time_norm
+                component_strengths.append(total_strength)
+            
+            # Sort components by strength
+            sorted_components = np.argsort(component_strengths)[::-1]
+            n_top = min(5, len(sorted_components))
+            print(f"  Top {n_top} strongest components: {sorted_components[:n_top] + 1}")  # +1 for 1-based indexing
+            
+            # Find most variable timepoints
+            print(f"\nTemporal Patterns:")
+            time_variance = np.var(time_factors, axis=0)
+            most_temporal = np.argsort(time_variance)[::-1][:n_top]
+            print(f"  Components with strongest temporal patterns: {most_temporal + 1}")
+            
+            # Species diversity
+            print(f"\nSpecies Patterns:")
+            species_variance = np.var(species_factors, axis=0)
+            most_species_specific = np.argsort(species_variance)[::-1][:n_top]
+            print(f"  Components with strongest species differences: {most_species_specific + 1}")
+            
+            print(f"\n" + "="*60)
+            print("CONCLUSION: The optimal decomposition successfully converged!")
+            print(f"Results saved in: {latest_dir}")
+            print("="*60)
+            
+            # Store latest_dir for subsequent analyses (this is now the rank_comparison data)
+            globals()['optimal_results_dir'] = latest_dir
+            
         else:
-            quality = "Poor - consider increasing rank"
-        
-        print(f"Quality Assessment: {quality}")
-        
-        # Load factor matrices
-        gene_factors = np.load(os.path.join(latest_dir, "gene_factors.npy"))
-        species_factors = np.load(os.path.join(latest_dir, "species_factors.npy"))
-        time_factors = np.load(os.path.join(latest_dir, "time_factors.npy"))
-        
-        print(f"\nFactor Matrix Shapes:")
-        print(f"  Gene factors: {gene_factors.shape}")
-        print(f"  Species factors: {species_factors.shape}")
-        print(f"  Time factors: {time_factors.shape}")
-        
-        print(f"\nConvergence Check:")
-        print(f"  All factors finite: {np.all(np.isfinite(gene_factors)) and np.all(np.isfinite(species_factors)) and np.all(np.isfinite(time_factors))}")
-        print(f"  No NaN values: {not (np.any(np.isnan(gene_factors)) or np.any(np.isnan(species_factors)) or np.any(np.isnan(time_factors)))}")
-        
-        # Show component strengths
-        print(f"\nComponent Analysis:")
-        component_strengths = []
-        for i in range(summary['rank']):
-            gene_norm = np.linalg.norm(gene_factors[:, i])
-            species_norm = np.linalg.norm(species_factors[:, i])
-            time_norm = np.linalg.norm(time_factors[:, i])
-            total_strength = gene_norm * species_norm * time_norm
-            component_strengths.append(total_strength)
-        
-        # Sort components by strength
-        sorted_components = np.argsort(component_strengths)[::-1]
-        n_top = min(5, len(sorted_components))
-        print(f"  Top {n_top} strongest components: {sorted_components[:n_top] + 1}")  # +1 for 1-based indexing
-        
-        # Find most variable timepoints
-        print(f"\nTemporal Patterns:")
-        time_variance = np.var(time_factors, axis=0)
-        most_temporal = np.argsort(time_variance)[::-1][:n_top]
-        print(f"  Components with strongest temporal patterns: {most_temporal + 1}")
-        
-        # Species diversity
-        print(f"\nSpecies Patterns:")
-        species_variance = np.var(species_factors, axis=0)
-        most_species_specific = np.argsort(species_variance)[::-1][:n_top]
-        print(f"  Components with strongest species differences: {most_species_specific + 1}")
-        
-        print(f"\n" + "="*60)
-        print("CONCLUSION: The optimal decomposition successfully converged!")
-        print(f"Results saved in: {latest_dir}")
-        print("="*60)
-        
-        # Store latest_dir for subsequent analyses
-        globals()['optimal_results_dir'] = latest_dir
-        
+            print(f"No timestamped results found in rank_{optimal_rank:02d} directory!")
     else:
-        print("No timestamped results directories found in final analysis!")
-        
+        print(f"Optimal rank {optimal_rank} directory not found in rank comparison!")
 else:
-    print("No final analysis directories found!")
-    # Fallback to original results in main directory
-    result_dirs = glob.glob(os.path.join(main_results_dir, "20*"))
-    if result_dirs:
-        globals()['optimal_results_dir'] = max(result_dirs)
-        print(f"Using fallback results from: {globals()['optimal_results_dir']}")
-    else:
-        print("No results directories found!")
+    print("No rank selection summary found!")
 ```
+
+
+# VISUALIZATIONS
+
 
 ## Generate visualizations for all tested ranks
 
@@ -915,7 +838,6 @@ else:
     print("Rank comparison results file not found!")
 ```
 
-# VISUALIZATIONS
 
 ## Visualize optimal decomposition results
 
@@ -928,6 +850,7 @@ from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 import glob
 import os
+import json
 
 # Set up plotting style
 plt.style.use('default')
@@ -936,12 +859,43 @@ sns.set_palette("husl")
 # Get output directory from R environment
 output_dir = r.output_dir
 
-# Use the optimal results directory (set in previous chunk)
-if 'optimal_results_dir' in globals() and optimal_results_dir:
-    latest_dir = optimal_results_dir
-    print(f"Using optimal analysis data from: {latest_dir}")
+# Find the main results directory
+if 'main_results_dir' in globals():
+    main_results_dir = globals()['main_results_dir']
 else:
-    print("Error: optimal_results_dir not found. Please run the 'Analyze optimal decomposition results' chunk first.")
+    main_result_dirs = glob.glob(os.path.join(output_dir, "20*"))
+    if main_result_dirs:
+        main_results_dir = max(main_result_dirs)
+    else:
+        main_results_dir = output_dir
+
+# Load rank selection summary to get optimal rank
+summary_file = os.path.join(main_results_dir, "rank_selection_summary.json")
+if os.path.exists(summary_file):
+    with open(summary_file, 'r') as f:
+        rank_summary = json.load(f)
+    
+    optimal_rank = rank_summary['suggested_rank']
+    print(f"Visualizing optimal rank {optimal_rank} results from rank comparison data")
+    
+    # Find the optimal rank data in rank_comparison directory
+    comparison_dir = os.path.join(main_results_dir, "rank_comparison")
+    optimal_rank_dir = os.path.join(comparison_dir, f"rank_{optimal_rank:02d}")
+    
+    if os.path.exists(optimal_rank_dir):
+        # Find the timestamped results within the rank directory
+        result_dirs = glob.glob(os.path.join(optimal_rank_dir, "20*"))
+        if result_dirs:
+            latest_dir = max(result_dirs)
+            print(f"Using optimal analysis data from: {latest_dir}")
+        else:
+            print(f"No timestamped results found in rank_{optimal_rank:02d} directory!")
+            latest_dir = None
+    else:
+        print(f"Optimal rank {optimal_rank} directory not found in rank comparison!")
+        latest_dir = None
+else:
+    print("No rank selection summary found!")
     latest_dir = None
 
 if latest_dir:
@@ -1226,8 +1180,8 @@ if latest_dir:
     
     plt.tight_layout()
     
-    # Save the plot
-    plot_file = os.path.join(latest_dir, "optimal_tensor_decomposition_visualization.png")
+    # Save the plot in main results directory
+    plot_file = os.path.join(main_results_dir, f"optimal_tensor_decomposition_visualization_rank_{optimal_rank}.png")
     plt.savefig(plot_file, dpi=300, bbox_inches='tight')
     print(f"\nOptimal visualization saved to: {plot_file}")
     
@@ -1251,7 +1205,7 @@ if latest_dir:
     print("12. Reconstruction Quality: How well the optimal model fits the data")
     
 else:
-    print("No results directories found!")
+    print("No optimal rank results found!")
 ```
 
 ## Individual Plot 1: Component Strengths
@@ -1262,14 +1216,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import glob
 import os
+import json
 
 # Get output directory from R environment
 output_dir = r.output_dir
-
-# Use the optimal results directory (set in previous chunk)
-# Only use final_analysis_rank_* directories - no fallbacks
-final_analysis_dir = None
-latest_dir = None
 
 # Look for main results directory
 if 'main_results_dir' in globals():
@@ -1281,22 +1231,38 @@ else:
     else:
         main_results_dir = None
 
-# Only proceed if we find final_analysis_rank_* directories
+# Get the optimal rank from the rank selection summary
 if main_results_dir:
-    final_analysis_dirs = glob.glob(os.path.join(main_results_dir, "final_analysis_rank_*"))
-    if final_analysis_dirs:
-        final_analysis_dir = max(final_analysis_dirs)
-        # Look for timestamped results within the final analysis directory
-        result_dirs = glob.glob(os.path.join(final_analysis_dir, "20*"))
-        if result_dirs:
-            latest_dir = max(result_dirs)
-            print(f"Using final analysis data from: {latest_dir}")
-        else:
-            print("No timestamped results found in final_analysis_rank_* directory!")
+    summary_file = os.path.join(main_results_dir, "rank_selection_summary.json")
+    if os.path.exists(summary_file):
+        with open(summary_file, 'r') as f:
+            rank_summary = json.load(f)
+        optimal_rank = rank_summary['suggested_rank']
+        print(f"Using optimal rank {optimal_rank} (from rank selection analysis)")
     else:
-        print("No final_analysis_rank_* directories found!")
+        print("No rank selection summary found! Cannot determine optimal rank.")
+        optimal_rank = None
+        main_results_dir = None
 else:
     print("No main results directory found!")
+    optimal_rank = None
+
+# Look for the optimal rank data in rank_comparison directory
+latest_dir = None
+if main_results_dir and optimal_rank:
+    comparison_dir = os.path.join(main_results_dir, "rank_comparison")
+    optimal_rank_dir = os.path.join(comparison_dir, f"rank_{optimal_rank:02d}")
+    
+    if os.path.exists(optimal_rank_dir):
+        # Find the timestamped results within the rank directory
+        result_dirs = glob.glob(os.path.join(optimal_rank_dir, "20*"))
+        if result_dirs:
+            latest_dir = max(result_dirs)
+            print(f"Using optimal rank {optimal_rank} data from: {latest_dir}")
+        else:
+            print(f"No timestamped results found in rank_{optimal_rank:02d} directory!")
+    else:
+        print(f"Optimal rank {optimal_rank} directory not found!")
 
 if latest_dir:
     
@@ -1323,7 +1289,7 @@ if latest_dir:
             [component_strengths[i] for i in sorted_components])
     plt.xlabel('Component (ranked by strength)')
     plt.ylabel('Component Strength')
-    plt.title('Component Strengths (Gene × Species × Time norms)')
+    plt.title(f'Component Strengths (Optimal Rank {optimal_rank})')
     
     # Set x-ticks to show all components if <= 10, otherwise show every 2nd or 5th
     n_components = len(component_strengths)
@@ -1336,13 +1302,15 @@ if latest_dir:
     
     plt.grid(True, alpha=0.3)
     
-    # Save individual plot in final analysis directory
-    if final_analysis_dir:
-        plot_file = os.path.join(final_analysis_dir, "plot_01_component_strengths.png")
+    # Save individual plot in main results directory
+    if main_results_dir:
+        plot_file = os.path.join(main_results_dir, f"plot_01_component_strengths_optimal_rank_{optimal_rank}.png")
         plt.savefig(plot_file, dpi=300, bbox_inches='tight')
         print(f"Component strengths plot saved to: {plot_file}")
     
     plt.show()
+else:
+    print(f"Could not load data for optimal rank {optimal_rank if optimal_rank else 'unknown'}")
 ```
 
 ## Individual Plot 2: Temporal Patterns Heatmap
@@ -1354,35 +1322,53 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import glob
 import os
+import json
 
 # Get output directory from R environment
 output_dir = r.output_dir
 
-# Use the optimal results directory and final analysis directory
-if 'optimal_results_dir' in globals():
-    latest_dir = optimal_results_dir
-    if 'main_results_dir' in globals():
-        main_results_dir = globals()['main_results_dir']
-        final_analysis_dirs = glob.glob(os.path.join(main_results_dir, "final_analysis_rank_*"))
-        final_analysis_dir = max(final_analysis_dirs) if final_analysis_dirs else latest_dir
-    else:
-        final_analysis_dir = latest_dir
+# Look for main results directory
+if 'main_results_dir' in globals():
+    main_results_dir = globals()['main_results_dir']
 else:
-    # Fallback logic (same as plot 1)
     main_result_dirs = glob.glob(os.path.join(output_dir, "20*"))
     if main_result_dirs:
         main_results_dir = max(main_result_dirs)
-        final_analysis_dirs = glob.glob(os.path.join(main_results_dir, "final_analysis_rank_*"))
-        if final_analysis_dirs:
-            final_analysis_dir = max(final_analysis_dirs)
-            result_dirs = glob.glob(os.path.join(final_analysis_dir, "20*"))
-            latest_dir = max(result_dirs) if result_dirs else None
-        else:
-            latest_dir = None
-            final_analysis_dir = None
     else:
-        latest_dir = None
-        final_analysis_dir = None
+        main_results_dir = None
+
+# Get the optimal rank from the rank selection summary
+if main_results_dir:
+    summary_file = os.path.join(main_results_dir, "rank_selection_summary.json")
+    if os.path.exists(summary_file):
+        with open(summary_file, 'r') as f:
+            rank_summary = json.load(f)
+        optimal_rank = rank_summary['suggested_rank']
+        print(f"Using optimal rank {optimal_rank} (from rank selection analysis)")
+    else:
+        print("No rank selection summary found! Cannot determine optimal rank.")
+        optimal_rank = None
+        main_results_dir = None
+else:
+    print("No main results directory found!")
+    optimal_rank = None
+
+# Look for the optimal rank data in rank_comparison directory
+latest_dir = None
+if main_results_dir and optimal_rank:
+    comparison_dir = os.path.join(main_results_dir, "rank_comparison")
+    optimal_rank_dir = os.path.join(comparison_dir, f"rank_{optimal_rank:02d}")
+    
+    if os.path.exists(optimal_rank_dir):
+        # Find the timestamped results within the rank directory
+        result_dirs = glob.glob(os.path.join(optimal_rank_dir, "20*"))
+        if result_dirs:
+            latest_dir = max(result_dirs)
+            print(f"Using optimal rank {optimal_rank} data from: {latest_dir}")
+        else:
+            print(f"No timestamped results found in rank_{optimal_rank:02d} directory!")
+    else:
+        print(f"Optimal rank {optimal_rank} directory not found!")
 
 if latest_dir:
     
@@ -1406,7 +1392,7 @@ if latest_dir:
         component_strengths.append(total_strength)
     
     sorted_components = np.argsort(component_strengths)[::-1]
-    top_5_components = sorted_components[:5]
+    top_5_components = sorted_components[:min(5, optimal_rank)]  # Use min to handle ranks < 5
     
     # Create heatmap
     plt.figure(figsize=(10, 6))
@@ -1418,17 +1404,19 @@ if latest_dir:
                 cmap='RdBu_r', center=0, annot=True, fmt='.3f',
                 cbar=True, cbar_kws={'label': 'Time factor value (loading)'} ,
                 linewidths=0.5)
-    plt.title('Top 5 Components: Temporal Patterns')
+    plt.title(f'Top {len(top_5_components)} Components: Temporal Patterns (Optimal Rank {optimal_rank})')
     plt.xlabel('Timepoint')
     plt.ylabel('Component')
     
-    # Save individual plot in final analysis directory
-    if final_analysis_dir:
-        plot_file = os.path.join(final_analysis_dir, "plot_02_temporal_heatmap.png")
+    # Save individual plot in main results directory
+    if main_results_dir:
+        plot_file = os.path.join(main_results_dir, f"plot_02_temporal_heatmap_optimal_rank_{optimal_rank}.png")
         plt.savefig(plot_file, dpi=300, bbox_inches='tight')
         print(f"Temporal patterns heatmap saved to: {plot_file}")
     
     plt.show()
+else:
+    print(f"Could not load data for optimal rank {optimal_rank if optimal_rank else 'unknown'}")
 ```
 
 ## Individual Plot 3: Species Patterns Heatmap
@@ -1440,35 +1428,53 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import glob
 import os
+import json
 
 # Get output directory from R environment
 output_dir = r.output_dir
 
-# Use the optimal results directory and final analysis directory
-if 'optimal_results_dir' in globals():
-    latest_dir = optimal_results_dir
-    if 'main_results_dir' in globals():
-        main_results_dir = globals()['main_results_dir']
-        final_analysis_dirs = glob.glob(os.path.join(main_results_dir, "final_analysis_rank_*"))
-        final_analysis_dir = max(final_analysis_dirs) if final_analysis_dirs else latest_dir
-    else:
-        final_analysis_dir = latest_dir
+# Look for main results directory
+if 'main_results_dir' in globals():
+    main_results_dir = globals()['main_results_dir']
 else:
-    # Fallback logic
     main_result_dirs = glob.glob(os.path.join(output_dir, "20*"))
     if main_result_dirs:
         main_results_dir = max(main_result_dirs)
-        final_analysis_dirs = glob.glob(os.path.join(main_results_dir, "final_analysis_rank_*"))
-        if final_analysis_dirs:
-            final_analysis_dir = max(final_analysis_dirs)
-            result_dirs = glob.glob(os.path.join(final_analysis_dir, "20*"))
-            latest_dir = max(result_dirs) if result_dirs else None
-        else:
-            latest_dir = None
-            final_analysis_dir = None
     else:
-        latest_dir = None
-        final_analysis_dir = None
+        main_results_dir = None
+
+# Get the optimal rank from the rank selection summary
+if main_results_dir:
+    summary_file = os.path.join(main_results_dir, "rank_selection_summary.json")
+    if os.path.exists(summary_file):
+        with open(summary_file, 'r') as f:
+            rank_summary = json.load(f)
+        optimal_rank = rank_summary['suggested_rank']
+        print(f"Using optimal rank {optimal_rank} (from rank selection analysis)")
+    else:
+        print("No rank selection summary found! Cannot determine optimal rank.")
+        optimal_rank = None
+        main_results_dir = None
+else:
+    print("No main results directory found!")
+    optimal_rank = None
+
+# Look for the optimal rank data in rank_comparison directory
+latest_dir = None
+if main_results_dir and optimal_rank:
+    comparison_dir = os.path.join(main_results_dir, "rank_comparison")
+    optimal_rank_dir = os.path.join(comparison_dir, f"rank_{optimal_rank:02d}")
+    
+    if os.path.exists(optimal_rank_dir):
+        # Find the timestamped results within the rank directory
+        result_dirs = glob.glob(os.path.join(optimal_rank_dir, "20*"))
+        if result_dirs:
+            latest_dir = max(result_dirs)
+            print(f"Using optimal rank {optimal_rank} data from: {latest_dir}")
+        else:
+            print(f"No timestamped results found in rank_{optimal_rank:02d} directory!")
+    else:
+        print(f"Optimal rank {optimal_rank} directory not found!")
 
 if latest_dir:
     
@@ -1492,7 +1498,7 @@ if latest_dir:
         component_strengths.append(total_strength)
     
     sorted_components = np.argsort(component_strengths)[::-1]
-    top_5_components = sorted_components[:5]
+    top_5_components = sorted_components[:min(5, optimal_rank)]  # Use min to handle ranks < 5
     
     # Create heatmap
     plt.figure(figsize=(16, 6))
@@ -1505,18 +1511,20 @@ if latest_dir:
                 cmap='RdBu_r', center=0,
                 cbar=True, cbar_kws={'label': 'Species factor value (loading)'},
                 linewidths=0.5)
-    plt.title('Top 5 Components: Species Patterns')
+    plt.title(f'Top {len(top_5_components)} Components: Species Patterns (Optimal Rank {optimal_rank})')
     plt.xlabel('Individual')
     plt.ylabel('Component')
     plt.xticks(rotation=90)
     
-    # Save individual plot in final analysis directory
-    if final_analysis_dir:
-        plot_file = os.path.join(final_analysis_dir, "plot_03_species_heatmap.png")
+    # Save individual plot in main results directory
+    if main_results_dir:
+        plot_file = os.path.join(main_results_dir, f"plot_03_species_heatmap_optimal_rank_{optimal_rank}.png")
         plt.savefig(plot_file, dpi=300, bbox_inches='tight')
         print(f"Species patterns heatmap saved to: {plot_file}")
     
     plt.show()
+else:
+    print(f"Could not load data for optimal rank {optimal_rank if optimal_rank else 'unknown'}")
 ```
 
 ## Individual Plot 4: Temporal Trajectories
@@ -1527,35 +1535,53 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import glob
 import os
+import json
 
 # Get output directory from R environment
 output_dir = r.output_dir
 
-# Use the optimal results directory and final analysis directory (same logic as other chunks)
-if 'optimal_results_dir' in globals():
-    latest_dir = optimal_results_dir
-    if 'main_results_dir' in globals():
-        main_results_dir = globals()['main_results_dir']
-        final_analysis_dirs = glob.glob(os.path.join(main_results_dir, "final_analysis_rank_*"))
-        final_analysis_dir = max(final_analysis_dirs) if final_analysis_dirs else latest_dir
-    else:
-        final_analysis_dir = latest_dir
+# Look for main results directory
+if 'main_results_dir' in globals():
+    main_results_dir = globals()['main_results_dir']
 else:
-    # Fallback logic
     main_result_dirs = glob.glob(os.path.join(output_dir, "20*"))
     if main_result_dirs:
         main_results_dir = max(main_result_dirs)
-        final_analysis_dirs = glob.glob(os.path.join(main_results_dir, "final_analysis_rank_*"))
-        if final_analysis_dirs:
-            final_analysis_dir = max(final_analysis_dirs)
-            result_dirs = glob.glob(os.path.join(final_analysis_dir, "20*"))
-            latest_dir = max(result_dirs) if result_dirs else None
-        else:
-            latest_dir = None
-            final_analysis_dir = None
     else:
-        latest_dir = None
-        final_analysis_dir = None
+        main_results_dir = None
+
+# Get the optimal rank from the rank selection summary
+if main_results_dir:
+    summary_file = os.path.join(main_results_dir, "rank_selection_summary.json")
+    if os.path.exists(summary_file):
+        with open(summary_file, 'r') as f:
+            rank_summary = json.load(f)
+        optimal_rank = rank_summary['suggested_rank']
+        print(f"Using optimal rank {optimal_rank} (from rank selection analysis)")
+    else:
+        print("No rank selection summary found! Cannot determine optimal rank.")
+        optimal_rank = None
+        main_results_dir = None
+else:
+    print("No main results directory found!")
+    optimal_rank = None
+
+# Look for the optimal rank data in rank_comparison directory
+latest_dir = None
+if main_results_dir and optimal_rank:
+    comparison_dir = os.path.join(main_results_dir, "rank_comparison")
+    optimal_rank_dir = os.path.join(comparison_dir, f"rank_{optimal_rank:02d}")
+    
+    if os.path.exists(optimal_rank_dir):
+        # Find the timestamped results within the rank directory
+        result_dirs = glob.glob(os.path.join(optimal_rank_dir, "20*"))
+        if result_dirs:
+            latest_dir = max(result_dirs)
+            print(f"Using optimal rank {optimal_rank} data from: {latest_dir}")
+        else:
+            print(f"No timestamped results found in rank_{optimal_rank:02d} directory!")
+    else:
+        print(f"Optimal rank {optimal_rank} directory not found!")
 
 if latest_dir:
     # Load data
@@ -1578,7 +1604,7 @@ if latest_dir:
         component_strengths.append(total_strength)
 
     sorted_components = np.argsort(component_strengths)[::-1]
-    top_5_components = sorted_components[:5]
+    top_5_components = sorted_components[:min(5, optimal_rank)]  # Use min to handle ranks < 5
 
     # Create line plot
     plt.figure(figsize=(12, 6))
@@ -1589,18 +1615,20 @@ if latest_dir:
 
     plt.xlabel('Timepoint')
     plt.ylabel('Factor Value')
-    plt.title('Temporal Trajectories (Top 5 Components)')
+    plt.title(f'Temporal Trajectories (Top {len(top_5_components)} Components, Optimal Rank {optimal_rank})')
     plt.xticks(range(1, len(timepoint_names) + 1), timepoint_names)
     plt.legend()
     plt.grid(True, alpha=0.3)
     
-    # Save individual plot in final analysis directory
-    if final_analysis_dir:
-        plot_file = os.path.join(final_analysis_dir, "plot_04_temporal_trajectories.png")
+    # Save individual plot in main results directory
+    if main_results_dir:
+        plot_file = os.path.join(main_results_dir, f"plot_04_temporal_trajectories_optimal_rank_{optimal_rank}.png")
         plt.savefig(plot_file, dpi=300, bbox_inches='tight')
         print(f"Temporal trajectories plot saved to: {plot_file}")
     
     plt.show()
+else:
+    print(f"Could not load data for optimal rank {optimal_rank if optimal_rank else 'unknown'}")
 ```
 
 ## Individual Plot 5: Species Clustering PCA
@@ -1613,13 +1641,10 @@ from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 import glob
 import os
+import json
 
 # Get output directory from R environment
 output_dir = r.output_dir
-
-# Only use final_analysis_rank_* directories - no fallbacks
-final_analysis_dir = None
-latest_dir = None
 
 # Look for main results directory
 if 'main_results_dir' in globals():
@@ -1631,22 +1656,38 @@ else:
     else:
         main_results_dir = None
 
-# Only proceed if we find final_analysis_rank_* directories
+# Get the optimal rank from the rank selection summary
 if main_results_dir:
-    final_analysis_dirs = glob.glob(os.path.join(main_results_dir, "final_analysis_rank_*"))
-    if final_analysis_dirs:
-        final_analysis_dir = max(final_analysis_dirs)
-        # Look for timestamped results within the final analysis directory
-        result_dirs = glob.glob(os.path.join(final_analysis_dir, "20*"))
-        if result_dirs:
-            latest_dir = max(result_dirs)
-            print(f"Using final analysis data from: {latest_dir}")
-        else:
-            print("No timestamped results found in final_analysis_rank_* directory!")
+    summary_file = os.path.join(main_results_dir, "rank_selection_summary.json")
+    if os.path.exists(summary_file):
+        with open(summary_file, 'r') as f:
+            rank_summary = json.load(f)
+        optimal_rank = rank_summary['suggested_rank']
+        print(f"Using optimal rank {optimal_rank} (from rank selection analysis)")
     else:
-        print("No final_analysis_rank_* directories found!")
+        print("No rank selection summary found! Cannot determine optimal rank.")
+        optimal_rank = None
+        main_results_dir = None
 else:
     print("No main results directory found!")
+    optimal_rank = None
+
+# Look for the optimal rank data in rank_comparison directory
+latest_dir = None
+if main_results_dir and optimal_rank:
+    comparison_dir = os.path.join(main_results_dir, "rank_comparison")
+    optimal_rank_dir = os.path.join(comparison_dir, f"rank_{optimal_rank:02d}")
+    
+    if os.path.exists(optimal_rank_dir):
+        # Find the timestamped results within the rank directory
+        result_dirs = glob.glob(os.path.join(optimal_rank_dir, "20*"))
+        if result_dirs:
+            latest_dir = max(result_dirs)
+            print(f"Using optimal rank {optimal_rank} data from: {latest_dir}")
+        else:
+            print(f"No timestamped results found in rank_{optimal_rank:02d} directory!")
+    else:
+        print(f"Optimal rank {optimal_rank} directory not found!")
 
 if latest_dir:
     
@@ -1660,7 +1701,11 @@ if latest_dir:
     df_long = pd.read_csv(data_file)
     species_names = sorted(df_long['species'].unique())
     
-    # Calculate component strengths and get top 10 for clustering
+    # Create species type labels (same as comprehensive visualization)
+    species_types = [name.split('-')[0] for name in species_names]
+    unique_types = list(set(species_types))
+    
+    # Calculate component strengths (same as comprehensive visualization)
     component_strengths = []
     for i in range(gene_factors.shape[1]):
         gene_norm = np.linalg.norm(gene_factors[:, i])
@@ -1671,42 +1716,45 @@ if latest_dir:
     
     sorted_components = np.argsort(component_strengths)[::-1]
     
-    # Use top 10 components for clustering
-    species_subset = species_factors[:, sorted_components[:10]]
+    # Use the same logic as comprehensive visualization
+    rank = gene_factors.shape[1]  # This is the actual rank (number of components)
     
-    # Create species type labels
-    species_types = [name.split('-')[0] for name in species_names]
-    unique_types = list(set(species_types))
-    
-    # PCA for visualization
-    pca = PCA(n_components=2)
-    species_pca = pca.fit_transform(species_subset)
-    
-    # Create plot
-    plt.figure(figsize=(10, 8))
-    
-    # Color by species type
-    colors = ['red', 'blue', 'green']
-    species_type_map = {stype: i for i, stype in enumerate(unique_types)}
-    
-    for i, (x, y) in enumerate(species_pca):
-        stype = species_types[i]
-        plt.scatter(x, y, c=colors[species_type_map[stype]], 
-                   alpha=0.7, s=60, label=stype if i == species_types.index(stype) else "")
-    
-    plt.xlabel(f'PC1 ({pca.explained_variance_ratio_[0]:.1%} variance)')
-    plt.ylabel(f'PC2 ({pca.explained_variance_ratio_[1]:.1%} variance)')
-    plt.title('Species Clustering (PCA of Factor Loadings)')
-    plt.legend()
-    plt.grid(True, alpha=0.3)
-    
-    # Save individual plot in final analysis directory
-    if final_analysis_dir:
-        plot_file = os.path.join(final_analysis_dir, "plot_05_species_clustering.png")
-        plt.savefig(plot_file, dpi=300, bbox_inches='tight')
-        print(f"Species clustering PCA plot saved to: {plot_file}")
-    
-    plt.show()
+    if rank >= 2:
+        n_pca_components = min(rank, 10)
+        species_subset = species_factors[:, sorted_components[:n_pca_components]]
+        
+        pca = PCA(n_components=2)
+        species_pca = pca.fit_transform(species_subset)
+        
+        # Create plot (same styling as comprehensive visualization)
+        plt.figure(figsize=(10, 8))
+        
+        colors = ['red', 'blue', 'green', 'orange', 'purple'][:len(unique_types)]
+        species_type_map = {stype: i for i, stype in enumerate(unique_types)}
+        
+        for i, (x, y) in enumerate(species_pca):
+            stype = species_types[i]
+            plt.scatter(x, y, c=colors[species_type_map[stype]], 
+                       alpha=0.7, s=40, 
+                       label=stype if i == species_types.index(stype) else "")
+        
+        plt.xlabel(f'PC1 ({pca.explained_variance_ratio_[0]:.1%})')
+        plt.ylabel(f'PC2 ({pca.explained_variance_ratio_[1]:.1%})')
+        plt.title(f'Species PCA (Optimal Rank {optimal_rank})')
+        plt.legend()
+        plt.grid(True, alpha=0.3)
+        
+        # Save to main results directory for consistency
+        if main_results_dir:
+            plot_file = os.path.join(main_results_dir, f"plot_05_species_clustering_optimal_rank_{optimal_rank}.png")
+            plt.savefig(plot_file, dpi=300, bbox_inches='tight')
+            print(f"Species clustering PCA plot saved to: {plot_file}")
+        
+        plt.show()
+    else:
+        print(f"Optimal rank {optimal_rank} has insufficient components for PCA visualization")
+else:
+    print(f"Could not load data for optimal rank {optimal_rank if optimal_rank else 'unknown'}")
 ```
 
 ## Individual Plot 6: Gene Factor Distribution
@@ -1716,13 +1764,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import glob
 import os
+import json
 
 # Get output directory from R environment
 output_dir = r.output_dir
-
-# Only use final_analysis_rank_* directories - no fallbacks
-final_analysis_dir = None
-latest_dir = None
 
 # Look for main results directory
 if 'main_results_dir' in globals():
@@ -1734,22 +1779,38 @@ else:
     else:
         main_results_dir = None
 
-# Only proceed if we find final_analysis_rank_* directories
+# Get the optimal rank from the rank selection summary
 if main_results_dir:
-    final_analysis_dirs = glob.glob(os.path.join(main_results_dir, "final_analysis_rank_*"))
-    if final_analysis_dirs:
-        final_analysis_dir = max(final_analysis_dirs)
-        # Look for timestamped results within the final analysis directory
-        result_dirs = glob.glob(os.path.join(final_analysis_dir, "20*"))
-        if result_dirs:
-            latest_dir = max(result_dirs)
-            print(f"Using final analysis data from: {latest_dir}")
-        else:
-            print("No timestamped results found in final_analysis_rank_* directory!")
+    summary_file = os.path.join(main_results_dir, "rank_selection_summary.json")
+    if os.path.exists(summary_file):
+        with open(summary_file, 'r') as f:
+            rank_summary = json.load(f)
+        optimal_rank = rank_summary['suggested_rank']
+        print(f"Using optimal rank {optimal_rank} (from rank selection analysis)")
     else:
-        print("No final_analysis_rank_* directories found!")
+        print("No rank selection summary found! Cannot determine optimal rank.")
+        optimal_rank = None
+        main_results_dir = None
 else:
     print("No main results directory found!")
+    optimal_rank = None
+
+# Look for the optimal rank data in rank_comparison directory
+latest_dir = None
+if main_results_dir and optimal_rank:
+    comparison_dir = os.path.join(main_results_dir, "rank_comparison")
+    optimal_rank_dir = os.path.join(comparison_dir, f"rank_{optimal_rank:02d}")
+    
+    if os.path.exists(optimal_rank_dir):
+        # Find the timestamped results within the rank directory
+        result_dirs = glob.glob(os.path.join(optimal_rank_dir, "20*"))
+        if result_dirs:
+            latest_dir = max(result_dirs)
+            print(f"Using optimal rank {optimal_rank} data from: {latest_dir}")
+        else:
+            print(f"No timestamped results found in rank_{optimal_rank:02d} directory!")
+    else:
+        print(f"Optimal rank {optimal_rank} directory not found!")
 
 if latest_dir:
     
@@ -1764,7 +1825,7 @@ if latest_dir:
     plt.hist(gene_variances, bins=50, alpha=0.7, edgecolor='black')
     plt.xlabel('Gene Factor Variance')
     plt.ylabel('Number of Genes')
-    plt.title('Distribution of Gene Factor Variability')
+    plt.title(f'Distribution of Gene Factor Variability (Optimal Rank {optimal_rank})')
     plt.grid(True, alpha=0.3)
     
     # Add statistics
@@ -1774,14 +1835,17 @@ if latest_dir:
                label=f'Median: {np.median(gene_variances):.3f}')
     plt.legend()
     
-    # Save individual plot in final analysis directory
-    if final_analysis_dir:
-        plot_file = os.path.join(final_analysis_dir, "plot_06_gene_distribution.png")
+    # Save individual plot in main results directory
+    if main_results_dir:
+        plot_file = os.path.join(main_results_dir, f"plot_06_gene_distribution_optimal_rank_{optimal_rank}.png")
         plt.savefig(plot_file, dpi=300, bbox_inches='tight')
         print(f"Gene factor distribution plot saved to: {plot_file}")
     
     plt.show()
+else:
+    print(f"Could not load data for optimal rank {optimal_rank if optimal_rank else 'unknown'}")
 ```
+
 
 ## Individual Plot 7: Component Correlations
 
@@ -1791,13 +1855,10 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import glob
 import os
+import json
 
 # Get output directory from R environment
 output_dir = r.output_dir
-
-# Use the optimal results directory (set in previous chunk)
-final_analysis_dir = None
-latest_dir = None
 
 # Look for main results directory
 if 'main_results_dir' in globals():
@@ -1809,22 +1870,38 @@ else:
     else:
         main_results_dir = None
 
-# Only proceed if we find final_analysis_rank_* directories
+# Get the optimal rank from the rank selection summary
 if main_results_dir:
-    final_analysis_dirs = glob.glob(os.path.join(main_results_dir, "final_analysis_rank_*"))
-    if final_analysis_dirs:
-        final_analysis_dir = max(final_analysis_dirs)
-        # Look for timestamped results within the final analysis directory
-        result_dirs = glob.glob(os.path.join(final_analysis_dir, "20*"))
-        if result_dirs:
-            latest_dir = max(result_dirs)
-            print(f"Using final analysis data from: {latest_dir}")
-        else:
-            print("No timestamped results found in final_analysis_rank_* directory!")
+    summary_file = os.path.join(main_results_dir, "rank_selection_summary.json")
+    if os.path.exists(summary_file):
+        with open(summary_file, 'r') as f:
+            rank_summary = json.load(f)
+        optimal_rank = rank_summary['suggested_rank']
+        print(f"Using optimal rank {optimal_rank} (from rank selection analysis)")
     else:
-        print("No final_analysis_rank_* directories found!")
+        print("No rank selection summary found! Cannot determine optimal rank.")
+        optimal_rank = None
+        main_results_dir = None
 else:
     print("No main results directory found!")
+    optimal_rank = None
+
+# Look for the optimal rank data in rank_comparison directory
+latest_dir = None
+if main_results_dir and optimal_rank:
+    comparison_dir = os.path.join(main_results_dir, "rank_comparison")
+    optimal_rank_dir = os.path.join(comparison_dir, f"rank_{optimal_rank:02d}")
+    
+    if os.path.exists(optimal_rank_dir):
+        # Find the timestamped results within the rank directory
+        result_dirs = glob.glob(os.path.join(optimal_rank_dir, "20*"))
+        if result_dirs:
+            latest_dir = max(result_dirs)
+            print(f"Using optimal rank {optimal_rank} data from: {latest_dir}")
+        else:
+            print(f"No timestamped results found in rank_{optimal_rank:02d} directory!")
+    else:
+        print(f"Optimal rank {optimal_rank} directory not found!")
 
 if latest_dir:
     
@@ -1839,18 +1916,21 @@ if latest_dir:
     sns.heatmap(gene_corr, cmap='RdBu_r', center=0, 
                 xticklabels=range(1, gene_factors.shape[1] + 1),
                 yticklabels=range(1, gene_factors.shape[1] + 1),
-                square=True)
-    plt.title('Component Correlations (Gene Space)')
+                square=True,
+                cbar_kws={'label': 'Correlation coefficient'})
+    plt.title(f'Component Correlations (Gene Space) - Optimal Rank {optimal_rank}')
     plt.xlabel('Component')
     plt.ylabel('Component')
     
-    # Save individual plot in final analysis directory
-    if final_analysis_dir:
-        plot_file = os.path.join(final_analysis_dir, "plot_07_component_correlations.png")
+    # Save individual plot in main results directory
+    if main_results_dir:
+        plot_file = os.path.join(main_results_dir, f"plot_07_component_correlations_optimal_rank_{optimal_rank}.png")
         plt.savefig(plot_file, dpi=300, bbox_inches='tight')
         print(f"Component correlations plot saved to: {plot_file}")
     
     plt.show()
+else:
+    print(f"Could not load data for optimal rank {optimal_rank if optimal_rank else 'unknown'}")
 ```
 
 ## Individual Plot 8: Species Type Comparison
@@ -1861,13 +1941,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import glob
 import os
+import json
 
 # Get output directory from R environment
 output_dir = r.output_dir
-
-# Use the optimal results directory (set in previous chunk)
-final_analysis_dir = None
-latest_dir = None
 
 # Look for main results directory
 if 'main_results_dir' in globals():
@@ -1879,22 +1956,38 @@ else:
     else:
         main_results_dir = None
 
-# Only proceed if we find final_analysis_rank_* directories
+# Get the optimal rank from the rank selection summary
 if main_results_dir:
-    final_analysis_dirs = glob.glob(os.path.join(main_results_dir, "final_analysis_rank_*"))
-    if final_analysis_dirs:
-        final_analysis_dir = max(final_analysis_dirs)
-        # Look for timestamped results within the final analysis directory
-        result_dirs = glob.glob(os.path.join(final_analysis_dir, "20*"))
-        if result_dirs:
-            latest_dir = max(result_dirs)
-            print(f"Using final analysis data from: {latest_dir}")
-        else:
-            print("No timestamped results found in final_analysis_rank_* directory!")
+    summary_file = os.path.join(main_results_dir, "rank_selection_summary.json")
+    if os.path.exists(summary_file):
+        with open(summary_file, 'r') as f:
+            rank_summary = json.load(f)
+        optimal_rank = rank_summary['suggested_rank']
+        print(f"Using optimal rank {optimal_rank} (from rank selection analysis)")
     else:
-        print("No final_analysis_rank_* directories found!")
+        print("No rank selection summary found! Cannot determine optimal rank.")
+        optimal_rank = None
+        main_results_dir = None
 else:
     print("No main results directory found!")
+    optimal_rank = None
+
+# Look for the optimal rank data in rank_comparison directory
+latest_dir = None
+if main_results_dir and optimal_rank:
+    comparison_dir = os.path.join(main_results_dir, "rank_comparison")
+    optimal_rank_dir = os.path.join(comparison_dir, f"rank_{optimal_rank:02d}")
+    
+    if os.path.exists(optimal_rank_dir):
+        # Find the timestamped results within the rank directory
+        result_dirs = glob.glob(os.path.join(optimal_rank_dir, "20*"))
+        if result_dirs:
+            latest_dir = max(result_dirs)
+            print(f"Using optimal rank {optimal_rank} data from: {latest_dir}")
+        else:
+            print(f"No timestamped results found in rank_{optimal_rank:02d} directory!")
+    else:
+        print(f"Optimal rank {optimal_rank} directory not found!")
 
 if latest_dir:
     
@@ -1918,7 +2011,7 @@ if latest_dir:
         component_strengths.append(total_strength)
     
     sorted_components = np.argsort(component_strengths)[::-1]
-    top_5_components = sorted_components[:5]
+    top_5_components = sorted_components[:min(5, optimal_rank)]  # Use min to handle ranks < 5
     
     # Group species by type
     species_by_type = {}
@@ -1936,7 +2029,7 @@ if latest_dir:
     # Create bar plot
     plt.figure(figsize=(12, 6))
     x_pos = np.arange(len(top_5_components))
-    width = 0.25
+    width = 0.8 / len(type_means)  # Adjust width based on number of species types
     
     for i, (stype, means) in enumerate(type_means.items()):
         plt.bar(x_pos + i * width, means[top_5_components], 
@@ -1944,17 +2037,21 @@ if latest_dir:
     
     plt.xlabel('Component')
     plt.ylabel('Mean Factor Value')
-    plt.title('Species Type Comparison (Top 5 Components)')
-    plt.xticks(x_pos + width, [f'Comp {i+1}' for i in top_5_components])
+    plt.title(f'Species Type Comparison (Top {len(top_5_components)} Components) - Optimal Rank {optimal_rank}')
+    plt.xticks(x_pos + width * (len(type_means) - 1) / 2, 
+               [f'Comp {i+1}' for i in top_5_components])
     plt.legend()
     plt.grid(True, alpha=0.3)
     
-    # Save individual plot
-    plot_file = os.path.join(latest_dir, "plot_08_species_comparison.png")
-    plt.savefig(plot_file, dpi=300, bbox_inches='tight')
-    print(f"Species type comparison plot saved to: {plot_file}")
+    # Save individual plot in main results directory
+    if main_results_dir:
+        plot_file = os.path.join(main_results_dir, f"plot_08_species_comparison_optimal_rank_{optimal_rank}.png")
+        plt.savefig(plot_file, dpi=300, bbox_inches='tight')
+        print(f"Species type comparison plot saved to: {plot_file}")
     
     plt.show()
+else:
+    print(f"Could not load data for optimal rank {optimal_rank if optimal_rank else 'unknown'}")
 ```
 
 ## Individual Plot 9: Temporal Variance per Component
@@ -1964,13 +2061,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import glob
 import os
+import json
 
 # Get output directory from R environment
 output_dir = r.output_dir
-
-# Use the optimal results directory (set in previous chunk)
-final_analysis_dir = None
-latest_dir = None
 
 # Look for main results directory
 if 'main_results_dir' in globals():
@@ -1982,22 +2076,38 @@ else:
     else:
         main_results_dir = None
 
-# Only proceed if we find final_analysis_rank_* directories
+# Get the optimal rank from the rank selection summary
 if main_results_dir:
-    final_analysis_dirs = glob.glob(os.path.join(main_results_dir, "final_analysis_rank_*"))
-    if final_analysis_dirs:
-        final_analysis_dir = max(final_analysis_dirs)
-        # Look for timestamped results within the final analysis directory
-        result_dirs = glob.glob(os.path.join(final_analysis_dir, "20*"))
-        if result_dirs:
-            latest_dir = max(result_dirs)
-            print(f"Using final analysis data from: {latest_dir}")
-        else:
-            print("No timestamped results found in final_analysis_rank_* directory!")
+    summary_file = os.path.join(main_results_dir, "rank_selection_summary.json")
+    if os.path.exists(summary_file):
+        with open(summary_file, 'r') as f:
+            rank_summary = json.load(f)
+        optimal_rank = rank_summary['suggested_rank']
+        print(f"Using optimal rank {optimal_rank} (from rank selection analysis)")
     else:
-        print("No final_analysis_rank_* directories found!")
+        print("No rank selection summary found! Cannot determine optimal rank.")
+        optimal_rank = None
+        main_results_dir = None
 else:
     print("No main results directory found!")
+    optimal_rank = None
+
+# Look for the optimal rank data in rank_comparison directory
+latest_dir = None
+if main_results_dir and optimal_rank:
+    comparison_dir = os.path.join(main_results_dir, "rank_comparison")
+    optimal_rank_dir = os.path.join(comparison_dir, f"rank_{optimal_rank:02d}")
+    
+    if os.path.exists(optimal_rank_dir):
+        # Find the timestamped results within the rank directory
+        result_dirs = glob.glob(os.path.join(optimal_rank_dir, "20*"))
+        if result_dirs:
+            latest_dir = max(result_dirs)
+            print(f"Using optimal rank {optimal_rank} data from: {latest_dir}")
+        else:
+            print(f"No timestamped results found in rank_{optimal_rank:02d} directory!")
+    else:
+        print(f"Optimal rank {optimal_rank} directory not found!")
 
 if latest_dir:
     
@@ -2014,7 +2124,7 @@ if latest_dir:
            [time_variances[i] for i in sorted_time_vars])
     plt.xlabel('Component (ranked by temporal variance)')
     plt.ylabel('Temporal Variance')
-    plt.title('Components by Temporal Variability')
+    plt.title(f'Components by Temporal Variability - Optimal Rank {optimal_rank}')
     
     # Set x-ticks to show all components if <= 10, otherwise show every 2nd or 5th
     n_components = len(time_variances)
@@ -2027,12 +2137,15 @@ if latest_dir:
     
     plt.grid(True, alpha=0.3)
     
-    # Save individual plot
-    plot_file = os.path.join(latest_dir, "plot_09_temporal_variance.png")
-    plt.savefig(plot_file, dpi=300, bbox_inches='tight')
-    print(f"Temporal variance plot saved to: {plot_file}")
+    # Save individual plot in main results directory
+    if main_results_dir:
+        plot_file = os.path.join(main_results_dir, f"plot_09_temporal_variance_optimal_rank_{optimal_rank}.png")
+        plt.savefig(plot_file, dpi=300, bbox_inches='tight')
+        print(f"Temporal variance plot saved to: {plot_file}")
     
     plt.show()
+else:
+    print(f"Could not load data for optimal rank {optimal_rank if optimal_rank else 'unknown'}")
 ```
 
 ## Individual Plot 10: Species Variance per Component
@@ -2042,13 +2155,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import glob
 import os
+import json
 
 # Get output directory from R environment
 output_dir = r.output_dir
-
-# Use the optimal results directory (set in previous chunk)
-final_analysis_dir = None
-latest_dir = None
 
 # Look for main results directory
 if 'main_results_dir' in globals():
@@ -2060,22 +2170,38 @@ else:
     else:
         main_results_dir = None
 
-# Only proceed if we find final_analysis_rank_* directories
+# Get the optimal rank from the rank selection summary
 if main_results_dir:
-    final_analysis_dirs = glob.glob(os.path.join(main_results_dir, "final_analysis_rank_*"))
-    if final_analysis_dirs:
-        final_analysis_dir = max(final_analysis_dirs)
-        # Look for timestamped results within the final analysis directory
-        result_dirs = glob.glob(os.path.join(final_analysis_dir, "20*"))
-        if result_dirs:
-            latest_dir = max(result_dirs)
-            print(f"Using final analysis data from: {latest_dir}")
-        else:
-            print("No timestamped results found in final_analysis_rank_* directory!")
+    summary_file = os.path.join(main_results_dir, "rank_selection_summary.json")
+    if os.path.exists(summary_file):
+        with open(summary_file, 'r') as f:
+            rank_summary = json.load(f)
+        optimal_rank = rank_summary['suggested_rank']
+        print(f"Using optimal rank {optimal_rank} (from rank selection analysis)")
     else:
-        print("No final_analysis_rank_* directories found!")
+        print("No rank selection summary found! Cannot determine optimal rank.")
+        optimal_rank = None
+        main_results_dir = None
 else:
     print("No main results directory found!")
+    optimal_rank = None
+
+# Look for the optimal rank data in rank_comparison directory
+latest_dir = None
+if main_results_dir and optimal_rank:
+    comparison_dir = os.path.join(main_results_dir, "rank_comparison")
+    optimal_rank_dir = os.path.join(comparison_dir, f"rank_{optimal_rank:02d}")
+    
+    if os.path.exists(optimal_rank_dir):
+        # Find the timestamped results within the rank directory
+        result_dirs = glob.glob(os.path.join(optimal_rank_dir, "20*"))
+        if result_dirs:
+            latest_dir = max(result_dirs)
+            print(f"Using optimal rank {optimal_rank} data from: {latest_dir}")
+        else:
+            print(f"No timestamped results found in rank_{optimal_rank:02d} directory!")
+    else:
+        print(f"Optimal rank {optimal_rank} directory not found!")
 
 if latest_dir:
     
@@ -2092,7 +2218,7 @@ if latest_dir:
            [species_variances[i] for i in sorted_species_vars])
     plt.xlabel('Component (ranked by species variance)')
     plt.ylabel('Species Variance')
-    plt.title('Components by Species Variability')
+    plt.title(f'Components by Species Variability - Optimal Rank {optimal_rank}')
     
     # Set x-ticks to show all components if <= 10, otherwise show every 2nd or 5th
     n_components = len(species_variances)
@@ -2105,29 +2231,30 @@ if latest_dir:
     
     plt.grid(True, alpha=0.3)
     
-    # Save individual plot
-    plot_file = os.path.join(latest_dir, "plot_10_species_variance.png")
-    plt.savefig(plot_file, dpi=300, bbox_inches='tight')
-    print(f"Species variance plot saved to: {plot_file}")
+    # Save individual plot in main results directory
+    if main_results_dir:
+        plot_file = os.path.join(main_results_dir, f"plot_10_species_variance_optimal_rank_{optimal_rank}.png")
+        plt.savefig(plot_file, dpi=300, bbox_inches='tight')
+        print(f"Species variance plot saved to: {plot_file}")
     
     plt.show()
+else:
+    print(f"Could not load data for optimal rank {optimal_rank if optimal_rank else 'unknown'}")
 ```
 
 ## Individual Plot 11: Top Genes Heatmap
 
 ```{python plot-top-genes, eval=TRUE}
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import glob
 import os
+import json
 
 # Get output directory from R environment
 output_dir = r.output_dir
-
-# Use the optimal results directory (set in previous chunk)
-final_analysis_dir = None
-latest_dir = None
 
 # Look for main results directory
 if 'main_results_dir' in globals():
@@ -2139,22 +2266,38 @@ else:
     else:
         main_results_dir = None
 
-# Only proceed if we find final_analysis_rank_* directories
+# Get the optimal rank from the rank selection summary
 if main_results_dir:
-    final_analysis_dirs = glob.glob(os.path.join(main_results_dir, "final_analysis_rank_*"))
-    if final_analysis_dirs:
-        final_analysis_dir = max(final_analysis_dirs)
-        # Look for timestamped results within the final analysis directory
-        result_dirs = glob.glob(os.path.join(final_analysis_dir, "20*"))
-        if result_dirs:
-            latest_dir = max(result_dirs)
-            print(f"Using final analysis data from: {latest_dir}")
-        else:
-            print("No timestamped results found in final_analysis_rank_* directory!")
+    summary_file = os.path.join(main_results_dir, "rank_selection_summary.json")
+    if os.path.exists(summary_file):
+        with open(summary_file, 'r') as f:
+            rank_summary = json.load(f)
+        optimal_rank = rank_summary['suggested_rank']
+        print(f"Using optimal rank {optimal_rank} (from rank selection analysis)")
     else:
-        print("No final_analysis_rank_* directories found!")
+        print("No rank selection summary found! Cannot determine optimal rank.")
+        optimal_rank = None
+        main_results_dir = None
 else:
     print("No main results directory found!")
+    optimal_rank = None
+
+# Look for the optimal rank data in rank_comparison directory
+latest_dir = None
+if main_results_dir and optimal_rank:
+    comparison_dir = os.path.join(main_results_dir, "rank_comparison")
+    optimal_rank_dir = os.path.join(comparison_dir, f"rank_{optimal_rank:02d}")
+    
+    if os.path.exists(optimal_rank_dir):
+        # Find the timestamped results within the rank directory
+        result_dirs = glob.glob(os.path.join(optimal_rank_dir, "20*"))
+        if result_dirs:
+            latest_dir = max(result_dirs)
+            print(f"Using optimal rank {optimal_rank} data from: {latest_dir}")
+        else:
+            print(f"No timestamped results found in rank_{optimal_rank:02d} directory!")
+    else:
+        print(f"Optimal rank {optimal_rank} directory not found!")
 
 if latest_dir:
     
@@ -2168,7 +2311,7 @@ if latest_dir:
     df_long = pd.read_csv(data_file)
     gene_names = sorted(df_long['gene'].unique())
     
-    # Calculate component strengths and get top 5
+    # Calculate component strengths and get top components
     component_strengths = []
     for i in range(gene_factors.shape[1]):
         gene_norm = np.linalg.norm(gene_factors[:, i])
@@ -2178,18 +2321,18 @@ if latest_dir:
         component_strengths.append(total_strength)
     
     sorted_components = np.argsort(component_strengths)[::-1]
-    top_5_components = sorted_components[:5]
+    top_components = sorted_components[:min(5, optimal_rank)]  # Use min to handle ranks < 5
     
-    # Get top genes for each of the top 5 components
+    # Get top genes for each of the top components
     n_top_genes = 10
     top_gene_indices = []
     
-    for comp_idx in top_5_components:
+    for comp_idx in top_components:
         top_genes = np.argsort(np.abs(gene_factors[:, comp_idx]))[-n_top_genes:]
         top_gene_indices.extend(top_genes)
     
     top_gene_indices = list(set(top_gene_indices))  # Remove duplicates
-    top_gene_data = gene_factors[top_gene_indices, :][:, top_5_components]
+    top_gene_data = gene_factors[top_gene_indices, :][:, top_components]
     
     # Get actual gene names for the selected indices
     top_gene_names = [gene_names[i] for i in top_gene_indices]
@@ -2199,18 +2342,21 @@ if latest_dir:
     sns.heatmap(top_gene_data, 
                 cmap='RdBu_r', center=0,
                 yticklabels=top_gene_names,
-                xticklabels=[f'Comp {i+1}' for i in top_5_components],
+                xticklabels=[f'Comp {i+1}' for i in top_components],
                 cbar_kws={'label': 'Gene factor loading'})
-    plt.title(f'Top {len(top_gene_indices)} Genes × Top 5 Components')
+    plt.title(f'Top {len(top_gene_indices)} Genes × Top {len(top_components)} Components - Optimal Rank {optimal_rank}')
     plt.xlabel('Component')
     plt.ylabel('Gene')
     
-    # Save individual plot
-    plot_file = os.path.join(latest_dir, "plot_11_top_genes.png")
-    plt.savefig(plot_file, dpi=300, bbox_inches='tight')
-    print(f"Top genes heatmap saved to: {plot_file}")
+    # Save individual plot in main results directory
+    if main_results_dir:
+        plot_file = os.path.join(main_results_dir, f"plot_11_top_genes_optimal_rank_{optimal_rank}.png")
+        plt.savefig(plot_file, dpi=300, bbox_inches='tight')
+        print(f"Top genes heatmap saved to: {plot_file}")
     
     plt.show()
+else:
+    print(f"Could not load data for optimal rank {optimal_rank if optimal_rank else 'unknown'}")
 ```
 
 ## Individual Plot 12: Reconstruction Quality
@@ -2221,13 +2367,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import glob
 import os
+import json
 
 # Get output directory from R environment
 output_dir = r.output_dir
-
-# Use the optimal results directory (set in previous chunk)
-final_analysis_dir = None
-latest_dir = None
 
 # Look for main results directory
 if 'main_results_dir' in globals():
@@ -2239,25 +2382,40 @@ else:
     else:
         main_results_dir = None
 
-# Only proceed if we find final_analysis_rank_* directories
+# Get the optimal rank from the rank selection summary
 if main_results_dir:
-    final_analysis_dirs = glob.glob(os.path.join(main_results_dir, "final_analysis_rank_*"))
-    if final_analysis_dirs:
-        final_analysis_dir = max(final_analysis_dirs)
-        # Look for timestamped results within the final analysis directory
-        result_dirs = glob.glob(os.path.join(final_analysis_dir, "20*"))
-        if result_dirs:
-            latest_dir = max(result_dirs)
-            print(f"Using final analysis data from: {latest_dir}")
-        else:
-            print("No timestamped results found in final_analysis_rank_* directory!")
+    summary_file = os.path.join(main_results_dir, "rank_selection_summary.json")
+    if os.path.exists(summary_file):
+        with open(summary_file, 'r') as f:
+            rank_summary = json.load(f)
+        optimal_rank = rank_summary['suggested_rank']
+        print(f"Using optimal rank {optimal_rank} (from rank selection analysis)")
     else:
-        print("No final_analysis_rank_* directories found!")
+        print("No rank selection summary found! Cannot determine optimal rank.")
+        optimal_rank = None
+        main_results_dir = None
 else:
     print("No main results directory found!")
+    optimal_rank = None
+
+# Look for the optimal rank data in rank_comparison directory
+latest_dir = None
+if main_results_dir and optimal_rank:
+    comparison_dir = os.path.join(main_results_dir, "rank_comparison")
+    optimal_rank_dir = os.path.join(comparison_dir, f"rank_{optimal_rank:02d}")
+    
+    if os.path.exists(optimal_rank_dir):
+        # Find the timestamped results within the rank directory
+        result_dirs = glob.glob(os.path.join(optimal_rank_dir, "20*"))
+        if result_dirs:
+            latest_dir = max(result_dirs)
+            print(f"Using optimal rank {optimal_rank} data from: {latest_dir}")
+        else:
+            print(f"No timestamped results found in rank_{optimal_rank:02d} directory!")
+    else:
+        print(f"Optimal rank {optimal_rank} directory not found!")
 
 if latest_dir:
-    latest_dir = max(result_dirs)
     
     # Load data
     gene_factors = np.load(os.path.join(latest_dir, "gene_factors.npy"))
@@ -2292,7 +2450,7 @@ if latest_dir:
         plt.hist(gene_errors, bins=50, alpha=0.7, edgecolor='black')
         plt.xlabel('Mean Absolute Error per Gene')
         plt.ylabel('Number of Genes')
-        plt.title('Reconstruction Error Distribution')
+        plt.title(f'Reconstruction Error Distribution - Optimal Rank {optimal_rank}')
         plt.axvline(np.mean(gene_errors), color='red', linestyle='--', 
                    label=f'Mean: {np.mean(gene_errors):.3f}')
         plt.legend()
@@ -2312,19 +2470,22 @@ if latest_dir:
         plt.hist(residuals, bins=50, alpha=0.7, edgecolor='black')
         plt.xlabel('Reconstruction Residuals')
         plt.ylabel('Frequency')
-        plt.title('Reconstruction Residuals Distribution')
+        plt.title(f'Reconstruction Residuals Distribution - Optimal Rank {optimal_rank}')
         plt.axvline(np.mean(residuals), color='red', linestyle='--', 
                    label=f'Mean: {np.mean(residuals):.3f}')
         plt.axvline(0, color='black', linestyle=':', alpha=0.5, label='Perfect fit')
         plt.legend()
         plt.grid(True, alpha=0.3)
     
-    # Save individual plot
-    plot_file = os.path.join(latest_dir, "plot_12_reconstruction_quality.png")
-    plt.savefig(plot_file, dpi=300, bbox_inches='tight')
-    print(f"Reconstruction quality plot saved to: {plot_file}")
+    # Save individual plot in main results directory
+    if main_results_dir:
+        plot_file = os.path.join(main_results_dir, f"plot_12_reconstruction_quality_optimal_rank_{optimal_rank}.png")
+        plt.savefig(plot_file, dpi=300, bbox_inches='tight')
+        print(f"Reconstruction quality plot saved to: {plot_file}")
     
     plt.show()
+else:
+    print(f"Could not load data for optimal rank {optimal_rank if optimal_rank else 'unknown'}")
 ```
 
 ## Interpret species clustering patterns
@@ -2341,8 +2502,7 @@ import os
 # Get output directory from R environment
 output_dir = r.output_dir
 
-# Only use final_analysis_rank_* directories - no fallbacks
-final_analysis_dir = None
+# Look for main results directory and optimal rank data (consistent with other plots)
 latest_dir = None
 
 # Look for main results directory
@@ -2355,20 +2515,32 @@ else:
     else:
         main_results_dir = None
 
-# Only proceed if we find final_analysis_rank_* directories
+# Get the optimal rank from the rank selection summary (same as other plots)
 if main_results_dir:
-    final_analysis_dirs = glob.glob(os.path.join(main_results_dir, "final_analysis_rank_*"))
-    if final_analysis_dirs:
-        final_analysis_dir = max(final_analysis_dirs)
-        # Look for timestamped results within the final analysis directory
-        result_dirs = glob.glob(os.path.join(final_analysis_dir, "20*"))
-        if result_dirs:
-            latest_dir = max(result_dirs)
-            print(f"Using final analysis data from: {latest_dir}")
+    summary_file = os.path.join(main_results_dir, "rank_selection_summary.json")
+    if os.path.exists(summary_file):
+        with open(summary_file, 'r') as f:
+            rank_summary = json.load(f)
+        optimal_rank = rank_summary['suggested_rank']
+        print(f"Using optimal rank {optimal_rank} (from rank selection analysis)")
+        
+        # Look for the optimal rank data in rank_comparison directory
+        comparison_dir = os.path.join(main_results_dir, "rank_comparison")
+        optimal_rank_dir = os.path.join(comparison_dir, f"rank_{optimal_rank:02d}")
+        
+        if os.path.exists(optimal_rank_dir):
+            # Find the timestamped results within the rank directory
+            result_dirs = glob.glob(os.path.join(optimal_rank_dir, "20*"))
+            if result_dirs:
+                latest_dir = max(result_dirs)
+                print(f"Using optimal rank {optimal_rank} data from: {latest_dir}")
+            else:
+                print(f"No timestamped results found in rank_{optimal_rank:02d} directory!")
         else:
-            print("No timestamped results found in final_analysis_rank_* directory!")
+            print(f"Optimal rank {optimal_rank} directory not found!")
     else:
-        print("No final_analysis_rank_* directories found!")
+        print("No rank selection summary found! Cannot determine optimal rank.")
+        main_results_dir = None
 else:
     print("No main results directory found!")
 
@@ -2519,9 +2691,9 @@ if latest_dir:
     
     plt.tight_layout()
     
-    # Save the interpretation plot in the appropriate directory
-    if final_analysis_dir:
-        interp_plot_file = os.path.join(final_analysis_dir, "species_clustering_interpretation.png")
+    # Save the interpretation plot in the main results directory (consistent with other plots)
+    if main_results_dir:
+        interp_plot_file = os.path.join(main_results_dir, f"species_clustering_interpretation_optimal_rank_{optimal_rank}.png")
     else:
         interp_plot_file = os.path.join(latest_dir, "species_clustering_interpretation.png")
     plt.savefig(interp_plot_file, dpi=300, bbox_inches='tight')
