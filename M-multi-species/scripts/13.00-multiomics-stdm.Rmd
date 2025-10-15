@@ -915,6 +915,8 @@ else:
     print("Rank comparison results file not found!")
 ```
 
+# VISUALIZATIONS
+
 ## Visualize optimal decomposition results
 
 ```{python visualize-optimal-results, eval=TRUE}
@@ -935,16 +937,12 @@ sns.set_palette("husl")
 output_dir = r.output_dir
 
 # Use the optimal results directory (set in previous chunk)
-if 'optimal_results_dir' in globals():
+if 'optimal_results_dir' in globals() and optimal_results_dir:
     latest_dir = optimal_results_dir
+    print(f"Using optimal analysis data from: {latest_dir}")
 else:
-    # Fallback to find the most recent results
-    result_dirs = glob.glob(os.path.join(output_dir, "20*"))
-    if result_dirs:
-        latest_dir = max(result_dirs)
-    else:
-        print("No results directories found!")
-        latest_dir = None
+    print("Error: optimal_results_dir not found. Please run the 'Analyze optimal decomposition results' chunk first.")
+    latest_dir = None
 
 if latest_dir:
     print(f"Visualizing results from: {latest_dir}")
@@ -1269,38 +1267,36 @@ import os
 output_dir = r.output_dir
 
 # Use the optimal results directory (set in previous chunk)
-if 'optimal_results_dir' in globals():
-    latest_dir = optimal_results_dir
-    # Also get the final analysis directory for saving individual plots
-    if 'main_results_dir' in globals():
-        main_results_dir = globals()['main_results_dir']
-        final_analysis_dirs = glob.glob(os.path.join(main_results_dir, "final_analysis_rank_*"))
-        if final_analysis_dirs:
-            final_analysis_dir = max(final_analysis_dirs)
-        else:
-            final_analysis_dir = latest_dir
-    else:
-        final_analysis_dir = latest_dir
+# Only use final_analysis_rank_* directories - no fallbacks
+final_analysis_dir = None
+latest_dir = None
+
+# Look for main results directory
+if 'main_results_dir' in globals():
+    main_results_dir = globals()['main_results_dir']
 else:
-    # Fallback to find the most recent results
     main_result_dirs = glob.glob(os.path.join(output_dir, "20*"))
     if main_result_dirs:
         main_results_dir = max(main_result_dirs)
-        final_analysis_dirs = glob.glob(os.path.join(main_results_dir, "final_analysis_rank_*"))
-        if final_analysis_dirs:
-            final_analysis_dir = max(final_analysis_dirs)
-            result_dirs = glob.glob(os.path.join(final_analysis_dir, "20*"))
-            if result_dirs:
-                latest_dir = max(result_dirs)
-            else:
-                latest_dir = None
-        else:
-            latest_dir = None
-            final_analysis_dir = None
     else:
-        print("No results directories found!")
-        latest_dir = None
-        final_analysis_dir = None
+        main_results_dir = None
+
+# Only proceed if we find final_analysis_rank_* directories
+if main_results_dir:
+    final_analysis_dirs = glob.glob(os.path.join(main_results_dir, "final_analysis_rank_*"))
+    if final_analysis_dirs:
+        final_analysis_dir = max(final_analysis_dirs)
+        # Look for timestamped results within the final analysis directory
+        result_dirs = glob.glob(os.path.join(final_analysis_dir, "20*"))
+        if result_dirs:
+            latest_dir = max(result_dirs)
+            print(f"Using final analysis data from: {latest_dir}")
+        else:
+            print("No timestamped results found in final_analysis_rank_* directory!")
+    else:
+        print("No final_analysis_rank_* directories found!")
+else:
+    print("No main results directory found!")
 
 if latest_dir:
     
@@ -1328,7 +1324,16 @@ if latest_dir:
     plt.xlabel('Component (ranked by strength)')
     plt.ylabel('Component Strength')
     plt.title('Component Strengths (Gene × Species × Time norms)')
-    plt.xticks(range(1, len(component_strengths) + 1, 5))
+    
+    # Set x-ticks to show all components if <= 10, otherwise show every 2nd or 5th
+    n_components = len(component_strengths)
+    if n_components <= 10:
+        plt.xticks(range(1, n_components + 1))
+    elif n_components <= 20:
+        plt.xticks(range(1, n_components + 1, 2))
+    else:
+        plt.xticks(range(1, n_components + 1, 5))
+    
     plt.grid(True, alpha=0.3)
     
     # Save individual plot in final analysis directory
@@ -1612,10 +1617,38 @@ import os
 # Get output directory from R environment
 output_dir = r.output_dir
 
-# Find the most recent results directory
-result_dirs = glob.glob(os.path.join(output_dir, "20*"))
-if result_dirs:
-    latest_dir = max(result_dirs)
+# Only use final_analysis_rank_* directories - no fallbacks
+final_analysis_dir = None
+latest_dir = None
+
+# Look for main results directory
+if 'main_results_dir' in globals():
+    main_results_dir = globals()['main_results_dir']
+else:
+    main_result_dirs = glob.glob(os.path.join(output_dir, "20*"))
+    if main_result_dirs:
+        main_results_dir = max(main_result_dirs)
+    else:
+        main_results_dir = None
+
+# Only proceed if we find final_analysis_rank_* directories
+if main_results_dir:
+    final_analysis_dirs = glob.glob(os.path.join(main_results_dir, "final_analysis_rank_*"))
+    if final_analysis_dirs:
+        final_analysis_dir = max(final_analysis_dirs)
+        # Look for timestamped results within the final analysis directory
+        result_dirs = glob.glob(os.path.join(final_analysis_dir, "20*"))
+        if result_dirs:
+            latest_dir = max(result_dirs)
+            print(f"Using final analysis data from: {latest_dir}")
+        else:
+            print("No timestamped results found in final_analysis_rank_* directory!")
+    else:
+        print("No final_analysis_rank_* directories found!")
+else:
+    print("No main results directory found!")
+
+if latest_dir:
     
     # Load data
     gene_factors = np.load(os.path.join(latest_dir, "gene_factors.npy"))
@@ -1687,10 +1720,38 @@ import os
 # Get output directory from R environment
 output_dir = r.output_dir
 
-# Find the most recent results directory
-result_dirs = glob.glob(os.path.join(output_dir, "20*"))
-if result_dirs:
-    latest_dir = max(result_dirs)
+# Only use final_analysis_rank_* directories - no fallbacks
+final_analysis_dir = None
+latest_dir = None
+
+# Look for main results directory
+if 'main_results_dir' in globals():
+    main_results_dir = globals()['main_results_dir']
+else:
+    main_result_dirs = glob.glob(os.path.join(output_dir, "20*"))
+    if main_result_dirs:
+        main_results_dir = max(main_result_dirs)
+    else:
+        main_results_dir = None
+
+# Only proceed if we find final_analysis_rank_* directories
+if main_results_dir:
+    final_analysis_dirs = glob.glob(os.path.join(main_results_dir, "final_analysis_rank_*"))
+    if final_analysis_dirs:
+        final_analysis_dir = max(final_analysis_dirs)
+        # Look for timestamped results within the final analysis directory
+        result_dirs = glob.glob(os.path.join(final_analysis_dir, "20*"))
+        if result_dirs:
+            latest_dir = max(result_dirs)
+            print(f"Using final analysis data from: {latest_dir}")
+        else:
+            print("No timestamped results found in final_analysis_rank_* directory!")
+    else:
+        print("No final_analysis_rank_* directories found!")
+else:
+    print("No main results directory found!")
+
+if latest_dir:
     
     # Load data
     gene_factors = np.load(os.path.join(latest_dir, "gene_factors.npy"))
@@ -1734,10 +1795,38 @@ import os
 # Get output directory from R environment
 output_dir = r.output_dir
 
-# Find the most recent results directory
-result_dirs = glob.glob(os.path.join(output_dir, "20*"))
-if result_dirs:
-    latest_dir = max(result_dirs)
+# Use the optimal results directory (set in previous chunk)
+final_analysis_dir = None
+latest_dir = None
+
+# Look for main results directory
+if 'main_results_dir' in globals():
+    main_results_dir = globals()['main_results_dir']
+else:
+    main_result_dirs = glob.glob(os.path.join(output_dir, "20*"))
+    if main_result_dirs:
+        main_results_dir = max(main_result_dirs)
+    else:
+        main_results_dir = None
+
+# Only proceed if we find final_analysis_rank_* directories
+if main_results_dir:
+    final_analysis_dirs = glob.glob(os.path.join(main_results_dir, "final_analysis_rank_*"))
+    if final_analysis_dirs:
+        final_analysis_dir = max(final_analysis_dirs)
+        # Look for timestamped results within the final analysis directory
+        result_dirs = glob.glob(os.path.join(final_analysis_dir, "20*"))
+        if result_dirs:
+            latest_dir = max(result_dirs)
+            print(f"Using final analysis data from: {latest_dir}")
+        else:
+            print("No timestamped results found in final_analysis_rank_* directory!")
+    else:
+        print("No final_analysis_rank_* directories found!")
+else:
+    print("No main results directory found!")
+
+if latest_dir:
     
     # Load data
     gene_factors = np.load(os.path.join(latest_dir, "gene_factors.npy"))
@@ -1776,10 +1865,38 @@ import os
 # Get output directory from R environment
 output_dir = r.output_dir
 
-# Find the most recent results directory
-result_dirs = glob.glob(os.path.join(output_dir, "20*"))
-if result_dirs:
-    latest_dir = max(result_dirs)
+# Use the optimal results directory (set in previous chunk)
+final_analysis_dir = None
+latest_dir = None
+
+# Look for main results directory
+if 'main_results_dir' in globals():
+    main_results_dir = globals()['main_results_dir']
+else:
+    main_result_dirs = glob.glob(os.path.join(output_dir, "20*"))
+    if main_result_dirs:
+        main_results_dir = max(main_result_dirs)
+    else:
+        main_results_dir = None
+
+# Only proceed if we find final_analysis_rank_* directories
+if main_results_dir:
+    final_analysis_dirs = glob.glob(os.path.join(main_results_dir, "final_analysis_rank_*"))
+    if final_analysis_dirs:
+        final_analysis_dir = max(final_analysis_dirs)
+        # Look for timestamped results within the final analysis directory
+        result_dirs = glob.glob(os.path.join(final_analysis_dir, "20*"))
+        if result_dirs:
+            latest_dir = max(result_dirs)
+            print(f"Using final analysis data from: {latest_dir}")
+        else:
+            print("No timestamped results found in final_analysis_rank_* directory!")
+    else:
+        print("No final_analysis_rank_* directories found!")
+else:
+    print("No main results directory found!")
+
+if latest_dir:
     
     # Load data
     gene_factors = np.load(os.path.join(latest_dir, "gene_factors.npy"))
@@ -1851,10 +1968,38 @@ import os
 # Get output directory from R environment
 output_dir = r.output_dir
 
-# Find the most recent results directory
-result_dirs = glob.glob(os.path.join(output_dir, "20*"))
-if result_dirs:
-    latest_dir = max(result_dirs)
+# Use the optimal results directory (set in previous chunk)
+final_analysis_dir = None
+latest_dir = None
+
+# Look for main results directory
+if 'main_results_dir' in globals():
+    main_results_dir = globals()['main_results_dir']
+else:
+    main_result_dirs = glob.glob(os.path.join(output_dir, "20*"))
+    if main_result_dirs:
+        main_results_dir = max(main_result_dirs)
+    else:
+        main_results_dir = None
+
+# Only proceed if we find final_analysis_rank_* directories
+if main_results_dir:
+    final_analysis_dirs = glob.glob(os.path.join(main_results_dir, "final_analysis_rank_*"))
+    if final_analysis_dirs:
+        final_analysis_dir = max(final_analysis_dirs)
+        # Look for timestamped results within the final analysis directory
+        result_dirs = glob.glob(os.path.join(final_analysis_dir, "20*"))
+        if result_dirs:
+            latest_dir = max(result_dirs)
+            print(f"Using final analysis data from: {latest_dir}")
+        else:
+            print("No timestamped results found in final_analysis_rank_* directory!")
+    else:
+        print("No final_analysis_rank_* directories found!")
+else:
+    print("No main results directory found!")
+
+if latest_dir:
     
     # Load data
     time_factors = np.load(os.path.join(latest_dir, "time_factors.npy"))
@@ -1870,7 +2015,16 @@ if result_dirs:
     plt.xlabel('Component (ranked by temporal variance)')
     plt.ylabel('Temporal Variance')
     plt.title('Components by Temporal Variability')
-    plt.xticks(range(1, len(time_variances) + 1, 5))
+    
+    # Set x-ticks to show all components if <= 10, otherwise show every 2nd or 5th
+    n_components = len(time_variances)
+    if n_components <= 10:
+        plt.xticks(range(1, n_components + 1))
+    elif n_components <= 20:
+        plt.xticks(range(1, n_components + 1, 2))
+    else:
+        plt.xticks(range(1, n_components + 1, 5))
+    
     plt.grid(True, alpha=0.3)
     
     # Save individual plot
@@ -1892,10 +2046,38 @@ import os
 # Get output directory from R environment
 output_dir = r.output_dir
 
-# Find the most recent results directory
-result_dirs = glob.glob(os.path.join(output_dir, "20*"))
-if result_dirs:
-    latest_dir = max(result_dirs)
+# Use the optimal results directory (set in previous chunk)
+final_analysis_dir = None
+latest_dir = None
+
+# Look for main results directory
+if 'main_results_dir' in globals():
+    main_results_dir = globals()['main_results_dir']
+else:
+    main_result_dirs = glob.glob(os.path.join(output_dir, "20*"))
+    if main_result_dirs:
+        main_results_dir = max(main_result_dirs)
+    else:
+        main_results_dir = None
+
+# Only proceed if we find final_analysis_rank_* directories
+if main_results_dir:
+    final_analysis_dirs = glob.glob(os.path.join(main_results_dir, "final_analysis_rank_*"))
+    if final_analysis_dirs:
+        final_analysis_dir = max(final_analysis_dirs)
+        # Look for timestamped results within the final analysis directory
+        result_dirs = glob.glob(os.path.join(final_analysis_dir, "20*"))
+        if result_dirs:
+            latest_dir = max(result_dirs)
+            print(f"Using final analysis data from: {latest_dir}")
+        else:
+            print("No timestamped results found in final_analysis_rank_* directory!")
+    else:
+        print("No final_analysis_rank_* directories found!")
+else:
+    print("No main results directory found!")
+
+if latest_dir:
     
     # Load data
     species_factors = np.load(os.path.join(latest_dir, "species_factors.npy"))
@@ -1911,7 +2093,16 @@ if result_dirs:
     plt.xlabel('Component (ranked by species variance)')
     plt.ylabel('Species Variance')
     plt.title('Components by Species Variability')
-    plt.xticks(range(1, len(species_variances) + 1, 5))
+    
+    # Set x-ticks to show all components if <= 10, otherwise show every 2nd or 5th
+    n_components = len(species_variances)
+    if n_components <= 10:
+        plt.xticks(range(1, n_components + 1))
+    elif n_components <= 20:
+        plt.xticks(range(1, n_components + 1, 2))
+    else:
+        plt.xticks(range(1, n_components + 1, 5))
+    
     plt.grid(True, alpha=0.3)
     
     # Save individual plot
@@ -1934,15 +2125,48 @@ import os
 # Get output directory from R environment
 output_dir = r.output_dir
 
-# Find the most recent results directory
-result_dirs = glob.glob(os.path.join(output_dir, "20*"))
-if result_dirs:
-    latest_dir = max(result_dirs)
+# Use the optimal results directory (set in previous chunk)
+final_analysis_dir = None
+latest_dir = None
+
+# Look for main results directory
+if 'main_results_dir' in globals():
+    main_results_dir = globals()['main_results_dir']
+else:
+    main_result_dirs = glob.glob(os.path.join(output_dir, "20*"))
+    if main_result_dirs:
+        main_results_dir = max(main_result_dirs)
+    else:
+        main_results_dir = None
+
+# Only proceed if we find final_analysis_rank_* directories
+if main_results_dir:
+    final_analysis_dirs = glob.glob(os.path.join(main_results_dir, "final_analysis_rank_*"))
+    if final_analysis_dirs:
+        final_analysis_dir = max(final_analysis_dirs)
+        # Look for timestamped results within the final analysis directory
+        result_dirs = glob.glob(os.path.join(final_analysis_dir, "20*"))
+        if result_dirs:
+            latest_dir = max(result_dirs)
+            print(f"Using final analysis data from: {latest_dir}")
+        else:
+            print("No timestamped results found in final_analysis_rank_* directory!")
+    else:
+        print("No final_analysis_rank_* directories found!")
+else:
+    print("No main results directory found!")
+
+if latest_dir:
     
     # Load data
     gene_factors = np.load(os.path.join(latest_dir, "gene_factors.npy"))
     species_factors = np.load(os.path.join(latest_dir, "species_factors.npy"))
     time_factors = np.load(os.path.join(latest_dir, "time_factors.npy"))
+    
+    # Load the transformed data to get actual gene names
+    data_file = os.path.join(output_dir, "vst_counts_matrix_long_format.csv")
+    df_long = pd.read_csv(data_file)
+    gene_names = sorted(df_long['gene'].unique())
     
     # Calculate component strengths and get top 5
     component_strengths = []
@@ -1967,12 +2191,16 @@ if result_dirs:
     top_gene_indices = list(set(top_gene_indices))  # Remove duplicates
     top_gene_data = gene_factors[top_gene_indices, :][:, top_5_components]
     
+    # Get actual gene names for the selected indices
+    top_gene_names = [gene_names[i] for i in top_gene_indices]
+    
     # Create heatmap
     plt.figure(figsize=(10, 12))
     sns.heatmap(top_gene_data, 
                 cmap='RdBu_r', center=0,
-                yticklabels=[f'Gene {i}' for i in top_gene_indices],
-                xticklabels=[f'Comp {i+1}' for i in top_5_components])
+                yticklabels=top_gene_names,
+                xticklabels=[f'Comp {i+1}' for i in top_5_components],
+                cbar_kws={'label': 'Gene factor loading'})
     plt.title(f'Top {len(top_gene_indices)} Genes × Top 5 Components')
     plt.xlabel('Component')
     plt.ylabel('Gene')
@@ -1997,9 +2225,38 @@ import os
 # Get output directory from R environment
 output_dir = r.output_dir
 
-# Find the most recent results directory
-result_dirs = glob.glob(os.path.join(output_dir, "20*"))
-if result_dirs:
+# Use the optimal results directory (set in previous chunk)
+final_analysis_dir = None
+latest_dir = None
+
+# Look for main results directory
+if 'main_results_dir' in globals():
+    main_results_dir = globals()['main_results_dir']
+else:
+    main_result_dirs = glob.glob(os.path.join(output_dir, "20*"))
+    if main_result_dirs:
+        main_results_dir = max(main_result_dirs)
+    else:
+        main_results_dir = None
+
+# Only proceed if we find final_analysis_rank_* directories
+if main_results_dir:
+    final_analysis_dirs = glob.glob(os.path.join(main_results_dir, "final_analysis_rank_*"))
+    if final_analysis_dirs:
+        final_analysis_dir = max(final_analysis_dirs)
+        # Look for timestamped results within the final analysis directory
+        result_dirs = glob.glob(os.path.join(final_analysis_dir, "20*"))
+        if result_dirs:
+            latest_dir = max(result_dirs)
+            print(f"Using final analysis data from: {latest_dir}")
+        else:
+            print("No timestamped results found in final_analysis_rank_* directory!")
+    else:
+        print("No final_analysis_rank_* directories found!")
+else:
+    print("No main results directory found!")
+
+if latest_dir:
     latest_dir = max(result_dirs)
     
     # Load data
@@ -2084,10 +2341,38 @@ import os
 # Get output directory from R environment
 output_dir = r.output_dir
 
-# Find the most recent results directory
-result_dirs = glob.glob(os.path.join(output_dir, "20*"))
-if result_dirs:
-    latest_dir = max(result_dirs)
+# Only use final_analysis_rank_* directories - no fallbacks
+final_analysis_dir = None
+latest_dir = None
+
+# Look for main results directory
+if 'main_results_dir' in globals():
+    main_results_dir = globals()['main_results_dir']
+else:
+    main_result_dirs = glob.glob(os.path.join(output_dir, "20*"))
+    if main_result_dirs:
+        main_results_dir = max(main_result_dirs)
+    else:
+        main_results_dir = None
+
+# Only proceed if we find final_analysis_rank_* directories
+if main_results_dir:
+    final_analysis_dirs = glob.glob(os.path.join(main_results_dir, "final_analysis_rank_*"))
+    if final_analysis_dirs:
+        final_analysis_dir = max(final_analysis_dirs)
+        # Look for timestamped results within the final analysis directory
+        result_dirs = glob.glob(os.path.join(final_analysis_dir, "20*"))
+        if result_dirs:
+            latest_dir = max(result_dirs)
+            print(f"Using final analysis data from: {latest_dir}")
+        else:
+            print("No timestamped results found in final_analysis_rank_* directory!")
+    else:
+        print("No final_analysis_rank_* directories found!")
+else:
+    print("No main results directory found!")
+
+if latest_dir:
     
     # Load data
     gene_factors = np.load(os.path.join(latest_dir, "gene_factors.npy"))
@@ -2234,8 +2519,11 @@ if result_dirs:
     
     plt.tight_layout()
     
-    # Save the interpretation plot
-    interp_plot_file = os.path.join(latest_dir, "species_clustering_interpretation.png")
+    # Save the interpretation plot in the appropriate directory
+    if final_analysis_dir:
+        interp_plot_file = os.path.join(final_analysis_dir, "species_clustering_interpretation.png")
+    else:
+        interp_plot_file = os.path.join(latest_dir, "species_clustering_interpretation.png")
     plt.savefig(interp_plot_file, dpi=300, bbox_inches='tight')
     print(f"\nInterpretation plot saved to: {interp_plot_file}")
     
