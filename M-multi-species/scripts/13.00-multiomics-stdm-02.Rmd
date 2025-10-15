@@ -79,7 +79,7 @@ py_config()
 
 ## Step 1: Build Tensor
 
-Build a 3D tensor from the VST counts matrix with replicate aggregation and normalization.
+Build a 3D tensor from the VST counts matrix with replicate aggregation. The input data is already VST-normalized, so no additional normalization is applied.
 
 ```{python build-tensor, eval=TRUE}
 import subprocess
@@ -94,13 +94,14 @@ tensor_dir = os.path.join(output_base, "tensor")
 os.makedirs(tensor_dir, exist_ok=True)
 
 # Build tensor using the new-tensor CLI
+# Note: normalization set to 'none' because input data is already VST-normalized
 cmd = [
     "/home/shared/16TB_HDD_01/sam/gitrepos/sr320/workflow-stdm-02/sr320-stdm-02-env/bin/new-tensor",
     "build-tensor",
     "--input-path", input_file,
     "--output-dir", tensor_dir,
     "--aggregation-method", "median",
-    "--normalization", "zscore",
+    "--normalization", "none",
     "--min-expression", "1.0",
     "--min-variance-percentile", "10.0"
 ]
