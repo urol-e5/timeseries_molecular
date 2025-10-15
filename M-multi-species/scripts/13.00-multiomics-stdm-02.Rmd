@@ -56,19 +56,19 @@ output_dir <- "../output/13.00-multiomics-stdm"
 
 #INPUT FILE(S)
 
-# PYTHON ENVIRONMENT - Use the project's .venv environment
-python_path <- "/home/shared/16TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/.venv/bin/python"
+# PYTHON ENVIRONMENT - Use the sr320-stdm-02 uv environment
+python_path <- "/home/shared/16TB_HDD_01/sam/gitrepos/sr320/workflow-stdm-02/sr320-stdm-02-env/bin/python"
 ```
 
 ## Load project Python environment
 
-The project uses a virtual environment (`.venv`) with all required packages. If this is successful, the Python path should show the `.venv` environment.
+The project uses the `sr320-stdm-02-env` uv virtual environment with the `new-tensor` package and all required dependencies. If this is successful, the Python path should show the `sr320-stdm-02-env` environment.
 
 ```{r load-python-env, eval=TRUE}
-# Use the project's .venv Python environment directly
+# Use the sr320-stdm-02-env uv environment
 library(reticulate)
 
-# Set Python path to the project's .venv
+# Set Python path to the sr320-stdm-02-env environment
 use_python(python_path, required = TRUE)
 
 # Show final configuration
