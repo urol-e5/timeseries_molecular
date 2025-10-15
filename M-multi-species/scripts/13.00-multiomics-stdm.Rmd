@@ -1526,21 +1526,43 @@ import os
 # Get output directory from R environment
 output_dir = r.output_dir
 
-# Find the most recent results directory
-result_dirs = glob.glob(os.path.join(output_dir, "20*"))
-if result_dirs:
-    latest_dir = max(result_dirs)
-    
+# Use the optimal results directory and final analysis directory (same logic as other chunks)
+if 'optimal_results_dir' in globals():
+    latest_dir = optimal_results_dir
+    if 'main_results_dir' in globals():
+        main_results_dir = globals()['main_results_dir']
+        final_analysis_dirs = glob.glob(os.path.join(main_results_dir, "final_analysis_rank_*"))
+        final_analysis_dir = max(final_analysis_dirs) if final_analysis_dirs else latest_dir
+    else:
+        final_analysis_dir = latest_dir
+else:
+    # Fallback logic
+    main_result_dirs = glob.glob(os.path.join(output_dir, "20*"))
+    if main_result_dirs:
+        main_results_dir = max(main_result_dirs)
+        final_analysis_dirs = glob.glob(os.path.join(main_results_dir, "final_analysis_rank_*"))
+        if final_analysis_dirs:
+            final_analysis_dir = max(final_analysis_dirs)
+            result_dirs = glob.glob(os.path.join(final_analysis_dir, "20*"))
+            latest_dir = max(result_dirs) if result_dirs else None
+        else:
+            latest_dir = None
+            final_analysis_dir = None
+    else:
+        latest_dir = None
+        final_analysis_dir = None
+
+if latest_dir:
     # Load data
     gene_factors = np.load(os.path.join(latest_dir, "gene_factors.npy"))
     species_factors = np.load(os.path.join(latest_dir, "species_factors.npy"))
     time_factors = np.load(os.path.join(latest_dir, "time_factors.npy"))
-    
+
     # Load the transformed data to get timepoint names
     data_file = os.path.join(output_dir, "vst_counts_matrix_long_format.csv")
     df_long = pd.read_csv(data_file)
     timepoint_names = sorted(df_long['timepoint'].unique())
-    
+
     # Calculate component strengths and get top 5
     component_strengths = []
     for i in range(gene_factors.shape[1]):
@@ -1549,17 +1571,17 @@ if result_dirs:
         time_norm = np.linalg.norm(time_factors[:, i])
         total_strength = gene_norm * species_norm * time_norm
         component_strengths.append(total_strength)
-    
+
     sorted_components = np.argsort(component_strengths)[::-1]
     top_5_components = sorted_components[:5]
-    
+
     # Create line plot
     plt.figure(figsize=(12, 6))
     for i, comp_idx in enumerate(top_5_components):
         plt.plot(range(1, len(timepoint_names) + 1), 
                 time_factors[:, comp_idx], 
                 marker='o', linewidth=2, label=f'Component {comp_idx + 1}')
-    
+
     plt.xlabel('Timepoint')
     plt.ylabel('Factor Value')
     plt.title('Temporal Trajectories (Top 5 Components)')
