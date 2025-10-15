@@ -94,16 +94,16 @@ tensor_dir = os.path.join(output_base, "tensor")
 os.makedirs(tensor_dir, exist_ok=True)
 
 # Build tensor using the new-tensor CLI
-# Note: normalization set to 'none' because input data is already VST-normalized
+# All parameters with their values (defaults noted in comments)
 cmd = [
     "/home/shared/16TB_HDD_01/sam/gitrepos/sr320/workflow-stdm-02/sr320-stdm-02-env/bin/new-tensor",
     "build-tensor",
-    "--input-path", input_file,
-    "--output-dir", tensor_dir,
-    "--aggregation-method", "median",
-    "--normalization", "none",
-    "--min-expression", "1.0",
-    "--min-variance-percentile", "10.0"
+    "--input-path", input_file,  # Required: path to VST counts matrix
+    "--output-dir", tensor_dir,  # Custom output directory
+    "--aggregation-method", "median",  # Default: median (alternatives: mean, trimmed_mean)
+    "--normalization", "none",  # Custom: none (default: zscore; alternatives: minmax, log1p)
+    "--min-expression", "1.0",  # Default: 1.0 (minimum expression threshold)
+    "--min-variance-percentile", "10.0"  # Default: 10.0 (variance percentile threshold)
 ]
 
 print("Building tensor...")
@@ -129,14 +129,17 @@ optimization_dir = os.path.join(r.output_dir, "optimization")
 os.makedirs(optimization_dir, exist_ok=True)
 
 # Optimize hyperparameters using the new-tensor CLI
+# All parameters with their values (defaults noted in comments)
 cmd = [
     "/home/shared/16TB_HDD_01/sam/gitrepos/sr320/workflow-stdm-02/sr320-stdm-02-env/bin/new-tensor",
     "optimize",
-    "--tensor-path", tensor_file,
-    "--output-dir", optimization_dir,
-    "--n-trials", "100",
-    "--rank-min", "4",
-    "--rank-max", "30"
+    "--tensor-path", tensor_file,  # Required: path to tensor file
+    "--output-dir", optimization_dir,  # Custom output directory
+    "--n-trials", "100",  # Default: 100 (number of optimization trials)
+    "--rank-min", "4",  # Custom: 4 (default: 2; minimum rank to try)
+    "--rank-max", "30",  # Custom: 30 (default: 12; maximum rank to try)
+    "--lambda-min", "0.0001",  # Default: 0.0001 (minimum L1 penalty)
+    "--lambda-max", "1.0"  # Default: 1.0 (maximum L1 penalty)
 ]
 
 print("Optimizing hyperparameters...")
@@ -197,14 +200,18 @@ fit_dir = os.path.join(r.output_dir, "fit")
 os.makedirs(fit_dir, exist_ok=True)
 
 # Fit model using the new-tensor CLI with optimal rank
+# All parameters with their values (defaults noted in comments)
 cmd = [
     "/home/shared/16TB_HDD_01/sam/gitrepos/sr320/workflow-stdm-02/sr320-stdm-02-env/bin/new-tensor",
     "fit",
-    "--tensor-path", tensor_file,
-    "--output-dir", fit_dir,
-    "--rank", optimal_rank,  # Automatically uses optimal rank from optimization
-    "--non-negative",
-    "--max-iter", "100"
+    "--tensor-path", tensor_file,  # Required: path to tensor file
+    "--output-dir", fit_dir,  # Custom output directory
+    "--rank", optimal_rank,  # Required: automatically loaded from optimization results
+    "--lambda-a", "0.1",  # Default: 0.1 (L1 penalty for gene factors)
+    "--lambda-b", "0.1",  # Default: 0.1 (L1 penalty for species factors)
+    "--lambda-c", "0.1",  # Default: 0.1 (L1 penalty for time factors)
+    "--non-negative",  # Custom: enforces non-negativity (default: no-non-negative)
+    "--max-iter", "100"  # Default: 100 (maximum iterations)
 ]
 
 print("Fitting model...")
@@ -231,13 +238,14 @@ export_dir = os.path.join(r.output_dir, "export")
 os.makedirs(export_dir, exist_ok=True)
 
 # Export results using the new-tensor CLI
+# All parameters with their values (defaults noted in comments)
 cmd = [
     "/home/shared/16TB_HDD_01/sam/gitrepos/sr320/workflow-stdm-02/sr320-stdm-02-env/bin/new-tensor",
     "export",
-    "--fit-dir", fit_dir,
-    "--mappings-dir", mappings_dir,
-    "--output-dir", export_dir,
-    "--plot-heatmaps"
+    "--fit-dir", fit_dir,  # Required: directory containing fit results
+    "--mappings-dir", mappings_dir,  # Required: directory containing tensor mappings
+    "--output-dir", export_dir,  # Custom output directory
+    "--plot-heatmaps"  # Default: plot-heatmaps (generate factor heatmaps)
 ]
 
 print("Exporting results...")
