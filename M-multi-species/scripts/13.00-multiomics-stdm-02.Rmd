@@ -1,0 +1,76 @@
+---
+title: "13.00-multiomics-stdm-02"
+author: "Sam White"
+date: "2025-10-15"
+output: 
+  github_document:
+    toc: true
+    number_sections: true
+  bookdown::html_document2:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+  html_document:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+bibliography: references.bib
+citeproc: true
+---
+# BACKGROUND
+
+This notebook performs tensor decomposition analysis on multi-species gene expression timeseries data using Steven's [`workflow-stdm-02`](https://github.com/sr320/workflow-stdm-02) (GitHub repo) tensor decomposition project.
+
+# SETUP
+
+## Libraries
+
+```{r setup, include=FALSE}
+library(knitr)
+library(tidyverse)
+library(reticulate)
+
+knitr::opts_chunk$set(
+  echo = TRUE,         # Display code chunks
+    eval = FALSE,        # Evaluate code chunks
+    results = "hold",   # Hold outputs and show them after the full code chunk
+  warning = FALSE,     # Hide warnings
+        collapse = FALSE,    # Keep code and output in separate blocks
+        warning = FALSE,     # Hide warnings
+        message = FALSE,     # Hide messages
+        comment = "##"      # Prefix output lines with '##' so output is visually distinct
+)
+```
+
+## Set R variables
+
+```{r R-variables, eval=TRUE}
+# OUTPUT DIRECTORY
+output_dir <- "../output/13.00-multiomics-stdm"
+
+#INPUT FILE(S)
+
+# PYTHON ENVIRONMENT - Use the project's .venv environment
+python_path <- "/home/shared/16TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular/.venv/bin/python"
+```
+
+## Load project Python environment
+
+The project uses a virtual environment (`.venv`) with all required packages. If this is successful, the Python path should show the `.venv` environment.
+
+```{r load-python-env, eval=TRUE}
+# Use the project's .venv Python environment directly
+library(reticulate)
+
+# Set Python path to the project's .venv
+use_python(python_path, required = TRUE)
+
+# Show final configuration
+py_config()
+```
