@@ -98,7 +98,9 @@ knitr::opts_chunk$set(
         collapse = FALSE,    # Keep code and output in separate blocks
         warning = FALSE,     # Hide warnings
         message = FALSE,     # Hide messages
-        comment = "##"      # Prefix output lines with '##' so output is visually distinct
+        comment = "##",      # Prefix output lines with '##' so output is visually distinct
+        fig.keep = "all",    # Keep all figures
+        dev = "png"          # Use PNG device for figures
 )
 ```
 
@@ -366,17 +368,19 @@ else:
 
 ## Analyze rank comparison results
 
-```{python analyze-rank-comparison, eval=TRUE}
+```{python analyze-rank-comparison, eval=TRUE, results='hide', collapse=TRUE}
 import numpy as np
 import pandas as pd
+import matplotlib
 import matplotlib.pyplot as plt
 import seaborn as sns
 import json
 import os
 import glob
 
-# Suppress matplotlib object output
-plt.ioff()  # Turn off interactive mode to prevent automatic display
+# Set up plotting
+matplotlib.use('Agg')  # Use non-interactive backend
+plt.ioff()  # Turn off interactive mode
 
 # Get output directory and find the main results directory
 output_dir = r.output_dir
@@ -559,6 +563,9 @@ if os.path.exists(comparison_results_file):
         
 else:
     print(f"Rank comparison results file not found: {comparison_results_file}")
+
+# Suppress output
+None
 ```
 
 
@@ -698,9 +705,11 @@ else:
 
 This section creates comprehensive visualizations for each rank tested, allowing comparison across different numbers of components.
 
-```{python generate-all-rank-visualizations, eval=TRUE}
+```{python generate-all-rank-visualizations, eval=TRUE, results='hide', collapse=TRUE}
 import numpy as np
 import pandas as pd
+import matplotlib
+matplotlib.use('Agg')  # Must be before importing pyplot
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.decomposition import PCA
@@ -708,12 +717,10 @@ import glob
 import os
 import json
 
-# Set up plotting style
+# Set up plotting style  
 plt.style.use('default')
 sns.set_palette("husl")
-
-# Suppress matplotlib object output
-plt.ioff()  # Turn off interactive mode to prevent automatic display
+plt.ioff()  # Turn off interactive mode
 
 # Get output directory and find the main results directory
 output_dir = r.output_dir
@@ -932,14 +939,18 @@ if os.path.exists(comparison_results_file):
     
 else:
     print("Rank comparison results file not found!")
+
+# Suppress output
+None
 ```
 
 
 ## Visualize optimal decomposition results
 
-```{python visualize-optimal-results, eval=TRUE}
+```{python visualize-optimal-results, eval=TRUE, results='hide', collapse=TRUE}
 import numpy as np
 import pandas as pd
+import matplotlib
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.cluster import KMeans
@@ -949,11 +960,10 @@ import os
 import json
 
 # Set up plotting style
+matplotlib.use('Agg')  # Use non-interactive backend
 plt.style.use('default')
 sns.set_palette("husl")
-
-# Suppress matplotlib object output
-plt.ioff()  # Turn off interactive mode to prevent automatic display
+plt.ioff()  # Turn off interactive mode
 
 # Get output directory from R environment
 output_dir = r.output_dir
@@ -1305,20 +1315,25 @@ if latest_dir:
     
 else:
     print("No optimal rank results found!")
+
+# Suppress output
+None
 ```
 
 ## Individual Plot 1: Component Strengths
 
-```{python plot-component-strengths, eval=TRUE}
+```{python plot-component-strengths, eval=TRUE, results='hide', collapse=TRUE}
 import numpy as np
 import pandas as pd
+import matplotlib
 import matplotlib.pyplot as plt
 import glob
 import os
 import json
 
-# Suppress matplotlib object output
-plt.ioff()  # Turn off interactive mode to prevent automatic display
+# Set up plotting
+matplotlib.use('Agg')  # Use non-interactive backend
+plt.ioff()  # Turn off interactive mode
 
 # Get output directory from R environment
 output_dir = r.output_dir
@@ -1413,21 +1428,26 @@ if latest_dir:
     plt.show()
 else:
     print(f"Could not load data for optimal rank {optimal_rank if optimal_rank else 'unknown'}")
+
+# Suppress output
+None
 ```
 
 ## Individual Plot 2: Temporal Patterns Heatmap
 
-```{python plot-temporal-heatmap, eval=TRUE}
+```{python plot-temporal-heatmap, eval=TRUE, results='hide', collapse=TRUE}
 import numpy as np
 import pandas as pd
+import matplotlib
 import matplotlib.pyplot as plt
 import seaborn as sns
 import glob
 import os
 import json
 
-# Suppress matplotlib object output
-plt.ioff()  # Turn off interactive mode to prevent automatic display
+# Set up plotting
+matplotlib.use('Agg')  # Use non-interactive backend
+plt.ioff()  # Turn off interactive mode
 
 # Get output directory from R environment
 output_dir = r.output_dir
@@ -1522,21 +1542,26 @@ if latest_dir:
     plt.show()
 else:
     print(f"Could not load data for optimal rank {optimal_rank if optimal_rank else 'unknown'}")
+
+# Suppress output
+None
 ```
 
 ## Individual Plot 3: Species Patterns Heatmap
 
-```{python plot-species-heatmap, eval=TRUE}
+```{python plot-species-heatmap, eval=TRUE, results='hide', collapse=TRUE}
 import numpy as np
 import pandas as pd
+import matplotlib
 import matplotlib.pyplot as plt
 import seaborn as sns
 import glob
 import os
 import json
 
-# Suppress matplotlib object output
-plt.ioff()  # Turn off interactive mode to prevent automatic display
+# Set up plotting
+matplotlib.use('Agg')  # Use non-interactive backend
+plt.ioff()  # Turn off interactive mode
 
 # Get output directory from R environment
 output_dir = r.output_dir
@@ -1633,20 +1658,25 @@ if latest_dir:
     plt.show()
 else:
     print(f"Could not load data for optimal rank {optimal_rank if optimal_rank else 'unknown'}")
+
+# Suppress output
+None
 ```
 
 ## Individual Plot 4: Temporal Trajectories
 
-```{python plot-temporal-trajectories, eval=TRUE}
+```{python plot-temporal-trajectories, eval=TRUE, results='hide', collapse=TRUE}
 import numpy as np
 import pandas as pd
+import matplotlib
 import matplotlib.pyplot as plt
 import glob
 import os
 import json
 
-# Suppress matplotlib object output
-plt.ioff()  # Turn off interactive mode to prevent automatic display
+# Set up plotting
+matplotlib.use('Agg')  # Use non-interactive backend
+plt.ioff()  # Turn off interactive mode
 
 # Get output directory from R environment
 output_dir = r.output_dir
@@ -1740,13 +1770,17 @@ if latest_dir:
     plt.show()
 else:
     print(f"Could not load data for optimal rank {optimal_rank if optimal_rank else 'unknown'}")
+
+# Suppress output
+None
 ```
 
 ## Individual Plot 5: Species Clustering PCA
 
-```{python plot-species-clustering, eval=TRUE}
+```{python plot-species-clustering, eval=TRUE, results='hide', collapse=TRUE}
 import numpy as np
 import pandas as pd
+import matplotlib
 import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
@@ -1754,8 +1788,9 @@ import glob
 import os
 import json
 
-# Suppress matplotlib object output
-plt.ioff()  # Turn off interactive mode to prevent automatic display
+# Set up plotting
+matplotlib.use('Agg')  # Use non-interactive backend
+plt.ioff()  # Turn off interactive mode
 
 # Get output directory from R environment
 output_dir = r.output_dir
@@ -1869,19 +1904,24 @@ if latest_dir:
         print(f"Optimal rank {optimal_rank} has insufficient components for PCA visualization")
 else:
     print(f"Could not load data for optimal rank {optimal_rank if optimal_rank else 'unknown'}")
+
+# Suppress output
+None
 ```
 
 ## Individual Plot 6: Gene Factor Distribution
 
-```{python plot-gene-distribution, eval=TRUE}
+```{python plot-gene-distribution, eval=TRUE, results='hide', collapse=TRUE}
 import numpy as np
+import matplotlib
 import matplotlib.pyplot as plt
 import glob
 import os
 import json
 
-# Suppress matplotlib object output
-plt.ioff()  # Turn off interactive mode to prevent automatic display
+# Set up plotting
+matplotlib.use('Agg')  # Use non-interactive backend
+plt.ioff()  # Turn off interactive mode
 
 # Get output directory from R environment
 output_dir = r.output_dir
@@ -1961,21 +2001,26 @@ if latest_dir:
     plt.show()
 else:
     print(f"Could not load data for optimal rank {optimal_rank if optimal_rank else 'unknown'}")
+
+# Suppress output
+None
 ```
 
 
 ## Individual Plot 7: Component Correlations
 
-```{python plot-component-correlations, eval=TRUE}
+```{python plot-component-correlations, eval=TRUE, results='hide', collapse=TRUE}
 import numpy as np
+import matplotlib
 import matplotlib.pyplot as plt
 import seaborn as sns
 import glob
 import os
 import json
 
-# Suppress matplotlib object output
-plt.ioff()  # Turn off interactive mode to prevent automatic display
+# Set up plotting
+matplotlib.use('Agg')  # Use non-interactive backend
+plt.ioff()  # Turn off interactive mode
 
 # Get output directory from R environment
 output_dir = r.output_dir
@@ -2051,20 +2096,25 @@ if latest_dir:
     plt.show()
 else:
     print(f"Could not load data for optimal rank {optimal_rank if optimal_rank else 'unknown'}")
+
+# Suppress output
+None
 ```
 
 ## Individual Plot 8: Species Type Comparison
 
-```{python plot-species-comparison, eval=TRUE}
+```{python plot-species-comparison, eval=TRUE, results='hide', collapse=TRUE}
 import numpy as np
 import pandas as pd
+import matplotlib
 import matplotlib.pyplot as plt
 import glob
 import os
 import json
 
-# Suppress matplotlib object output
-plt.ioff()  # Turn off interactive mode to prevent automatic display
+# Set up plotting
+matplotlib.use('Agg')  # Use non-interactive backend
+plt.ioff()  # Turn off interactive mode
 
 # Get output directory from R environment
 output_dir = r.output_dir
@@ -2175,19 +2225,24 @@ if latest_dir:
     plt.show()
 else:
     print(f"Could not load data for optimal rank {optimal_rank if optimal_rank else 'unknown'}")
+
+# Suppress output
+None
 ```
 
 ## Individual Plot 9: Temporal Variance per Component
 
-```{python plot-temporal-variance, eval=TRUE}
+```{python plot-temporal-variance, eval=TRUE, results='hide', collapse=TRUE}
 import numpy as np
+import matplotlib
 import matplotlib.pyplot as plt
 import glob
 import os
 import json
 
-# Suppress matplotlib object output
-plt.ioff()  # Turn off interactive mode to prevent automatic display
+# Set up plotting
+matplotlib.use('Agg')  # Use non-interactive backend
+plt.ioff()  # Turn off interactive mode
 
 # Get output directory from R environment
 output_dir = r.output_dir
@@ -2272,19 +2327,24 @@ if latest_dir:
     plt.show()
 else:
     print(f"Could not load data for optimal rank {optimal_rank if optimal_rank else 'unknown'}")
+
+# Suppress output
+None
 ```
 
 ## Individual Plot 10: Species Variance per Component
 
-```{python plot-species-variance, eval=TRUE}
+```{python plot-species-variance, eval=TRUE, results='hide', collapse=TRUE}
 import numpy as np
+import matplotlib
 import matplotlib.pyplot as plt
 import glob
 import os
 import json
 
-# Suppress matplotlib object output
-plt.ioff()  # Turn off interactive mode to prevent automatic display
+# Set up plotting
+matplotlib.use('Agg')  # Use non-interactive backend
+plt.ioff()  # Turn off interactive mode
 
 # Get output directory from R environment
 output_dir = r.output_dir
@@ -2369,21 +2429,26 @@ if latest_dir:
     plt.show()
 else:
     print(f"Could not load data for optimal rank {optimal_rank if optimal_rank else 'unknown'}")
+
+# Suppress output
+None
 ```
 
 ## Individual Plot 11: Top Genes Heatmap
 
-```{python plot-top-genes, eval=TRUE}
+```{python plot-top-genes, eval=TRUE, results='hide', collapse=TRUE}
 import numpy as np
 import pandas as pd
+import matplotlib
 import matplotlib.pyplot as plt
 import seaborn as sns
 import glob
 import os
 import json
 
-# Suppress matplotlib object output
-plt.ioff()  # Turn off interactive mode to prevent automatic display
+# Set up plotting
+matplotlib.use('Agg')  # Use non-interactive backend
+plt.ioff()  # Turn off interactive mode
 
 # Get output directory from R environment
 output_dir = r.output_dir
@@ -2489,20 +2554,25 @@ if latest_dir:
     plt.show()
 else:
     print(f"Could not load data for optimal rank {optimal_rank if optimal_rank else 'unknown'}")
+
+# Suppress output
+None
 ```
 
 ## Individual Plot 12: Reconstruction Quality
 
-```{python plot-reconstruction-quality, eval=TRUE}
+```{python plot-reconstruction-quality, eval=TRUE, results='hide', collapse=TRUE}
 import numpy as np
 import pandas as pd
+import matplotlib
 import matplotlib.pyplot as plt
 import glob
 import os
 import json
 
-# Suppress matplotlib object output
-plt.ioff()  # Turn off interactive mode to prevent automatic display
+# Set up plotting
+matplotlib.use('Agg')  # Use non-interactive backend
+plt.ioff()  # Turn off interactive mode
 
 # Get output directory from R environment
 output_dir = r.output_dir
@@ -2621,6 +2691,9 @@ if latest_dir:
     plt.show()
 else:
     print(f"Could not load data for optimal rank {optimal_rank if optimal_rank else 'unknown'}")
+
+# Suppress output
+None
 ```
 
 ## Interpret species clustering patterns
