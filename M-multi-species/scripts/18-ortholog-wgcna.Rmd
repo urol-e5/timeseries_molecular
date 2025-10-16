@@ -306,6 +306,15 @@ gene_module_df <- tibble(
 
 # Example: save gene lists per module color
 write_csv(gene_module_df, "M-multi-species/output/18-ortholog-wgcna/gene_module_assignments.csv")
+
+#summarize number of genes in each module
+
+module_counts <- gene_module_df %>%
+  as.data.frame() %>%
+  dplyr::count(module_label, name = "n_genes") %>%
+  arrange(desc(n_genes))
+
+print(module_counts)
 ```
 
 ```{r}
@@ -374,7 +383,7 @@ xLabs_re    <- colnames(trait_mat)
 
 # --- Compact layout: narrower dendrogram panel ---
 op <- par(no.readonly = TRUE)
-layout(matrix(c(1, 2), nrow = 1), widths = c(0.8, 5))
+layout(matrix(c(1, 2), nrow = 1), widths = c(0.6, 5))
 
 ## (1) Row dendrogram
 par(mar = c(10, 0, 3, 0))
