@@ -27,6 +27,55 @@ citeproc: true
 
 This notebook performs tensor decomposition analysis on multi-species gene expression timeseries data using Steven's [`workflow-stdm-02`](https://github.com/sr320/workflow-stdm-02) (GitHub repo) tensor decomposition project.
 
+This package was auto-generated based on instructions provided by Steven. He created a few different packages and wanted them tested. The goal of this notebook is primarily to see how easily this package runs and whether the output is useful (i.e. useful visualizations, human-readable results tables, etc.)
+
+## Input Data
+
+The `workflow-stdm-02` package processes a VST (Variance Stabilizing Transformation) counts matrix containing multi-species gene expression data across time points. The input file structure is:
+
+- **Input file**: `vst_counts_matrix.csv` (9,802 rows × 113 columns)
+  - **Genes**: 8,820 ortholog groups (OG_XXXXX identifiers) 
+  - **Species**: 3 coral species (ACR, POR, POC)
+  - **Time points**: 4 time points (TP1, TP2, TP3, TP4)
+  - **Samples**: Multiple biological replicates per species-timepoint combination
+  - **Data format**: VST-normalized gene expression values
+
+The package performs tensor decomposition to identify latent factors that capture patterns across the gene × species × time dimensions using sparse CP (CANDECOMP/PARAFAC) decomposition with L1 regularization.
+
+## Output Structure
+
+The workflow generates comprehensive output organized into four main directories:
+
+```
+output/
+├── tensor/              # 3D tensor construction
+│   ├── tensor.npz      # Compressed 3D tensor (genes × species × timepoints)
+│   ├── genes.csv       # Gene ID mappings and indices
+│   ├── species.csv     # Species code mappings
+│   ├── timepoints.csv  # Timepoint mappings
+│   └── tensor_shapes.json # Tensor dimensions and metadata
+├── optimization/        # Hyperparameter optimization results
+│   ├── best_params.json    # Optimal rank and L1 penalties
+│   ├── top_trials.csv      # Best performing parameter combinations
+│   ├── trials.csv          # All optimization trials
+│   └── optuna_study.pkl    # Optuna study object
+├── fit/                # Model fitting results
+│   ├── gene_factors.csv    # Gene factor loadings (A matrix)
+│   ├── species_factors.csv # Species factor loadings (B matrix)
+│   ├── time_factors.csv    # Time factor loadings (C matrix)
+│   ├── loss_history.csv    # Convergence history
+│   └── fit_metrics.json    # Model performance metrics
+└── export/             # Human-readable results with annotations
+    ├── gene_factors_with_ids.csv      # Gene factors with OG identifiers
+    ├── species_factors_with_codes.csv # Species factors with species codes
+    ├── time_factors_with_labels.csv   # Time factors with timepoint labels
+    ├── decomposition_results.json     # Complete results summary
+    └── factor_heatmaps.png            # Factor visualization plots
+```
+
+Key output metrics include reconstruction error, explained variance, sparsity levels, and convergence status. The final decomposition identifies latent factors that capture coordinated patterns of gene expression across species and time.
+
+
 # SETUP
 
 ## Libraries
