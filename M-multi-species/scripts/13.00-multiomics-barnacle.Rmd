@@ -1086,6 +1086,7 @@ print(f"Input tensor shape: {tensor_filled.shape}")
 # Set up sparse CP decomposition parameters
 rank = 20  # Number of components to extract
 lambdas = [0.1, 0.0, 0.1]  # Sparsity penalties for [genes, samples, timepoints]
+n_iter_max = 1000  # Maximum number of iterations
 
 # Create model with all available parameters
 # (Parameters marked with "# DEFAULT" show the default value from barnacle)
@@ -1095,8 +1096,8 @@ model = SparseCP(
     nonneg_modes=[0],                   # DEFAULT: None - List of modes forced to be non-negative
     norm_constraint=True,               # DEFAULT: True - Constrain L2 norm of non-sparse factors
     init='random',                      # DEFAULT: 'random' - Initialization method ('random' or CPTensor)
-    tol=1e-5,                          # DEFAULT: 1e-6 - Convergence tolerance
-    n_iter_max=1000,                   # DEFAULT: 1000 - Maximum iterations (using 20000 here)
+    tol=0.1,                          # DEFAULT: 1e-6 - Convergence tolerance
+    n_iter_max=n_iter_max,                   # DEFAULT: 1000 - Maximum iterations (using 20000 here)
     random_state=40,                    # DEFAULT: None - Random seed for reproducibility
     n_initializations=1                 # DEFAULT: 1 - Number of random initializations
 )
@@ -1107,15 +1108,22 @@ try:
     decomposition = model.fit_transform(tensor_filled, verbose=1)
     
     print(f"\nDecomposition complete!")
-    print(f"Converged: {hasattr(model, 'converged_') and model.converged_}")
     
     # Capture loss information
     loss_history = None
     if hasattr(model, 'loss_') and model.loss_ is not None:
         loss_history = model.loss_
-        print(f"Final loss: {loss_history[-1]:.6f}")
-        print(f"Number of iterations: {len(loss_history)}")
+        print(f"\nMax iterations set: {n_iter_max}")
+        print(f"Iterations completed: {len(loss_history)}")
+        
+        # Determine convergence status
+        if len(loss_history) < n_iter_max:
+            print(f"Convergence: Algorithm converged early (met tolerance criterion of {model.tol})")
+        else:
+            print(f"Convergence: Algorithm reached maximum iterations without converging")
+        
         print(f"Initial loss: {loss_history[0]:.6f}")
+        print(f"Final loss: {loss_history[-1]:.6f}")
         print(f"Loss reduction: {loss_history[0] - loss_history[-1]:.6f} ({(1 - loss_history[-1]/loss_history[0])*100:.2f}% decrease)")
     else:
         print("Loss information not available")
