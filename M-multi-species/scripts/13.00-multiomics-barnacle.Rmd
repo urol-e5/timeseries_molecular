@@ -1084,17 +1084,21 @@ print("Running Barnacle sparse tensor decomposition...")
 print(f"Input tensor shape: {tensor_filled.shape}")
 
 # Set up sparse CP decomposition parameters
-rank = 100  # Number of components to extract
-lambdas = [0.01, 0.0, 0.01]  # Sparsity penalties for [genes, samples, timepoints]
+rank = 20  # Number of components to extract
+lambdas = [0.1, 0.0, 0.1]  # Sparsity penalties for [genes, samples, timepoints]
 
-# Create model
+# Create model with all available parameters
+# (Parameters marked with "# DEFAULT" show the default value from barnacle)
 model = SparseCP(
-    rank=rank,
-    lambdas=lambdas,
-    nonneg_modes=[0],  # Non-negative gene loadings only
-    n_initializations=3,  # Reduced for faster testing
-    n_iter_max=20000,
-    random_state=42
+    rank=rank,                          # REQUIRED: Number of components
+    lambdas=lambdas,                    # REQUIRED: L1 sparsity coefficients per mode
+    nonneg_modes=[0],                   # DEFAULT: None - List of modes forced to be non-negative
+    norm_constraint=True,               # DEFAULT: True - Constrain L2 norm of non-sparse factors
+    init='random',                      # DEFAULT: 'random' - Initialization method ('random' or CPTensor)
+    tol=1000,                          # DEFAULT: 1e-6 - Convergence tolerance
+    n_iter_max=1000,                   # DEFAULT: 1000 - Maximum iterations (using 20000 here)
+    random_state=40,                    # DEFAULT: None - Random seed for reproducibility
+    n_initializations=1                 # DEFAULT: 1 - Number of random initializations
 )
 
 # Fit the model
