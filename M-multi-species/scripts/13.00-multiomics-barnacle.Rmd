@@ -1095,7 +1095,7 @@ model = SparseCP(
     nonneg_modes=[0],                   # DEFAULT: None - List of modes forced to be non-negative
     norm_constraint=True,               # DEFAULT: True - Constrain L2 norm of non-sparse factors
     init='random',                      # DEFAULT: 'random' - Initialization method ('random' or CPTensor)
-    tol=1000,                          # DEFAULT: 1e-6 - Convergence tolerance
+    tol=1e-5,                          # DEFAULT: 1e-6 - Convergence tolerance
     n_iter_max=1000,                   # DEFAULT: 1000 - Maximum iterations (using 20000 here)
     random_state=40,                    # DEFAULT: None - Random seed for reproducibility
     n_initializations=1                 # DEFAULT: 1 - Number of random initializations
@@ -1109,9 +1109,14 @@ try:
     print(f"\nDecomposition complete!")
     print(f"Converged: {hasattr(model, 'converged_') and model.converged_}")
     
+    # Capture loss information
+    loss_history = None
     if hasattr(model, 'loss_') and model.loss_ is not None:
-        print(f"Final loss: {model.loss_[-1]:.6f}")
-        print(f"Number of iterations: {len(model.loss_)}")
+        loss_history = model.loss_
+        print(f"Final loss: {loss_history[-1]:.6f}")
+        print(f"Number of iterations: {len(loss_history)}")
+        print(f"Initial loss: {loss_history[0]:.6f}")
+        print(f"Loss reduction: {loss_history[0] - loss_history[-1]:.6f} ({(1 - loss_history[-1]/loss_history[0])*100:.2f}% decrease)")
     else:
         print("Loss information not available")
     
@@ -1282,6 +1287,15 @@ if decomposition_success:
     
     # Save sample mapping
     sample_mapping.to_csv(os.path.join(factors_dir, "sample_mapping.csv"), index=False)
+    
+    # Save loss history if available
+    if loss_history is not None:
+        loss_df = pd.DataFrame({
+            'Iteration': list(range(1, len(loss_history) + 1)),
+            'Loss': loss_history
+        })
+        loss_df.to_csv(os.path.join(factors_dir, "loss_history.csv"), index=False)
+        print("- loss_history.csv: Loss values per iteration")
 
     # Save metadata
     metadata = {
@@ -1374,6 +1388,56 @@ if os.path.exists(weights_path):
     weights_df = pd.read_csv(weights_path)
 
 print('Visualization setup complete')
+```
+
+### Loss convergence plot
+
+```{python viz-loss-convergence, eval=TRUE}
+# Loss convergence plot
+loss_path = os.path.join(factors_dir, 'loss_history.csv')
+if os.path.exists(loss_path):
+    try:
+        loss_df = pd.read_csv(loss_path)
+        
+        plt.figure(figsize=(8, 5))
+        ax = plt.gca()
+        ax.plot(loss_df['Iteration'], loss_df['Loss'], linewidth=2, color='steelblue')
+        ax.set_xlabel('Iteration')
+        ax.set_ylabel('Loss')
+        ax.set_title('Convergence: Loss per Iteration')
+        ax.grid(True, alpha=0.3)
+        
+        # Disable scientific notation offset
+        ax.ticklabel_format(style='plain', axis='y')
+        
+        plt.tight_layout()
+        out = os.path.join(fig_dir, 'loss_convergence.png')
+        plt.savefig(out, dpi=150)
+        print('Saved:', out)
+        
+        # Print convergence statistics
+        initial_loss = loss_df['Loss'].iloc[0]
+        final_loss = loss_df['Loss'].iloc[-1]
+        n_iters = len(loss_df)
+        loss_reduction = initial_loss - final_loss
+        pct_reduction = (loss_reduction / initial_loss) * 100
+        
+        print(f'\nConvergence Statistics:')
+        print(f'  Iterations: {n_iters}')
+        print(f'  Initial loss: {initial_loss:.6f}')
+        print(f'  Final loss: {final_loss:.6f}')
+        print(f'  Loss reduction: {loss_reduction:.6f} ({pct_reduction:.2f}%)')
+        
+        try:
+            plt.show()
+        except Exception:
+            pass
+        plt.close()
+        
+    except Exception as e:
+        print('Loss convergence plot failed:', e)
+else:
+    print('No loss_history.csv found; skipping convergence plot')
 ```
 
 ### Component weights
