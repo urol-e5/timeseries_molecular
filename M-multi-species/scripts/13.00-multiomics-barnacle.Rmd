@@ -1359,8 +1359,17 @@ print("Rank comparison helper functions loaded")
 # ===========================================
 # CONFIGURE RANKS TO TEST
 # ===========================================
+# NOTE: This chunk creates a machine-readable log file
+# (rank_comparison_log.json) that subsequent chunks will use.
+# This allows you to skip re-running this chunk if you've
+# already generated results.
+# ===========================================
 ranks_to_test = [5, 8, 10, 12, 15, 20, 25, 35, 45, 55, 65, 75]  # Modify this list as needed
 # ===========================================
+
+import os
+import json
+import datetime
 
 print("="*60)
 print("COMPARING MULTIPLE RANKS")
@@ -1398,6 +1407,47 @@ print(f"\n{'='*60}")
 print(f"ALL RANKS COMPLETE")
 print(f"{'='*60}")
 print(f"Successful: {sum(1 for r in all_rank_results if r['success'])}/{len(all_rank_results)}")
+
+# ===========================================
+# SAVE COMPREHENSIVE LOG FILE
+# ===========================================
+import json
+import datetime
+
+log_file = os.path.join(output_dir, 'rank_comparison_log.json')
+
+log_data = {
+    'timestamp': datetime.datetime.now().isoformat(),
+    'ranks_tested': ranks_to_test,
+    'total_runs': len(all_rank_results),
+    'successful_runs': sum(1 for r in all_rank_results if r['success']),
+    'failed_runs': sum(1 for r in all_rank_results if not r['success']),
+    'results': []
+}
+
+for result in all_rank_results:
+    rank_info = {
+        'rank': result['rank'],
+        'success': result['success']
+    }
+    
+    if result['success']:
+        rank_info['metrics'] = {
+            k: float(v) if isinstance(v, (int, float, np.number)) else bool(v) if isinstance(v, (bool, np.bool_)) else v
+            for k, v in result['metrics'].items()
+        }
+        rank_info['output_dir'] = os.path.join(output_dir, f'rank_{result["rank"]:02d}')
+        rank_info['has_loss_history'] = hasattr(result['model'], 'loss_') and result['model'].loss_ is not None
+    else:
+        rank_info['error'] = result.get('error', 'Unknown error')
+    
+    log_data['results'].append(rank_info)
+
+with open(log_file, 'w') as f:
+    json.dump(log_data, f, indent=2)
+
+print(f"\nLog file saved to: {log_file}")
+print("This log can be used by subsequent chunks to avoid re-running decompositions")
 ```
 
 # VISUALIZATION
@@ -1405,11 +1455,17 @@ print(f"Successful: {sum(1 for r in all_rank_results if r['success'])}/{len(all_
 ## Plot rank comparisons
 
 ```{python plot-rank-comparison, eval=TRUE}
+# ===========================================
+# This chunk reads from rank_comparison_log.json
+# and does NOT require variables from previous chunks
+# ===========================================
 import matplotlib.pyplot as plt
 import seaborn as sns
 import json
 import glob
 import os
+import pandas as pd
+import numpy as np
 
 print(f"\n{'='*60}")
 print("Creating rank comparison visualizations")
@@ -1424,9 +1480,42 @@ if 'output_dir' not in globals():
 comparison_dir = os.path.join(output_dir, 'rank_comparison')
 os.makedirs(comparison_dir, exist_ok=True)
 
-# Load results from disk if all_rank_results doesn't exist
-if 'all_rank_results' not in globals():
-    print("Loading results from disk (all_rank_results not in memory)...")
+# ===========================================
+# LOAD RESULTS FROM LOG FILE
+# ===========================================
+log_file = os.path.join(output_dir, 'rank_comparison_log.json')
+
+if os.path.exists(log_file):
+    print(f"Loading results from log file: {log_file}")
+    with open(log_file, 'r') as f:
+        log_data = json.load(f)
+    
+    print(f"  Log timestamp: {log_data['timestamp']}")
+    print(f"  Total runs: {log_data['total_runs']}")
+    print(f"  Successful: {log_data['successful_runs']}")
+    print(f"  Failed: {log_data['failed_runs']}")
+    
+    # Reconstruct all_rank_results from log
+    all_rank_results = []
+    for result_info in log_data['results']:
+        if result_info['success']:
+            all_rank_results.append({
+                'rank': result_info['rank'],
+                'metrics': result_info['metrics'],
+                'success': True
+            })
+        else:
+            all_rank_results.append({
+                'rank': result_info['rank'],
+                'success': False,
+                'error': result_info.get('error', 'Unknown error')
+            })
+    
+    print(f"  Loaded {len(all_rank_results)} results from log file")
+    
+elif 'all_rank_results' not in globals():
+    # Fallback: Load from individual metadata files
+    print("Log file not found. Loading from individual rank directories...")
     all_rank_results = []
     
     # Find all rank_* directories
@@ -1445,6 +1534,8 @@ if 'all_rank_results' not in globals():
                 })
     
     print(f"  Loaded {len(all_rank_results)} results from disk")
+else:
+    print("Using all_rank_results from memory")
 
 # Extract successful results
 successful = [r for r in all_rank_results if r['success']]
@@ -1570,22 +1661,37 @@ else:
     # Loss trajectories
     fig, ax = plt.subplots(figsize=(10, 6))
     
+    loss_plotted = False
     for r in successful:
-        if hasattr(r['model'], 'loss_') and r['model'].loss_ is not None:
+        # Try to get loss from model object first
+        if 'model' in r and hasattr(r['model'], 'loss_') and r['model'].loss_ is not None:
             loss = r['model'].loss_
             ax.plot(range(1, len(loss)+1), loss, linewidth=2, label=f'Rank {r["rank"]}', alpha=0.8)
+            loss_plotted = True
+        else:
+            # Load from disk
+            rank_dir = os.path.join(output_dir, f'rank_{r["rank"]:02d}')
+            loss_file = os.path.join(rank_dir, 'loss_history.csv')
+            if os.path.exists(loss_file):
+                loss_df = pd.read_csv(loss_file)
+                ax.plot(loss_df['Iteration'], loss_df['Loss'], linewidth=2, label=f'Rank {r["rank"]}', alpha=0.8)
+                loss_plotted = True
     
-    ax.set_xlabel('Iteration', fontsize=12)
-    ax.set_ylabel('Loss', fontsize=12)
-    ax.set_title('Loss Convergence Trajectories by Rank', fontsize=14, fontweight='bold')
-    ax.grid(True, alpha=0.3)
-    ax.legend(fontsize=10)
-    ax.set_yscale('log')
+    if loss_plotted:
+        ax.set_xlabel('Iteration', fontsize=12)
+        ax.set_ylabel('Loss', fontsize=12)
+        ax.set_title('Loss Convergence Trajectories by Rank', fontsize=14, fontweight='bold')
+        ax.grid(True, alpha=0.3)
+        ax.legend(fontsize=10)
+        ax.set_yscale('log')
+        
+        plt.tight_layout()
+        output_path = os.path.join(comparison_dir, 'loss_trajectories.png')
+        plt.savefig(output_path, dpi=150, bbox_inches='tight')
+        print(f"  Saved: loss_trajectories.png")
+    else:
+        print(f"  Skipped loss_trajectories.png (no loss history available)")
     
-    plt.tight_layout()
-    output_path = os.path.join(comparison_dir, 'loss_trajectories.png')
-    plt.savefig(output_path, dpi=150, bbox_inches='tight')
-    print(f"  Saved: loss_trajectories.png")
     plt.close()
     
     print(f"\nAll comparison plots saved to: {comparison_dir}")
@@ -1652,9 +1758,56 @@ if(file.exists(comparison_file)) {
 # RANK RECOMMENDATION
 
 ```{python recommend-rank, eval=TRUE}
+# ===========================================
+# This chunk reads from rank_comparison_log.json
+# and does NOT require variables from previous chunks
+# ===========================================
+import os
+import json
+import pandas as pd
+import numpy as np
+
 print(f"\n{'='*60}")
 print("RANK RECOMMENDATION")
 print(f"{'='*60}")
+
+# ===========================================
+# LOAD RESULTS FROM LOG FILE IF NEEDED
+# ===========================================
+if 'output_dir' not in globals():
+    print("Getting output_dir from R environment...")
+    output_dir = r.output_dir
+    print(f"  output_dir = {output_dir}")
+
+if 'all_rank_results' not in globals():
+    log_file = os.path.join(output_dir, 'rank_comparison_log.json')
+    
+    if os.path.exists(log_file):
+        print(f"Loading results from log file: {log_file}")
+        with open(log_file, 'r') as f:
+            log_data = json.load(f)
+        
+        # Reconstruct all_rank_results from log
+        all_rank_results = []
+        for result_info in log_data['results']:
+            if result_info['success']:
+                all_rank_results.append({
+                    'rank': result_info['rank'],
+                    'metrics': result_info['metrics'],
+                    'success': True
+                })
+            else:
+                all_rank_results.append({
+                    'rank': result_info['rank'],
+                    'success': False,
+                    'error': result_info.get('error', 'Unknown error')
+                })
+        
+        print(f"  Loaded {len(all_rank_results)} results from log file")
+    else:
+        print("ERROR: No log file found and all_rank_results not in memory!")
+        print("Please run the barnacle-multiple-ranks chunk first.")
+        all_rank_results = []
 
 successful = [r for r in all_rank_results if r['success']]
 if len(successful) == 0:
