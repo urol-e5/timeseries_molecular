@@ -880,6 +880,42 @@ cat("Ptua:", ptua_norm_file, "\n\n")
 
 Now we'll switch to Python to create the multiomics tensor and run barnacle analysis.
 
+```{python setup-logging, eval=TRUE}
+import sys
+import os
+from datetime import datetime
+
+# Set up logging to both console and file
+class Logger:
+    def __init__(self, log_file):
+        self.terminal = sys.stdout
+        self.log = open(log_file, 'w')
+        
+    def write(self, message):
+        self.terminal.write(message)
+        self.log.write(message)
+        self.log.flush()
+        
+    def flush(self):
+        self.terminal.flush()
+        self.log.flush()
+
+# Create log file path
+output_dir = r.output_dir
+log_file = os.path.join(output_dir, f'barnacle_analysis_log_{datetime.now().strftime("%Y%m%d_%H%M%S")}.txt')
+
+# Redirect stdout to both console and log file
+sys.stdout = Logger(log_file)
+sys.stderr = sys.stdout  # Also capture error messages
+
+print("="*60)
+print(f"BARNACLE ANALYSIS LOG")
+print(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+print(f"Log file: {log_file}")
+print("="*60)
+print()
+```
+
 ```{python create-multiomics-tensor, eval=TRUE}
 import pandas as pd
 import numpy as np
@@ -1753,6 +1789,24 @@ After identifying the optimal rank from comparison:
 - **Didn't converge for some ranks?** Increase `n_iter_max` in comparison chunk
 - **Unclear which rank to choose?** Focus on elbow in variance explained + biological interpretability
 
+## Close log file
+
+```{python close-log, eval=TRUE}
+from datetime import datetime
+
+print()
+print("="*60)
+print(f"ANALYSIS COMPLETE")
+print(f"Finished: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+print(f"All output saved to: {output_dir}")
+print(f"Log file: {log_file}")
+print("="*60)
+
+# Restore stdout and close log file
+if hasattr(sys.stdout, 'log'):
+    sys.stdout.log.close()
+    sys.stdout = sys.stdout.terminal
+```
 
 # SYSTEM INFO
 
