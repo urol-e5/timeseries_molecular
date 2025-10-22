@@ -1,0 +1,355 @@
+============================================================
+BARNACLE ANALYSIS LOG
+Started: 2025-10-20 19:04:05
+Log file: ../output/13.00-multiomics-barnacle/barnacle_analysis_log_20251020_190405.txt
+============================================================
+
+Working in output directory: ../output/13.00-multiomics-barnacle
+Loaded normalized data:
+Apul: (10223, 41)
+Peve: (10223, 37)
+Ptua: (10223, 37)
+
+Common genes across all species: 10223
+
+Filtered to common genes:
+Apul: (10223, 40)
+Peve: (10223, 36)
+Ptua: (10223, 36)
+Parsing sample information for each species...
+apul:
+  Samples: 10 (['ACR.139', 'ACR.145', 'ACR.150']...)
+  Timepoints: [1, 2, 3, 4]
+peve:
+  Samples: 9 (['POR.216', 'POR.245', 'POR.260']...)
+  Timepoints: [1, 2, 3, 4]
+ptua:
+  Samples: 9 (['POC.219', 'POC.222', 'POC.255']...)
+  Timepoints: [1, 2, 3, 4]
+
+Timepoints found across all species: [1, 2, 3, 4]
+Maximum samples in any species: 10
+
+Detailed sample structure:
+apul: 10 samples × 4 timepoints
+peve: 9 samples × 4 timepoints
+ptua: 9 samples × 4 timepoints
+Creating 3D tensor by combining species and samples...
+Note: R-level filtering has already removed samples without all 4 timepoints
+
+Processing apul:
+  Added ACR.139 with 4 timepoints: [1, 2, 3, 4]
+  Added ACR.145 with 4 timepoints: [1, 2, 3, 4]
+  Added ACR.150 with 4 timepoints: [1, 2, 3, 4]
+  Added ACR.173 with 4 timepoints: [1, 2, 3, 4]
+  Added ACR.186 with 4 timepoints: [1, 2, 3, 4]
+  Added ACR.225 with 4 timepoints: [1, 2, 3, 4]
+  Added ACR.229 with 4 timepoints: [1, 2, 3, 4]
+  Added ACR.237 with 4 timepoints: [1, 2, 3, 4]
+  Added ACR.244 with 4 timepoints: [1, 2, 3, 4]
+  Added ACR.265 with 4 timepoints: [1, 2, 3, 4]
+
+Processing peve:
+  Added POR.216 with 4 timepoints: [1, 2, 3, 4]
+  Added POR.245 with 4 timepoints: [1, 2, 3, 4]
+  Added POR.260 with 4 timepoints: [1, 2, 3, 4]
+  Added POR.262 with 4 timepoints: [1, 2, 3, 4]
+  Added POR.69 with 4 timepoints: [1, 2, 3, 4]
+  Added POR.72 with 4 timepoints: [1, 2, 3, 4]
+  Added POR.73 with 4 timepoints: [1, 2, 3, 4]
+  Added POR.74 with 4 timepoints: [1, 2, 3, 4]
+  Added POR.83 with 4 timepoints: [1, 2, 3, 4]
+
+Processing ptua:
+  Added POC.219 with 4 timepoints: [1, 2, 3, 4]
+  Added POC.222 with 4 timepoints: [1, 2, 3, 4]
+  Added POC.255 with 4 timepoints: [1, 2, 3, 4]
+  Added POC.259 with 4 timepoints: [1, 2, 3, 4]
+  Added POC.40 with 4 timepoints: [1, 2, 3, 4]
+  Added POC.42 with 4 timepoints: [1, 2, 3, 4]
+  Added POC.52 with 4 timepoints: [1, 2, 3, 4]
+  Added POC.53 with 4 timepoints: [1, 2, 3, 4]
+  Added POC.57 with 4 timepoints: [1, 2, 3, 4]
+
+Creating 3D tensor with shape: (10223, 28, 4)
+Combined samples from all species: 28
+
+=== TENSOR STATISTICS ===
+Tensor shape: (10223, 28, 4)
+Total elements: 1144976
+Finite values: 1144976
+Missing/NaN values: 0
+Missing percentage: 0.00%
+Filled 112 sample-timepoint combinations
+Missing 0 sample-timepoint combinations
+Non-zero finite values: 1128956
+Zero finite values: 16020
+Sparsity among finite values: 1.40%
+
+Sample mapping:
+   combined_index  sample_label species sample_id
+0               0  apul_ACR.139    apul   ACR.139
+1               1  apul_ACR.145    apul   ACR.145
+2               2  apul_ACR.150    apul   ACR.150
+3               3  apul_ACR.173    apul   ACR.173
+4               4  apul_ACR.186    apul   ACR.186
+5               5  apul_ACR.225    apul   ACR.225
+6               6  apul_ACR.229    apul   ACR.229
+7               7  apul_ACR.237    apul   ACR.237
+8               8  apul_ACR.244    apul   ACR.244
+9               9  apul_ACR.265    apul   ACR.265
+Rank comparison helper functions loaded
+============================================================
+COMPARING MULTIPLE RANKS
+============================================================
+Ranks to test: [5, 8, 10, 12, 15, 20, 25, 35, 45, 55, 65, 75]
+This will run 12 decompositions
+Estimated time: 24-60 minutes
+============================================================
+
+============================================================
+Running decomposition with rank = 5
+============================================================
+✓ Rank 5 complete
+  Final loss: 1257903.450497
+  Variance explained: 27.07%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/rank_05
+
+============================================================
+Running decomposition with rank = 8
+============================================================
+✓ Rank 8 complete
+  Final loss: 1104318.165206
+  Variance explained: 36.06%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/rank_08
+
+============================================================
+Running decomposition with rank = 10
+============================================================
+✓ Rank 10 complete
+  Final loss: 1011288.896433
+  Variance explained: 41.61%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/rank_10
+
+============================================================
+Running decomposition with rank = 12
+============================================================
+✓ Rank 12 complete
+  Final loss: 932051.899290
+  Variance explained: 46.20%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/rank_12
+
+============================================================
+Running decomposition with rank = 15
+============================================================
+✓ Rank 15 complete
+  Final loss: 829910.129414
+  Variance explained: 52.11%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/rank_15
+
+============================================================
+Running decomposition with rank = 20
+============================================================
+✓ Rank 20 complete
+  Final loss: 701319.045975
+  Variance explained: 59.69%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/rank_20
+
+============================================================
+Running decomposition with rank = 25
+============================================================
+✓ Rank 25 complete
+  Final loss: 594816.334016
+  Variance explained: 65.90%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/rank_25
+
+============================================================
+Running decomposition with rank = 35
+============================================================
+✓ Rank 35 complete
+  Final loss: 432963.589632
+  Variance explained: 75.36%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/rank_35
+
+============================================================
+Running decomposition with rank = 45
+============================================================
+✓ Rank 45 complete
+  Final loss: 314820.478795
+  Variance explained: 82.19%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/rank_45
+
+============================================================
+Running decomposition with rank = 55
+============================================================
+✓ Rank 55 complete
+  Final loss: 232032.417389
+  Variance explained: 86.98%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/rank_55
+
+============================================================
+Running decomposition with rank = 65
+============================================================
+✓ Rank 65 complete
+  Final loss: 167549.944620
+  Variance explained: 90.68%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/rank_65
+
+============================================================
+Running decomposition with rank = 75
+============================================================
+✓ Rank 75 complete
+  Final loss: 116599.606523
+  Variance explained: 93.63%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/rank_75
+
+============================================================
+ALL RANKS COMPLETE
+============================================================
+Successful: 12/12
+
+Log file saved to: ../output/13.00-multiomics-barnacle/rank_comparison_log.json
+This log can be used by subsequent chunks to avoid re-running decompositions
+
+============================================================
+Creating rank comparison visualizations
+============================================================
+Loading results from log file: ../output/13.00-multiomics-barnacle/rank_comparison_log.json
+  Log timestamp: 2025-10-21T06:48:19.041205
+  Total runs: 12
+  Successful: 12
+  Failed: 0
+  Loaded 12 results from log file
+  Saved metrics table
+Text(0.5, 0.98, 'Rank Comparison: Key Metrics')
+[<matplotlib.lines.Line2D object at 0x72517f230f50>]
+<matplotlib.lines.Line2D object at 0x72517f24e490>
+<matplotlib.lines.Line2D object at 0x72517ef71b50>
+Text(0.5, 0, 'Rank (Number of Components)')
+Text(0, 0.5, 'Variance Explained')
+Text(0.5, 1.0, 'Variance Explained vs Rank')
+<matplotlib.legend.Legend object at 0x72522af7d010>
+(0.0, 1.05)
+[<matplotlib.lines.Line2D object at 0x72517ef08990>]
+Text(0.5, 0, 'Rank (Number of Components)')
+Text(0, 0.5, 'Relative Reconstruction Error')
+Text(0.5, 1.0, 'Reconstruction Error vs Rank')
+[<matplotlib.lines.Line2D object at 0x72517ef09610>]
+Text(0.5, 0, 'Rank (Number of Components)')
+Text(0, 0.5, 'Final Loss')
+Text(0.5, 1.0, 'Final Loss vs Rank')
+[<matplotlib.lines.Line2D object at 0x72517ef0aa90>]
+<matplotlib.lines.Line2D object at 0x725187d74390>
+Text(0.5, 0, 'Rank (Number of Components)')
+Text(0, 0.5, 'Gene Factor Sparsity')
+Text(0.5, 1.0, 'Gene Sparsity vs Rank')
+<matplotlib.legend.Legend object at 0x72517f5e9c90>
+(0.0, 1.05)
+[<matplotlib.lines.Line2D object at 0x72517ef1f690>]
+Text(0.5, 0, 'Rank (Number of Components)')
+Text(0, 0.5, 'Weight Coefficient of Variation')
+Text(0.5, 1.0, 'Component Weight Variability vs Rank')
+<BarContainer object of 12 artists>
+Text(0.5, 0, 'Rank (Number of Components)')
+Text(0, 0.5, 'Iterations to Convergence')
+Text(0.5, 1.0, 'Convergence Speed vs Rank\n(Green=Converged, Red=Max Iterations)')
+  Saved: rank_comparison_summary.png
+[<matplotlib.lines.Line2D object at 0x72517f154e50>]
+Text(10, -10, '+9.0%')
+Text(10, -10, '+5.5%')
+Text(10, -10, '+4.6%')
+Text(10, -10, '+5.9%')
+Text(10, -10, '+7.6%')
+Text(10, -10, '+6.2%')
+Text(10, -10, '+9.5%')
+Text(10, -10, '+6.8%')
+Text(10, -10, '+4.8%')
+Text(10, -10, '+3.7%')
+Text(10, -10, '+2.9%')
+<matplotlib.lines.Line2D object at 0x72517ee83890>
+<matplotlib.lines.Line2D object at 0x72517f2ac950>
+Text(0.5, 0, 'Rank (Number of Components)')
+Text(0, 0.5, 'Variance Explained')
+Text(0.5, 1.0, 'Elbow Plot: Finding Optimal Rank\n(Look for diminishing returns)')
+<matplotlib.legend.Legend object at 0x72517ee6f950>
+(0.0, 1.05)
+[<matplotlib.axis.XTick object at 0x72517f113050>, <matplotlib.axis.XTick object at 0x72517f16e350>, <matplotlib.axis.XTick object at 0x72523357b810>, <matplotlib.axis.XTick object at 0x72517eec36d0>, <matplotlib.axis.XTick object at 0x72517ee9d790>, <matplotlib.axis.XTick object at 0x72517eec1c50>, <matplotlib.axis.XTick object at 0x72517ee94950>, <matplotlib.axis.XTick object at 0x72517ee96850>, <matplotlib.axis.XTick object at 0x72517ee88890>, <matplotlib.axis.XTick object at 0x72517ee8a8d0>, <matplotlib.axis.XTick object at 0x72517ee8be10>, <matplotlib.axis.XTick object at 0x72517eead090>]
+  Saved: elbow_plot.png
+[<matplotlib.lines.Line2D object at 0x72517ee4cf50>]
+[<matplotlib.lines.Line2D object at 0x72518771f8d0>]
+[<matplotlib.lines.Line2D object at 0x72517ee9fd90>]
+[<matplotlib.lines.Line2D object at 0x725187667a10>]
+[<matplotlib.lines.Line2D object at 0x72517f157710>]
+[<matplotlib.lines.Line2D object at 0x72517f157950>]
+[<matplotlib.lines.Line2D object at 0x72517eec9d50>]
+[<matplotlib.lines.Line2D object at 0x72517eecacd0>]
+[<matplotlib.lines.Line2D object at 0x72517eecb5d0>]
+[<matplotlib.lines.Line2D object at 0x72517eecbe90>]
+[<matplotlib.lines.Line2D object at 0x72517eecb910>]
+[<matplotlib.lines.Line2D object at 0x72517eecb690>]
+Text(0.5, 0, 'Iteration')
+Text(0, 0.5, 'Loss')
+Text(0.5, 1.0, 'Loss Convergence Trajectories by Rank')
+<matplotlib.legend.Legend object at 0x72517ee05dd0>
+  Saved: loss_trajectories.png
+
+All comparison plots saved to: ../output/13.00-multiomics-barnacle/rank_comparison
+
+============================================================
+RANK RECOMMENDATION
+============================================================
+
+Scoring Summary:
+ rank  variance_score  sparsity_score  convergence_score  weight_score  combined_score
+    5           0.271           0.179              1.000         0.000           0.353
+    8           0.361           0.191              1.000         0.000           0.392
+   10           0.416           0.208              1.000         0.000           0.418
+   12           0.462           0.226              1.000         0.000           0.441
+   15           0.521           0.221              1.000         0.000           0.464
+   20           0.597           0.223              1.000         0.000           0.495
+   25           0.659           0.224              1.000         0.000           0.520
+   35           0.754           0.246              1.000         0.000           0.563
+   45           0.822           0.311              1.000         0.000           0.607
+   55           0.870           0.336              1.000         0.000           0.632
+   65           0.907           0.394              1.000         0.000           0.661
+   75           0.936           0.429              1.000         0.000           0.682
+
+============================================================
+RECOMMENDED RANK: 75
+============================================================
+  Combined score: 0.682
+  Variance explained: 93.6%
+  Gene sparsity: 75.0%
+  Converged: 1.0
+
+Elbow point detected at rank: 10
+  (Diminishing returns beyond this point)
+
+Reasoning:
+  → Higher rank preferred: Complex data may need more components
+  → Consider testing even higher ranks (e.g., +5, +10)
+
+Next steps:
+  1. Review plots in: ../output/13.00-multiomics-barnacle/rank_comparison
+  2. Examine individual rank results in: ../output/13.00-multiomics-barnacle/rank_XX/
+  3. Verify biological interpretability of top components
+  4. Re-run main analysis with chosen rank for final results
+
+============================================================
+ANALYSIS COMPLETE
+Finished: 2025-10-21 07:55:31
+All output saved to: ../output/13.00-multiomics-barnacle
+Log file: ../output/13.00-multiomics-barnacle/rank_comparison_log.json
+============================================================
