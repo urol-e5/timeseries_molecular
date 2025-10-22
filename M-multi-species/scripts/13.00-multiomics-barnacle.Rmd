@@ -1454,6 +1454,27 @@ print("This log can be used by subsequent chunks to avoid re-running decompositi
 
 ## Plot rank comparisons
 
+### 1. Comparison Plots
+
+Located in `barnacle_factors/rank_comparison/`:
+
+- **`elbow_plot.png`** - Shows variance explained vs rank (MOST IMPORTANT)
+  - Look for the "elbow" where gains diminish
+  - Marginal gains are annotated on the plot
+  
+- **`rank_comparison_summary.png`** - 6-panel overview
+- **`loss_trajectories.png`** - Convergence speed comparison
+
+### 2. Metrics Table
+
+File: `barnacle_factors/rank_comparison/rank_comparison_metrics.csv`
+
+Contains all quantitative metrics for comparison.
+
+### 3. Individual Rank Results
+
+Each rank gets its own directory (`rank_05/`, `rank_10/`, etc.) with full factor matrices.
+
 ```{python plot-rank-comparison, eval=TRUE}
 # ===========================================
 # This chunk reads from rank_comparison_log.json
@@ -1699,26 +1720,7 @@ else:
 
 
 
-### 1. Comparison Plots
 
-Located in `barnacle_factors/rank_comparison/`:
-
-- **`elbow_plot.png`** - Shows variance explained vs rank (MOST IMPORTANT)
-  - Look for the "elbow" where gains diminish
-  - Marginal gains are annotated on the plot
-  
-- **`rank_comparison_summary.png`** - 6-panel overview
-- **`loss_trajectories.png`** - Convergence speed comparison
-
-### 2. Metrics Table
-
-File: `barnacle_factors/rank_comparison/rank_comparison_metrics.csv`
-
-Contains all quantitative metrics for comparison.
-
-### 3. Individual Rank Results
-
-Each rank gets its own directory (`rank_05/`, `rank_10/`, etc.) with full factor matrices.
 
 ## Quick comparison summary in R
 
