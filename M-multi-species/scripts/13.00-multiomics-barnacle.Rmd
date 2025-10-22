@@ -1718,45 +1718,6 @@ else:
     print(f"\nAll comparison plots saved to: {comparison_dir}")
 ```
 
-
-
-
-
-## Quick comparison summary in R
-
-```{r view-rank-comparison, eval=FALSE}
-# Load and compare metrics across ranks
-comparison_file <- file.path(output_dir, "rank_comparison", "rank_comparison_metrics.csv")
-
-if(file.exists(comparison_file)) {
-  metrics <- read.csv(comparison_file)
-  
-  cat("\n=== RANK COMPARISON SUMMARY ===\n")
-  print(metrics[, c("Rank", "variance_explained", "relative_error", 
-                    "gene_sparsity", "converged")])
-  
-  cat("\n=== TOP 3 RANKS BY VARIANCE EXPLAINED ===\n")
-  top3 <- metrics[order(-metrics$variance_explained), ][1:3, ]
-  print(top3[, c("Rank", "variance_explained", "gene_sparsity", "n_iterations")])
-  
-  cat("\n=== RECOMMENDATION ===\n")
-  # Find rank with best balance
-  # (high variance explained, high sparsity, converged)
-  metrics$score <- metrics$variance_explained * 0.4 +
-                   metrics$gene_sparsity * 0.3 +
-                   (as.numeric(metrics$converged) * 0.3)
-  
-  best <- metrics[which.max(metrics$score), ]
-  cat("Recommended rank:", best$Rank, "\n")
-  cat("  Variance explained:", round(best$variance_explained * 100, 1), "%\n")
-  cat("  Gene sparsity:", round(best$gene_sparsity * 100, 1), "%\n")
-  cat("  Converged:", best$converged, "\n")
-  
-} else {
-  cat("No rank comparison results found. Run the comparison first.\n")
-}
-```
-
 # RANK RECOMMENDATION
 
 ```{python recommend-rank, eval=TRUE}
