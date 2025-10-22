@@ -1995,6 +1995,69 @@ else:
     
     print(f"  Saved top_{TOP_N}_genes.csv for each rank")
     
+    # ===========================================
+    # EXPORT SHARED GENES FOR CONSECUTIVE RANK COMPARISONS
+    # ===========================================
+    print(f"\nExporting shared genes for consecutive rank comparisons...")
+    
+    for i in range(len(ranks) - 1):
+        rank1, rank2 = ranks[i], ranks[i+1]
+        genes1 = top_genes_by_rank[rank1]['genes']
+        genes2 = top_genes_by_rank[rank2]['genes']
+        
+        # Get shared genes
+        shared_genes = genes1 & genes2
+        
+        # Get importance scores from both ranks
+        importance1 = top_genes_by_rank[rank1]['importance']
+        importance2 = top_genes_by_rank[rank2]['importance']
+        
+        # Create dataframe with shared genes and their importance in both ranks
+        shared_df = pd.DataFrame({
+            'gene_id': list(shared_genes),
+            f'rank_{rank1}_importance': [importance1[g] for g in shared_genes],
+            f'rank_{rank2}_importance': [importance2[g] for g in shared_genes]
+        })
+        
+        # Sort by average importance
+        shared_df['avg_importance'] = (shared_df[f'rank_{rank1}_importance'] + 
+                                       shared_df[f'rank_{rank2}_importance']) / 2
+        shared_df = shared_df.sort_values('avg_importance', ascending=False)
+        
+        # Save to comparison directory
+        output_file = os.path.join(comparison_dir, f'shared_genes_rank_{rank1}_vs_{rank2}.csv')
+        shared_df.to_csv(output_file, index=False)
+        
+        print(f"  Rank {rank1} vs {rank2}: {len(shared_genes)} shared genes")
+    
+    print(f"  Saved shared_genes_rank_X_vs_Y.csv files to {comparison_dir}")
+    
+    # ===========================================
+    # EXPORT ALL PAIRWISE SHARED GENES SUMMARY
+    # ===========================================
+    print(f"\nCreating pairwise shared genes summary...")
+    
+    pairwise_summary = []
+    for i, rank1 in enumerate(ranks):
+        for j, rank2 in enumerate(ranks):
+            if i < j:  # Only upper triangle (avoid duplicates)
+                genes1 = top_genes_by_rank[rank1]['genes']
+                genes2 = top_genes_by_rank[rank2]['genes']
+                shared = genes1 & genes2
+                
+                pairwise_summary.append({
+                    'rank1': rank1,
+                    'rank2': rank2,
+                    'shared_count': len(shared),
+                    'jaccard_similarity': len(shared) / len(genes1 | genes2) if len(genes1 | genes2) > 0 else 0,
+                    'percent_overlap': (len(shared) / TOP_N) * 100
+                })
+    
+    pairwise_df = pd.DataFrame(pairwise_summary)
+    pairwise_file = os.path.join(comparison_dir, 'pairwise_shared_genes_summary.csv')
+    pairwise_df.to_csv(pairwise_file, index=False)
+    print(f"  Saved pairwise_shared_genes_summary.csv")
+    
     print(f"\n{'='*60}")
     print("STABILITY ANALYSIS COMPLETE")
     print(f"{'='*60}")
@@ -2002,6 +2065,9 @@ else:
     print(f"- gene_stability_heatmap.png")
     print(f"- consecutive_overlap_plot.png")
     print(f"- consecutive_rank_overlap.csv")
+    print(f"- shared_genes_rank_X_vs_Y.csv (for consecutive rank pairs)")
+    print(f"- pairwise_shared_genes_summary.csv (all pairwise comparisons)")
+    print(f"\nTop {TOP_N} genes for each rank saved to: rank_XX/top_{TOP_N}_genes.csv")
 ```
 
 # RANK RECOMMENDATION
