@@ -1867,43 +1867,8 @@ else:
     print(f"  4. Re-run main analysis with chosen rank for final results")
 ```
 
-# ANALYSIS SUMMARY
 
-## Key outputs generated
 
-All results saved to: `../output/13.00-multiomics-barnacle/`
-
-### Rank comparison results:
-- `rank_comparison/` - Comparison visualizations and metrics
-  - `elbow_plot.png` - **Most important: variance explained vs rank**
-  - `rank_comparison_summary.png` - Multi-panel comparison of all metrics
-  - `loss_trajectories.png` - Convergence speed by rank
-  - `rank_comparison_metrics.csv` - Complete metrics table
-- `rank_XX/` - Individual rank results (one directory per rank tested)
-  - Each contains: gene_factors.csv, sample_factors.csv, time_factors.csv, etc.
-
-## Next steps for interpretation
-
-1. **Review elbow plot** - Identify where variance explained plateaus
-2. **Check recommended rank** - Review automated recommendation output
-3. **Examine chosen rank results** - Navigate to `rank_XX/` directory for optimal rank
-4. **Biological interpretation** - Analyze top genes, temporal patterns, species effects
-5. **GO enrichment** - Perform functional enrichment on component-specific genes
-6. **Validation** - Verify patterns match expected biology
-
-## How to use the chosen rank
-
-After identifying the optimal rank from comparison:
-
-1. The complete results are already in `rank_XX/` directory (where XX = chosen rank)
-2. Load factor matrices from that directory for detailed analysis
-3. Optional: Re-run with single-rank settings (enable `run-barnacle` chunk) for additional visualizations
-
-## Troubleshooting
-
-- **All ranks show low variance explained?** Check data normalization and tensor construction
-- **Didn't converge for some ranks?** Increase `n_iter_max` in comparison chunk
-- **Unclear which rank to choose?** Focus on elbow in variance explained + biological interpretability
 
 ## Close log file
 
