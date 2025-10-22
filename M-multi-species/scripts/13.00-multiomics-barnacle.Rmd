@@ -1718,6 +1718,292 @@ else:
     print(f"\nAll comparison plots saved to: {comparison_dir}")
 ```
 
+# RANK STABILITY ANALYSIS
+
+## Gene stability across ranks
+
+This analysis determines at what rank the top genes stabilize.
+
+
+```{python rank-stability-analysis, eval=TRUE}
+# ===========================================
+# This chunk analyzes gene stability across ranks
+# ===========================================
+import os
+import json
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+print(f"\n{'='*60}")
+print("RANK STABILITY ANALYSIS: TOP GENE CONSISTENCY")
+print(f"{'='*60}")
+
+# ===========================================
+# LOAD RESULTS FROM LOG FILE IF NEEDED
+# ===========================================
+if 'output_dir' not in globals():
+    print("Getting output_dir from R environment...")
+    output_dir = r.output_dir
+    print(f"  output_dir = {output_dir}")
+
+# Always reload from log file to ensure consistency
+log_file = os.path.join(output_dir, 'rank_comparison_log.json')
+
+if not os.path.exists(log_file):
+    print(f"ERROR: Log file not found: {log_file}")
+    print("Please run the 'barnacle-multiple-ranks' chunk first!")
+    all_rank_results = []
+    successful = []
+else:
+    print(f"Loading results from log file: {log_file}")
+    with open(log_file, 'r') as f:
+        log_data = json.load(f)
+    
+    print(f"  Log timestamp: {log_data['timestamp']}")
+    print(f"  Total runs: {log_data['total_runs']}")
+    print(f"  Successful: {log_data['successful_runs']}")
+    print(f"  Failed: {log_data['failed_runs']}")
+    
+    # Reconstruct all_rank_results from log
+    all_rank_results = []
+    for result_info in log_data['results']:
+        if result_info['success']:
+            all_rank_results.append({
+                'rank': result_info['rank'],
+                'metrics': result_info['metrics'],
+                'success': True
+            })
+        else:
+            all_rank_results.append({
+                'rank': result_info['rank'],
+                'success': False,
+                'error': result_info.get('error', 'Unknown error')
+            })
+    
+    print(f"  Loaded {len(all_rank_results)} results from log file")
+    
+    successful = [r for r in all_rank_results if r['success']]
+    successful = sorted(successful, key=lambda x: x['rank'])
+
+if len(successful) == 0:
+    print("No successful decompositions to analyze!")
+else:
+    # ===========================================
+    # EXTRACT TOP GENES FROM EACH RANK
+    # ===========================================
+    print("\nExtracting top genes from each rank...")
+    
+    TOP_N = 100  # Number of top genes to compare
+    
+    top_genes_by_rank = {}
+    
+    for r in successful:
+        rank = r['rank']
+        rank_dir = os.path.join(output_dir, f'rank_{rank:02d}')
+        gene_factors_file = os.path.join(rank_dir, 'gene_factors.csv')
+        
+        if os.path.exists(gene_factors_file):
+            gene_factors = pd.read_csv(gene_factors_file, index_col=0)
+            
+            # Get genes with highest loadings across ALL components
+            # Sum absolute values across all components for each gene
+            gene_importance = gene_factors.abs().sum(axis=1)
+            top_genes = set(gene_importance.nlargest(TOP_N).index)
+            
+            top_genes_by_rank[rank] = {
+                'genes': top_genes,
+                'importance': gene_importance
+            }
+            
+            print(f"  Rank {rank:2d}: Top {TOP_N} genes extracted")
+        else:
+            print(f"  Rank {rank:2d}: Gene factors file not found!")
+    
+    ranks = sorted(top_genes_by_rank.keys())
+    
+    # ===========================================
+    # CALCULATE JACCARD SIMILARITY MATRIX
+    # ===========================================
+    print(f"\nCalculating pairwise Jaccard similarities...")
+    
+    n_ranks = len(ranks)
+    similarity_matrix = np.zeros((n_ranks, n_ranks))
+    
+    for i, rank1 in enumerate(ranks):
+        for j, rank2 in enumerate(ranks):
+            genes1 = top_genes_by_rank[rank1]['genes']
+            genes2 = top_genes_by_rank[rank2]['genes']
+            
+            intersection = len(genes1 & genes2)
+            union = len(genes1 | genes2)
+            jaccard = intersection / union if union > 0 else 0
+            
+            similarity_matrix[i, j] = jaccard
+    
+    # ===========================================
+    # CALCULATE CONSECUTIVE RANK OVERLAP
+    # ===========================================
+    print(f"\nCalculating consecutive rank overlaps...")
+    
+    consecutive_overlaps = []
+    for i in range(len(ranks) - 1):
+        rank1, rank2 = ranks[i], ranks[i+1]
+        genes1 = top_genes_by_rank[rank1]['genes']
+        genes2 = top_genes_by_rank[rank2]['genes']
+        
+        overlap = len(genes1 & genes2)
+        jaccard = overlap / len(genes1 | genes2)
+        percent_overlap = (overlap / TOP_N) * 100
+        
+        consecutive_overlaps.append({
+            'rank1': rank1,
+            'rank2': rank2,
+            'overlap_count': overlap,
+            'jaccard_similarity': jaccard,
+            'percent_overlap': percent_overlap
+        })
+    
+    overlap_df = pd.DataFrame(consecutive_overlaps)
+    
+    # Save to file
+    comparison_dir = os.path.join(output_dir, 'rank_comparison')
+    overlap_df.to_csv(os.path.join(comparison_dir, 'consecutive_rank_overlap.csv'), index=False)
+    
+    print("\nConsecutive Rank Overlap:")
+    print(overlap_df.to_string(index=False, float_format='%.3f'))
+    
+    # ===========================================
+    # IDENTIFY STABILITY THRESHOLD
+    # ===========================================
+    print(f"\n{'='*60}")
+    print("STABILITY ANALYSIS")
+    print(f"{'='*60}")
+    
+    # Find where overlap stabilizes (high consecutive overlap)
+    high_overlap_threshold = 0.80  # 80% overlap
+    stable_ranks = overlap_df[overlap_df['jaccard_similarity'] >= high_overlap_threshold]
+    
+    if len(stable_ranks) > 0:
+        first_stable = stable_ranks.iloc[0]
+        print(f"\nFirst stable transition: Rank {int(first_stable['rank1'])} → {int(first_stable['rank2'])}")
+        print(f"  Overlap: {first_stable['overlap_count']:.0f}/{TOP_N} genes ({first_stable['percent_overlap']:.1f}%)")
+        print(f"  Jaccard: {first_stable['jaccard_similarity']:.3f}")
+        print(f"\n→ Model appears to stabilize around rank {int(first_stable['rank2'])}")
+    else:
+        print(f"\nNo consecutive ranks have ≥{high_overlap_threshold*100:.0f}% overlap")
+        print("  Model may not have fully stabilized in tested range")
+        print("  Consider testing higher ranks")
+    
+    # ===========================================
+    # PLOT 1: HEATMAP OF JACCARD SIMILARITIES
+    # ===========================================
+    print(f"\nCreating similarity heatmap...")
+    
+    fig, ax = plt.subplots(figsize=(12, 10))
+    
+    sns.heatmap(
+        similarity_matrix,
+        xticklabels=ranks,
+        yticklabels=ranks,
+        annot=True,
+        fmt='.2f',
+        cmap='RdYlGn',
+        vmin=0,
+        vmax=1,
+        square=True,
+        cbar_kws={'label': 'Jaccard Similarity'},
+        ax=ax
+    )
+    
+    ax.set_xlabel('Rank', fontsize=12, fontweight='bold')
+    ax.set_ylabel('Rank', fontsize=12, fontweight='bold')
+    ax.set_title(f'Top {TOP_N} Gene Overlap Between Ranks\n(Jaccard Similarity)', 
+                 fontsize=14, fontweight='bold', pad=20)
+    
+    plt.tight_layout()
+    output_path = os.path.join(comparison_dir, 'gene_stability_heatmap.png')
+    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    print(f"  Saved: gene_stability_heatmap.png")
+    plt.close()
+    
+    # ===========================================
+    # PLOT 2: CONSECUTIVE OVERLAP LINE PLOT
+    # ===========================================
+    print(f"Creating consecutive overlap plot...")
+    
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10))
+    
+    # Plot 1: Absolute overlap count
+    ax1.plot(range(len(overlap_df)), overlap_df['overlap_count'], 
+             'o-', linewidth=2, markersize=8, color='steelblue')
+    ax1.axhline(y=TOP_N*0.8, color='green', linestyle='--', alpha=0.5, 
+                label='80% threshold')
+    ax1.axhline(y=TOP_N*0.9, color='darkgreen', linestyle='--', alpha=0.5, 
+                label='90% threshold')
+    ax1.set_ylabel(f'Number of Overlapping Genes (out of {TOP_N})', fontsize=11)
+    ax1.set_title(f'Consecutive Rank Gene Overlap\n(Top {TOP_N} Most Important Genes)', 
+                  fontsize=13, fontweight='bold')
+    ax1.grid(True, alpha=0.3)
+    ax1.legend()
+    ax1.set_xticks(range(len(overlap_df)))
+    ax1.set_xticklabels([f'{int(row["rank1"])}→{int(row["rank2"])}' 
+                          for _, row in overlap_df.iterrows()], rotation=45)
+    
+    # Plot 2: Jaccard similarity
+    ax2.plot(range(len(overlap_df)), overlap_df['jaccard_similarity'], 
+             'o-', linewidth=2, markersize=8, color='coral')
+    ax2.axhline(y=0.8, color='green', linestyle='--', alpha=0.5, 
+                label='80% similarity')
+    ax2.axhline(y=0.9, color='darkgreen', linestyle='--', alpha=0.5, 
+                label='90% similarity')
+    ax2.set_xlabel('Rank Transition', fontsize=11)
+    ax2.set_ylabel('Jaccard Similarity', fontsize=11)
+    ax2.set_title('Jaccard Similarity Between Consecutive Ranks', 
+                  fontsize=13, fontweight='bold')
+    ax2.grid(True, alpha=0.3)
+    ax2.legend()
+    ax2.set_ylim([0, 1.05])
+    ax2.set_xticks(range(len(overlap_df)))
+    ax2.set_xticklabels([f'{int(row["rank1"])}→{int(row["rank2"])}' 
+                          for _, row in overlap_df.iterrows()], rotation=45)
+    
+    plt.tight_layout()
+    output_path = os.path.join(comparison_dir, 'consecutive_overlap_plot.png')
+    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    print(f"  Saved: consecutive_overlap_plot.png")
+    plt.close()
+    
+    # ===========================================
+    # EXPORT TOP GENES FOR EACH RANK
+    # ===========================================
+    print(f"\nExporting top {TOP_N} genes for each rank...")
+    
+    for rank in ranks:
+        genes = top_genes_by_rank[rank]['genes']
+        importance = top_genes_by_rank[rank]['importance']
+        
+        top_genes_df = pd.DataFrame({
+            'gene_id': list(genes),
+            'total_importance': [importance[g] for g in genes]
+        }).sort_values('total_importance', ascending=False)
+        
+        rank_dir = os.path.join(output_dir, f'rank_{rank:02d}')
+        output_file = os.path.join(rank_dir, f'top_{TOP_N}_genes.csv')
+        top_genes_df.to_csv(output_file, index=False)
+    
+    print(f"  Saved top_{TOP_N}_genes.csv for each rank")
+    
+    print(f"\n{'='*60}")
+    print("STABILITY ANALYSIS COMPLETE")
+    print(f"{'='*60}")
+    print(f"\nAll stability plots saved to: {comparison_dir}")
+    print(f"- gene_stability_heatmap.png")
+    print(f"- consecutive_overlap_plot.png")
+    print(f"- consecutive_rank_overlap.csv")
+```
+
 # RANK RECOMMENDATION
 
 ```{python recommend-rank, eval=TRUE}
