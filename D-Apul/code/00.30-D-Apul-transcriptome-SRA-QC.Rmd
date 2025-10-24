@@ -1,0 +1,83 @@
+---
+title: "00.30-D-Apul-transcriptome-SRA-QC"
+author: "Sam White"
+date: "2025-10-24"
+output: 
+  bookdown::html_document2:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+  github_document:
+    toc: true
+    number_sections: true
+  html_document:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+bibliography: references.bib
+---
+
+
+
+```{r}
+# DIRECTORIES
+top_output_dir <- file.path("..", "output")
+output_dir <- file.path(top_output_dir, "14.00-heatwave-genetics-trimmed-bwa-alignments")
+data_dir <- file.path("..", "data")
+trimmed_reads_dir <- file.path(data_dir, "trimmed-fastqs-heatwave-genetics")
+
+# PROGRAMS
+programs_dir <- file.path("", "home", "shared")
+bamUtil_dir <- file.path(programs_dir, "bamUtil-1.0.15", "bin")
+bwa <- file.path(programs_dir, "bwa-0.7.17", "bwa")
+conda_env_name <- c("base")
+conda_path <- c("/home/sam/programs/mambaforge/condabin/conda")
+mean_depths <- c("/home/shared/16TB_HDD_01/sam/gitrepos/WGSfqs-to-genolikelihoods/mean_cov_ind.py")
+multiqc <- file.path("", "home", "sam", "programs", "mambaforge", "bin", "multiqc")
+picard_dir <- file.path(programs_dir, "picard-3.4.0-6-g80ca98e2a", "build", "libs")
+picard <- file.path(picard_dir, "picard.jar")
+R1_suffix <- "_trimmed_clipped_R1_paired.fq.gz"
+R2_suffix <- "_trimmed_clipped_R2_paired.fq.gz"
+samtools_dir <- file.path(programs_dir, "samtools-1.12")
+samtools <- file.path(samtools_dir, "samtools")
+
+
+
+# FILES
+genome_fasta <- file.path(data_dir, "GCF_031168955.1_ASM3116895v1_genomic.fna")
+bwa_index <- file.path(data_dir, "bwa-GCF_031168955.1_ASM3116895v1_genomic")
+
+# THREADS
+threads <- "40"
+
+
+# FORMATTING
+line <- "-----------------------------------------------"
+
+# Export these as environment variables for bash chunks.
+Sys.setenv(
+  bamUtil_dir = bamUtil_dir,
+  bwa = bwa,
+  bwa_index = bwa_index,
+  data_dir = data_dir,
+  genome_fasta = genome_fasta,
+  line = line,
+  mean_depths = mean_depths,
+  multiqc = multiqc,
+  output_dir = output_dir,
+  picard_dir = picard_dir,
+  picard = picard,
+  top_output_dir = top_output_dir,
+  R1_suffix = R1_suffix,
+  R2_suffix = R2_suffix,
+  samtools = samtools,
+  threads = threads,
+  trimmed_reads_dir = trimmed_reads_dir
+)
+```
