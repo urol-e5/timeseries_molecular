@@ -95,3 +95,6 @@ ggplot(motif_counts, aes(x = scaffold, y = count)) +
 ```
 
 ![](19-CG-motifs_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
+
+Large files stored here:
+<https://gannet.fish.washington.edu/kdurkin1/ravenbackups/timeseries_molecular/M-multi-species/output/19-CG-motifs/>
