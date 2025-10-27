@@ -22,36 +22,40 @@ output:
     code_download: true
 bibliography: references.bib
 ---
+# BACKGROUND
 
 
+# SETUP
 
-```{r}
+## Libraries and markdown settings
+```{r setup, include=TRUE}
+library(knitr)
+knitr::opts_chunk$set(
+  echo = TRUE,         # Display code chunks
+  eval = FALSE,        # Evaluate code chunks
+  warning = FALSE,     # Hide warnings
+  message = FALSE,     # Hide messages
+  comment = ""         # Prevents appending '##' to beginning of lines in code output
+)
+```
+
+
+## Set variables
+```{r set-variables, eval=TRUE}
 # DIRECTORIES
 top_output_dir <- file.path("..", "output")
-output_dir <- file.path(top_output_dir, "14.00-heatwave-genetics-trimmed-bwa-alignments")
-data_dir <- file.path("..", "data")
-trimmed_reads_dir <- file.path(data_dir, "trimmed-fastqs-heatwave-genetics")
+output_dir <- file.path(top_output_dir, "00.30-D-Apul-transcriptome-SRA-QC")
+programs_dir <- file.path("", "home", "shared")
+sratoolkit_dir <- file.path(programs_dir, "sratoolkit.3.0.2-ubuntu64", "bin")
 
 # PROGRAMS
-programs_dir <- file.path("", "home", "shared")
-bamUtil_dir <- file.path(programs_dir, "bamUtil-1.0.15", "bin")
-bwa <- file.path(programs_dir, "bwa-0.7.17", "bwa")
-conda_env_name <- c("base")
-conda_path <- c("/home/sam/programs/mambaforge/condabin/conda")
-mean_depths <- c("/home/shared/16TB_HDD_01/sam/gitrepos/WGSfqs-to-genolikelihoods/mean_cov_ind.py")
+fastqc <- file.path(programs_dir, "FastQC-0.12.1", "fastqc")
+fasterq_dump <- file.path(sratoolkit_dir, "fasterq-dump.3.0.2")
 multiqc <- file.path("", "home", "sam", "programs", "mambaforge", "bin", "multiqc")
-picard_dir <- file.path(programs_dir, "picard-3.4.0-6-g80ca98e2a", "build", "libs")
-picard <- file.path(picard_dir, "picard.jar")
-R1_suffix <- "_trimmed_clipped_R1_paired.fq.gz"
-R2_suffix <- "_trimmed_clipped_R2_paired.fq.gz"
-samtools_dir <- file.path(programs_dir, "samtools-1.12")
-samtools <- file.path(samtools_dir, "samtools")
-
 
 
 # FILES
-genome_fasta <- file.path(data_dir, "GCF_031168955.1_ASM3116895v1_genomic.fna")
-bwa_index <- file.path(data_dir, "bwa-GCF_031168955.1_ASM3116895v1_genomic")
+sra_accessions <- file.path(output_dir, "apul-ncbi-SraAccList.csv")
 
 # THREADS
 threads <- "40"
@@ -62,22 +66,37 @@ line <- "-----------------------------------------------"
 
 # Export these as environment variables for bash chunks.
 Sys.setenv(
-  bamUtil_dir = bamUtil_dir,
-  bwa = bwa,
-  bwa_index = bwa_index,
-  data_dir = data_dir,
-  genome_fasta = genome_fasta,
+  fasterq_dump = fasterq_dump,
+  fastqc = fastqc,
   line = line,
-  mean_depths = mean_depths,
   multiqc = multiqc,
   output_dir = output_dir,
-  picard_dir = picard_dir,
-  picard = picard,
   top_output_dir = top_output_dir,
-  R1_suffix = R1_suffix,
-  R2_suffix = R2_suffix,
-  samtools = samtools,
-  threads = threads,
-  trimmed_reads_dir = trimmed_reads_dir
+  sra_accessions = sra_accessions,
+  threads = threads
 )
+```
+
+# SRA RETRIEVAL
+
+## Check accessions
+
+```{r check-sra-accessions, engine='bash', eval=TRUE}
+head ${sra_accessions}
+echo ""
+wc -l ${sra_accessions}
+```
+
+## Fasterq_dump
+
+```{r sra-retrieval, engine='bash', eval=FALSE}
+while read accession
+do
+  echo ${accession}
+  ${fasterq_dump} \
+  ${accession} \
+  --outdir ${output_dir} \
+  --split-files \
+  --threads ${threads}
+done < ${sra_accessions}
 ```
