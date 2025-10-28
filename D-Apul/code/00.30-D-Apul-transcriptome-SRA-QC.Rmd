@@ -24,6 +24,7 @@ bibliography: references.bib
 ---
 # BACKGROUND
 
+This Rmd file will download raw RNA-seq FastQs for *A.pulchra* from NCBI SRA and evaluate them using [FastQC](https://github.com/s-andrews/FastQC) and [MultiQC](https://multiqc.info/)[@ewels2016].
 
 # SETUP
 
@@ -99,4 +100,50 @@ do
   --split-files \
   --threads ${threads}
 done < ${sra_accessions}
+```
+
+```{bash raw-fastqc-multiqc, engine='bash', eval=TRUE}
+
+############ RUN FASTQC ############
+
+
+# Create array of trimmed FastQs
+raw_fastqs_array=(${raw_reads_dir}/${fastq_pattern})
+
+# Pass array contents to new variable as space-delimited list
+raw_fastqc_list=$(echo "${raw_fastqs_array[*]}")
+
+echo "Beginning FastQC on raw reads..."
+echo ""
+
+# Run FastQC
+### NOTE: Do NOT quote raw_fastqc_list
+${programs_array[fastqc]} \
+--threads ${threads} \
+--outdir ${raw_reads_dir} \
+--quiet \
+${raw_fastqc_list}
+
+echo "FastQC on raw reads complete!"
+echo ""
+
+############ END FASTQC ############
+
+############ RUN MULTIQC ############
+echo "Beginning MultiQC on raw FastQC..."
+echo ""
+
+${programs_array[multiqc]} ${raw_reads_dir} -o ${raw_reads_dir}
+
+echo ""
+echo "MultiQC on raw FastQs complete."
+echo ""
+
+############ END MULTIQC ############
+
+echo "Removing FastQC zip files."
+echo ""
+rm ${raw_reads_dir}/*.zip
+echo "FastQC zip files removed."
+echo ""
 ```
