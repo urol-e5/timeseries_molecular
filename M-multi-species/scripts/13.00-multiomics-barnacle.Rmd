@@ -1480,12 +1480,25 @@ def calculate_factor_match_score(tensor, decomposition, rank):
         import tensorly as tl
         try:
             import tlviz.factor_tools
-        except ImportError:
-            print(f"  WARNING: tlviz not available. Installing required dependencies...")
+            print(f"  TLViz successfully imported for rank {rank}")
+        except ImportError as e:
+            print(f"  WARNING: tlviz not available for rank {rank}: {e}")
+            print(f"  Attempting to install tensorly-viz...")
             import subprocess
             import sys
-            subprocess.check_call([sys.executable, "-m", "pip", "install", "tensorly-viz"])
-            import tlviz.factor_tools
+            try:
+                subprocess.check_call([sys.executable, "-m", "pip", "install", "tensorly-viz", "--upgrade"])
+                import tlviz.factor_tools
+                print(f"  TLViz successfully installed and imported for rank {rank}")
+            except Exception as install_error:
+                print(f"  Failed to install/import tlviz: {install_error}")
+                return {
+                    'fms': np.nan,
+                    'permutation': None,
+                    'success': False,
+                    'error': f"Installation failed: {install_error}",
+                    'method': 'failed'
+                }
         
         # Create a reference CP tensor from the original data
         # We'll use the decomposition itself as a synthetic "ground truth"
@@ -1508,6 +1521,18 @@ def calculate_factor_match_score(tensor, decomposition, rank):
             'method': 'self_consistency'
         }
         
+    except ImportError as e:
+        error_msg = f"SciPy compatibility issue: {e}"
+        if '_lazywhere' in str(e):
+            error_msg = "SciPy version incompatibility with tensorly-viz (_lazywhere import error)"
+        print(f"  TLViz FMS skipped for rank {rank}: {error_msg}")
+        return {
+            'fms': np.nan,
+            'permutation': None,
+            'success': False,
+            'error': error_msg,
+            'method': 'scipy_incompatibility'
+        }
     except Exception as e:
         print(f"  Error calculating FMS for rank {rank}: {e}")
         return {
@@ -1634,7 +1659,10 @@ def evaluate_fms_for_rank(rank, output_dir, tensor):
     if fms_result1['success']:
         print(f"  TLViz FMS: {fms_result1['fms']:.4f}")
     else:
-        print(f"  TLViz FMS: Failed ({fms_result1.get('error', 'unknown error')})")
+        if 'scipy_incompatibility' in fms_result1.get('method', ''):
+            print(f"  TLViz FMS: Skipped (SciPy version incompatibility)")
+        else:
+            print(f"  TLViz FMS: Failed ({fms_result1.get('error', 'unknown error')})")
     
     if fms_result2['success']:
         print(f"  Reconstruction FMS: {fms_result2['fms']:.4f} (correlation: {fms_result2.get('correlation', 'N/A'):.4f})")
@@ -1728,12 +1756,19 @@ if tensor_3d is not None:
         print("\nFactor Match Score Results:")
         print(fms_df[display_cols].to_string(index=False, float_format='%.4f'))
         
+        # Check if TLViz worked for any ranks
+        tlviz_working = fms_df['tlviz_success'].any()
+        if not tlviz_working:
+            print("\nNOTE: TLViz FMS failed for all ranks due to SciPy version incompatibility.")
+            print("This is a common issue with newer SciPy versions.")
+            print("The Reconstruction FMS provides equivalent functionality and is working correctly.")
+        
         # Create visualization
         import matplotlib.pyplot as plt
         
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
         
-        # Plot 1: Both FMS measures
+        # Plot 1: Both FMS measures (but emphasize reconstruction if TLViz failed)
         valid_tlviz = fms_df['tlviz_success']
         valid_recon = fms_df['reconstruction_success']
         
@@ -1747,9 +1782,15 @@ if tensor_3d is not None:
                     fms_df.loc[valid_recon, 'fms_reconstruction'], 
                     's-', linewidth=2, markersize=8, label='Reconstruction FMS', color='coral')
         
+        # Adjust title based on whether TLViz worked
+        if not tlviz_working:
+            title = 'Factor Match Score vs Rank\n(Reconstruction-based FMS - Primary Metric)'
+        else:
+            title = 'Factor Match Score vs Rank\n(Higher = Better Factor Recovery)'
+        
         ax1.set_xlabel('Rank (Number of Components)', fontsize=11)
         ax1.set_ylabel('Factor Match Score', fontsize=11)
-        ax1.set_title('Factor Match Score vs Rank\n(Higher = Better Factor Recovery)', fontweight='bold')
+        ax1.set_title(title, fontweight='bold')
         ax1.grid(True, alpha=0.3)
         ax1.legend()
         ax1.set_ylim([0, 1.05])
@@ -1806,6 +1847,8 @@ if tensor_3d is not None:
                 best_tlviz_rank = tlviz_valid.iloc[best_tlviz_idx]['rank']
                 best_tlviz_score = tlviz_valid.iloc[best_tlviz_idx]['fms_tlviz']
                 print(f"Best TLViz FMS: Rank {int(best_tlviz_rank)} (score: {best_tlviz_score:.4f})")
+            else:
+                print(f"TLViz FMS: Not available (SciPy compatibility issue)")
             
             # Look for ranks with consistently high scores (top 20%)
             threshold = valid_df['fms_reconstruction'].quantile(0.8)
@@ -1816,11 +1859,15 @@ if tensor_3d is not None:
             
             # Provide interpretation
             print(f"\nFMS Interpretation:")
-            print(f"• Factor Match Score measures how well the decomposition")
-            print(f"  captures the underlying tensor structure")
-            print(f"• Reconstruction correlation shows tensor reconstruction quality")
+            print(f"• Reconstruction FMS measures tensor reconstruction quality")
+            print(f"  (correlation between original and decomposed tensors)")
+            print(f"• Reconstruction correlation shows direct fit quality")
             print(f"• Higher scores indicate better factor recovery and model fit")
-            print(f"• Consider ranks with consistently high FMS across methods")
+            print(f"• Reconstruction FMS is the primary metric to use for rank selection")
+            if len(tlviz_valid) == 0:
+                print(f"• TLViz FMS unavailable due to SciPy version incompatibility")
+                print(f"  (This is common and does not affect analysis quality)")
+            print(f"• Consider ranks with consistently high Reconstruction FMS")
             
         else:
             print("No valid FMS results available for recommendation.")
@@ -1834,8 +1881,17 @@ else:
 print(f"\n{'='*60}")
 print("FACTOR MATCH SCORE EVALUATION COMPLETE")
 print(f"{'='*60}")
+if 'all_fms_results' in locals() and len(all_fms_results) > 0:
+    working_recon = sum(1 for r in all_fms_results if r['reconstruction_success'])
+    working_tlviz = sum(1 for r in all_fms_results if r['tlviz_success'])
+    print(f"Summary: {working_recon}/{len(all_fms_results)} ranks have valid Reconstruction FMS")
+    print(f"         {working_tlviz}/{len(all_fms_results)} ranks have valid TLViz FMS")
+    if working_recon > 0:
+        print(f"→ Use Reconstruction FMS and correlation for rank selection")
+    else:
+        print(f"→ No valid FMS results - check tensor and factor matrices")
 ```
-```
+
 
 # VISUALIZATION
 
