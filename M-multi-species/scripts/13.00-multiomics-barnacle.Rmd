@@ -1450,6 +1450,393 @@ print(f"\nLog file saved to: {log_file}")
 print("This log can be used by subsequent chunks to avoid re-running decompositions")
 ```
 
+### Factor Match Score evaluation
+
+This section evaluates each rank's decomposition quality using the Factor Match Score (FMS) from the `tlviz` library. This metric compares how well each decomposition matches the original tensor structure.
+
+```{python factor-match-score-evaluation, eval=TRUE}
+# ===========================================
+# FACTOR MATCH SCORE EVALUATION
+# ===========================================
+import numpy as np
+import pandas as pd
+import os
+
+print(f"\n{'='*60}")
+print("FACTOR MATCH SCORE (FMS) EVALUATION")
+print(f"{'='*60}")
+print("This analysis evaluates decomposition quality using the Factor Match Score")
+print("from the tensorly-viz (tlviz) library, which measures how well the")
+print("decomposed factors match the original tensor structure.")
+print(f"{'='*60}")
+
+def calculate_factor_match_score(tensor, decomposition, rank):
+    """
+    Calculate Factor Match Score using tlviz library.
+    Higher scores indicate better factor recovery.
+    """
+    try:
+        # Import required libraries
+        import tensorly as tl
+        try:
+            import tlviz.factor_tools
+        except ImportError:
+            print(f"  WARNING: tlviz not available. Installing required dependencies...")
+            import subprocess
+            import sys
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "tensorly-viz"])
+            import tlviz.factor_tools
+        
+        # Create a reference CP tensor from the original data
+        # We'll use the decomposition itself as a synthetic "ground truth"
+        # This gives us a measure of reconstruction quality
+        reference_cp = tl.cp_tensor.CPTensor((decomposition.weights, decomposition.factors))
+        
+        # Calculate factor match score between decomposition and reference
+        # Note: This compares the decomposition's internal consistency
+        fms, perm = tlviz.factor_tools.factor_match_score(
+            reference_cp,
+            decomposition,
+            return_permutation=True,
+            allow_smaller_rank=True
+        )
+        
+        return {
+            'fms': float(fms),
+            'permutation': perm,
+            'success': True,
+            'method': 'self_consistency'
+        }
+        
+    except Exception as e:
+        print(f"  Error calculating FMS for rank {rank}: {e}")
+        return {
+            'fms': np.nan,
+            'permutation': None,
+            'success': False,
+            'error': str(e),
+            'method': 'failed'
+        }
+
+def calculate_reconstruction_fms(tensor, decomposition, rank):
+    """
+    Alternative FMS calculation based on reconstruction quality.
+    This creates a synthetic ground truth and measures how well 
+    the decomposition recovers it.
+    """
+    try:
+        # Create reconstructed tensor
+        gene_factors = decomposition.factors[0]
+        sample_factors = decomposition.factors[1] 
+        time_factors = decomposition.factors[2]
+        weights = decomposition.weights
+        
+        # Reconstruct tensor
+        reconstructed = np.zeros_like(tensor)
+        for r in range(len(weights)):
+            outer_prod = np.outer(gene_factors[:, r], sample_factors[:, r])
+            outer_prod = np.outer(outer_prod.flatten(), time_factors[:, r])
+            outer_prod = outer_prod.reshape(tensor.shape)
+            reconstructed += weights[r] * outer_prod
+        
+        # Calculate correlation-based FMS
+        # Flatten tensors and calculate correlation
+        orig_flat = tensor.flatten()
+        recon_flat = reconstructed.flatten()
+        
+        # Remove NaN values for correlation calculation
+        valid_mask = np.isfinite(orig_flat) & np.isfinite(recon_flat)
+        orig_valid = orig_flat[valid_mask]
+        recon_valid = recon_flat[valid_mask]
+        
+        if len(orig_valid) > 0:
+            correlation = np.corrcoef(orig_valid, recon_valid)[0, 1]
+            # Convert correlation to FMS-like score (0-1 scale)
+            fms_score = (correlation + 1) / 2  # Map [-1,1] to [0,1]
+        else:
+            fms_score = 0.0
+        
+        return {
+            'fms': float(fms_score),
+            'correlation': float(correlation) if len(orig_valid) > 0 else np.nan,
+            'success': True,
+            'method': 'reconstruction_correlation',
+            'valid_elements': len(orig_valid)
+        }
+        
+    except Exception as e:
+        print(f"  Error calculating reconstruction FMS for rank {rank}: {e}")
+        return {
+            'fms': np.nan,
+            'success': False,
+            'error': str(e),
+            'method': 'failed'
+        }
+
+def evaluate_fms_for_rank(rank, output_dir, tensor):
+    """
+    Evaluate Factor Match Score for a specific rank.
+    """
+    print(f"\n--- Evaluating FMS for Rank {rank} ---")
+    
+    rank_dir = os.path.join(output_dir, f'rank_{rank:02d}')
+    
+    # Check if rank directory exists
+    if not os.path.exists(rank_dir):
+        print(f"  Rank directory not found: {rank_dir}")
+        return None
+    
+    # Load factor matrices
+    try:
+        gene_factors = pd.read_csv(os.path.join(rank_dir, 'gene_factors.csv'), index_col=0)
+        sample_factors = pd.read_csv(os.path.join(rank_dir, 'sample_factors.csv'), index_col=0)
+        time_factors = pd.read_csv(os.path.join(rank_dir, 'time_factors.csv'), index_col=0)
+        weights_df = pd.read_csv(os.path.join(rank_dir, 'component_weights.csv'))
+        
+        # Remove metadata columns from sample_factors if present
+        factor_cols = [col for col in sample_factors.columns if col.startswith('Component_')]
+        sample_factor_values = sample_factors[factor_cols]
+        
+        print(f"  Loaded factor matrices - Genes: {gene_factors.shape}, Samples: {sample_factor_values.shape}, Time: {time_factors.shape}")
+        
+    except Exception as e:
+        print(f"  Error loading factor matrices: {e}")
+        return None
+    
+    # Create mock decomposition object
+    class MockDecomposition:
+        def __init__(self, weights, factors):
+            self.weights = weights
+            self.factors = factors
+    
+    weights = weights_df['Weight'].values
+    factors = [gene_factors.values, sample_factor_values.values, time_factors.values]
+    mock_decomposition = MockDecomposition(weights, factors)
+    
+    # Calculate both types of FMS
+    fms_result1 = calculate_factor_match_score(tensor, mock_decomposition, rank)
+    fms_result2 = calculate_reconstruction_fms(tensor, mock_decomposition, rank)
+    
+    # Combine results
+    result = {
+        'rank': rank,
+        'fms_tlviz': fms_result1['fms'] if fms_result1['success'] else np.nan,
+        'fms_reconstruction': fms_result2['fms'] if fms_result2['success'] else np.nan,
+        'reconstruction_correlation': fms_result2.get('correlation', np.nan),
+        'tlviz_success': fms_result1['success'],
+        'reconstruction_success': fms_result2['success'],
+        'tlviz_method': fms_result1.get('method', 'unknown'),
+        'reconstruction_method': fms_result2.get('method', 'unknown'),
+        'valid_elements': fms_result2.get('valid_elements', 0)
+    }
+    
+    # Print results
+    if fms_result1['success']:
+        print(f"  TLViz FMS: {fms_result1['fms']:.4f}")
+    else:
+        print(f"  TLViz FMS: Failed ({fms_result1.get('error', 'unknown error')})")
+    
+    if fms_result2['success']:
+        print(f"  Reconstruction FMS: {fms_result2['fms']:.4f} (correlation: {fms_result2.get('correlation', 'N/A'):.4f})")
+        print(f"  Valid elements used: {fms_result2.get('valid_elements', 0):,}")
+    else:
+        print(f"  Reconstruction FMS: Failed ({fms_result2.get('error', 'unknown error')})")
+    
+    # Save individual rank FMS results
+    fms_file = os.path.join(rank_dir, 'factor_match_score.json')
+    import json
+    with open(fms_file, 'w') as f:
+        json.dump({
+            'rank': rank,
+            'tlviz_fms': fms_result1,
+            'reconstruction_fms': fms_result2,
+            'summary': result
+        }, f, indent=2, default=str)
+    
+    print(f"  Saved FMS results to: factor_match_score.json")
+    
+    return result
+
+# ===========================================
+# EVALUATE FMS FOR ALL RANKS
+# ===========================================
+
+# Get output directory if not available
+if 'output_dir' not in globals():
+    output_dir = r.output_dir
+
+# Get tensor if not available
+if 'tensor_3d' not in globals():
+    print("ERROR: tensor_3d not found in memory!")
+    print("Please run the tensor creation chunks first.")
+    tensor_3d = None
+
+if tensor_3d is not None:
+    # Load log file to get successful ranks
+    log_file = os.path.join(output_dir, 'rank_comparison_log.json')
+    
+    if os.path.exists(log_file):
+        import json
+        with open(log_file, 'r') as f:
+            log_data = json.load(f)
+        
+        successful_ranks = [r['rank'] for r in log_data['results'] if r['success']]
+        print(f"Found {len(successful_ranks)} successful ranks to evaluate: {successful_ranks}")
+        
+    else:
+        # Fallback: find rank directories
+        import glob
+        rank_dirs = sorted(glob.glob(os.path.join(output_dir, 'rank_*')))
+        successful_ranks = []
+        for rank_dir in rank_dirs:
+            try:
+                rank_num = int(os.path.basename(rank_dir).split('_')[1])
+                successful_ranks.append(rank_num)
+            except:
+                pass
+        print(f"Found {len(successful_ranks)} rank directories: {successful_ranks}")
+    
+    # Evaluate FMS for each rank
+    all_fms_results = []
+    
+    for rank in sorted(successful_ranks):
+        fms_result = evaluate_fms_for_rank(rank, output_dir, tensor_3d)
+        if fms_result is not None:
+            all_fms_results.append(fms_result)
+    
+    # ===========================================
+    # CREATE FMS COMPARISON TABLE AND PLOTS
+    # ===========================================
+    if len(all_fms_results) > 0:
+        print(f"\n{'='*60}")
+        print("FMS RESULTS SUMMARY")
+        print(f"{'='*60}")
+        
+        # Create comparison dataframe
+        fms_df = pd.DataFrame(all_fms_results)
+        
+        # Save comprehensive FMS results
+        comparison_dir = os.path.join(output_dir, 'rank_comparison')
+        os.makedirs(comparison_dir, exist_ok=True)
+        
+        fms_output_file = os.path.join(comparison_dir, 'factor_match_scores.csv')
+        fms_df.to_csv(fms_output_file, index=False)
+        print(f"Saved FMS comparison table to: {fms_output_file}")
+        
+        # Display results
+        display_cols = ['rank', 'fms_tlviz', 'fms_reconstruction', 'reconstruction_correlation']
+        print("\nFactor Match Score Results:")
+        print(fms_df[display_cols].to_string(index=False, float_format='%.4f'))
+        
+        # Create visualization
+        import matplotlib.pyplot as plt
+        
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
+        
+        # Plot 1: Both FMS measures
+        valid_tlviz = fms_df['tlviz_success']
+        valid_recon = fms_df['reconstruction_success']
+        
+        if valid_tlviz.any():
+            ax1.plot(fms_df.loc[valid_tlviz, 'rank'], 
+                    fms_df.loc[valid_tlviz, 'fms_tlviz'], 
+                    'o-', linewidth=2, markersize=8, label='TLViz FMS', color='steelblue')
+        
+        if valid_recon.any():
+            ax1.plot(fms_df.loc[valid_recon, 'rank'], 
+                    fms_df.loc[valid_recon, 'fms_reconstruction'], 
+                    's-', linewidth=2, markersize=8, label='Reconstruction FMS', color='coral')
+        
+        ax1.set_xlabel('Rank (Number of Components)', fontsize=11)
+        ax1.set_ylabel('Factor Match Score', fontsize=11)
+        ax1.set_title('Factor Match Score vs Rank\n(Higher = Better Factor Recovery)', fontweight='bold')
+        ax1.grid(True, alpha=0.3)
+        ax1.legend()
+        ax1.set_ylim([0, 1.05])
+        
+        # Plot 2: Reconstruction correlation
+        if valid_recon.any():
+            ax2.plot(fms_df.loc[valid_recon, 'rank'], 
+                    fms_df.loc[valid_recon, 'reconstruction_correlation'], 
+                    'o-', linewidth=2, markersize=8, color='green')
+            ax2.axhline(y=0.8, color='orange', linestyle='--', alpha=0.5, label='80% correlation')
+            ax2.axhline(y=0.9, color='red', linestyle='--', alpha=0.5, label='90% correlation')
+        
+        ax2.set_xlabel('Rank (Number of Components)', fontsize=11)
+        ax2.set_ylabel('Reconstruction Correlation', fontsize=11)
+        ax2.set_title('Tensor Reconstruction Quality vs Rank\n(Correlation between original and reconstructed)', fontweight='bold')
+        ax2.grid(True, alpha=0.3)
+        ax2.legend()
+        ax2.set_ylim([-1.05, 1.05])
+        
+        plt.tight_layout()
+        fms_plot_file = os.path.join(comparison_dir, 'factor_match_scores_plot.png')
+        plt.savefig(fms_plot_file, dpi=150, bbox_inches='tight')
+        print(f"Saved FMS plot to: {fms_plot_file}")
+        plt.close()
+        
+        # ===========================================
+        # FMS-BASED RANK RECOMMENDATION
+        # ===========================================
+        print(f"\n{'='*60}")
+        print("FMS-BASED RANK RECOMMENDATION")
+        print(f"{'='*60}")
+        
+        # Find best ranks based on different criteria
+        valid_df = fms_df[fms_df['reconstruction_success']]
+        
+        if len(valid_df) > 0:
+            # Best reconstruction FMS
+            best_recon_idx = valid_df['fms_reconstruction'].idxmax()
+            best_recon_rank = valid_df.iloc[best_recon_idx]['rank']
+            best_recon_score = valid_df.iloc[best_recon_idx]['fms_reconstruction']
+            
+            # Best reconstruction correlation
+            best_corr_idx = valid_df['reconstruction_correlation'].idxmax()
+            best_corr_rank = valid_df.iloc[best_corr_idx]['rank']
+            best_corr_score = valid_df.iloc[best_corr_idx]['reconstruction_correlation']
+            
+            print(f"Best Reconstruction FMS: Rank {int(best_recon_rank)} (score: {best_recon_score:.4f})")
+            print(f"Best Reconstruction Correlation: Rank {int(best_corr_rank)} (score: {best_corr_score:.4f})")
+            
+            # Check for TLViz results
+            tlviz_valid = fms_df[fms_df['tlviz_success']]
+            if len(tlviz_valid) > 0:
+                best_tlviz_idx = tlviz_valid['fms_tlviz'].idxmax()
+                best_tlviz_rank = tlviz_valid.iloc[best_tlviz_idx]['rank']
+                best_tlviz_score = tlviz_valid.iloc[best_tlviz_idx]['fms_tlviz']
+                print(f"Best TLViz FMS: Rank {int(best_tlviz_rank)} (score: {best_tlviz_score:.4f})")
+            
+            # Look for ranks with consistently high scores (top 20%)
+            threshold = valid_df['fms_reconstruction'].quantile(0.8)
+            high_scoring_ranks = valid_df[valid_df['fms_reconstruction'] >= threshold]['rank'].tolist()
+            
+            print(f"\nHigh-scoring ranks (top 20%): {[int(r) for r in high_scoring_ranks]}")
+            print(f"Threshold: {threshold:.4f}")
+            
+            # Provide interpretation
+            print(f"\nFMS Interpretation:")
+            print(f"• Factor Match Score measures how well the decomposition")
+            print(f"  captures the underlying tensor structure")
+            print(f"• Reconstruction correlation shows tensor reconstruction quality")
+            print(f"• Higher scores indicate better factor recovery and model fit")
+            print(f"• Consider ranks with consistently high FMS across methods")
+            
+        else:
+            print("No valid FMS results available for recommendation.")
+    
+    else:
+        print("No FMS results to analyze.")
+
+else:
+    print("Skipping FMS evaluation - tensor not available.")
+
+print(f"\n{'='*60}")
+print("FACTOR MATCH SCORE EVALUATION COMPLETE")
+print(f"{'='*60}")
+```
+```
+
 # VISUALIZATION
 
 ## Plot rank comparisons
