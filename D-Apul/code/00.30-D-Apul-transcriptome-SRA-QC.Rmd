@@ -1,0 +1,149 @@
+---
+title: "00.30-D-Apul-transcriptome-SRA-QC"
+author: "Sam White"
+date: "2025-10-24"
+output: 
+  bookdown::html_document2:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+  github_document:
+    toc: true
+    number_sections: true
+  html_document:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+bibliography: references.bib
+---
+# BACKGROUND
+
+This Rmd file will download raw RNA-seq FastQs for *A.pulchra* from NCBI SRA and evaluate them using [FastQC](https://github.com/s-andrews/FastQC) and [MultiQC](https://multiqc.info/)[@ewels2016].
+
+# SETUP
+
+## Libraries and markdown settings
+```{r setup, include=TRUE}
+library(knitr)
+knitr::opts_chunk$set(
+  echo = TRUE,         # Display code chunks
+  eval = FALSE,        # Evaluate code chunks
+  warning = FALSE,     # Hide warnings
+  message = FALSE,     # Hide messages
+  comment = ""         # Prevents appending '##' to beginning of lines in code output
+)
+```
+
+
+## Set variables
+```{r set-variables, eval=TRUE}
+# DIRECTORIES
+top_output_dir <- file.path("..", "output")
+output_dir <- file.path(top_output_dir, "00.30-D-Apul-transcriptome-SRA-QC")
+programs_dir <- file.path("", "home", "shared")
+sratoolkit_dir <- file.path(programs_dir, "sratoolkit.3.0.2-ubuntu64", "bin")
+
+# PROGRAMS
+fastqc <- file.path(programs_dir, "FastQC-0.12.1", "fastqc")
+fasterq_dump <- file.path(sratoolkit_dir, "fasterq-dump.3.0.2")
+multiqc <- file.path("", "home", "sam", "programs", "mambaforge", "bin", "multiqc")
+
+
+# FILES
+sra_accessions <- file.path(output_dir, "apul-ncbi-SraAccList.csv")
+
+# THREADS
+threads <- "40"
+
+
+# FORMATTING
+line <- "-----------------------------------------------"
+
+# Export these as environment variables for bash chunks.
+Sys.setenv(
+  fasterq_dump = fasterq_dump,
+  fastqc = fastqc,
+  line = line,
+  multiqc = multiqc,
+  output_dir = output_dir,
+  top_output_dir = top_output_dir,
+  sra_accessions = sra_accessions,
+  threads = threads
+)
+```
+
+# SRA RETRIEVAL
+
+## Check accessions
+
+```{r check-sra-accessions, engine='bash', eval=TRUE}
+head ${sra_accessions}
+echo ""
+wc -l ${sra_accessions}
+```
+
+## Fasterq_dump
+
+```{r sra-retrieval, engine='bash', eval=FALSE}
+while read accession
+do
+  echo ${accession}
+  ${fasterq_dump} \
+  ${accession} \
+  --outdir ${output_dir} \
+  --split-files \
+  --threads ${threads}
+done < ${sra_accessions}
+```
+
+```{bash raw-fastqc-multiqc, engine='bash', eval=TRUE}
+
+############ RUN FASTQC ############
+
+
+# Create array of trimmed FastQs
+raw_fastqs_array=(${raw_reads_dir}/${fastq_pattern})
+
+# Pass array contents to new variable as space-delimited list
+raw_fastqc_list=$(echo "${raw_fastqs_array[*]}")
+
+echo "Beginning FastQC on raw reads..."
+echo ""
+
+# Run FastQC
+### NOTE: Do NOT quote raw_fastqc_list
+${programs_array[fastqc]} \
+--threads ${threads} \
+--outdir ${raw_reads_dir} \
+--quiet \
+${raw_fastqc_list}
+
+echo "FastQC on raw reads complete!"
+echo ""
+
+############ END FASTQC ############
+
+############ RUN MULTIQC ############
+echo "Beginning MultiQC on raw FastQC..."
+echo ""
+
+${programs_array[multiqc]} ${raw_reads_dir} -o ${raw_reads_dir}
+
+echo ""
+echo "MultiQC on raw FastQs complete."
+echo ""
+
+############ END MULTIQC ############
+
+echo "Removing FastQC zip files."
+echo ""
+rm ${raw_reads_dir}/*.zip
+echo "FastQC zip files removed."
+echo ""
+```
