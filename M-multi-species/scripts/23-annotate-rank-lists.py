@@ -72,6 +72,99 @@ def extract_predominant_functions(protein_names_list, top_n=3):
     # Return as comma-separated string
     return ", ".join([func for func, count in top_funcs])
 
+def generate_physiological_summary(go_bp_list, protein_names_list):
+    """
+    Generate a descriptive phrase summarizing the physiological processes.
+    
+    Analyzes GO biological processes and protein functions to create a concise
+    summary of the predominant physiological themes in the gene list.
+    
+    Args:
+        go_bp_list: List of GO biological process strings
+        protein_names_list: List of protein names
+    
+    Returns:
+        String describing the predominant physiological processes
+    """
+    if not go_bp_list or len(go_bp_list) == 0:
+        return "Unannotated genes"
+    
+    # Extract all GO terms
+    all_go_terms = []
+    for terms_str in go_bp_list:
+        if pd.notna(terms_str) and terms_str.strip():
+            terms = [t.strip() for t in str(terms_str).split(';') if t.strip()]
+            all_go_terms.extend(terms)
+    
+    if not all_go_terms:
+        return "Unannotated genes"
+    
+    # Keywords for categorizing physiological processes
+    process_keywords = {
+        'transcription': ['transcription', 'gene expression', 'chromatin'],
+        'cell_division': ['cell division', 'mitosis', 'cell cycle', 'cytokinesis'],
+        'development': ['development', 'differentiation', 'morphogenesis', 'embryonic'],
+        'metabolism': ['metabolic', 'biosynthetic', 'catabolic', 'metabolism'],
+        'signaling': ['signal transduction', 'signaling pathway', 'receptor signaling'],
+        'immune': ['immune', 'defense response', 'innate immune', 'inflammatory'],
+        'transport': ['transport', 'localization', 'secretion', 'endocytosis'],
+        'protein_processing': ['protein folding', 'proteolysis', 'protein modification', 'ubiquitin'],
+        'cell_structure': ['cytoskeleton', 'cell adhesion', 'extracellular matrix'],
+        'reproduction': ['spermatogenesis', 'fertilization', 'gamete', 'meiosis'],
+        'cilium': ['cilium', 'flagell', 'axoneme'],
+        'apoptosis': ['apoptosis', 'programmed cell death', 'cell death'],
+        'stress': ['stress response', 'heat shock', 'oxidative stress']
+    }
+    
+    # Count categories
+    category_counts = Counter()
+    for term in all_go_terms:
+        term_lower = term.lower()
+        for category, keywords in process_keywords.items():
+            if any(keyword in term_lower for keyword in keywords):
+                category_counts[category] += 1
+    
+    if not category_counts:
+        # Fallback: extract key words from most common terms
+        term_counts = Counter(all_go_terms)
+        top_term = term_counts.most_common(1)[0][0] if term_counts else ""
+        # Extract the main process name (before bracketed GO ID)
+        main_process = top_term.split('[')[0].strip()
+        if main_process:
+            return f"Genes involved in {main_process.lower()}"
+        return "Mixed physiological processes"
+    
+    # Generate summary based on top categories
+    top_categories = category_counts.most_common(3)
+    
+    # Map category names to readable descriptions
+    category_descriptions = {
+        'transcription': 'gene expression regulation',
+        'cell_division': 'cell division and proliferation',
+        'development': 'development and differentiation',
+        'metabolism': 'metabolic processes',
+        'signaling': 'signal transduction',
+        'immune': 'immune and defense responses',
+        'transport': 'intracellular transport',
+        'protein_processing': 'protein processing and degradation',
+        'cell_structure': 'cytoskeletal organization',
+        'reproduction': 'reproduction and gametogenesis',
+        'cilium': 'cilium assembly and function',
+        'apoptosis': 'apoptosis and cell death',
+        'stress': 'stress response'
+    }
+    
+    # Build summary
+    if len(top_categories) == 1:
+        cat = top_categories[0][0]
+        return f"Genes primarily involved in {category_descriptions.get(cat, cat)}"
+    elif len(top_categories) >= 2:
+        primary = category_descriptions.get(top_categories[0][0], top_categories[0][0])
+        secondary = category_descriptions.get(top_categories[1][0], top_categories[1][0])
+        return f"Genes involved in {primary} and {secondary}"
+    
+    return "Mixed physiological processes"
+
 def annotate_rank_file(rank_file_path, annotation_df, output_dir):
     """
     Annotate a single rank CSV file with ortholog annotations.
@@ -123,7 +216,11 @@ def annotate_rank_file(rank_file_path, annotation_df, output_dir):
         'total_genes': len(annotated_df),
         'annotated_genes': annotated_df['protein_name'].notna().sum(),
         'predominant_go_process': extract_predominant_terms(annotated_df['go_bp'].dropna()),
-        'predominant_function': extract_predominant_functions(annotated_df['protein_name'].dropna())
+        'predominant_function': extract_predominant_functions(annotated_df['protein_name'].dropna()),
+        'physiological_summary': generate_physiological_summary(
+            annotated_df['go_bp'].dropna().tolist(),
+            annotated_df['protein_name'].dropna().tolist()
+        )
     }
     
     return output_path, summary
@@ -180,12 +277,13 @@ def main():
     with open(summary_output, 'w') as f:
         f.write("# Gene List Annotation Summary\n\n")
         f.write(f"Total files processed: {len(summaries)}\n\n")
-        f.write("| File | Total Genes | Annotated | Predominant GO Biological Process | Predominant Gene Function |\n")
-        f.write("|------|-------------|-----------|-----------------------------------|---------------------------|\n")
+        f.write("| File | Total Genes | Annotated | Predominant GO Biological Process | Predominant Gene Function | Physiological Summary |\n")
+        f.write("|------|-------------|-----------|-----------------------------------|---------------------------|-----------------------|\n")
         
         for summary in summaries:
             f.write(f"| {summary['filename']} | {summary['total_genes']} | {summary['annotated_genes']} | "
-                   f"{summary['predominant_go_process']} | {summary['predominant_function']} |\n")
+                   f"{summary['predominant_go_process']} | {summary['predominant_function']} | "
+                   f"{summary['physiological_summary']} |\n")
     
     print(f"Summary table saved to {summary_output}")
     print("\nDone!")
