@@ -168,6 +168,44 @@ rownames(trait_mat) <- metadata$sample_id
 head(trait_mat)
 ```
 
+Add physiology into the trait matrix
+```{r}
+phys<-read_csv("M-multi-species/data/phys_master_timeseries.csv")
+head(phys)
+
+phys<-phys%>%
+  select(sample_id, Host_AFDW.mg.cm2, Sym_AFDW.mg.cm2, Am, AQY, Rd, Ik, Ic, calc.umol.cm2.hr, cells.mgAFDW, prot_mg.mgafdw, cre.umol.mgafdw, Ratio_AFDW.mg.cm2, Total_Chl, Total_Chl_cell)%>%
+  mutate(sample_id=str_replace(sample_id, "_", "-"))
+
+str(trait_mat)
+str(phys)
+```
+
+```{r}
+# 1) Make 'phys' row-indexable by sample_id and drop the id column
+phys_by_id <- phys %>%
+  distinct(sample_id, .keep_all = TRUE) %>%   # just in case there are duplicates
+  column_to_rownames("sample_id") %>%
+  as.data.frame()
+
+# 2) Reorder 'phys' rows to match trait_mat rownames (keeps NAs for any missing)
+phys_aligned <- phys_by_id[rownames(trait_mat), , drop = FALSE]
+
+# 3) Bind to the right of trait_mat, preserving matrix type
+#    (columns in phys are numeric per your str(), so this stays numeric)
+trait_mat_plus <- cbind(trait_mat, as.matrix(phys_aligned))
+
+# 4) (Optional) Make sure column names are unique if there’s any overlap
+colnames(trait_mat_plus) <- make.unique(colnames(trait_mat_plus))
+
+# ---- quick sanity checks (optional) ----
+# any trait_mat rows missing in phys?
+setdiff(rownames(trait_mat), rownames(phys_by_id))
+# any phys rows not in trait_mat?
+setdiff(rownames(phys_aligned), rownames(trait_mat))
+```
+
+
 ```{r}
 
 ## --------------------------------------
@@ -253,9 +291,9 @@ MEs           <- orderMEs(MEs)
 ## 5) Correlate module eigengenes with the traits
 ## --------------------------------------------
 # Ensure row order matches
-identical(rownames(MEs), rownames(trait_mat))
+identical(rownames(MEs), rownames(trait_mat_plus))
 
-mod_trait_cor  <- cor(MEs, trait_mat, use = "p")
+mod_trait_cor  <- cor(MEs, trait_mat_plus, use = "p")
 mod_trait_pval <- corPvalueStudent(mod_trait_cor, nSamples = nrow(expr_mat))
 
 # --- Tidy module–trait correlation table (with BH-adjusted p per trait) ---
@@ -379,7 +417,7 @@ mat_re      <- mod_trait_cor[rord, , drop = FALSE]
 text_re     <- text_matrix[rord, , drop = FALSE]
 sig_mask_re <- sig_mask[rord, , drop = FALSE]
 yLabs_re    <- rownames(mod_trait_cor)[rord]
-xLabs_re    <- colnames(trait_mat)
+xLabs_re    <- colnames(trait_mat_plus)
 
 # --- Compact layout: narrower dendrogram panel ---
 op <- par(no.readonly = TRUE)
