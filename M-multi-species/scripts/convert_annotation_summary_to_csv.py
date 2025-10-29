@@ -5,10 +5,17 @@ Convert annotation_summary.md to CSV format
 
 import csv
 import re
+import os
+from pathlib import Path
+
+# Get the script directory and construct relative paths
+script_dir = Path(__file__).parent
+repo_root = script_dir.parent.parent
+output_dir = repo_root / "M-multi-species" / "output" / "22-Visualizing-Rank-outs"
 
 # Input and output file paths
-input_file = "/home/runner/work/timeseries_molecular/timeseries_molecular/M-multi-species/output/22-Visualizing-Rank-outs/annotation_summary.md"
-output_file = "/home/runner/work/timeseries_molecular/timeseries_molecular/M-multi-species/output/22-Visualizing-Rank-outs/annotation_summary.csv"
+input_file = output_dir / "annotation_summary.md"
+output_file = output_dir / "annotation_summary.csv"
 
 # Read the markdown file
 with open(input_file, 'r') as f:
@@ -33,11 +40,14 @@ for i, line in enumerate(lines):
     if '|' in line:
         # Split by pipe and clean up
         cells = [cell.strip() for cell in line.split('|')]
-        # Remove empty first and last elements if they exist
-        cells = [cell for cell in cells if cell]
+        # Remove only the leading and trailing empty elements from pipe splitting
+        if cells and cells[0] == '':
+            cells = cells[1:]
+        if cells and cells[-1] == '':
+            cells = cells[:-1]
         
-        # Check if this is the separator line (contains dashes)
-        if all(re.match(r'^-+$', cell) for cell in cells):
+        # Check if this is the separator line (contains dashes and possibly colons/spaces)
+        if all(re.match(r'^[\s:-]+$', cell) for cell in cells):
             continue
         
         # If we haven't found the header yet, this is it
