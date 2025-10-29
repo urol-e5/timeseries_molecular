@@ -1450,6 +1450,394 @@ print(f"\nLog file saved to: {log_file}")
 print("This log can be used by subsequent chunks to avoid re-running decompositions")
 ```
 
+### Factor Match Score evaluation
+
+This section evaluates each rank's decomposition quality using the Factor Match Score (FMS), which measures reconstruction quality by comparing the original tensor with the decomposed tensor.
+
+```{python factor-match-score-evaluation, eval=TRUE}
+# ===========================================
+# FACTOR MATCH SCORE EVALUATION
+# ===========================================
+import numpy as np
+import pandas as pd
+import os
+
+print(f"\n{'='*60}")
+print("FACTOR MATCH SCORE (FMS) EVALUATION")
+print(f"{'='*60}")
+print("This analysis evaluates decomposition quality using the Factor Match Score")
+print("which measures how well the decomposed factors reconstruct the original")
+print("tensor structure (correlation-based reconstruction quality metric).")
+print(f"{'='*60}")
+
+def calculate_reconstruction_fms(tensor, decomposition, rank):
+    """
+    Calculate FMS based on reconstruction quality.
+    This measures how well the decomposition recovers the original tensor
+    by calculating correlation and various error metrics.
+    """
+    try:
+        # Create reconstructed tensor
+        gene_factors = decomposition.factors[0]
+        sample_factors = decomposition.factors[1] 
+        time_factors = decomposition.factors[2]
+        weights = decomposition.weights
+        
+        # Reconstruct tensor
+        reconstructed = np.zeros_like(tensor)
+        for r in range(len(weights)):
+            outer_prod = np.outer(gene_factors[:, r], sample_factors[:, r])
+            outer_prod = np.outer(outer_prod.flatten(), time_factors[:, r])
+            outer_prod = outer_prod.reshape(tensor.shape)
+            reconstructed += weights[r] * outer_prod
+        
+        # Calculate correlation-based FMS
+        # Flatten tensors and calculate correlation
+        orig_flat = tensor.flatten()
+        recon_flat = reconstructed.flatten()
+        
+        # Remove NaN values for correlation calculation
+        valid_mask = np.isfinite(orig_flat) & np.isfinite(recon_flat)
+        orig_valid = orig_flat[valid_mask]
+        recon_valid = recon_flat[valid_mask]
+        
+        if len(orig_valid) > 0:
+            correlation = np.corrcoef(orig_valid, recon_valid)[0, 1]
+            # Convert correlation to FMS-like score (0-1 scale)
+            fms_score = (correlation + 1) / 2  # Map [-1,1] to [0,1]
+            
+            # Additional metrics
+            mse = np.mean((orig_valid - recon_valid) ** 2)
+            rmse = np.sqrt(mse)
+            mae = np.mean(np.abs(orig_valid - recon_valid))
+            
+            # R-squared
+            ss_res = np.sum((orig_valid - recon_valid) ** 2)
+            ss_tot = np.sum((orig_valid - np.mean(orig_valid)) ** 2)
+            r_squared = 1 - (ss_res / ss_tot) if ss_tot > 0 else 0
+        else:
+            correlation = np.nan
+            fms_score = 0.0
+            mse = np.nan
+            rmse = np.nan
+            mae = np.nan
+            r_squared = np.nan
+        
+        return {
+            'fms': float(fms_score),
+            'correlation': float(correlation) if len(orig_valid) > 0 else np.nan,
+            'mse': float(mse),
+            'rmse': float(rmse),
+            'mae': float(mae),
+            'r_squared': float(r_squared),
+            'success': True,
+            'method': 'reconstruction_correlation',
+            'valid_elements': len(orig_valid)
+        }
+        
+    except Exception as e:
+        print(f"  Error calculating reconstruction FMS for rank {rank}: {e}")
+        return {
+            'fms': np.nan,
+            'success': False,
+            'error': str(e),
+            'method': 'failed'
+        }
+
+def evaluate_fms_for_rank(rank, output_dir, tensor):
+    """
+    Evaluate Factor Match Score for a specific rank.
+    """
+    print(f"\n--- Evaluating FMS for Rank {rank} ---")
+    
+    rank_dir = os.path.join(output_dir, f'rank_{rank:02d}')
+    
+    # Check if rank directory exists
+    if not os.path.exists(rank_dir):
+        print(f"  Rank directory not found: {rank_dir}")
+        return None
+    
+    # Load factor matrices
+    try:
+        gene_factors = pd.read_csv(os.path.join(rank_dir, 'gene_factors.csv'), index_col=0)
+        sample_factors = pd.read_csv(os.path.join(rank_dir, 'sample_factors.csv'), index_col=0)
+        time_factors = pd.read_csv(os.path.join(rank_dir, 'time_factors.csv'), index_col=0)
+        weights_df = pd.read_csv(os.path.join(rank_dir, 'component_weights.csv'))
+        
+        # Remove metadata columns from sample_factors if present
+        factor_cols = [col for col in sample_factors.columns if col.startswith('Component_')]
+        sample_factor_values = sample_factors[factor_cols]
+        
+        print(f"  Loaded factor matrices - Genes: {gene_factors.shape}, Samples: {sample_factor_values.shape}, Time: {time_factors.shape}")
+        
+    except Exception as e:
+        print(f"  Error loading factor matrices: {e}")
+        return None
+    
+    # Create mock decomposition object
+    class MockDecomposition:
+        def __init__(self, weights, factors):
+            self.weights = weights
+            self.factors = factors
+    
+    weights = weights_df['Weight'].values
+    factors = [gene_factors.values, sample_factor_values.values, time_factors.values]
+    mock_decomposition = MockDecomposition(weights, factors)
+    
+    # Calculate FMS using reconstruction-based method
+    fms_result = calculate_reconstruction_fms(tensor, mock_decomposition, rank)
+    
+    # Combine results
+    result = {
+        'rank': rank,
+        'fms': fms_result['fms'] if fms_result['success'] else np.nan,
+        'correlation': fms_result.get('correlation', np.nan),
+        'mse': fms_result.get('mse', np.nan),
+        'rmse': fms_result.get('rmse', np.nan),
+        'mae': fms_result.get('mae', np.nan),
+        'r_squared': fms_result.get('r_squared', np.nan),
+        'success': fms_result['success'],
+        'method': fms_result.get('method', 'unknown'),
+        'valid_elements': fms_result.get('valid_elements', 0)
+    }
+    
+    # Print results
+    if fms_result['success']:
+        print(f"  FMS: {fms_result['fms']:.4f}")
+        print(f"  Correlation: {fms_result.get('correlation', 'N/A'):.4f}")
+        print(f"  R²: {fms_result.get('r_squared', 'N/A'):.4f}")
+        print(f"  RMSE: {fms_result.get('rmse', 'N/A'):.4f}")
+        print(f"  Valid elements used: {fms_result.get('valid_elements', 0):,}")
+    else:
+        print(f"  FMS calculation failed: {fms_result.get('error', 'unknown error')}")
+    
+    # Save individual rank FMS results
+    fms_file = os.path.join(rank_dir, 'factor_match_score.json')
+    import json
+    with open(fms_file, 'w') as f:
+        json.dump({
+            'rank': rank,
+            'fms_result': fms_result,
+            'summary': result
+        }, f, indent=2, default=str)
+    
+    print(f"  Saved FMS results to: factor_match_score.json")
+    
+    return result
+
+# ===========================================
+# EVALUATE FMS FOR ALL RANKS
+# ===========================================
+
+# Get output directory if not available
+if 'output_dir' not in globals():
+    output_dir = r.output_dir
+
+# Get tensor if not available
+if 'tensor_3d' not in globals():
+    print("ERROR: tensor_3d not found in memory!")
+    print("Please run the tensor creation chunks first.")
+    tensor_3d = None
+
+if tensor_3d is not None:
+    # Load log file to get successful ranks
+    log_file = os.path.join(output_dir, 'rank_comparison_log.json')
+    
+    if os.path.exists(log_file):
+        import json
+        with open(log_file, 'r') as f:
+            log_data = json.load(f)
+        
+        successful_ranks = [r['rank'] for r in log_data['results'] if r['success']]
+        print(f"Found {len(successful_ranks)} successful ranks to evaluate: {successful_ranks}")
+        
+    else:
+        # Fallback: find rank directories
+        import glob
+        rank_dirs = sorted(glob.glob(os.path.join(output_dir, 'rank_*')))
+        successful_ranks = []
+        for rank_dir in rank_dirs:
+            try:
+                rank_num = int(os.path.basename(rank_dir).split('_')[1])
+                successful_ranks.append(rank_num)
+            except:
+                pass
+        print(f"Found {len(successful_ranks)} rank directories: {successful_ranks}")
+    
+    # Evaluate FMS for each rank
+    all_fms_results = []
+    
+    for rank in sorted(successful_ranks):
+        fms_result = evaluate_fms_for_rank(rank, output_dir, tensor_3d)
+        if fms_result is not None:
+            all_fms_results.append(fms_result)
+    
+    # ===========================================
+    # CREATE FMS COMPARISON TABLE AND PLOTS
+    # ===========================================
+    if len(all_fms_results) > 0:
+        print(f"\n{'='*60}")
+        print("FMS RESULTS SUMMARY")
+        print(f"{'='*60}")
+        
+        # Create comparison dataframe
+        fms_df = pd.DataFrame(all_fms_results)
+        
+        # Save comprehensive FMS results
+        comparison_dir = os.path.join(output_dir, 'rank_comparison')
+        os.makedirs(comparison_dir, exist_ok=True)
+        
+        fms_output_file = os.path.join(comparison_dir, 'factor_match_scores.csv')
+        fms_df.to_csv(fms_output_file, index=False)
+        print(f"Saved FMS comparison table to: {fms_output_file}")
+        
+        # Display results
+        display_cols = ['rank', 'fms', 'correlation', 'r_squared', 'rmse']
+        print("\nFactor Match Score Results:")
+        print(fms_df[display_cols].to_string(index=False, float_format='%.4f'))
+        
+        # Create visualization
+        import matplotlib.pyplot as plt
+        
+        fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+        
+        # Plot 1: FMS scores
+        valid_fms = fms_df['success']
+        
+        if valid_fms.any():
+            ax = axes[0, 0]
+            ax.plot(fms_df.loc[valid_fms, 'rank'], 
+                    fms_df.loc[valid_fms, 'fms'], 
+                    'o-', linewidth=2, markersize=8, color='steelblue')
+            ax.set_xlabel('Rank (Number of Components)', fontsize=11)
+            ax.set_ylabel('Factor Match Score', fontsize=11)
+            ax.set_title('Factor Match Score vs Rank\n(Higher = Better Factor Recovery)', fontweight='bold')
+            ax.grid(True, alpha=0.3)
+            ax.set_ylim([0, 1.05])
+        
+        # Plot 2: Reconstruction correlation
+        if valid_fms.any():
+            ax = axes[0, 1]
+            ax.plot(fms_df.loc[valid_fms, 'rank'], 
+                    fms_df.loc[valid_fms, 'correlation'], 
+                    'o-', linewidth=2, markersize=8, color='green')
+            ax.axhline(y=0.8, color='orange', linestyle='--', alpha=0.5, label='80% correlation')
+            ax.axhline(y=0.9, color='red', linestyle='--', alpha=0.5, label='90% correlation')
+            ax.set_xlabel('Rank (Number of Components)', fontsize=11)
+            ax.set_ylabel('Reconstruction Correlation', fontsize=11)
+            ax.set_title('Tensor Reconstruction Quality vs Rank\n(Correlation between original and reconstructed)', fontweight='bold')
+            ax.grid(True, alpha=0.3)
+            ax.legend()
+            ax.set_ylim([-1.05, 1.05])
+        
+        # Plot 3: R-squared
+        if valid_fms.any():
+            ax = axes[1, 0]
+            ax.plot(fms_df.loc[valid_fms, 'rank'], 
+                    fms_df.loc[valid_fms, 'r_squared'], 
+                    's-', linewidth=2, markersize=8, color='purple')
+            ax.axhline(y=0.8, color='orange', linestyle='--', alpha=0.5, label='80% explained')
+            ax.axhline(y=0.9, color='red', linestyle='--', alpha=0.5, label='90% explained')
+            ax.set_xlabel('Rank (Number of Components)', fontsize=11)
+            ax.set_ylabel('R² (Coefficient of Determination)', fontsize=11)
+            ax.set_title('R² vs Rank\n(Proportion of Variance Explained)', fontweight='bold')
+            ax.grid(True, alpha=0.3)
+            ax.legend()
+            ax.set_ylim([0, 1.05])
+        
+        # Plot 4: RMSE
+        if valid_fms.any():
+            ax = axes[1, 1]
+            ax.plot(fms_df.loc[valid_fms, 'rank'], 
+                    fms_df.loc[valid_fms, 'rmse'], 
+                    '^-', linewidth=2, markersize=8, color='coral')
+            ax.set_xlabel('Rank (Number of Components)', fontsize=11)
+            ax.set_ylabel('RMSE (Root Mean Squared Error)', fontsize=11)
+            ax.set_title('Reconstruction Error vs Rank\n(Lower = Better Fit)', fontweight='bold')
+            ax.grid(True, alpha=0.3)
+        
+        plt.tight_layout()
+        fms_plot_file = os.path.join(comparison_dir, 'factor_match_scores_plot.png')
+        plt.savefig(fms_plot_file, dpi=150, bbox_inches='tight')
+        print(f"Saved FMS plot to: {fms_plot_file}")
+        plt.close()
+        
+        # ===========================================
+        # FMS-BASED RANK RECOMMENDATION
+        # ===========================================
+        print(f"\n{'='*60}")
+        print("FMS-BASED RANK RECOMMENDATION")
+        print(f"{'='*60}")
+        
+        # Find best ranks based on different criteria
+        valid_df = fms_df[fms_df['success']]
+        
+        if len(valid_df) > 0:
+            # Best FMS
+            best_fms_idx = valid_df['fms'].idxmax()
+            best_fms_rank = valid_df.iloc[best_fms_idx]['rank']
+            best_fms_score = valid_df.iloc[best_fms_idx]['fms']
+            
+            # Best correlation
+            best_corr_idx = valid_df['correlation'].idxmax()
+            best_corr_rank = valid_df.iloc[best_corr_idx]['rank']
+            best_corr_score = valid_df.iloc[best_corr_idx]['correlation']
+            
+            # Best R-squared
+            best_r2_idx = valid_df['r_squared'].idxmax()
+            best_r2_rank = valid_df.iloc[best_r2_idx]['rank']
+            best_r2_score = valid_df.iloc[best_r2_idx]['r_squared']
+            
+            # Lowest RMSE
+            best_rmse_idx = valid_df['rmse'].idxmin()
+            best_rmse_rank = valid_df.iloc[best_rmse_idx]['rank']
+            best_rmse_score = valid_df.iloc[best_rmse_idx]['rmse']
+            
+            print(f"Best FMS: Rank {int(best_fms_rank)} (score: {best_fms_score:.4f})")
+            print(f"Best Correlation: Rank {int(best_corr_rank)} (score: {best_corr_score:.4f})")
+            print(f"Best R²: Rank {int(best_r2_rank)} (score: {best_r2_score:.4f})")
+            print(f"Lowest RMSE: Rank {int(best_rmse_rank)} (error: {best_rmse_score:.4f})")
+            
+            # Look for ranks with consistently high scores (top 20%)
+            fms_threshold = valid_df['fms'].quantile(0.8)
+            high_scoring_ranks = valid_df[valid_df['fms'] >= fms_threshold]['rank'].tolist()
+            
+            print(f"\nHigh-scoring ranks (top 20% by FMS): {[int(r) for r in high_scoring_ranks]}")
+            print(f"FMS threshold: {fms_threshold:.4f}")
+            
+            # Provide interpretation
+            print(f"\nFMS Interpretation:")
+            print(f"• FMS measures tensor reconstruction quality (0-1 scale, higher is better)")
+            print(f"• Correlation shows linear relationship between original and reconstructed")
+            print(f"• R² shows proportion of variance explained (0-1 scale, higher is better)")
+            print(f"• RMSE shows average reconstruction error (lower is better)")
+            print(f"• Higher FMS, correlation, and R² indicate better factor recovery")
+            print(f"• Consider ranks with consistently high FMS and R² scores")
+            print(f"• Look for diminishing returns (elbow point) in improvement curves")
+            
+        else:
+            print("No valid FMS results available for recommendation.")
+    
+    else:
+        print("No FMS results to analyze.")
+
+else:
+    print("Skipping FMS evaluation - tensor not available.")
+
+print(f"\n{'='*60}")
+print("FACTOR MATCH SCORE EVALUATION COMPLETE")
+print(f"{'='*60}")
+if 'all_fms_results' in locals() and len(all_fms_results) > 0:
+    working_fms = sum(1 for r in all_fms_results if r['success'])
+    print(f"Summary: {working_fms}/{len(all_fms_results)} ranks have valid FMS results")
+    if working_fms > 0:
+        print(f"→ Use FMS, correlation, and R² for rank selection")
+        print(f"→ Results saved to: {comparison_dir}")
+    else:
+        print(f"→ No valid FMS results - check tensor and factor matrices")
+```
+
+
 # VISUALIZATION
 
 ## Plot rank comparisons
