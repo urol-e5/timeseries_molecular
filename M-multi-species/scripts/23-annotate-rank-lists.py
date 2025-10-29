@@ -14,7 +14,6 @@ import sys
 import pandas as pd
 from pathlib import Path
 from collections import Counter
-import re
 
 def extract_predominant_terms(go_terms_list, top_n=3):
     """
@@ -88,8 +87,17 @@ def annotate_rank_file(rank_file_path, annotation_df, output_dir):
     # Read the rank file
     rank_df = pd.read_csv(rank_file_path)
     
-    # The first column should be the OG ID - get its name
+    # The first column should be the OG ID - get its name and validate
     og_column = rank_df.columns[0]
+    
+    # Validate that the first column looks like an OG ID column
+    if not (og_column.upper() in ['OG', 'GROUP_ID'] or 
+            og_column.startswith('OG_') or 
+            'OG' in og_column.upper()):
+        # Check if first few values look like OG IDs
+        sample_values = rank_df[og_column].head(3).astype(str)
+        if not sample_values.str.contains('OG_', case=False).any():
+            print(f"  Warning: First column '{og_column}' may not be an OG ID column")
     
     # Rename to match annotation file's group_id column
     rank_df_renamed = rank_df.rename(columns={og_column: 'group_id'})
@@ -144,8 +152,7 @@ def main():
     
     # Find all CSV files in the rank directory (excluding annotation files)
     csv_files = [f for f in rank_dir.glob('*.csv') 
-                 if not f.name.endswith('_annotation.csv') 
-                 and f.name != 'annotation_summary.md']
+                 if not f.name.endswith('_annotation.csv')]
     
     print(f"\nFound {len(csv_files)} CSV files to process")
     
