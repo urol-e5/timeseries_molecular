@@ -461,3 +461,65 @@ for (i in seq_len(nr)) {
 par(op); layout(1)
 ```
 
+```{r}
+## --------------------------------------
+## 10) Export per-module gene lists to CSV
+## --------------------------------------
+
+# Output locations
+out_base <- "M-multi-species/output/18-ortholog-wgcna"
+out_dir  <- file.path(out_base, "module_gene_lists")
+dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
+
+# Ensure we have gene -> module mapping
+if (!exists("gene_module_df")) {
+  gene_ids <- colnames(expr_mat)
+  gene_module_df <- tibble(
+    group_id     = gene_ids,
+    module_label = module_labels,
+    module_color = labels2colors(module_labels)
+  )
+}
+
+# Ensure we have kME table (gene-to-ME correlations)
+if (!exists("kME_tbl")) {
+  kME   <- as.data.frame(cor(expr_mat, MEs, use = "p"))
+  kME_tbl <- kME %>%
+    rownames_to_column(var = "group_id") %>%
+    as_tibble() %>%
+    left_join(gene_module_df, by = "group_id")
+}
+
+# Ensure a per-gene kME for its own module ("kME_in_own")
+if (!"kME_in_own" %in% names(kME_tbl)) {
+  kME_tbl <- kME_tbl %>%
+    mutate(across(starts_with("ME"), as.numeric)) %>%
+    rowwise() %>%
+    mutate(kME_in_own = {
+      me_col <- paste0("ME", module_color)
+      if (me_col %in% colnames(cur_data_all())) cur_data_all()[[me_col]] else NA_real_
+    }) %>%
+    ungroup()
+}
+
+# 1) One CSV per module with its gene list ordered by hub-likeness
+module_levels <- sort(unique(gene_module_df$module_color))
+for (col in module_levels) {
+  df <- kME_tbl %>%
+    filter(module_color == col) %>%
+    arrange(desc(kME_in_own)) %>%
+    select(group_id, module_label, module_color, kME_in_own)
+
+  safe_col <- gsub("[^A-Za-z0-9]+", "-", col)
+  outfile  <- file.path(out_dir, paste0("genes_in_", safe_col, "_module.csv"))
+  write_csv(df, outfile)
+}
+
+# 2) A single combined CSV of all genes with assignments and kMEs
+combined <- kME_tbl %>%
+  arrange(module_color, desc(kME_in_own)) %>%
+  select(group_id, module_label)%>%
+  dplyr::rename(wgcna_module=module_label)
+
+write_csv(combined, file.path(out_base, "wgcna_ortholog_module_assignments.csv"))
+```
