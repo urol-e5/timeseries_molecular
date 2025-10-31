@@ -1,0 +1,236 @@
+---
+title: "22-Visualizing-Rank-outs"
+output: html_document
+date: "2025-10-29"
+---
+
+
+```{r,echo=FALSE, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(pheatmap)
+```
+
+
+Will take all loading scores from different rank setting and visualize
+
+Ranks - 05-75
+
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+# -----------------------------------------
+# Define which ranks to process
+# -----------------------------------------
+ranks <- c("rank_05", "rank_08", "rank_10", "rank_12", "rank_15", "rank_20", "rank_25", "rank_35", "rank_45", "rank_55", "rank_65", "rank_75")
+
+for (rank in ranks) {
+
+  message("Processing: ", rank)
+
+  # Load data
+  gene_factors <- read_csv(
+    paste0("../output/13.00-multiomics-barnacle/", rank, "/gene_factors.csv")
+  )
+
+  # Matrix for heatmap
+  df_mat <- gene_factors %>%
+    column_to_rownames(var = "...1") %>%
+    as.matrix()
+
+  # Long format for histograms
+  df_long <- gene_factors %>%
+    pivot_longer(cols = starts_with("Component_"),
+                 names_to = "Component",
+                 values_to = "Value")
+
+  # Row stats
+  df_stats <- gene_factors %>%
+    mutate(
+      mean_val = rowMeans(select(., starts_with("Component_")), na.rm = TRUE),
+      max_val  = do.call(pmax, c(select(., starts_with("Component_")), na.rm = TRUE)),
+      diff_val = max_val - mean_val
+    )
+
+  # Clean matrix and select top variable rows
+  df_mat2 <- df_mat[complete.cases(df_mat), ]
+  df_mat2 <- df_mat2[apply(df_mat2, 1, var) != 0, ]
+
+  top_n <- 10000
+  vars <- apply(df_mat2, 1, var)
+  df_top <- df_mat2[order(vars, decreasing = TRUE)[1:top_n], ]
+
+  # ---- PLOTS ----
+
+  # 1) Heatmap of top variance rows
+  pheatmap(df_top,
+           scale = "row",
+           color = colorRampPalette(c("navy","white","firebrick3"))(100),
+           clustering_method = "ward.D2",
+           show_rownames = FALSE,
+           main = paste0(rank, " — Top ", top_n, " z-score"))
+
+  
+    # 1) Heatmap of- raw
+  pheatmap(df_top,
+           scale = "none",
+           color = colorRampPalette(c("lightblue","black","orange"))(100),
+           clustering_method = "ward.D2",
+           show_rownames = FALSE,
+           main = paste0(rank, " — Top ", top_n, " RAW"))
+  
+  
+  
+  # 2) Histogram per Component
+  print(
+    ggplot(df_long, aes(x = Value)) +
+      geom_histogram(bins = 50) +
+      facet_wrap(~ Component, scales = "fixed") +
+      theme_minimal() +
+      labs(x = "Value", y = "Count",
+           title = paste0("Distribution of Values per Component — ", rank))
+  )
+
+  # 3) Distribution of (max - mean)
+  print(
+    ggplot(df_stats, aes(x = diff_val)) +
+      geom_histogram(bins = 50) +
+      theme_minimal() +
+      labs(
+        title = paste0("Difference (max - mean) — ", rank),
+        x = "max - mean",
+        y = "Count"
+      )
+  )
+
+  # 4) 500 largest differences
+  print(
+    df_stats %>%
+      arrange(desc(diff_val)) %>%
+      slice(1:500) %>%
+      ggplot(aes(x = reorder(...1, diff_val), y = diff_val)) +
+      geom_segment(aes(xend = ...1, y = mean_val, yend = max_val),
+                   color="grey40") +
+      geom_point(aes(y = mean_val), color="blue", size=2) +
+      geom_point(aes(y = max_val),  color="red", size=2) +
+      coord_flip() +
+      theme_minimal() +
+      labs(x = "OG", y = "Value",
+           title = paste0("Top 500 by (max - mean) — ", rank),
+           subtitle = "blue = mean, red = max")
+  )
+
+  # 5) 500 smallest differences
+  df_smallest <- df_stats %>%
+    arrange(diff_val) %>%
+    slice(1:500)
+
+  print(
+    df_smallest %>%
+      slice(1:500) %>%
+      ggplot(aes(x = reorder(...1, diff_val))) +
+        geom_segment(aes(xend = ...1, y = mean_val, yend = max_val),
+                     color = "grey50") +
+        geom_point(aes(y = mean_val), color = "blue", size = 2) +
+        geom_point(aes(y = max_val),  color = "red", size = 2) +
+        coord_flip() +
+        theme_minimal() +
+        labs(x = "OG", y = "value",
+             title = paste0("500 most uniform — ", rank))
+  )
+
+}
+```
+
+
+
+
+
+```{r}
+
+ranks <- c("rank_05", "rank_08", "rank_10", "rank_12", "rank_15", "rank_20", "rank_25", "rank_35", "rank_45", "rank_55", "rank_65", "rank_75")
+
+base_dir <- "../output/13.00-multiomics-barnacle"
+out_dir  <- "../output/22-Visualizing-Rank-outs"
+dir.create(out_dir, showWarnings = FALSE)
+
+for (rank in ranks) {
+  
+  message("Extracting dominant >1 genes for: ", rank)
+  
+  gene_factors <- read_csv(
+    file.path(base_dir, rank, "gene_factors.csv")
+  )
+  
+  # Get only component columns
+  comp_cols <- grep("^Component_", colnames(gene_factors), value = TRUE)
+  
+  # Identify dominant component for each row (highest loading)
+  dom <- gene_factors %>%
+    mutate(
+      OG = .[[1]],  # assuming first column is OG IDs
+      max_val = apply(select(., all_of(comp_cols)), 1, max, na.rm = TRUE),
+      dom_comp = apply(select(., all_of(comp_cols)), 1,
+                       function(x) comp_cols[which.max(x)])
+    ) %>%
+    # Keep only those where dominant loading > 1
+    filter(max_val > 1)
+
+  # For each component, save the OGs assigned to it
+  for (comp in comp_cols) {
+    comp_df <- dom %>% filter(dom_comp == comp)
+
+    if (nrow(comp_df) > 0) {
+      out_file <- file.path(
+        out_dir,
+        paste0(rank, "_comp", gsub("Component_", "", comp), ".csv")
+      )
+      write_csv(comp_df %>% select(OG, max_val),
+                out_file)
+    }
+  }
+}
+```
+
+```{r}
+library(tidyverse)
+
+ranks <- c("rank_05", "rank_08", "rank_10", "rank_12", "rank_15", "rank_20", "rank_25", "rank_35", "rank_45", "rank_55", "rank_65", "rank_75")
+
+base_dir <- "../output/13.00-multiomics-barnacle"
+out_dir  <- "../output/22-Visualizing-Rank-outs"
+dir.create(out_dir, showWarnings = FALSE)
+
+top_n <- 100  # << change here if you ever want top-50, top-200, etc.
+
+for (rank in ranks) {
+  
+  message("Selecting top ", top_n, " genes per component for: ", rank)
+  
+  gene_factors <- read_csv(
+    file.path(base_dir, rank, "gene_factors.csv")
+  )
+  
+  # First column = OG ID
+  og_col <- colnames(gene_factors)[1]
+  
+  # Component columns
+  comp_cols <- grep("^Component_", colnames(gene_factors), value = TRUE)
+  
+  # For each component, take top-N genes by loading
+  for (comp in comp_cols) {
+    
+    # Sort by that column descending
+    top_df <- gene_factors %>%
+      select(all_of(og_col), all_of(comp)) %>%
+      arrange(desc(.data[[comp]])) %>%
+      slice(1:min(n(), top_n))
+    
+    # Write out
+    out_file <- file.path(
+      out_dir,
+      paste0(rank, "_comp", gsub("Component_", "", comp), "_top", top_n, ".csv")
+    )
+    
+    write_csv(top_df, out_file)
+  }
+}
+```
