@@ -234,3 +234,151 @@ for (rank in ranks) {
   }
 }
 ```
+
+
+
+```{r}
+
+ranks <- c("rank_05", "rank_08", "rank_10", "rank_12", "rank_15", "rank_20", "rank_25", "rank_35", "rank_45", "rank_55", "rank_65", "rank_75")
+
+base_dir <- "../output/13.00-multiomics-barnacle"
+out_dir  <- "../output/22-Visualizing-Rank-outs"
+dir.create(out_dir, showWarnings = FALSE)
+
+for (rank in ranks) {
+  
+  message("Extracting dominant >1 genes for: ", rank)
+  
+  gene_factors <- read_csv(
+    file.path(base_dir, rank, "gene_factors.csv")
+  )
+  
+  # Get only component columns
+  comp_cols <- grep("^Component_", colnames(gene_factors), value = TRUE)
+  
+  # Identify dominant component for each row (highest loading)
+  dom <- gene_factors %>%
+    mutate(
+      OG = .[[1]],  # assuming first column is OG IDs
+      max_val = apply(select(., all_of(comp_cols)), 1, max, na.rm = TRUE),
+      dom_comp = apply(select(., all_of(comp_cols)), 1,
+                       function(x) comp_cols[which.max(x)])
+    ) %>%
+    # Keep only those where dominant loading > 1
+    filter(max_val > 1)
+
+  # For each component, save the OGs assigned to it
+  for (comp in comp_cols) {
+    comp_df <- dom %>% filter(dom_comp == comp)
+
+    if (nrow(comp_df) > 0) {
+      out_file <- file.path(
+        out_dir,
+        paste0(rank, "_comp", gsub("Component_", "", comp), ".csv")
+      )
+      write_csv(comp_df %>% select(OG, max_val),
+                out_file)
+    }
+  }
+}
+```
+
+```{r}
+library(tidyverse)
+
+ranks <- c("rank_35")
+
+base_dir <- "../output/13.00-multiomics-barnacle"
+out_dir  <- "../output/22-Visualizing-Rank-outs"
+dir.create(out_dir, showWarnings = FALSE)
+
+top_n <- 100  # << change here if you ever want top-50, top-200, etc.
+
+for (rank in ranks) {
+  
+  message("Selecting top ", top_n, " genes per component for: ", rank)
+  
+  gene_factors <- read_csv(
+    file.path(base_dir, rank, "gene_factors.csv")
+  )
+  
+  # First column = OG ID
+  og_col <- colnames(gene_factors)[1]
+  
+  # Component columns
+  comp_cols <- grep("^Component_", colnames(gene_factors), value = TRUE)
+  
+  # For each component, take top-N genes by loading
+  for (comp in comp_cols) {
+    
+    # Sort by that column descending
+    top_df <- gene_factors %>%
+      select(all_of(og_col), all_of(comp)) %>%
+      arrange(desc(.data[[comp]])) %>%
+      slice(1:min(n(), top_n))
+    
+    # Write out
+    out_file <- file.path(
+      out_dir,
+      paste0(rank, "_comp", gsub("Component_", "", comp), "_top", top_n, ".csv")
+    )
+    
+    write_csv(top_df, out_file)
+  }
+}
+```
+
+
+
+
+
+```{r}
+
+library(tidyverse)
+  # Load data
+gene_factors <- read_csv("../output/13.00-multiomics-barnacle/rank_35/gene_factors.csv")
+
+
+ranks <- c("rank_35")
+
+base_dir <- "../output/13.00-multiomics-barnacle"
+out_dir  <- "../output/23-visualizing-rank35"
+dir.create(out_dir, showWarnings = FALSE)
+
+for (rank in ranks) {
+  
+  message("Extracting dominant >1 genes for: ", rank)
+  
+  gene_factors <- read_csv(
+    file.path(base_dir, rank, "gene_factors.csv")
+  )
+  
+  # Get only component columns
+  comp_cols <- grep("^Component_", colnames(gene_factors), value = TRUE)
+  
+  # Identify dominant component for each row (highest loading)
+  dom <- gene_factors %>%
+    mutate(
+      OG = .[[1]],  # assuming first column is OG IDs
+      max_val = apply(select(., all_of(comp_cols)), 1, max, na.rm = TRUE),
+      dom_comp = apply(select(., all_of(comp_cols)), 1,
+                       function(x) comp_cols[which.max(x)])
+    ) %>%
+    # Keep only those where dominant loading > 1
+    filter(max_val > 1)
+
+  # For each component, save the OGs assigned to it
+  for (comp in comp_cols) {
+    comp_df <- dom %>% filter(dom_comp == comp)
+
+    if (nrow(comp_df) > 0) {
+      out_file <- file.path(
+        out_dir,
+        paste0(rank, "_comp", gsub("Component_", "", comp), ".csv")
+      )
+      write_csv(comp_df %>% select(OG, max_val),
+                out_file)
+    }
+  }
+}
+```
