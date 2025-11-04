@@ -1,0 +1,367 @@
+---
+title: "Analyzing Group ID Redundancy Across Rank 05 Components"
+author: "Analysis"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, 
+                      fig.width = 14, fig.height = 10)
+```
+
+## Overview
+
+This analysis examines whether the same `group_id` (orthogroup) appears across multiple components with the same GO BP terms, which would indicate redundancy in the cross-component frequency counts.
+
+## Load Libraries
+
+```{r load-libraries}
+library(tidyverse)
+library(ggplot2)
+library(RColorBrewer)
+library(knitr)
+```
+
+## Define Paths
+
+```{r paths}
+# Input directory
+input_dir <- "/Users/sr320/Documents/GitHub/timeseries_molecular/M-multi-species/output/22-Visualizing-Rank-outs"
+
+# Output directory
+output_dir <- "/Users/sr320/Documents/GitHub/timeseries_molecular/M-multi-species/output/24-visualizing-rank05"
+
+# Create output directory if it doesn't exist
+dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
+```
+
+## Load All Data
+
+```{r load-data}
+# Get all rank_05 top100 annotation files
+files <- list.files(input_dir, 
+                   pattern = "rank_05_comp.*_top100_annotation\\.csv$", 
+                   full.names = TRUE)
+
+# Sort files by component number
+file_df <- data.frame(
+  path = files,
+  component = str_extract(basename(files), "comp\\d+")
+) %>%
+  mutate(comp_num = as.numeric(str_extract(component, "\\d+"))) %>%
+  arrange(comp_num)
+
+cat(sprintf("Loading data from %d files...\n", nrow(file_df)))
+
+# Read all files and combine
+all_data <- map2_df(file_df$path, file_df$component, function(path, comp) {
+  read_csv(path, show_col_types = FALSE) %>%
+    mutate(component = comp)
+})
+
+cat(sprintf("Total rows loaded: %d\n", nrow(all_data)))
+cat(sprintf("Unique group_ids: %d\n", n_distinct(all_data$group_id)))
+```
+
+## Parse GO BP Terms with Group ID Tracking
+
+```{r parse-go-terms}
+# Function to expand GO BP terms while maintaining group_id
+expand_go_bp_terms <- function(data) {
+  data %>%
+    filter(!is.na(go_bp) & go_bp != "") %>%
+    select(group_id, component, go_bp) %>%
+    mutate(
+      # Split GO terms by semicolon
+      go_terms = str_split(go_bp, ";")
+    ) %>%
+    unnest(go_terms) %>%
+    mutate(
+      # Clean up the term (remove GO:XXXXX part)
+      go_term_clean = str_trim(go_terms),
+      go_term_clean = str_replace(go_term_clean, "\\s*\\[GO:.*\\]", "")
+    ) %>%
+    filter(go_term_clean != "") %>%
+    select(group_id, component, go_term = go_term_clean)
+}
+
+# Expand all GO terms with group_id tracking
+go_expanded <- expand_go_bp_terms(all_data)
+
+cat(sprintf("Total GO term occurrences: %d\n", nrow(go_expanded)))
+cat(sprintf("Unique GO terms: %d\n", n_distinct(go_expanded$go_term)))
+```
+
+## Analyze Redundancy
+
+```{r analyze-redundancy}
+# For each GO term, count:
+# 1. Total occurrences across all components
+# 2. Number of unique group_ids
+# 3. Number of components it appears in
+# 4. How many times the same group_id appears in multiple components
+
+go_term_analysis <- go_expanded %>%
+  group_by(go_term) %>%
+  summarise(
+    total_occurrences = n(),
+    unique_group_ids = n_distinct(group_id),
+    n_components = n_distinct(component),
+    # Calculate redundancy: if a group_id appears in 3 components, that's 2 redundant occurrences
+    redundant_occurrences = total_occurrences - unique_group_ids
+  ) %>%
+  mutate(
+    # Percentage of occurrences that are redundant (same group_id in multiple components)
+    redundancy_pct = (redundant_occurrences / total_occurrences) * 100,
+    # Average times each unique group_id appears
+    avg_times_per_group = total_occurrences / unique_group_ids
+  ) %>%
+  arrange(desc(total_occurrences))
+
+# Display top terms
+cat("\n### Top 30 GO Terms with Redundancy Analysis\n\n")
+print(kable(head(go_term_analysis, 30), digits = 2))
+```
+
+## Detailed Analysis: Top Terms
+
+```{r top-terms-detail}
+# Focus on top 30 terms from previous analysis
+top_30_terms <- head(go_term_analysis$go_term, 30)
+
+# For each top term, show which group_ids appear in multiple components
+redundancy_details <- go_expanded %>%
+  filter(go_term %in% top_30_terms) %>%
+  group_by(go_term, group_id) %>%
+  summarise(
+    n_components = n_distinct(component),
+    components = paste(sort(unique(component)), collapse = ", "),
+    .groups = "drop"
+  ) %>%
+  filter(n_components > 1) %>%
+  arrange(go_term, desc(n_components))
+
+cat(sprintf("\nFound %d group_ids that appear in multiple components\n", nrow(redundancy_details)))
+cat(sprintf("Across the top 30 GO terms\n\n"))
+
+# Show examples
+if (nrow(redundancy_details) > 0) {
+  cat("### Examples of Group IDs Appearing in Multiple Components\n\n")
+  print(kable(head(redundancy_details, 50)))
+}
+```
+
+## Summary Statistics
+
+```{r summary-stats}
+# Overall statistics
+overall_stats <- data.frame(
+  Metric = c(
+    "Total GO term occurrences",
+    "Unique GO terms",
+    "Unique group_ids with GO terms",
+    "Redundant occurrences (same group_id in multiple components)",
+    "Overall redundancy percentage"
+  ),
+  Value = c(
+    nrow(go_expanded),
+    n_distinct(go_expanded$go_term),
+    n_distinct(go_expanded$group_id),
+    sum(go_term_analysis$redundant_occurrences),
+    round(sum(go_term_analysis$redundant_occurrences) / nrow(go_expanded) * 100, 2)
+  )
+)
+
+cat("\n### Overall Statistics\n\n")
+print(kable(overall_stats))
+
+# Stats for top 30 terms
+top_30_stats <- go_term_analysis %>%
+  slice_head(n = 30) %>%
+  summarise(
+    total_occurrences = sum(total_occurrences),
+    redundant_occurrences = sum(redundant_occurrences),
+    avg_redundancy_pct = mean(redundancy_pct)
+  )
+
+cat("\n### Top 30 Terms Statistics\n\n")
+cat(sprintf("Total occurrences: %d\n", top_30_stats$total_occurrences))
+cat(sprintf("Redundant occurrences: %d\n", top_30_stats$redundant_occurrences))
+cat(sprintf("Redundancy percentage: %.2f%%\n", (top_30_stats$redundant_occurrences / top_30_stats$total_occurrences * 100)))
+cat(sprintf("Average redundancy per term: %.2f%%\n", top_30_stats$avg_redundancy_pct))
+```
+
+## Visualization: Redundancy Analysis
+
+```{r redundancy-plot, fig.width=14, fig.height=10}
+# Plot for top 30 terms
+plot_data <- go_term_analysis %>%
+  slice_head(n = 30) %>%
+  mutate(
+    go_term = factor(go_term, levels = rev(go_term))
+  ) %>%
+  pivot_longer(
+    cols = c(unique_group_ids, redundant_occurrences),
+    names_to = "type",
+    values_to = "count"
+  ) %>%
+  mutate(
+    type = case_when(
+      type == "unique_group_ids" ~ "Unique group_ids",
+      type == "redundant_occurrences" ~ "Redundant (same group_id)"
+    )
+  )
+
+p1 <- ggplot(plot_data, aes(x = go_term, y = count, fill = type)) +
+  geom_bar(stat = "identity", position = "stack") +
+  coord_flip() +
+  scale_fill_manual(
+    values = c("Unique group_ids" = "steelblue", 
+               "Redundant (same group_id)" = "orange"),
+    name = "Occurrence Type"
+  ) +
+  labs(
+    title = "Redundancy Analysis: Top 30 GO BP Terms (Rank 05)",
+    subtitle = "Blue = unique group_ids, Orange = redundant occurrences (same group_id in multiple components)",
+    x = "GO Biological Process Term",
+    y = "Count"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    plot.subtitle = element_text(size = 11, color = "gray40"),
+    axis.text.y = element_text(size = 10),
+    legend.position = "bottom"
+  )
+
+print(p1)
+
+ggsave(
+  filename = file.path(output_dir, "rank05_GO_redundancy_analysis.png"),
+  plot = p1,
+  width = 14,
+  height = 10,
+  dpi = 300
+)
+```
+
+## Redundancy Percentage Plot
+
+```{r redundancy-pct-plot, fig.width=14, fig.height=10}
+p2 <- go_term_analysis %>%
+  slice_head(n = 30) %>%
+  mutate(go_term = factor(go_term, levels = rev(go_term))) %>%
+  ggplot(aes(x = go_term, y = redundancy_pct)) +
+  geom_bar(stat = "identity", fill = "coral", alpha = 0.8) +
+  geom_text(aes(label = sprintf("%.1f%%", redundancy_pct)), 
+            hjust = -0.1, size = 3) +
+  coord_flip() +
+  labs(
+    title = "Redundancy Percentage: Top 30 GO BP Terms (Rank 05)",
+    subtitle = "Percentage of occurrences due to same group_id appearing in multiple components",
+    x = "GO Biological Process Term",
+    y = "Redundancy Percentage (%)"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    plot.subtitle = element_text(size = 11, color = "gray40"),
+    axis.text.y = element_text(size = 10),
+    panel.grid.major.y = element_blank()
+  )
+
+print(p2)
+
+ggsave(
+  filename = file.path(output_dir, "rank05_GO_redundancy_percentage.png"),
+  plot = p2,
+  width = 14,
+  height = 10,
+  dpi = 300
+)
+```
+
+## Group IDs Appearing in Most Components
+
+```{r most-redundant-groups, fig.width=12, fig.height=8}
+# Which group_ids appear in the most components?
+group_id_frequency <- go_expanded %>%
+  group_by(group_id) %>%
+  summarise(
+    n_components = n_distinct(component),
+    n_go_terms = n_distinct(go_term),
+    go_terms_sample = paste(head(unique(go_term), 3), collapse = "; ")
+  ) %>%
+  arrange(desc(n_components)) %>%
+  head(50)
+
+cat("\n### Top 50 Group IDs by Component Frequency\n\n")
+print(kable(head(group_id_frequency, 50)))
+
+# Plot
+p3 <- group_id_frequency %>%
+  head(30) %>%
+  mutate(group_id = factor(group_id, levels = rev(group_id))) %>%
+  ggplot(aes(x = group_id, y = n_components)) +
+  geom_bar(stat = "identity", fill = "darkgreen", alpha = 0.7) +
+  geom_text(aes(label = n_components), hjust = -0.2, size = 3) +
+  coord_flip() +
+  labs(
+    title = "Top 30 Group IDs by Number of Components (Rank 05)",
+    subtitle = "Group IDs that appear in the most components",
+    x = "Group ID",
+    y = "Number of Components"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    axis.text.y = element_text(size = 9),
+    panel.grid.major.y = element_blank()
+  )
+
+print(p3)
+
+ggsave(
+  filename = file.path(output_dir, "rank05_most_frequent_group_ids.png"),
+  plot = p3,
+  width = 12,
+  height = 8,
+  dpi = 300
+)
+```
+
+## Export Detailed Results
+
+```{r export-data}
+# Export full redundancy analysis
+write_csv(
+  go_term_analysis,
+  file.path(output_dir, "rank05_GO_redundancy_full_analysis.csv")
+)
+
+# Export group IDs appearing in multiple components
+write_csv(
+  redundancy_details,
+  file.path(output_dir, "rank05_redundant_group_ids_details.csv")
+)
+
+# Export group ID frequency
+write_csv(
+  group_id_frequency,
+  file.path(output_dir, "rank05_group_id_component_frequency.csv")
+)
+
+cat("\nExported detailed results to CSV files\n")
+```
+
+## Session Info
+
+```{r session-info}
+sessionInfo()
+```
+

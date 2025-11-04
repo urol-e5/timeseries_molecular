@@ -1,0 +1,348 @@
+---
+title: "13.00-multiomics-stdm-02"
+author: "Sam White"
+date: "2025-10-15"
+output: 
+  github_document:
+    toc: true
+    number_sections: true
+  bookdown::html_document2:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+  html_document:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+bibliography: references.bib
+citeproc: true
+---
+# BACKGROUND
+
+This notebook performs tensor decomposition analysis on multi-species gene expression timeseries data using Steven's [`workflow-stdm-02`](https://github.com/sr320/workflow-stdm-02) (GitHub repo) tensor decomposition project.
+
+This package was auto-generated based on instructions provided by Steven. He created a few different packages and wanted them tested. The goal of this notebook is primarily to see how easily this package runs and whether the output is useful (i.e. useful visualizations, human-readable results tables, etc.)
+
+## Input Data
+
+The `workflow-stdm-02` package processes a VST (Variance Stabilizing Transformation) counts matrix containing multi-species gene expression data across time points. The input file structure is:
+
+- **Input file**: `vst_counts_matrix.csv` (9,802 rows × 113 columns)
+  - **Genes**: 8,820 ortholog groups (OG_XXXXX identifiers) 
+  - **Species**: 3 coral species (ACR, POR, POC)
+  - **Time points**: 4 time points (TP1, TP2, TP3, TP4)
+  - **Samples**: Multiple biological replicates per species-timepoint combination
+  - **Data format**: VST-normalized gene expression values
+
+The package performs tensor decomposition to identify latent factors that capture patterns across the gene × species × time dimensions using sparse CP (CANDECOMP/PARAFAC) decomposition with L1 regularization.
+
+## Output Structure
+
+The workflow generates comprehensive output organized into four main directories:
+
+```
+output/
+├── tensor/              # 3D tensor construction
+│   ├── tensor.npz      # Compressed 3D tensor (genes × species × timepoints)
+│   ├── genes.csv       # Gene ID mappings and indices
+│   ├── species.csv     # Species code mappings
+│   ├── timepoints.csv  # Timepoint mappings
+│   └── tensor_shapes.json # Tensor dimensions and metadata
+├── optimization/        # Hyperparameter optimization results
+│   ├── best_params.json    # Optimal rank and L1 penalties
+│   ├── top_trials.csv      # Best performing parameter combinations
+│   ├── trials.csv          # All optimization trials
+│   └── optuna_study.pkl    # Optuna study object
+├── fit/                # Model fitting results
+│   ├── gene_factors.csv    # Gene factor loadings (A matrix)
+│   ├── species_factors.csv # Species factor loadings (B matrix)
+│   ├── time_factors.csv    # Time factor loadings (C matrix)
+│   ├── loss_history.csv    # Convergence history
+│   └── fit_metrics.json    # Model performance metrics
+└── export/             # Human-readable results with annotations
+    ├── gene_factors_with_ids.csv      # Gene factors with OG identifiers
+    ├── species_factors_with_codes.csv # Species factors with species codes
+    ├── time_factors_with_labels.csv   # Time factors with timepoint labels
+    ├── decomposition_results.json     # Complete results summary
+    └── factor_heatmaps.png            # Factor visualization plots
+```
+
+Key output metrics include reconstruction error, explained variance, sparsity levels, and convergence status. The final decomposition identifies latent factors that capture coordinated patterns of gene expression across species and time.
+
+
+# SETUP
+
+## Libraries
+
+```{r setup, include=FALSE}
+library(knitr)
+library(tidyverse)
+library(reticulate)
+
+knitr::opts_chunk$set(
+  echo = TRUE,         # Display code chunks
+    eval = FALSE,        # Evaluate code chunks
+    results = "hold",   # Hold outputs and show them after the full code chunk
+  warning = FALSE,     # Hide warnings
+        collapse = FALSE,    # Keep code and output in separate blocks
+        warning = FALSE,     # Hide warnings
+        message = FALSE,     # Hide messages
+        comment = "##"      # Prefix output lines with '##' so output is visually distinct
+)
+```
+
+## Set R variables
+
+```{r R-variables, eval=TRUE}
+# OUTPUT DIRECTORY
+output_dir <- "../output/13.00-multiomics-stdm"
+
+#INPUT FILE(S)
+
+# PYTHON ENVIRONMENT - Use the sr320-stdm-02 uv environment
+python_path <- "/home/shared/16TB_HDD_01/sam/gitrepos/sr320/workflow-stdm-02/sr320-stdm-02-env/bin/python"
+```
+
+## Load project Python environment
+
+The project uses the `sr320-stdm-02-env` uv virtual environment with the `new-tensor` package and all required dependencies. If this is successful, the Python path should show the `sr320-stdm-02-env` environment.
+
+```{r load-python-env, eval=TRUE}
+# Use the sr320-stdm-02-env uv environment
+library(reticulate)
+
+# Set Python path to the sr320-stdm-02-env environment
+use_python(python_path, required = TRUE)
+
+# Show final configuration
+py_config()
+```
+
+# TENSOR DECOMPOSITION WORKFLOW
+
+## Step 1: Build Tensor
+
+Build a 3D tensor from the VST counts matrix with replicate aggregation. The input data is already VST-normalized, so no additional normalization is applied.
+
+```{python build-tensor, eval=TRUE}
+import subprocess
+import os
+
+# Define paths
+input_file = "../output/14-pca-orthologs/vst_counts_matrix.csv"
+output_base = r.output_dir  # Use R variable
+
+# Create output directory structure
+tensor_dir = os.path.join(output_base, "tensor")
+os.makedirs(tensor_dir, exist_ok=True)
+
+# Build tensor using the new-tensor CLI
+# All parameters with their values (defaults noted in comments)
+cmd = [
+    "/home/shared/16TB_HDD_01/sam/gitrepos/sr320/workflow-stdm-02/sr320-stdm-02-env/bin/new-tensor",
+    "build-tensor",
+    "--input-path", input_file,  # Required: path to VST counts matrix
+    "--output-dir", tensor_dir,  # Custom output directory
+    "--aggregation-method", "median",  # Default: median (alternatives: mean, trimmed_mean)
+    "--normalization", "none",  # Custom: none (default: zscore; alternatives: minmax, log1p)
+    "--min-expression", "1.0",  # Default: 1.0 (minimum expression threshold)
+    "--min-variance-percentile", "10.0"  # Default: 10.0 (variance percentile threshold)
+]
+
+print("Building tensor...")
+print(f"Command: {' '.join(cmd)}")
+result = subprocess.run(cmd, capture_output=True, text=True)
+print(result.stdout)
+if result.stderr:
+    print("Errors/Warnings:", result.stderr)
+print(f"\nTensor saved to: {tensor_dir}")
+```
+
+## Step 2: Optimize Hyperparameters
+
+Run hyperparameter optimization using Optuna to find the optimal rank and L1 penalty parameters.
+
+```{python optimize-hyperparameters, eval=TRUE}
+import subprocess
+import os
+
+# Define paths
+tensor_file = os.path.join(r.output_dir, "tensor", "tensor.npz")
+optimization_dir = os.path.join(r.output_dir, "optimization")
+os.makedirs(optimization_dir, exist_ok=True)
+
+# Optimize hyperparameters using the new-tensor CLI
+# All parameters with their values (defaults noted in comments)
+cmd = [
+    "/home/shared/16TB_HDD_01/sam/gitrepos/sr320/workflow-stdm-02/sr320-stdm-02-env/bin/new-tensor",
+    "optimize",
+    "--tensor-path", tensor_file,  # Required: path to tensor file
+    "--output-dir", optimization_dir,  # Custom output directory
+    "--n-trials", "100",  # Default: 100 (number of optimization trials)
+    "--rank-min", "4",  # Custom: 4 (default: 2; minimum rank to try)
+    "--rank-max", "30",  # Custom: 30 (default: 12; maximum rank to try)
+    "--lambda-min", "0.0001",  # Default: 0.0001 (minimum L1 penalty)
+    "--lambda-max", "1.0"  # Default: 1.0 (maximum L1 penalty)
+]
+
+print("Optimizing hyperparameters...")
+print(f"Command: {' '.join(cmd)}")
+result = subprocess.run(cmd, capture_output=True, text=True)
+print(result.stdout)
+if result.stderr:
+    print("Errors/Warnings:", result.stderr)
+print(f"\nOptimization results saved to: {optimization_dir}")
+print("\nCheck output/optimization/best_params.json for optimal rank.")
+```
+
+## Step 3: Review Optimization Results
+
+Load and display the best hyperparameters found during optimization.
+
+```{python review-optimization, eval=TRUE}
+import json
+import os
+import pandas as pd
+
+# Load best parameters
+best_params_file = os.path.join(r.output_dir, "optimization", "best_params.json")
+with open(best_params_file, 'r') as f:
+    best_params = json.load(f)
+
+print("Best Hyperparameters:")
+print(json.dumps(best_params, indent=2))
+
+# Load top trials
+top_trials_file = os.path.join(r.output_dir, "optimization", "top_trials.csv")
+if os.path.exists(top_trials_file):
+    top_trials = pd.read_csv(top_trials_file)
+    print("\n\nTop 10 Trials:")
+    print(top_trials.head(10))
+```
+
+## Step 4: Fit Model
+
+Fit the CP decomposition model with the optimal parameters identified during optimization. The optimal rank is automatically loaded from the optimization results.
+
+```{python fit-model, eval=TRUE}
+import subprocess
+import os
+import json
+
+# Load optimal rank from optimization results
+best_params_file = os.path.join(r.output_dir, "optimization", "best_params.json")
+with open(best_params_file, 'r') as f:
+    best_params = json.load(f)
+
+optimal_rank = str(best_params['rank'])
+print(f"Using optimal rank from optimization: {optimal_rank}")
+
+# Define paths
+tensor_file = os.path.join(r.output_dir, "tensor", "tensor.npz")
+fit_dir = os.path.join(r.output_dir, "fit")
+os.makedirs(fit_dir, exist_ok=True)
+
+# Fit model using the new-tensor CLI with optimal rank
+# All parameters with their values (defaults noted in comments)
+cmd = [
+    "/home/shared/16TB_HDD_01/sam/gitrepos/sr320/workflow-stdm-02/sr320-stdm-02-env/bin/new-tensor",
+    "fit",
+    "--tensor-path", tensor_file,  # Required: path to tensor file
+    "--output-dir", fit_dir,  # Custom output directory
+    "--rank", optimal_rank,  # Required: automatically loaded from optimization results
+    "--lambda-a", "0.1",  # Default: 0.1 (L1 penalty for gene factors)
+    "--lambda-b", "0.1",  # Default: 0.1 (L1 penalty for species factors)
+    "--lambda-c", "0.1",  # Default: 0.1 (L1 penalty for time factors)
+    "--non-negative",  # Custom: enforces non-negativity (default: no-non-negative)
+    "--max-iter", "100"  # Default: 100 (maximum iterations)
+]
+
+print("Fitting model...")
+print(f"Command: {' '.join(cmd)}")
+result = subprocess.run(cmd, capture_output=True, text=True)
+print(result.stdout)
+if result.stderr:
+    print("Errors/Warnings:", result.stderr)
+print(f"\nFit results saved to: {fit_dir}")
+```
+
+## Step 5: Export Results
+
+Export the decomposition results with gene IDs, species codes, and time labels.
+
+```{python export-results, eval=TRUE}
+import subprocess
+import os
+
+# Define paths
+fit_dir = os.path.join(r.output_dir, "fit")
+mappings_dir = os.path.join(r.output_dir, "tensor")
+export_dir = os.path.join(r.output_dir, "export")
+os.makedirs(export_dir, exist_ok=True)
+
+# Export results using the new-tensor CLI
+# All parameters with their values (defaults noted in comments)
+cmd = [
+    "/home/shared/16TB_HDD_01/sam/gitrepos/sr320/workflow-stdm-02/sr320-stdm-02-env/bin/new-tensor",
+    "export",
+    "--fit-dir", fit_dir,  # Required: directory containing fit results
+    "--mappings-dir", mappings_dir,  # Required: directory containing tensor mappings
+    "--output-dir", export_dir,  # Custom output directory
+    "--plot-heatmaps"  # Default: plot-heatmaps (generate factor heatmaps)
+]
+
+print("Exporting results...")
+print(f"Command: {' '.join(cmd)}")
+result = subprocess.run(cmd, capture_output=True, text=True)
+print(result.stdout)
+if result.stderr:
+    print("Errors/Warnings:", result.stderr)
+print(f"\nExported results saved to: {export_dir}")
+```
+
+## Step 6: Summary of Results
+
+Load and display key results from the decomposition analysis.
+
+```{python summary-results, eval=TRUE}
+import json
+import os
+import pandas as pd
+
+export_dir = os.path.join(r.output_dir, "export")
+
+# Load decomposition results summary
+results_file = os.path.join(export_dir, "decomposition_results.json")
+with open(results_file, 'r') as f:
+    results = json.load(f)
+
+print("Decomposition Results Summary:")
+print(json.dumps(results, indent=2))
+
+# Load gene factors
+gene_factors_file = os.path.join(export_dir, "gene_factors_with_ids.csv")
+gene_factors = pd.read_csv(gene_factors_file)
+print(f"\n\nGene Factors Shape: {gene_factors.shape}")
+print("\nFirst few gene factors:")
+print(gene_factors.head())
+
+# Load species factors
+species_factors_file = os.path.join(export_dir, "species_factors_with_codes.csv")
+species_factors = pd.read_csv(species_factors_file)
+print(f"\n\nSpecies Factors Shape: {species_factors.shape}")
+print("\nSpecies factors:")
+print(species_factors)
+
+# Load time factors
+time_factors_file = os.path.join(export_dir, "time_factors_with_labels.csv")
+time_factors = pd.read_csv(time_factors_file)
+print(f"\n\nTime Factors Shape: {time_factors.shape}")
+print("\nTime factors:")
+print(time_factors)
+```

@@ -28,7 +28,36 @@ citeproc: true
 
 This analysis prepares three-species ortholog expression matrices, normalizes the data, constructs a multi‑omics tensor (genes × combined species-samples × timepoints), and runs a sparse tensor decomposition using the [barnacle](https://github.com/blasks/barnacle) [@blaskowski2024] workflow to discover shared gene/time/species patterns.
 
-Key steps performed by this script:
+## Workflow overview
+
+1. **Data Preparation** - Extract and normalize ortholog expression data
+2. **Tensor Construction** - Build 3D tensor combining species, samples, and timepoints
+3. **Rank Comparison** - Test multiple ranks systematically to find optimal components
+4. **Interpretation** - Choose best rank and examine factors, visualizations, and biological meaning
+
+## Rank selection approach
+
+**This analysis uses a systematic rank comparison approach.**
+
+The workflow:
+1. Configure `ranks_to_test` in the comparison chunk (e.g., `[5, 8, 10, 12, 15, 20]`)
+2. Run decompositions for all specified ranks (10-30 minutes)
+3. Review comparison metrics and elbow plot
+4. Choose optimal rank based on:
+   - Variance explained (aim for >60%)
+   - Diminishing returns in elbow plot
+   - Sparsity patterns
+   - Component interpretability
+5. Use chosen rank for final biological interpretation
+
+**Key metrics for comparison:**
+- **Variance explained**: How much of data variation is captured
+- **Relative error**: Reconstruction accuracy
+- **Sparsity**: How many genes/samples load strongly per component
+- **Convergence**: Whether optimization completed successfully
+- **Component weights**: Distribution of importance across components
+
+## Key steps performed by this script:
 
 - Load annotated ortholog groups and per-species count matrices.
 - Filter ortholog groups to retain complete three‑way matches with available expression data.
@@ -36,6 +65,7 @@ Key steps performed by this script:
 - Normalize counts (preferred: `sctransform`; fallback: log2(CPM + 1)).
 - Build a 3D tensor combining species/sample and timepoint dimensions.
 - Run [barnacle](https://github.com/blasks/barnacle) [@blaskowski2024] sparse CP decomposition and save factor matrices, metadata and figures.
+- Assess rank appropriateness through multiple metrics and visualizations.
 
 ## Input files
 
@@ -75,6 +105,7 @@ Key steps performed by this script:
 library(knitr)
 library(tidyverse)
 library(reticulate)
+library(matrixStats)  # Required for sctransform internal functions
 library(sctransform)
 library(glmGamPoi)
 
@@ -649,7 +680,9 @@ cat("\n\n")
 
 # BARNACLE ANALYSIS
 
-Based on the barnacle workflow, we need to: 1. Use `sctransform` to normalize the count data 2. Create tensors for multiomics analysis 3. Run sparse tensor decomposition
+This workflow focuses on comparing multiple ranks to find the optimal number of components.
+
+Based on the barnacle workflow, we: 1. Normalize count data with `sctransform` 2. Create tensors for multiomics analysis 3. Compare multiple ranks systematically 4. Choose optimal rank based on metrics
 
 ## Load expression data
 
@@ -710,22 +743,32 @@ normalize_with_sctransform <- function(count_data, species_name) {
   
   cat("  - Filtered to", nrow(count_matrix_filtered), "ortholog groups (from", nrow(count_matrix), ")\n")
   
-  # Transpose for sctransform (expects cells as rows, genes as columns)
-  count_matrix_t <- t(count_matrix_filtered)
+  # Ensure data is numeric and handle any potential issues
+  count_matrix_filtered <- apply(count_matrix_filtered, c(1,2), function(x) {
+    if(is.na(x) || !is.finite(x)) return(0)
+    return(as.numeric(x))
+  })
+  
+  # Ensure row and column names are character strings (not factors)
+  rownames(count_matrix_filtered) <- as.character(rownames(count_matrix_filtered))
+  colnames(count_matrix_filtered) <- as.character(colnames(count_matrix_filtered))
+  
+  # sctransform expects genes as rows and cells (samples) as columns —
+  # our matrix is already genes x samples (rows=genes, cols=samples), so do NOT transpose.
+  count_matrix_for_vst <- count_matrix_filtered
   
   # Apply sctransform normalization with bulk RNA-seq appropriate parameters
   normalized_df <- tryCatch({
-    # Use more conservative parameters for bulk RNA-seq
+    # First try with minimal parameters to isolate the issue
+    cat("  Attempting sctransform with minimal parameters...\n")
+    # Pass genes x samples matrix directly
     normalized <- sctransform::vst(
-      count_matrix_t, 
-      method = "glmGamPoi",  # More appropriate for bulk data
-      n_genes = min(2000, ncol(count_matrix_t)),  # Use fewer variable genes
-      return_cell_attr = TRUE,
-      verbosity = 2
+      count_matrix_for_vst,
+      verbosity = 1
     )
-    
-    # Extract normalized data and transpose back (genes as rows, samples as columns)
-    normalized_data <- t(normalized$y)
+
+    # Extract normalized data (should be genes x samples)
+    normalized_data <- normalized$y
     
     # Create output data frame with original gene set (fill missing with zeros)
     full_normalized_data <- matrix(0, nrow = nrow(count_matrix), ncol = ncol(count_matrix))
@@ -745,25 +788,60 @@ normalize_with_sctransform <- function(count_data, species_name) {
     return(result_df)
     
   }, error = function(e) {
-    cat("sctransform failed for", species_name, ":", e$message, "\n")
-    cat("Falling back to log2(CPM + 1) normalization...\n")
+    cat("sctransform with minimal parameters failed for", species_name, ":", e$message, "\n")
+    cat("Trying sctransform with glmGamPoi method...\n")
     
-    # Fallback: log2(CPM + 1) normalization
-    # Calculate CPM (Counts Per Million)
-    lib_sizes <- colSums(count_matrix)
-    cpm_matrix <- sweep(count_matrix, 2, lib_sizes/1e6, FUN = "/")
-    
-    # Log2 transform with pseudocount
-    normalized_data <- log2(cpm_matrix + 1)
-    
-    result_df <- data.frame(
-      group_id = rownames(normalized_data),
-      normalized_data,
-      stringsAsFactors = FALSE
-    )
-    
-    cat("Log2(CPM + 1) normalization complete for", species_name, "\n")
-    return(result_df)
+    # Try again with glmGamPoi method
+    tryCatch({
+      normalized <- sctransform::vst(
+        count_matrix_for_vst, 
+        method = "glmGamPoi",
+        n_genes = min(2000, nrow(count_matrix_for_vst)),
+        return_cell_attr = TRUE,
+        verbosity = 1
+      )
+
+      # Extract normalized data (genes x samples)
+      normalized_data <- normalized$y
+      
+      # Create output data frame with original gene set (fill missing with zeros)
+      full_normalized_data <- matrix(0, nrow = nrow(count_matrix), ncol = ncol(count_matrix))
+      rownames(full_normalized_data) <- rownames(count_matrix)
+      colnames(full_normalized_data) <- colnames(count_matrix)
+      
+      # Fill in normalized values for kept genes
+      full_normalized_data[rownames(normalized_data), ] <- normalized_data
+      
+      result_df <- data.frame(
+        group_id = rownames(full_normalized_data),
+        full_normalized_data,
+        stringsAsFactors = FALSE
+      )
+      
+      cat("sctransform normalization with glmGamPoi successful for", species_name, "\n")
+      return(result_df)
+      
+    }, error = function(e2) {
+      cat("sctransform failed for", species_name, ":", e2$message, "\n")
+      cat("Falling back to log2(CPM + 1) normalization...\n")
+      
+  # Fallback: log2(CPM + 1) normalization
+  # Calculate CPM (Counts Per Million) using the filtered count matrix
+  lib_sizes <- colSums(count_matrix_filtered)
+  cpm_matrix <- sweep(count_matrix_filtered, 2, lib_sizes/1e6, FUN = "/")
+      
+      # Log2 transform with pseudocount
+      normalized_data <- log2(cpm_matrix + 1)
+      
+      result_df <- data.frame(
+        group_id = rownames(normalized_data),
+        normalized_data,
+        stringsAsFactors = FALSE
+      )
+      
+      cat("Log2(CPM + 1) normalization complete for", species_name, "\n")
+      return(result_df)
+    })
   })
   
   cat("Input dimensions:", nrow(count_data), "rows x", ncol(count_data)-1, "samples\n")
@@ -801,6 +879,42 @@ cat("Ptua:", ptua_norm_file, "\n\n")
 ## Create tensor dataset in Python
 
 Now we'll switch to Python to create the multiomics tensor and run barnacle analysis.
+
+```{python setup-logging, eval=TRUE}
+import sys
+import os
+from datetime import datetime
+
+# Set up logging to both console and file
+class Logger:
+    def __init__(self, log_file):
+        self.terminal = sys.stdout
+        self.log = open(log_file, 'w')
+        
+    def write(self, message):
+        self.terminal.write(message)
+        self.log.write(message)
+        self.log.flush()
+        
+    def flush(self):
+        self.terminal.flush()
+        self.log.flush()
+
+# Create log file path
+output_dir = r.output_dir
+log_file = os.path.join(output_dir, f'barnacle_analysis_log_{datetime.now().strftime("%Y%m%d_%H%M%S")}.txt')
+
+# Redirect stdout to both console and log file
+sys.stdout = Logger(log_file)
+sys.stderr = sys.stdout  # Also capture error messages
+
+print("="*60)
+print(f"BARNACLE ANALYSIS LOG")
+print(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+print(f"Log file: {log_file}")
+print("="*60)
+print()
+```
 
 ```{python create-multiomics-tensor, eval=TRUE}
 import pandas as pd
@@ -1025,488 +1139,1730 @@ print(f"\nSample mapping:")
 print(sample_mapping.head(10))
 ```
 
-## Run Barnacle sparse tensor decomposition
 
-```{python run-barnacle, eval=TRUE}
-from barnacle.decomposition import SparseCP
-import matplotlib.pyplot as plt
 
-# Handle missing values by filling with zeros (could also use mean imputation)
-tensor_filled = np.nan_to_num(tensor_3d, nan=0.0)
+## Rank Comparison
 
-print("Running Barnacle sparse tensor decomposition...")
-print(f"Input tensor shape: {tensor_filled.shape}")
+**This workflow systematically compares multiple ranks to find the optimal number of components.**
 
-# Set up sparse CP decomposition parameters
-rank = 5  # Number of components to extract
-lambdas = [0.1, 0.0, 0.1]  # Sparsity penalties for [genes, samples, timepoints]
+The comparison runs decompositions for each specified rank and generates:
+1. Metrics comparison table
+2. Elbow plot (variance explained vs rank)
+3. Multi-panel summary plots
+4. Automated recommendation
 
-# Create model
-model = SparseCP(
-    rank=rank,
-    lambdas=lambdas,
-    nonneg_modes=[0],  # Non-negative gene loadings only
-    n_initializations=3,  # Reduced for faster testing
-    random_state=42
-)
+**Results:** Each rank is saved to `rank_XX/` directory with complete factor matrices.
 
-# Fit the model
-print("Fitting sparse CP decomposition...")
-try:
-    decomposition = model.fit_transform(tensor_filled, verbose=1)
+### Define helper functions for rank comparison
+
+```{python rank-comparison-functions, eval=TRUE}
+def run_single_rank_decomposition(tensor, rank, lambdas, n_iter_max, random_state=42):
+    """
+    Run sparse CP decomposition for a given rank.
+    Returns dict with results and metrics.
+    """
+    from barnacle.decomposition import SparseCP
     
-    print(f"\nDecomposition complete!")
-    print(f"Converged: {hasattr(model, 'converged_') and model.converged_}")
+    print(f"\n{'='*60}")
+    print(f"Running decomposition with rank = {rank}")
+    print(f"{'='*60}")
     
-    if hasattr(model, 'loss_') and model.loss_ is not None:
-        print(f"Final loss: {model.loss_[-1]:.6f}")
-        print(f"Number of iterations: {len(model.loss_)}")
-    else:
-        print("Loss information not available")
+    # Handle missing values
+    tensor_filled = np.nan_to_num(tensor, nan=0.0)
     
-    # Examine factor matrices
-    print(f"\nFactor matrix shapes:")
-    for i, factor in enumerate(decomposition.factors):
-        factor_names = ['Genes', 'Species_Samples', 'Timepoints']
-        print(f"Mode {i} ({factor_names[i]}): {factor.shape}")
+    # Create model
+    model = SparseCP(
+        rank=rank,
+        lambdas=lambdas,
+        nonneg_modes=[0],
+        norm_constraint=True,
+        init='random',
+        tol=1e-5,
+        n_iter_max=n_iter_max,
+        random_state=random_state,
+        n_initializations=1
+    )
+    
+    # Fit model
+    try:
+        decomposition = model.fit_transform(tensor_filled, verbose=0)
         
-    decomposition_success = True
+        # Calculate metrics
+        metrics = calculate_decomposition_metrics(tensor_filled, decomposition, model)
+        
+        results = {
+            'rank': rank,
+            'decomposition': decomposition,
+            'model': model,
+            'metrics': metrics,
+            'success': True
+        }
+        
+        print(f"✓ Rank {rank} complete")
+        print(f"  Final loss: {metrics['final_loss']:.6f}")
+        print(f"  Variance explained: {metrics['variance_explained']*100:.2f}%")
+        print(f"  Converged: {metrics['converged']}")
+        
+        return results
+        
+    except Exception as e:
+        print(f"✗ Rank {rank} failed: {e}")
+        return {
+            'rank': rank,
+            'success': False,
+            'error': str(e)
+        }
+
+
+def calculate_decomposition_metrics(tensor, decomposition, model):
+    """
+    Calculate reconstruction quality and other metrics.
+    """
+    # Reconstruct tensor
+    gene_factors = decomposition.factors[0]
+    sample_factors = decomposition.factors[1]
+    time_factors = decomposition.factors[2]
+    weights = decomposition.weights
     
-except Exception as e:
-    print(f"Error during decomposition: {e}")
-    print("Creating dummy decomposition for downstream code...")
-    decomposition_success = False
+    rank = len(weights)
+    reconstructed = np.zeros_like(tensor)
     
-    # Create dummy factors for error handling
-    class DummyDecomposition:
-        def __init__(self):
-            self.factors = [
-                np.random.rand(len(common_genes_list), rank),  # genes
-                np.random.rand(len(sample_labels), rank),      # samples
-                np.random.rand(len(common_timepoints), rank)   # timepoints
-            ]
-            self.weights = np.ones(rank)
+    for r in range(rank):
+        outer_prod = np.outer(gene_factors[:, r], sample_factors[:, r])
+        outer_prod = np.outer(outer_prod.flatten(), time_factors[:, r])
+        outer_prod = outer_prod.reshape(tensor.shape)
+        reconstructed += weights[r] * outer_prod
     
-    decomposition = DummyDecomposition()
-```
+    # Calculate errors
+    mse = np.mean((tensor - reconstructed) ** 2)
+    rmse = np.sqrt(mse)
+    
+    # Relative error
+    tensor_norm = np.linalg.norm(tensor)
+    error_norm = np.linalg.norm(tensor - reconstructed)
+    relative_error = error_norm / tensor_norm if tensor_norm > 0 else np.inf
+    
+    # Variance explained
+    total_var = np.var(tensor)
+    residual_var = np.var(tensor - reconstructed)
+    variance_explained = 1 - (residual_var / total_var) if total_var > 0 else 0
+    
+    # Sparsity metrics
+    gene_sparsity = np.mean(np.abs(gene_factors) < 0.1)
+    sample_sparsity = np.mean(np.abs(sample_factors) < 0.1)
+    time_sparsity = np.mean(np.abs(time_factors) < 0.1)
+    
+    # Component weight statistics
+    weight_max = np.max(weights)
+    weight_min = np.min(weights)
+    weight_ratio = weight_max / weight_min if weight_min > 0 else np.inf
+    weight_cv = np.std(weights) / np.mean(weights) if np.mean(weights) > 0 else np.inf
+    
+    # Convergence info
+    # Note: Barnacle's SparseCP class does not have a converged_ attribute
+    # We determine convergence by checking if iterations < max_iter
+    n_iterations = len(model.loss_) if hasattr(model, 'loss_') and model.loss_ is not None else 0
+    final_loss = model.loss_[-1] if hasattr(model, 'loss_') and model.loss_ is not None else np.nan
+    # Converged if stopped before reaching max iterations (met tolerance criterion)
+    converged = (n_iterations < model.n_iter_max) if n_iterations > 0 else False
+    
+    return {
+        'mse': mse,
+        'rmse': rmse,
+        'relative_error': relative_error,
+        'variance_explained': variance_explained,
+        'gene_sparsity': gene_sparsity,
+        'sample_sparsity': sample_sparsity,
+        'time_sparsity': time_sparsity,
+        'weight_max': weight_max,
+        'weight_min': weight_min,
+        'weight_ratio': weight_ratio,
+        'weight_cv': weight_cv,
+        'converged': converged,
+        'n_iterations': n_iterations,
+        'final_loss': final_loss
+    }
 
-## Analyze and interpret results
 
-```{python analyze-results, eval=TRUE}
-if decomposition_success:
-    # Extract factor matrices
-    gene_factors = decomposition.factors[0]  # genes × components
-    sample_factors = decomposition.factors[1]  # combined_samples × components  
-    time_factors = decomposition.factors[2]  # timepoints × components
-
-    print("=== BARNACLE DECOMPOSITION RESULTS ===")
-    print(f"Number of components: {rank}")
-    print(f"Component weights: {decomposition.weights}")
-
-    print("\n=== TIMEPOINT LOADINGS ===")
-    time_df = pd.DataFrame(
-        time_factors,
-        index=[f'TP{tp}' for tp in common_timepoints],
+def save_rank_results(results, output_dir, gene_ids, sample_labels, timepoint_labels, species_sample_map):
+    """
+    Save decomposition results for a specific rank.
+    """
+    rank = results['rank']
+    rank_dir = os.path.join(output_dir, f'rank_{rank:02d}')
+    os.makedirs(rank_dir, exist_ok=True)
+    
+    decomposition = results['decomposition']
+    metrics = results['metrics']
+    
+    # Save factor matrices
+    gene_factors = pd.DataFrame(
+        decomposition.factors[0],
+        index=gene_ids,
         columns=[f'Component_{i+1}' for i in range(rank)]
     )
-    print(time_df)
-
-    print("\n=== SAMPLE LOADINGS BY SPECIES ===")
-    # Show sample loadings grouped by species
-    sample_df_full = pd.DataFrame(
-        sample_factors,
+    gene_factors.to_csv(os.path.join(rank_dir, 'gene_factors.csv'))
+    
+    sample_factors = pd.DataFrame(
+        decomposition.factors[1],
         index=sample_labels,
         columns=[f'Component_{i+1}' for i in range(rank)]
     )
+    sample_factors['Species'] = [species_sample_map[i]['species'] for i in range(len(sample_labels))]
+    sample_factors['Sample_ID'] = [species_sample_map[i]['sample_id'] for i in range(len(sample_labels))]
+    sample_factors.to_csv(os.path.join(rank_dir, 'sample_factors.csv'))
     
-    # Add species information
-    sample_df_full['Species'] = [species_sample_map[i]['species'] for i in range(len(sample_labels))]
-    sample_df_full['Sample_ID'] = [species_sample_map[i]['sample_id'] for i in range(len(sample_labels))]
-    
-    # Show by species
-    for species in ['apul', 'peve', 'ptua']:
-        species_samples = sample_df_full[sample_df_full['Species'] == species]
-        print(f"\n{species.upper()} samples:")
-        component_cols = [f'Component_{i+1}' for i in range(rank)]
-        print(species_samples[component_cols + ['Sample_ID']].head())
-
-    # Find top orthologs for each component
-    print("\n=== TOP ORTHOLOGS PER COMPONENT ===")
-    n_top_genes = 5
-    for comp in range(rank):
-        gene_loadings = gene_factors[:, comp]
-        top_gene_indices = np.argsort(np.abs(gene_loadings))[-n_top_genes:][::-1]
-        top_genes = [common_genes_list[i] for i in top_gene_indices]
-        top_loadings = gene_loadings[top_gene_indices]
-
-        print(f"\nComponent {comp+1} (weight: {decomposition.weights[comp]:.3f}):")
-        for gene, loading in zip(top_genes, top_loadings):
-            print(f"  {gene}: {loading:.3f}")
-            
-    # Analyze species patterns in sample factors
-    print("\n=== SPECIES PATTERNS IN SAMPLE FACTORS ===")
-    for comp in range(rank):
-        comp_col = f'Component_{comp+1}'
-        print(f"\nComponent {comp+1} - Average loadings by species:")
-        for species in ['apul', 'peve', 'ptua']:
-            species_loadings = sample_df_full[sample_df_full['Species'] == species][comp_col]
-            avg_loading = species_loadings.mean()
-            std_loading = species_loadings.std()
-            print(f"  {species}: {avg_loading:.3f} ± {std_loading:.3f}")
-
-else:
-    print("Decomposition failed - skipping detailed analysis")
-```
-
-## Summary
-
-```{r barnacle-summary, eval=TRUE}
-cat("=== BARNACLE ANALYSIS SUMMARY ===\n\n")
-
-cat("1. Data Preprocessing:\n")
-cat("   - Loaded ortholog expression data for 3 species\n")
-cat("   - Normalized using sctransform for count data\n")
-cat("   - Filtered to genes common across all species\n\n")
-
-cat("2. Tensor Construction:\n")
-cat("   - Created 3D tensor: genes × (species_samples) × timepoints\n")
-cat("   - Combined all species samples into single dimension\n")
-cat("   - Dimensions based on timeseries experimental design\n\n")
-
-cat("3. Sparse Tensor Decomposition:\n")
-cat("   - Applied barnacle SparseCP with sparsity constraints\n")
-cat("   - Extracted latent factors representing:\n")
-cat("     * Gene co-expression patterns\n")
-cat("     * Combined sample-species relationships\n") 
-cat("     * Temporal dynamics\n\n")
-
-cat("4. Results Generated:\n")
-cat("   - Factor matrices for each tensor mode\n")
-cat("   - Component weights indicating importance\n")
-cat("   - Top contributing genes per component\n")
-cat("   - Temporal and species loadings\n\n")
-```
-
-## Save results
-
-```{python save-results, eval=TRUE}
-# Save tensor data
-tensor_file = os.path.join(output_dir, "multiomics_tensor.npy")
-np.save(tensor_file, tensor_filled)
-print(f"Saved tensor to: {tensor_file}")
-
-# Save factor matrices
-factors_dir = os.path.join(output_dir, "barnacle_factors")
-os.makedirs(factors_dir, exist_ok=True)
-
-if decomposition_success:
-    # Gene factors
-    gene_factor_df = pd.DataFrame(
-        gene_factors,
-        index=common_genes_list,
+    time_factors = pd.DataFrame(
+        decomposition.factors[2],
+        index=timepoint_labels,
         columns=[f'Component_{i+1}' for i in range(rank)]
     )
-    gene_factor_df.to_csv(os.path.join(factors_dir, "gene_factors.csv"))
-
-    # Sample factors with species information
-    sample_factor_df = pd.DataFrame(
-        sample_factors,
-        index=sample_labels,
-        columns=[f'Component_{i+1}' for i in range(rank)]
-    )
-    # Add metadata
-    sample_factor_df['Species'] = [species_sample_map[i]['species'] for i in range(len(sample_labels))]
-    sample_factor_df['Sample_ID'] = [species_sample_map[i]['sample_id'] for i in range(len(sample_labels))]
-    sample_factor_df.to_csv(os.path.join(factors_dir, "sample_factors.csv"))
-
-    # Time factors
-    time_df.to_csv(os.path.join(factors_dir, "time_factors.csv"))
-
-    # Save component weights
+    time_factors.to_csv(os.path.join(rank_dir, 'time_factors.csv'))
+    
+    # Save weights
     weights_df = pd.DataFrame({
         'Component': [f'Component_{i+1}' for i in range(rank)],
         'Weight': decomposition.weights
     })
-    weights_df.to_csv(os.path.join(factors_dir, "component_weights.csv"), index=False)
+    weights_df.to_csv(os.path.join(rank_dir, 'component_weights.csv'), index=False)
     
-    # Save sample mapping
-    sample_mapping.to_csv(os.path.join(factors_dir, "sample_mapping.csv"), index=False)
-
+    # Save loss history
+    if hasattr(results['model'], 'loss_') and results['model'].loss_ is not None:
+        loss_df = pd.DataFrame({
+            'Iteration': list(range(1, len(results['model'].loss_) + 1)),
+            'Loss': results['model'].loss_
+        })
+        loss_df.to_csv(os.path.join(rank_dir, 'loss_history.csv'), index=False)
+    
     # Save metadata
     metadata = {
-        'tensor_shape': tensor_filled.shape,
-        'tensor_type': '3D_genes_species_samples_timepoints',
-        'n_genes': len(common_genes_list),
-        'n_combined_samples': len(sample_labels),
-        'n_timepoints': len(common_timepoints),
         'rank': rank,
-        'lambdas': lambdas,
-        'decomposition_success': True,
-        'timepoint_order': common_timepoints,
-        'species_info': {species: info['n_samples'] for species, info in species_info.items()},
-        'gene_count': len(common_genes_list)
+        'metrics': {k: float(v) if not isinstance(v, bool) else v for k, v in metrics.items()},
+        'tensor_shape': list(decomposition.factors[0].shape[0:1]) + 
+                       [decomposition.factors[1].shape[0]] + 
+                       [decomposition.factors[2].shape[0]]
     }
     
-    if hasattr(model, 'converged_'):
-        metadata['converged'] = bool(model.converged_)
-    if hasattr(model, 'loss_') and model.loss_ is not None:
-        metadata['final_loss'] = float(model.loss_[-1])
-        metadata['n_iterations'] = len(model.loss_)
+    import json
+    with open(os.path.join(rank_dir, 'metadata.json'), 'w') as f:
+        json.dump(metadata, f, indent=2)
+    
+    print(f"  Saved results to: {rank_dir}")
 
-else:
-    metadata = {
-        'tensor_shape': tensor_filled.shape,
-        'tensor_type': '3D_genes_species_samples_timepoints',
-        'decomposition_success': False,
-        'error': 'Decomposition failed'
-    }
 
-import json
-with open(os.path.join(factors_dir, "metadata.json"), 'w') as f:
-    json.dump(metadata, f, indent=2)
-
-print(f"\nSaved all results to: {factors_dir}")
-if decomposition_success:
-    print("Files created:")
-    print("- gene_factors.csv: Gene loadings for each component")
-    print("- sample_factors.csv: Sample loadings for each component (with species info)")
-    print("- time_factors.csv: Timepoint loadings for each component")
-    print("- component_weights.csv: Component importance weights")
-    print("- sample_mapping.csv: Mapping of samples to species")
-    print("- metadata.json: Analysis metadata and parameters")
-else:
-    print("Only metadata saved due to decomposition failure")
+print("Rank comparison helper functions loaded")
 ```
 
+### Run barnacle
+
+```{python barnacle-multiple-ranks, eval=TRUE}
+# ===========================================
+# CONFIGURE RANKS TO TEST
+# ===========================================
+# NOTE: This chunk creates a machine-readable log file
+# (rank_comparison_log.json) that subsequent chunks will use.
+# This allows you to skip re-running this chunk if you've
+# already generated results.
+# ===========================================
+ranks_to_test = [5, 8, 10, 12, 15, 20, 25, 35, 45, 55, 65, 75]  # Modify this list as needed
+# ===========================================
+
+import os
+import json
+import datetime
+
+print("="*60)
+print("COMPARING MULTIPLE RANKS")
+print("="*60)
+print(f"Ranks to test: {ranks_to_test}")
+print(f"This will run {len(ranks_to_test)} decompositions")
+print(f"Estimated time: {len(ranks_to_test) * 2}-{len(ranks_to_test) * 5} minutes")
+print("="*60)
+
+# Run decompositions for each rank
+all_rank_results = []
+
+for test_rank in sorted(ranks_to_test):
+    result = run_single_rank_decomposition(
+        tensor=tensor_3d,
+        rank=test_rank,
+        lambdas=[0.1, 0.0, 0.1],
+        n_iter_max=10000,
+        random_state=41
+    )
+    all_rank_results.append(result)
+    
+    # Save individual results
+    if result['success']:
+        save_rank_results(
+            result,
+            output_dir,
+            common_genes_list,
+            sample_labels,
+            [f'TP{tp}' for tp in common_timepoints],
+            species_sample_map
+        )
+
+print(f"\n{'='*60}")
+print(f"ALL RANKS COMPLETE")
+print(f"{'='*60}")
+print(f"Successful: {sum(1 for r in all_rank_results if r['success'])}/{len(all_rank_results)}")
+
+# ===========================================
+# SAVE COMPREHENSIVE LOG FILE
+# ===========================================
+import json
+import datetime
+
+log_file = os.path.join(output_dir, 'rank_comparison_log.json')
+
+log_data = {
+    'timestamp': datetime.datetime.now().isoformat(),
+    'ranks_tested': ranks_to_test,
+    'total_runs': len(all_rank_results),
+    'successful_runs': sum(1 for r in all_rank_results if r['success']),
+    'failed_runs': sum(1 for r in all_rank_results if not r['success']),
+    'results': []
+}
+
+for result in all_rank_results:
+    rank_info = {
+        'rank': result['rank'],
+        'success': result['success']
+    }
+    
+    if result['success']:
+        rank_info['metrics'] = {
+            k: float(v) if isinstance(v, (int, float, np.number)) else bool(v) if isinstance(v, (bool, np.bool_)) else v
+            for k, v in result['metrics'].items()
+        }
+        rank_info['output_dir'] = os.path.join(output_dir, f'rank_{result["rank"]:02d}')
+        rank_info['has_loss_history'] = hasattr(result['model'], 'loss_') and result['model'].loss_ is not None
+    else:
+        rank_info['error'] = result.get('error', 'Unknown error')
+    
+    log_data['results'].append(rank_info)
+
+with open(log_file, 'w') as f:
+    json.dump(log_data, f, indent=2)
+
+print(f"\nLog file saved to: {log_file}")
+print("This log can be used by subsequent chunks to avoid re-running decompositions")
+```
+
+### Factor Match Score evaluation
+
+This section evaluates each rank's decomposition quality using the Factor Match Score (FMS), which measures reconstruction quality by comparing the original tensor with the decomposed tensor.
+
+```{python factor-match-score-evaluation, eval=TRUE}
+# ===========================================
+# FACTOR MATCH SCORE EVALUATION
+# ===========================================
+import numpy as np
+import pandas as pd
+import os
+
+print(f"\n{'='*60}")
+print("FACTOR MATCH SCORE (FMS) EVALUATION")
+print(f"{'='*60}")
+print("This analysis evaluates decomposition quality using the Factor Match Score")
+print("which measures how well the decomposed factors reconstruct the original")
+print("tensor structure (correlation-based reconstruction quality metric).")
+print(f"{'='*60}")
+
+def calculate_reconstruction_fms(tensor, decomposition, rank):
+    """
+    Calculate FMS based on reconstruction quality.
+    This measures how well the decomposition recovers the original tensor
+    by calculating correlation and various error metrics.
+    """
+    try:
+        # Create reconstructed tensor
+        gene_factors = decomposition.factors[0]
+        sample_factors = decomposition.factors[1] 
+        time_factors = decomposition.factors[2]
+        weights = decomposition.weights
+        
+        # Reconstruct tensor
+        reconstructed = np.zeros_like(tensor)
+        for r in range(len(weights)):
+            outer_prod = np.outer(gene_factors[:, r], sample_factors[:, r])
+            outer_prod = np.outer(outer_prod.flatten(), time_factors[:, r])
+            outer_prod = outer_prod.reshape(tensor.shape)
+            reconstructed += weights[r] * outer_prod
+        
+        # Calculate correlation-based FMS
+        # Flatten tensors and calculate correlation
+        orig_flat = tensor.flatten()
+        recon_flat = reconstructed.flatten()
+        
+        # Remove NaN values for correlation calculation
+        valid_mask = np.isfinite(orig_flat) & np.isfinite(recon_flat)
+        orig_valid = orig_flat[valid_mask]
+        recon_valid = recon_flat[valid_mask]
+        
+        if len(orig_valid) > 0:
+            correlation = np.corrcoef(orig_valid, recon_valid)[0, 1]
+            # Convert correlation to FMS-like score (0-1 scale)
+            fms_score = (correlation + 1) / 2  # Map [-1,1] to [0,1]
+            
+            # Additional metrics
+            mse = np.mean((orig_valid - recon_valid) ** 2)
+            rmse = np.sqrt(mse)
+            mae = np.mean(np.abs(orig_valid - recon_valid))
+            
+            # R-squared
+            ss_res = np.sum((orig_valid - recon_valid) ** 2)
+            ss_tot = np.sum((orig_valid - np.mean(orig_valid)) ** 2)
+            r_squared = 1 - (ss_res / ss_tot) if ss_tot > 0 else 0
+        else:
+            correlation = np.nan
+            fms_score = 0.0
+            mse = np.nan
+            rmse = np.nan
+            mae = np.nan
+            r_squared = np.nan
+        
+        return {
+            'fms': float(fms_score),
+            'correlation': float(correlation) if len(orig_valid) > 0 else np.nan,
+            'mse': float(mse),
+            'rmse': float(rmse),
+            'mae': float(mae),
+            'r_squared': float(r_squared),
+            'success': True,
+            'method': 'reconstruction_correlation',
+            'valid_elements': len(orig_valid)
+        }
+        
+    except Exception as e:
+        print(f"  Error calculating reconstruction FMS for rank {rank}: {e}")
+        return {
+            'fms': np.nan,
+            'success': False,
+            'error': str(e),
+            'method': 'failed'
+        }
+
+def evaluate_fms_for_rank(rank, output_dir, tensor):
+    """
+    Evaluate Factor Match Score for a specific rank.
+    """
+    print(f"\n--- Evaluating FMS for Rank {rank} ---")
+    
+    rank_dir = os.path.join(output_dir, f'rank_{rank:02d}')
+    
+    # Check if rank directory exists
+    if not os.path.exists(rank_dir):
+        print(f"  Rank directory not found: {rank_dir}")
+        return None
+    
+    # Load factor matrices
+    try:
+        gene_factors = pd.read_csv(os.path.join(rank_dir, 'gene_factors.csv'), index_col=0)
+        sample_factors = pd.read_csv(os.path.join(rank_dir, 'sample_factors.csv'), index_col=0)
+        time_factors = pd.read_csv(os.path.join(rank_dir, 'time_factors.csv'), index_col=0)
+        weights_df = pd.read_csv(os.path.join(rank_dir, 'component_weights.csv'))
+        
+        # Remove metadata columns from sample_factors if present
+        factor_cols = [col for col in sample_factors.columns if col.startswith('Component_')]
+        sample_factor_values = sample_factors[factor_cols]
+        
+        print(f"  Loaded factor matrices - Genes: {gene_factors.shape}, Samples: {sample_factor_values.shape}, Time: {time_factors.shape}")
+        
+    except Exception as e:
+        print(f"  Error loading factor matrices: {e}")
+        return None
+    
+    # Create mock decomposition object
+    class MockDecomposition:
+        def __init__(self, weights, factors):
+            self.weights = weights
+            self.factors = factors
+    
+    weights = weights_df['Weight'].values
+    factors = [gene_factors.values, sample_factor_values.values, time_factors.values]
+    mock_decomposition = MockDecomposition(weights, factors)
+    
+    # Calculate FMS using reconstruction-based method
+    fms_result = calculate_reconstruction_fms(tensor, mock_decomposition, rank)
+    
+    # Combine results
+    result = {
+        'rank': rank,
+        'fms': fms_result['fms'] if fms_result['success'] else np.nan,
+        'correlation': fms_result.get('correlation', np.nan),
+        'mse': fms_result.get('mse', np.nan),
+        'rmse': fms_result.get('rmse', np.nan),
+        'mae': fms_result.get('mae', np.nan),
+        'r_squared': fms_result.get('r_squared', np.nan),
+        'success': fms_result['success'],
+        'method': fms_result.get('method', 'unknown'),
+        'valid_elements': fms_result.get('valid_elements', 0)
+    }
+    
+    # Print results
+    if fms_result['success']:
+        print(f"  FMS: {fms_result['fms']:.4f}")
+        print(f"  Correlation: {fms_result.get('correlation', 'N/A'):.4f}")
+        print(f"  R²: {fms_result.get('r_squared', 'N/A'):.4f}")
+        print(f"  RMSE: {fms_result.get('rmse', 'N/A'):.4f}")
+        print(f"  Valid elements used: {fms_result.get('valid_elements', 0):,}")
+    else:
+        print(f"  FMS calculation failed: {fms_result.get('error', 'unknown error')}")
+    
+    # Save individual rank FMS results
+    fms_file = os.path.join(rank_dir, 'factor_match_score.json')
+    import json
+    with open(fms_file, 'w') as f:
+        json.dump({
+            'rank': rank,
+            'fms_result': fms_result,
+            'summary': result
+        }, f, indent=2, default=str)
+    
+    print(f"  Saved FMS results to: factor_match_score.json")
+    
+    return result
+
+# ===========================================
+# EVALUATE FMS FOR ALL RANKS
+# ===========================================
+
+# Get output directory if not available
+if 'output_dir' not in globals():
+    output_dir = r.output_dir
+
+# Get tensor if not available
+if 'tensor_3d' not in globals():
+    print("ERROR: tensor_3d not found in memory!")
+    print("Please run the tensor creation chunks first.")
+    tensor_3d = None
+
+if tensor_3d is not None:
+    # Load log file to get successful ranks
+    log_file = os.path.join(output_dir, 'rank_comparison_log.json')
+    
+    if os.path.exists(log_file):
+        import json
+        with open(log_file, 'r') as f:
+            log_data = json.load(f)
+        
+        successful_ranks = [r['rank'] for r in log_data['results'] if r['success']]
+        print(f"Found {len(successful_ranks)} successful ranks to evaluate: {successful_ranks}")
+        
+    else:
+        # Fallback: find rank directories
+        import glob
+        rank_dirs = sorted(glob.glob(os.path.join(output_dir, 'rank_*')))
+        successful_ranks = []
+        for rank_dir in rank_dirs:
+            try:
+                rank_num = int(os.path.basename(rank_dir).split('_')[1])
+                successful_ranks.append(rank_num)
+            except:
+                pass
+        print(f"Found {len(successful_ranks)} rank directories: {successful_ranks}")
+    
+    # Evaluate FMS for each rank
+    all_fms_results = []
+    
+    for rank in sorted(successful_ranks):
+        fms_result = evaluate_fms_for_rank(rank, output_dir, tensor_3d)
+        if fms_result is not None:
+            all_fms_results.append(fms_result)
+    
+    # ===========================================
+    # CREATE FMS COMPARISON TABLE AND PLOTS
+    # ===========================================
+    if len(all_fms_results) > 0:
+        print(f"\n{'='*60}")
+        print("FMS RESULTS SUMMARY")
+        print(f"{'='*60}")
+        
+        # Create comparison dataframe
+        fms_df = pd.DataFrame(all_fms_results)
+        
+        # Save comprehensive FMS results
+        comparison_dir = os.path.join(output_dir, 'rank_comparison')
+        os.makedirs(comparison_dir, exist_ok=True)
+        
+        fms_output_file = os.path.join(comparison_dir, 'factor_match_scores.csv')
+        fms_df.to_csv(fms_output_file, index=False)
+        print(f"Saved FMS comparison table to: {fms_output_file}")
+        
+        # Display results
+        display_cols = ['rank', 'fms', 'correlation', 'r_squared', 'rmse']
+        print("\nFactor Match Score Results:")
+        print(fms_df[display_cols].to_string(index=False, float_format='%.4f'))
+        
+        # Create visualization
+        import matplotlib.pyplot as plt
+        
+        fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+        
+        # Plot 1: FMS scores
+        valid_fms = fms_df['success']
+        
+        if valid_fms.any():
+            ax = axes[0, 0]
+            ax.plot(fms_df.loc[valid_fms, 'rank'], 
+                    fms_df.loc[valid_fms, 'fms'], 
+                    'o-', linewidth=2, markersize=8, color='steelblue')
+            ax.set_xlabel('Rank (Number of Components)', fontsize=11)
+            ax.set_ylabel('Factor Match Score', fontsize=11)
+            ax.set_title('Factor Match Score vs Rank\n(Higher = Better Factor Recovery)', fontweight='bold')
+            ax.grid(True, alpha=0.3)
+            ax.set_ylim([0, 1.05])
+        
+        # Plot 2: Reconstruction correlation
+        if valid_fms.any():
+            ax = axes[0, 1]
+            ax.plot(fms_df.loc[valid_fms, 'rank'], 
+                    fms_df.loc[valid_fms, 'correlation'], 
+                    'o-', linewidth=2, markersize=8, color='green')
+            ax.axhline(y=0.8, color='orange', linestyle='--', alpha=0.5, label='80% correlation')
+            ax.axhline(y=0.9, color='red', linestyle='--', alpha=0.5, label='90% correlation')
+            ax.set_xlabel('Rank (Number of Components)', fontsize=11)
+            ax.set_ylabel('Reconstruction Correlation', fontsize=11)
+            ax.set_title('Tensor Reconstruction Quality vs Rank\n(Correlation between original and reconstructed)', fontweight='bold')
+            ax.grid(True, alpha=0.3)
+            ax.legend()
+            ax.set_ylim([-1.05, 1.05])
+        
+        # Plot 3: R-squared
+        if valid_fms.any():
+            ax = axes[1, 0]
+            ax.plot(fms_df.loc[valid_fms, 'rank'], 
+                    fms_df.loc[valid_fms, 'r_squared'], 
+                    's-', linewidth=2, markersize=8, color='purple')
+            ax.axhline(y=0.8, color='orange', linestyle='--', alpha=0.5, label='80% explained')
+            ax.axhline(y=0.9, color='red', linestyle='--', alpha=0.5, label='90% explained')
+            ax.set_xlabel('Rank (Number of Components)', fontsize=11)
+            ax.set_ylabel('R² (Coefficient of Determination)', fontsize=11)
+            ax.set_title('R² vs Rank\n(Proportion of Variance Explained)', fontweight='bold')
+            ax.grid(True, alpha=0.3)
+            ax.legend()
+            ax.set_ylim([0, 1.05])
+        
+        # Plot 4: RMSE
+        if valid_fms.any():
+            ax = axes[1, 1]
+            ax.plot(fms_df.loc[valid_fms, 'rank'], 
+                    fms_df.loc[valid_fms, 'rmse'], 
+                    '^-', linewidth=2, markersize=8, color='coral')
+            ax.set_xlabel('Rank (Number of Components)', fontsize=11)
+            ax.set_ylabel('RMSE (Root Mean Squared Error)', fontsize=11)
+            ax.set_title('Reconstruction Error vs Rank\n(Lower = Better Fit)', fontweight='bold')
+            ax.grid(True, alpha=0.3)
+        
+        plt.tight_layout()
+        fms_plot_file = os.path.join(comparison_dir, 'factor_match_scores_plot.png')
+        plt.savefig(fms_plot_file, dpi=150, bbox_inches='tight')
+        print(f"Saved FMS plot to: {fms_plot_file}")
+        plt.close()
+        
+        # ===========================================
+        # FMS-BASED RANK RECOMMENDATION
+        # ===========================================
+        print(f"\n{'='*60}")
+        print("FMS-BASED RANK RECOMMENDATION")
+        print(f"{'='*60}")
+        
+        # Find best ranks based on different criteria
+        valid_df = fms_df[fms_df['success']]
+        
+        if len(valid_df) > 0:
+            # Best FMS
+            best_fms_idx = valid_df['fms'].idxmax()
+            best_fms_rank = valid_df.iloc[best_fms_idx]['rank']
+            best_fms_score = valid_df.iloc[best_fms_idx]['fms']
+            
+            # Best correlation
+            best_corr_idx = valid_df['correlation'].idxmax()
+            best_corr_rank = valid_df.iloc[best_corr_idx]['rank']
+            best_corr_score = valid_df.iloc[best_corr_idx]['correlation']
+            
+            # Best R-squared
+            best_r2_idx = valid_df['r_squared'].idxmax()
+            best_r2_rank = valid_df.iloc[best_r2_idx]['rank']
+            best_r2_score = valid_df.iloc[best_r2_idx]['r_squared']
+            
+            # Lowest RMSE
+            best_rmse_idx = valid_df['rmse'].idxmin()
+            best_rmse_rank = valid_df.iloc[best_rmse_idx]['rank']
+            best_rmse_score = valid_df.iloc[best_rmse_idx]['rmse']
+            
+            print(f"Best FMS: Rank {int(best_fms_rank)} (score: {best_fms_score:.4f})")
+            print(f"Best Correlation: Rank {int(best_corr_rank)} (score: {best_corr_score:.4f})")
+            print(f"Best R²: Rank {int(best_r2_rank)} (score: {best_r2_score:.4f})")
+            print(f"Lowest RMSE: Rank {int(best_rmse_rank)} (error: {best_rmse_score:.4f})")
+            
+            # Look for ranks with consistently high scores (top 20%)
+            fms_threshold = valid_df['fms'].quantile(0.8)
+            high_scoring_ranks = valid_df[valid_df['fms'] >= fms_threshold]['rank'].tolist()
+            
+            print(f"\nHigh-scoring ranks (top 20% by FMS): {[int(r) for r in high_scoring_ranks]}")
+            print(f"FMS threshold: {fms_threshold:.4f}")
+            
+            # Provide interpretation
+            print(f"\nFMS Interpretation:")
+            print(f"• FMS measures tensor reconstruction quality (0-1 scale, higher is better)")
+            print(f"• Correlation shows linear relationship between original and reconstructed")
+            print(f"• R² shows proportion of variance explained (0-1 scale, higher is better)")
+            print(f"• RMSE shows average reconstruction error (lower is better)")
+            print(f"• Higher FMS, correlation, and R² indicate better factor recovery")
+            print(f"• Consider ranks with consistently high FMS and R² scores")
+            print(f"• Look for diminishing returns (elbow point) in improvement curves")
+            
+        else:
+            print("No valid FMS results available for recommendation.")
+    
+    else:
+        print("No FMS results to analyze.")
+
+else:
+    print("Skipping FMS evaluation - tensor not available.")
+
+print(f"\n{'='*60}")
+print("FACTOR MATCH SCORE EVALUATION COMPLETE")
+print(f"{'='*60}")
+if 'all_fms_results' in locals() and len(all_fms_results) > 0:
+    working_fms = sum(1 for r in all_fms_results if r['success'])
+    print(f"Summary: {working_fms}/{len(all_fms_results)} ranks have valid FMS results")
+    if working_fms > 0:
+        print(f"→ Use FMS, correlation, and R² for rank selection")
+        print(f"→ Results saved to: {comparison_dir}")
+    else:
+        print(f"→ No valid FMS results - check tensor and factor matrices")
+```
 
 
 # VISUALIZATION
 
-### Visualization setup
+## Plot rank comparisons
 
-```{python viz-setup, eval=TRUE}
-# Setup for visualizations: load libs, directories and dataframes (shared by all small chunks)
+### 1. Comparison Plots
+
+Located in `barnacle_factors/rank_comparison/`:
+
+- **`elbow_plot.png`** - Shows variance explained vs rank (MOST IMPORTANT)
+  - Look for the "elbow" where gains diminish
+  - Marginal gains are annotated on the plot
+  
+- **`rank_comparison_summary.png`** - 6-panel overview
+- **`loss_trajectories.png`** - Convergence speed comparison
+
+### 2. Metrics Table
+
+File: `barnacle_factors/rank_comparison/rank_comparison_metrics.csv`
+
+Contains all quantitative metrics for comparison.
+
+### 3. Individual Rank Results
+
+Each rank gets its own directory (`rank_05/`, `rank_10/`, etc.) with full factor matrices.
+
+```{python plot-rank-comparison, eval=TRUE}
+# ===========================================
+# This chunk reads from rank_comparison_log.json
+# and does NOT require variables from previous chunks
+# ===========================================
+import matplotlib.pyplot as plt
+import seaborn as sns
+import json
+import glob
+import os
+import pandas as pd
+import numpy as np
+
+print(f"\n{'='*60}")
+print("Creating rank comparison visualizations")
+print(f"{'='*60}")
+
+# Check if output_dir exists, if not get it from R
+if 'output_dir' not in globals():
+    print("Getting output_dir from R environment...")
+    output_dir = r.output_dir
+    print(f"  output_dir = {output_dir}")
+
+comparison_dir = os.path.join(output_dir, 'rank_comparison')
+os.makedirs(comparison_dir, exist_ok=True)
+
+# ===========================================
+# LOAD RESULTS FROM LOG FILE
+# ===========================================
+log_file = os.path.join(output_dir, 'rank_comparison_log.json')
+
+if os.path.exists(log_file):
+    print(f"Loading results from log file: {log_file}")
+    with open(log_file, 'r') as f:
+        log_data = json.load(f)
+    
+    print(f"  Log timestamp: {log_data['timestamp']}")
+    print(f"  Total runs: {log_data['total_runs']}")
+    print(f"  Successful: {log_data['successful_runs']}")
+    print(f"  Failed: {log_data['failed_runs']}")
+    
+    # Reconstruct all_rank_results from log
+    all_rank_results = []
+    for result_info in log_data['results']:
+        if result_info['success']:
+            all_rank_results.append({
+                'rank': result_info['rank'],
+                'metrics': result_info['metrics'],
+                'success': True
+            })
+        else:
+            all_rank_results.append({
+                'rank': result_info['rank'],
+                'success': False,
+                'error': result_info.get('error', 'Unknown error')
+            })
+    
+    print(f"  Loaded {len(all_rank_results)} results from log file")
+    
+elif 'all_rank_results' not in globals():
+    # Fallback: Load from individual metadata files
+    print("Log file not found. Loading from individual rank directories...")
+    all_rank_results = []
+    
+    # Find all rank_* directories
+    rank_dirs = sorted(glob.glob(os.path.join(output_dir, 'rank_*')))
+    print(f"  Found {len(rank_dirs)} rank directories")
+    
+    for rank_dir in rank_dirs:
+        metadata_file = os.path.join(rank_dir, 'metadata.json')
+        if os.path.exists(metadata_file):
+            with open(metadata_file, 'r') as f:
+                metadata = json.load(f)
+                all_rank_results.append({
+                    'rank': metadata['rank'],
+                    'metrics': metadata['metrics'],
+                    'success': True
+                })
+    
+    print(f"  Loaded {len(all_rank_results)} results from disk")
+else:
+    print("Using all_rank_results from memory")
+
+# Extract successful results
+successful = [r for r in all_rank_results if r['success']]
+if len(successful) == 0:
+    print("No successful decompositions to compare!")
+else:
+    ranks = [r['rank'] for r in successful]
+    
+    # Create comparison dataframe
+    comparison_df = pd.DataFrame([
+        {
+            'Rank': r['rank'],
+            **r['metrics']
+        }
+        for r in successful
+    ])
+    
+    # Save comparison table
+    comparison_df.to_csv(os.path.join(comparison_dir, 'rank_comparison_metrics.csv'), index=False)
+    print(f"  Saved metrics table")
+    
+    # Create multi-panel comparison plot
+    fig, axes = plt.subplots(2, 3, figsize=(18, 10))
+    fig.suptitle('Rank Comparison: Key Metrics', fontsize=16, fontweight='bold')
+    
+    # 1. Variance Explained
+    ax = axes[0, 0]
+    ax.plot(ranks, comparison_df['variance_explained'], 'o-', linewidth=2, markersize=8, color='steelblue')
+    ax.axhline(y=0.8, color='green', linestyle='--', alpha=0.5, label='80% threshold')
+    ax.axhline(y=0.6, color='orange', linestyle='--', alpha=0.5, label='60% threshold')
+    ax.set_xlabel('Rank (Number of Components)', fontsize=11)
+    ax.set_ylabel('Variance Explained', fontsize=11)
+    ax.set_title('Variance Explained vs Rank', fontweight='bold')
+    ax.grid(True, alpha=0.3)
+    ax.legend()
+    ax.set_ylim([0, 1.05])
+    
+    # 2. Relative Error
+    ax = axes[0, 1]
+    ax.plot(ranks, comparison_df['relative_error'], 'o-', linewidth=2, markersize=8, color='coral')
+    ax.set_xlabel('Rank (Number of Components)', fontsize=11)
+    ax.set_ylabel('Relative Reconstruction Error', fontsize=11)
+    ax.set_title('Reconstruction Error vs Rank', fontweight='bold')
+    ax.grid(True, alpha=0.3)
+    
+    # 3. Final Loss
+    ax = axes[0, 2]
+    ax.plot(ranks, comparison_df['final_loss'], 'o-', linewidth=2, markersize=8, color='purple')
+    ax.set_xlabel('Rank (Number of Components)', fontsize=11)
+    ax.set_ylabel('Final Loss', fontsize=11)
+    ax.set_title('Final Loss vs Rank', fontweight='bold')
+    ax.grid(True, alpha=0.3)
+    
+    # 4. Gene Sparsity
+    ax = axes[1, 0]
+    ax.plot(ranks, comparison_df['gene_sparsity'], 'o-', linewidth=2, markersize=8, color='green')
+    ax.axhline(y=0.9, color='red', linestyle='--', alpha=0.5, label='90% sparse')
+    ax.set_xlabel('Rank (Number of Components)', fontsize=11)
+    ax.set_ylabel('Gene Factor Sparsity', fontsize=11)
+    ax.set_title('Gene Sparsity vs Rank', fontweight='bold')
+    ax.grid(True, alpha=0.3)
+    ax.legend()
+    ax.set_ylim([0, 1.05])
+    
+    # 5. Weight Distribution (CV)
+    ax = axes[1, 1]
+    ax.plot(ranks, comparison_df['weight_cv'], 'o-', linewidth=2, markersize=8, color='darkorange')
+    ax.set_xlabel('Rank (Number of Components)', fontsize=11)
+    ax.set_ylabel('Weight Coefficient of Variation', fontsize=11)
+    ax.set_title('Component Weight Variability vs Rank', fontweight='bold')
+    ax.grid(True, alpha=0.3)
+    
+    # 6. Iterations to Convergence
+    ax = axes[1, 2]
+    colors = ['green' if c else 'red' for c in comparison_df['converged']]
+    ax.bar(ranks, comparison_df['n_iterations'], color=colors, alpha=0.7)
+    ax.set_xlabel('Rank (Number of Components)', fontsize=11)
+    ax.set_ylabel('Iterations to Convergence', fontsize=11)
+    ax.set_title('Convergence Speed vs Rank\n(Green=Converged, Red=Max Iterations)', fontweight='bold')
+    ax.grid(True, alpha=0.3, axis='y')
+    
+    plt.tight_layout()
+    output_path = os.path.join(comparison_dir, 'rank_comparison_summary.png')
+    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    print(f"  Saved: rank_comparison_summary.png")
+    plt.close()
+    
+    # Create elbow plot
+    fig, ax = plt.subplots(figsize=(10, 6))
+    
+    var_exp = comparison_df['variance_explained'].values
+    ax.plot(ranks, var_exp, 'o-', linewidth=3, markersize=10, color='steelblue', label='Variance Explained')
+    
+    # Calculate marginal gains
+    if len(ranks) > 1:
+        marginal_gains = np.diff(var_exp)
+        for i in range(len(marginal_gains)):
+            ax.annotate(f'+{marginal_gains[i]*100:.1f}%',
+                       xy=(ranks[i+1], var_exp[i+1]),
+                       xytext=(10, -10),
+                       textcoords='offset points',
+                       fontsize=9,
+                       color='darkgreen',
+                       bbox=dict(boxstyle='round,pad=0.3', facecolor='yellow', alpha=0.3))
+    
+    ax.axhline(y=0.8, color='green', linestyle='--', alpha=0.5, linewidth=2, label='80% threshold (excellent)')
+    ax.axhline(y=0.6, color='orange', linestyle='--', alpha=0.5, linewidth=2, label='60% threshold (good)')
+    ax.set_xlabel('Rank (Number of Components)', fontsize=13, fontweight='bold')
+    ax.set_ylabel('Variance Explained', fontsize=13, fontweight='bold')
+    ax.set_title('Elbow Plot: Finding Optimal Rank\n(Look for diminishing returns)', 
+                fontsize=14, fontweight='bold')
+    ax.grid(True, alpha=0.3)
+    ax.legend(fontsize=11)
+    ax.set_ylim([0, 1.05])
+    ax.set_xticks(ranks)
+    
+    plt.tight_layout()
+    output_path = os.path.join(comparison_dir, 'elbow_plot.png')
+    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    print(f"  Saved: elbow_plot.png")
+    plt.close()
+    
+    # Loss trajectories
+    fig, ax = plt.subplots(figsize=(10, 6))
+    
+    loss_plotted = False
+    for r in successful:
+        # Try to get loss from model object first
+        if 'model' in r and hasattr(r['model'], 'loss_') and r['model'].loss_ is not None:
+            loss = r['model'].loss_
+            ax.plot(range(1, len(loss)+1), loss, linewidth=2, label=f'Rank {r["rank"]}', alpha=0.8)
+            loss_plotted = True
+        else:
+            # Load from disk
+            rank_dir = os.path.join(output_dir, f'rank_{r["rank"]:02d}')
+            loss_file = os.path.join(rank_dir, 'loss_history.csv')
+            if os.path.exists(loss_file):
+                loss_df = pd.read_csv(loss_file)
+                ax.plot(loss_df['Iteration'], loss_df['Loss'], linewidth=2, label=f'Rank {r["rank"]}', alpha=0.8)
+                loss_plotted = True
+    
+    if loss_plotted:
+        ax.set_xlabel('Iteration', fontsize=12)
+        ax.set_ylabel('Loss', fontsize=12)
+        ax.set_title('Loss Convergence Trajectories by Rank', fontsize=14, fontweight='bold')
+        ax.grid(True, alpha=0.3)
+        ax.legend(fontsize=10)
+        ax.set_yscale('log')
+        
+        plt.tight_layout()
+        output_path = os.path.join(comparison_dir, 'loss_trajectories.png')
+        plt.savefig(output_path, dpi=150, bbox_inches='tight')
+        print(f"  Saved: loss_trajectories.png")
+    else:
+        print(f"  Skipped loss_trajectories.png (no loss history available)")
+    
+    plt.close()
+    
+    print(f"\nAll comparison plots saved to: {comparison_dir}")
+```
+
+# RANK STABILITY ANALYSIS
+
+## Gene stability across ranks
+
+This analysis determines at what rank the top genes stabilize.
+
+
+```{python rank-stability-analysis, eval=TRUE}
+# ===========================================
+# This chunk analyzes gene stability across ranks
+# ===========================================
+import os
+import json
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+print(f"\n{'='*60}")
+print("RANK STABILITY ANALYSIS: TOP GENE CONSISTENCY")
+print(f"{'='*60}")
+
+# ===========================================
+# LOAD RESULTS FROM LOG FILE IF NEEDED
+# ===========================================
+if 'output_dir' not in globals():
+    print("Getting output_dir from R environment...")
+    output_dir = r.output_dir
+    print(f"  output_dir = {output_dir}")
+
+# Always reload from log file to ensure consistency
+log_file = os.path.join(output_dir, 'rank_comparison_log.json')
+
+if not os.path.exists(log_file):
+    print(f"ERROR: Log file not found: {log_file}")
+    print("Please run the 'barnacle-multiple-ranks' chunk first!")
+    all_rank_results = []
+    successful = []
+else:
+    print(f"Loading results from log file: {log_file}")
+    with open(log_file, 'r') as f:
+        log_data = json.load(f)
+    
+    print(f"  Log timestamp: {log_data['timestamp']}")
+    print(f"  Total runs: {log_data['total_runs']}")
+    print(f"  Successful: {log_data['successful_runs']}")
+    print(f"  Failed: {log_data['failed_runs']}")
+    
+    # Reconstruct all_rank_results from log
+    all_rank_results = []
+    for result_info in log_data['results']:
+        if result_info['success']:
+            all_rank_results.append({
+                'rank': result_info['rank'],
+                'metrics': result_info['metrics'],
+                'success': True
+            })
+        else:
+            all_rank_results.append({
+                'rank': result_info['rank'],
+                'success': False,
+                'error': result_info.get('error', 'Unknown error')
+            })
+    
+    print(f"  Loaded {len(all_rank_results)} results from log file")
+    
+    successful = [r for r in all_rank_results if r['success']]
+    successful = sorted(successful, key=lambda x: x['rank'])
+
+if len(successful) == 0:
+    print("No successful decompositions to analyze!")
+else:
+    # ===========================================
+    # EXTRACT TOP GENES FROM EACH RANK
+    # ===========================================
+    print("\nExtracting top genes from each rank...")
+    
+    TOP_N = 100  # Number of top genes to compare
+    
+    top_genes_by_rank = {}
+    
+    for r in successful:
+        rank = r['rank']
+        rank_dir = os.path.join(output_dir, f'rank_{rank:02d}')
+        gene_factors_file = os.path.join(rank_dir, 'gene_factors.csv')
+        
+        if os.path.exists(gene_factors_file):
+            gene_factors = pd.read_csv(gene_factors_file, index_col=0)
+            
+            # Get genes with highest loadings across ALL components
+            # Sum absolute values across all components for each gene
+            gene_importance = gene_factors.abs().sum(axis=1)
+            top_genes = set(gene_importance.nlargest(TOP_N).index)
+            
+            top_genes_by_rank[rank] = {
+                'genes': top_genes,
+                'importance': gene_importance
+            }
+            
+            print(f"  Rank {rank:2d}: Top {TOP_N} genes extracted")
+        else:
+            print(f"  Rank {rank:2d}: Gene factors file not found!")
+    
+    ranks = sorted(top_genes_by_rank.keys())
+    
+    # ===========================================
+    # CALCULATE JACCARD SIMILARITY MATRIX
+    # ===========================================
+    print(f"\nCalculating pairwise Jaccard similarities...")
+    
+    n_ranks = len(ranks)
+    similarity_matrix = np.zeros((n_ranks, n_ranks))
+    
+    for i, rank1 in enumerate(ranks):
+        for j, rank2 in enumerate(ranks):
+            genes1 = top_genes_by_rank[rank1]['genes']
+            genes2 = top_genes_by_rank[rank2]['genes']
+            
+            intersection = len(genes1 & genes2)
+            union = len(genes1 | genes2)
+            jaccard = intersection / union if union > 0 else 0
+            
+            similarity_matrix[i, j] = jaccard
+    
+    # ===========================================
+    # CALCULATE CONSECUTIVE RANK OVERLAP
+    # ===========================================
+    print(f"\nCalculating consecutive rank overlaps...")
+    
+    consecutive_overlaps = []
+    for i in range(len(ranks) - 1):
+        rank1, rank2 = ranks[i], ranks[i+1]
+        genes1 = top_genes_by_rank[rank1]['genes']
+        genes2 = top_genes_by_rank[rank2]['genes']
+        
+        overlap = len(genes1 & genes2)
+        jaccard = overlap / len(genes1 | genes2)
+        percent_overlap = (overlap / TOP_N) * 100
+        
+        consecutive_overlaps.append({
+            'rank1': rank1,
+            'rank2': rank2,
+            'overlap_count': overlap,
+            'jaccard_similarity': jaccard,
+            'percent_overlap': percent_overlap
+        })
+    
+    overlap_df = pd.DataFrame(consecutive_overlaps)
+    
+    # Save to file
+    comparison_dir = os.path.join(output_dir, 'rank_comparison')
+    overlap_df.to_csv(os.path.join(comparison_dir, 'consecutive_rank_overlap.csv'), index=False)
+    
+    print("\nConsecutive Rank Overlap:")
+    print(overlap_df.to_string(index=False, float_format='%.3f'))
+    
+    # ===========================================
+    # IDENTIFY STABILITY THRESHOLD
+    # ===========================================
+    print(f"\n{'='*60}")
+    print("STABILITY ANALYSIS")
+    print(f"{'='*60}")
+    
+    # Find where overlap stabilizes (high consecutive overlap)
+    high_overlap_threshold = 0.80  # 80% overlap
+    stable_ranks = overlap_df[overlap_df['jaccard_similarity'] >= high_overlap_threshold]
+    
+    if len(stable_ranks) > 0:
+        first_stable = stable_ranks.iloc[0]
+        print(f"\nFirst stable transition: Rank {int(first_stable['rank1'])} → {int(first_stable['rank2'])}")
+        print(f"  Overlap: {first_stable['overlap_count']:.0f}/{TOP_N} genes ({first_stable['percent_overlap']:.1f}%)")
+        print(f"  Jaccard: {first_stable['jaccard_similarity']:.3f}")
+        print(f"\n→ Model appears to stabilize around rank {int(first_stable['rank2'])}")
+    else:
+        print(f"\nNo consecutive ranks have ≥{high_overlap_threshold*100:.0f}% overlap")
+        print("  Model may not have fully stabilized in tested range")
+        print("  Consider testing higher ranks")
+    
+    # ===========================================
+    # PLOT 1: HEATMAP OF JACCARD SIMILARITIES
+    # ===========================================
+    print(f"\nCreating similarity heatmap...")
+    
+    fig, ax = plt.subplots(figsize=(12, 10))
+    
+    sns.heatmap(
+        similarity_matrix,
+        xticklabels=ranks,
+        yticklabels=ranks,
+        annot=True,
+        fmt='.2f',
+        cmap='RdYlGn',
+        vmin=0,
+        vmax=1,
+        square=True,
+        cbar_kws={'label': 'Jaccard Similarity'},
+        ax=ax
+    )
+    
+    ax.set_xlabel('Rank', fontsize=12, fontweight='bold')
+    ax.set_ylabel('Rank', fontsize=12, fontweight='bold')
+    ax.set_title(f'Top {TOP_N} Gene Overlap Between Ranks\n(Jaccard Similarity)', 
+                 fontsize=14, fontweight='bold', pad=20)
+    
+    plt.tight_layout()
+    output_path = os.path.join(comparison_dir, 'gene_stability_heatmap.png')
+    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    print(f"  Saved: gene_stability_heatmap.png")
+    plt.close()
+    
+    # ===========================================
+    # PLOT 2: CONSECUTIVE OVERLAP LINE PLOT
+    # ===========================================
+    print(f"Creating consecutive overlap plot...")
+    
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10))
+    
+    # Plot 1: Absolute overlap count
+    ax1.plot(range(len(overlap_df)), overlap_df['overlap_count'], 
+             'o-', linewidth=2, markersize=8, color='steelblue')
+    ax1.axhline(y=TOP_N*0.8, color='green', linestyle='--', alpha=0.5, 
+                label='80% threshold')
+    ax1.axhline(y=TOP_N*0.9, color='darkgreen', linestyle='--', alpha=0.5, 
+                label='90% threshold')
+    ax1.set_ylabel(f'Number of Overlapping Genes (out of {TOP_N})', fontsize=11)
+    ax1.set_title(f'Consecutive Rank Gene Overlap\n(Top {TOP_N} Most Important Genes)', 
+                  fontsize=13, fontweight='bold')
+    ax1.grid(True, alpha=0.3)
+    ax1.legend()
+    ax1.set_xticks(range(len(overlap_df)))
+    ax1.set_xticklabels([f'{int(row["rank1"])}→{int(row["rank2"])}' 
+                          for _, row in overlap_df.iterrows()], rotation=45)
+    
+    # Plot 2: Jaccard similarity
+    ax2.plot(range(len(overlap_df)), overlap_df['jaccard_similarity'], 
+             'o-', linewidth=2, markersize=8, color='coral')
+    ax2.axhline(y=0.8, color='green', linestyle='--', alpha=0.5, 
+                label='80% similarity')
+    ax2.axhline(y=0.9, color='darkgreen', linestyle='--', alpha=0.5, 
+                label='90% similarity')
+    ax2.set_xlabel('Rank Transition', fontsize=11)
+    ax2.set_ylabel('Jaccard Similarity', fontsize=11)
+    ax2.set_title('Jaccard Similarity Between Consecutive Ranks', 
+                  fontsize=13, fontweight='bold')
+    ax2.grid(True, alpha=0.3)
+    ax2.legend()
+    ax2.set_ylim([0, 1.05])
+    ax2.set_xticks(range(len(overlap_df)))
+    ax2.set_xticklabels([f'{int(row["rank1"])}→{int(row["rank2"])}' 
+                          for _, row in overlap_df.iterrows()], rotation=45)
+    
+    plt.tight_layout()
+    output_path = os.path.join(comparison_dir, 'consecutive_overlap_plot.png')
+    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    print(f"  Saved: consecutive_overlap_plot.png")
+    plt.close()
+    
+    # ===========================================
+    # EXPORT TOP GENES FOR EACH RANK
+    # ===========================================
+    print(f"\nExporting top {TOP_N} genes for each rank...")
+    
+    for rank in ranks:
+        genes = top_genes_by_rank[rank]['genes']
+        importance = top_genes_by_rank[rank]['importance']
+        
+        top_genes_df = pd.DataFrame({
+            'gene_id': list(genes),
+            'total_importance': [importance[g] for g in genes]
+        }).sort_values('total_importance', ascending=False)
+        
+        rank_dir = os.path.join(output_dir, f'rank_{rank:02d}')
+        output_file = os.path.join(rank_dir, f'top_{TOP_N}_genes.csv')
+        top_genes_df.to_csv(output_file, index=False)
+    
+    print(f"  Saved top_{TOP_N}_genes.csv for each rank")
+    
+    # ===========================================
+    # EXPORT SHARED GENES FOR CONSECUTIVE RANK COMPARISONS
+    # ===========================================
+    print(f"\nExporting shared genes for consecutive rank comparisons...")
+    
+    for i in range(len(ranks) - 1):
+        rank1, rank2 = ranks[i], ranks[i+1]
+        genes1 = top_genes_by_rank[rank1]['genes']
+        genes2 = top_genes_by_rank[rank2]['genes']
+        
+        # Get shared genes
+        shared_genes = genes1 & genes2
+        
+        # Get importance scores from both ranks
+        importance1 = top_genes_by_rank[rank1]['importance']
+        importance2 = top_genes_by_rank[rank2]['importance']
+        
+        # Create dataframe with shared genes and their importance in both ranks
+        shared_df = pd.DataFrame({
+            'gene_id': list(shared_genes),
+            f'rank_{rank1}_importance': [importance1[g] for g in shared_genes],
+            f'rank_{rank2}_importance': [importance2[g] for g in shared_genes]
+        })
+        
+        # Sort by average importance
+        shared_df['avg_importance'] = (shared_df[f'rank_{rank1}_importance'] + 
+                                       shared_df[f'rank_{rank2}_importance']) / 2
+        shared_df = shared_df.sort_values('avg_importance', ascending=False)
+        
+        # Save to comparison directory
+        output_file = os.path.join(comparison_dir, f'shared_genes_rank_{rank1}_vs_{rank2}.csv')
+        shared_df.to_csv(output_file, index=False)
+        
+        print(f"  Rank {rank1} vs {rank2}: {len(shared_genes)} shared genes")
+    
+    print(f"  Saved shared_genes_rank_X_vs_Y.csv files to {comparison_dir}")
+    
+    # ===========================================
+    # EXPORT ALL PAIRWISE SHARED GENES SUMMARY
+    # ===========================================
+    print(f"\nCreating pairwise shared genes summary...")
+    
+    pairwise_summary = []
+    for i, rank1 in enumerate(ranks):
+        for j, rank2 in enumerate(ranks):
+            if i < j:  # Only upper triangle (avoid duplicates)
+                genes1 = top_genes_by_rank[rank1]['genes']
+                genes2 = top_genes_by_rank[rank2]['genes']
+                shared = genes1 & genes2
+                
+                pairwise_summary.append({
+                    'rank1': rank1,
+                    'rank2': rank2,
+                    'shared_count': len(shared),
+                    'jaccard_similarity': len(shared) / len(genes1 | genes2) if len(genes1 | genes2) > 0 else 0,
+                    'percent_overlap': (len(shared) / TOP_N) * 100
+                })
+    
+    pairwise_df = pd.DataFrame(pairwise_summary)
+    pairwise_file = os.path.join(comparison_dir, 'pairwise_shared_genes_summary.csv')
+    pairwise_df.to_csv(pairwise_file, index=False)
+    print(f"  Saved pairwise_shared_genes_summary.csv")
+    
+    print(f"\n{'='*60}")
+    print("STABILITY ANALYSIS COMPLETE")
+    print(f"{'='*60}")
+    print(f"\nAll stability plots saved to: {comparison_dir}")
+    print(f"- gene_stability_heatmap.png")
+    print(f"- consecutive_overlap_plot.png")
+    print(f"- consecutive_rank_overlap.csv")
+    print(f"- shared_genes_rank_X_vs_Y.csv (for consecutive rank pairs)")
+    print(f"- pairwise_shared_genes_summary.csv (all pairwise comparisons)")
+    print(f"\nTop {TOP_N} genes for each rank saved to: rank_XX/top_{TOP_N}_genes.csv")
+```
+
+# INDIVIDUAL RANK VISUALIZATIONS
+
+## Detailed plots for each rank
+
+This section creates comprehensive visualizations for each rank to aid in assessment and comparison.
+
+```{python individual-rank-visualizations, eval=TRUE}
+# ===========================================
+# CREATE DETAILED VISUALIZATIONS FOR EACH RANK
+# ===========================================
 import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.decomposition import PCA
 
-# Ensure factors_dir is defined (created in previous chunk)
-try:
-    factors_dir
-except NameError:
-    factors_dir = os.path.join(output_dir, "barnacle_factors")
+print(f"\n{'='*60}")
+print("CREATING INDIVIDUAL RANK VISUALIZATIONS")
+print(f"{'='*60}")
 
-fig_dir = os.path.join(factors_dir, "figures")
-os.makedirs(fig_dir, exist_ok=True)
+# Get output directory
+if 'output_dir' not in globals():
+    output_dir = r.output_dir
 
-print("Creating visualizations in:", fig_dir)
+# Load log file to get ranks
+log_file = os.path.join(output_dir, 'rank_comparison_log.json')
 
-def safe_load_df(var_name, csv_name):
-    try:
-        return globals()[var_name]
-    except Exception:
-        path = os.path.join(factors_dir, csv_name)
-        if os.path.exists(path):
-            return pd.read_csv(path, index_col=0)
+if not os.path.exists(log_file):
+    print(f"ERROR: Log file not found: {log_file}")
+    print("Please run the 'barnacle-multiple-ranks' chunk first!")
+else:
+    import json
+    with open(log_file, 'r') as f:
+        log_data = json.load(f)
+    
+    # Get successful ranks
+    successful_ranks = [r['rank'] for r in log_data['results'] if r['success']]
+    
+    print(f"Creating visualizations for {len(successful_ranks)} ranks...")
+    
+    # Parameters for visualization
+    TOP_GENES_HEATMAP = 50  # Number of top genes to show in heatmap
+    
+    for rank in successful_ranks:
+        print(f"\n--- Rank {rank} ---")
+        rank_dir = os.path.join(output_dir, f'rank_{rank:02d}')
+        
+        # Load factor matrices
+        gene_factors_file = os.path.join(rank_dir, 'gene_factors.csv')
+        time_factors_file = os.path.join(rank_dir, 'time_factors.csv')
+        weights_file = os.path.join(rank_dir, 'component_weights.csv')
+        
+        if not all([os.path.exists(f) for f in [gene_factors_file, time_factors_file, weights_file]]):
+            print(f"  Skipping rank {rank} - missing factor files")
+            continue
+        
+        gene_factors = pd.read_csv(gene_factors_file, index_col=0)
+        time_factors = pd.read_csv(time_factors_file, index_col=0)
+        weights = pd.read_csv(weights_file)
+        
+        # ===========================================
+        # PLOT 1: GENE HEATMAP (Top genes x Components)
+        # ===========================================
+        print(f"  Creating gene-component heatmap...")
+        
+        # Get top genes by total importance
+        gene_importance = gene_factors.abs().sum(axis=1)
+        top_genes = gene_importance.nlargest(TOP_GENES_HEATMAP).index
+        top_gene_factors = gene_factors.loc[top_genes]
+        
+        # Create heatmap
+        fig, ax = plt.subplots(figsize=(max(12, rank*0.5), 10))
+        
+        sns.heatmap(
+            top_gene_factors,
+            cmap='RdBu_r',
+            center=0,
+            cbar_kws={'label': 'Component Loading'},
+            xticklabels=True,
+            yticklabels=True,
+            ax=ax
+        )
+        
+        ax.set_xlabel('Components', fontsize=12, fontweight='bold')
+        ax.set_ylabel('Gene ID', fontsize=12, fontweight='bold')
+        ax.set_title(f'Rank {rank}: Top {TOP_GENES_HEATMAP} Genes Across Components\n' + 
+                    f'(Ordered by Total Importance)',
+                    fontsize=13, fontweight='bold', pad=15)
+        
+        plt.tight_layout()
+        output_path = os.path.join(rank_dir, f'gene_component_heatmap_top{TOP_GENES_HEATMAP}.png')
+        plt.savefig(output_path, dpi=150, bbox_inches='tight')
+        plt.close()
+        print(f"    Saved: gene_component_heatmap_top{TOP_GENES_HEATMAP}.png")
+        
+        # ===========================================
+        # PLOT 2: TIME COMPONENT LINE PLOT
+        # ===========================================
+        print(f"  Creating time-component line plot...")
+        
+        fig, ax = plt.subplots(figsize=(12, 8))
+        
+        # Plot each component
+        for i, col in enumerate(time_factors.columns):
+            component_weights = weights[weights['Component'] == col]['Weight'].values[0]
+            ax.plot(time_factors.index, time_factors[col], 
+                   marker='o', linewidth=2, markersize=8,
+                   label=f'{col} (w={component_weights:.3f})', alpha=0.8)
+        
+        ax.set_xlabel('Timepoint', fontsize=12, fontweight='bold')
+        ax.set_ylabel('Component Loading', fontsize=12, fontweight='bold')
+        ax.set_title(f'Rank {rank}: Component Loadings Across Timepoints\n' +
+                    '(Each line = one component, weighted by importance)',
+                    fontsize=13, fontweight='bold', pad=15)
+        ax.grid(True, alpha=0.3)
+        ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=9)
+        ax.axhline(y=0, color='black', linestyle='-', linewidth=0.5, alpha=0.3)
+        
+        plt.tight_layout()
+        output_path = os.path.join(rank_dir, 'time_component_lineplot.png')
+        plt.savefig(output_path, dpi=150, bbox_inches='tight')
+        plt.close()
+        print(f"    Saved: time_component_lineplot.png")
+        
+        # ===========================================
+        # PLOT 3: COMPONENT WEIGHT BAR PLOT
+        # ===========================================
+        print(f"  Creating component weight bar plot...")
+        
+        fig, ax = plt.subplots(figsize=(max(10, rank*0.4), 6))
+        
+        bars = ax.bar(range(len(weights)), weights['Weight'], 
+                     color='steelblue', alpha=0.7, edgecolor='black')
+        
+        # Color top 5 components differently
+        for i in range(min(5, len(bars))):
+            bars[i].set_color('coral')
+            bars[i].set_alpha(0.9)
+        
+        ax.set_xlabel('Component', fontsize=12, fontweight='bold')
+        ax.set_ylabel('Weight', fontsize=12, fontweight='bold')
+        ax.set_title(f'Rank {rank}: Component Weights\n(Top 5 highlighted in coral)',
+                    fontsize=13, fontweight='bold', pad=15)
+        ax.set_xticks(range(len(weights)))
+        ax.set_xticklabels([f'C{i+1}' for i in range(len(weights))], rotation=45 if rank > 20 else 0)
+        ax.grid(True, alpha=0.3, axis='y')
+        
+        plt.tight_layout()
+        output_path = os.path.join(rank_dir, 'component_weights_barplot.png')
+        plt.savefig(output_path, dpi=150, bbox_inches='tight')
+        plt.close()
+        print(f"    Saved: component_weights_barplot.png")
+        
+        # ===========================================
+        # PLOT 4: GENE IMPORTANCE DISTRIBUTION
+        # ===========================================
+        print(f"  Creating gene importance distribution...")
+        
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
+        
+        # Histogram
+        ax1.hist(gene_importance, bins=50, color='steelblue', alpha=0.7, edgecolor='black')
+        ax1.axvline(gene_importance.nlargest(TOP_GENES_HEATMAP).iloc[-1], 
+                   color='red', linestyle='--', linewidth=2,
+                   label=f'Top {TOP_GENES_HEATMAP} threshold')
+        ax1.set_xlabel('Total Importance Score', fontsize=11)
+        ax1.set_ylabel('Number of Genes', fontsize=11)
+        ax1.set_title('Distribution of Gene Importance Scores', fontweight='bold')
+        ax1.grid(True, alpha=0.3, axis='y')
+        ax1.legend()
+        
+        # Cumulative curve
+        sorted_importance = gene_importance.sort_values(ascending=False).values
+        cumsum = np.cumsum(sorted_importance)
+        cumsum_pct = (cumsum / cumsum[-1]) * 100
+        
+        ax2.plot(range(len(cumsum_pct)), cumsum_pct, linewidth=2, color='darkgreen')
+        ax2.axhline(y=50, color='orange', linestyle='--', alpha=0.5, label='50% variance')
+        ax2.axhline(y=80, color='red', linestyle='--', alpha=0.5, label='80% variance')
+        ax2.set_xlabel('Number of Top Genes', fontsize=11)
+        ax2.set_ylabel('Cumulative Variance Explained (%)', fontsize=11)
+        ax2.set_title('Cumulative Importance by Gene Rank', fontweight='bold')
+        ax2.grid(True, alpha=0.3)
+        ax2.legend()
+        
+        fig.suptitle(f'Rank {rank}: Gene Importance Analysis', 
+                    fontsize=14, fontweight='bold', y=1.02)
+        plt.tight_layout()
+        output_path = os.path.join(rank_dir, 'gene_importance_distribution.png')
+        plt.savefig(output_path, dpi=150, bbox_inches='tight')
+        plt.close()
+        print(f"    Saved: gene_importance_distribution.png")
+        
+        # ===========================================
+        # PLOT 5: COMPONENT CORRELATION HEATMAP
+        # ===========================================
+        print(f"  Creating component correlation heatmap...")
+        
+        # Calculate correlation between components based on gene loadings
+        component_corr = gene_factors.corr()
+        
+        fig, ax = plt.subplots(figsize=(max(10, rank*0.4), max(8, rank*0.35)))
+        
+        sns.heatmap(
+            component_corr,
+            annot=True if rank <= 20 else False,
+            fmt='.2f' if rank <= 20 else '.1f',
+            cmap='coolwarm',
+            center=0,
+            square=True,
+            cbar_kws={'label': 'Correlation'},
+            ax=ax
+        )
+        
+        ax.set_title(f'Rank {rank}: Component Correlation Matrix\n' +
+                    '(Based on gene loadings - low correlation = good separation)',
+                    fontsize=13, fontweight='bold', pad=15)
+        
+        plt.tight_layout()
+        output_path = os.path.join(rank_dir, 'component_correlation_heatmap.png')
+        plt.savefig(output_path, dpi=150, bbox_inches='tight')
+        plt.close()
+        print(f"    Saved: component_correlation_heatmap.png")
+    
+    print(f"\n{'='*60}")
+    print("INDIVIDUAL RANK VISUALIZATIONS COMPLETE")
+    print(f"{'='*60}")
+    print(f"\nFor each rank, the following plots were created in rank_XX/ directories:")
+    print(f"  1. gene_component_heatmap_top{TOP_GENES_HEATMAP}.png - Top genes across components")
+    print(f"  2. time_component_lineplot.png - Component patterns over time")
+    print(f"  3. component_weights_barplot.png - Relative component importance")
+    print(f"  4. gene_importance_distribution.png - Gene importance statistics")
+    print(f"  5. component_correlation_heatmap.png - Component independence check")
+```
+
+# RANK RECOMMENDATION
+
+```{python recommend-rank, eval=TRUE}
+# ===========================================
+# This chunk reads from rank_comparison_log.json
+# and does NOT require variables from previous chunks
+# ===========================================
+import os
+import json
+import pandas as pd
+import numpy as np
+
+print(f"\n{'='*60}")
+print("RANK RECOMMENDATION")
+print(f"{'='*60}")
+
+# ===========================================
+# LOAD RESULTS FROM LOG FILE IF NEEDED
+# ===========================================
+if 'output_dir' not in globals():
+    print("Getting output_dir from R environment...")
+    output_dir = r.output_dir
+    print(f"  output_dir = {output_dir}")
+
+if 'all_rank_results' not in globals():
+    log_file = os.path.join(output_dir, 'rank_comparison_log.json')
+    
+    if os.path.exists(log_file):
+        print(f"Loading results from log file: {log_file}")
+        with open(log_file, 'r') as f:
+            log_data = json.load(f)
+        
+        # Reconstruct all_rank_results from log
+        all_rank_results = []
+        for result_info in log_data['results']:
+            if result_info['success']:
+                all_rank_results.append({
+                    'rank': result_info['rank'],
+                    'metrics': result_info['metrics'],
+                    'success': True
+                })
+            else:
+                all_rank_results.append({
+                    'rank': result_info['rank'],
+                    'success': False,
+                    'error': result_info.get('error', 'Unknown error')
+                })
+        
+        print(f"  Loaded {len(all_rank_results)} results from log file")
+    else:
+        print("ERROR: No log file found and all_rank_results not in memory!")
+        print("Please run the barnacle-multiple-ranks chunk first.")
+        all_rank_results = []
+
+successful = [r for r in all_rank_results if r['success']]
+if len(successful) == 0:
+    print("No successful decompositions to analyze!")
+else:
+    # Sort by rank
+    successful = sorted(successful, key=lambda x: x['rank'])
+    
+    # Calculate scores for each rank
+    scores = []
+    for r in successful:
+        m = r['metrics']
+        
+        # Variance explained score (0-1, higher is better)
+        var_score = m['variance_explained']
+        
+        # Sparsity score (0-1, higher is better)
+        sparsity_score = (m['gene_sparsity'] + m['sample_sparsity'] + m['time_sparsity']) / 3
+        
+        # Convergence score
+        conv_score = 1.0 if m['converged'] else 0.5
+        
+        # Weight distribution score (prefer moderate variation)
+        cv = m['weight_cv']
+        if 0.5 <= cv <= 2.0:
+            weight_score = 1.0
+        elif cv < 0.5:
+            weight_score = cv / 0.5
         else:
-            return None
-
-gene_factor_df = safe_load_df('gene_factor_df', 'gene_factors.csv')
-sample_factor_df = safe_load_df('sample_factor_df', 'sample_factors.csv')
-time_df = safe_load_df('time_df', 'time_factors.csv')
-weights_df = None
-weights_path = os.path.join(factors_dir, 'component_weights.csv')
-if os.path.exists(weights_path):
-    weights_df = pd.read_csv(weights_path)
-
-print('Visualization setup complete')
-```
-
-### Component weights
-
-```{python viz-weights, eval=TRUE}
-# Component weights barplot
-if weights_df is not None and not weights_df.empty:
-    try:
-        plt.figure(figsize=(6,4))
-        sns.barplot(x='Component', y='Weight', data=weights_df, palette='viridis')
-        plt.xticks(rotation=45)
-        plt.title('Component weights')
-        plt.tight_layout()
-        out = os.path.join(fig_dir, 'component_weights.png')
-        plt.savefig(out, dpi=150)
-        print('Saved:', out)
-        try:
-            plt.show()
-        except Exception:
-            pass
-        plt.close()
-    except Exception as e:
-        print('Could not plot component weights:', e)
-else:
-    print('No component_weights.csv found; skipping weights plot')
-```
-
-### Timepoint loadings
-
-```{python viz-time-loadings, eval=TRUE}
-# Timepoint loadings (line plot)
-if time_df is not None and not time_df.empty:
-    try:
-        plt.figure(figsize=(8,4))
-        x = list(range(len(time_df.index)))
-        for col in time_df.columns:
-            plt.plot(x, time_df[col].values, marker='o', label=col)
-        plt.xticks(x, list(time_df.index), rotation=45)
-        plt.xlabel('Timepoint')
-        plt.ylabel('Loading')
-        plt.legend(bbox_to_anchor=(1.02,1), loc='upper left')
-        plt.title('Timepoint loadings per component')
-        plt.tight_layout()
-        out = os.path.join(fig_dir, 'time_loadings.png')
-        plt.savefig(out, dpi=150)
-        print('Saved:', out)
-        try:
-            plt.show()
-        except Exception:
-            pass
-        plt.close()
-    except Exception as e:
-        print('Timepoint loading plot failed:', e)
-else:
-    print('No time_factors available; skipping timepoint plot')
-```
-
-### Sample-factor heatmap
-
-```{python viz-sample-heatmap, eval=TRUE}
-# Sample-factor heatmap grouped by species
-if sample_factor_df is not None and not sample_factor_df.empty:
-    try:
-        sf = sample_factor_df.copy()
-        # If metadata columns present, separate numeric factor columns
-        meta_cols = [c for c in ['Species','Sample_ID'] if c in sf.columns]
-        factor_cols = [c for c in sf.columns if c not in meta_cols]
-        species_series = sf['Species'] if 'Species' in sf.columns else pd.Series(['unknown']*sf.shape[0], index=sf.index)
-        sample_vals = sf[factor_cols]
-
-        # sort by species for display
-
-        # Order samples by species, then by Sample_ID (if available) to include all samples
-        if 'Sample_ID' in sf.columns:
-            order = sf.sort_values(['Species','Sample_ID']).index
-        else:
-            order = species_series.sort_values().index
-        sample_vals_sorted = sample_vals.loc[order]
-
-        # Create a single-axis heatmap and force display of all sample labels
-        fig = plt.figure(figsize=(10, max(3, sample_vals_sorted.shape[0]*0.08)))
-        ax_hm = fig.add_subplot(111)
-
-        # Main heatmap with slightly shrunken colorbar
-        h = sns.heatmap(sample_vals_sorted, cmap='vlag', center=0,
-                        cbar_kws={'label': 'Component loading (signed)', 'shrink': 0.8},
-                        ax=ax_hm)
-        ax_hm.set_xlabel('Components')
-        ax_hm.set_ylabel('')
-
-        # Force display of all sample labels (small font for legibility)
-        try:
-            ax_hm.set_yticks(np.arange(len(sample_vals_sorted.index)) + 0.5)
-            ax_hm.set_yticklabels(sample_vals_sorted.index, fontsize=6)
-        except Exception:
-            pass
-
-        plt.tight_layout()
-        out = os.path.join(fig_dir, 'sample_factors_heatmap.png')
-        plt.savefig(out, dpi=150)
-        print('Saved:', out)
-        try:
-            plt.show()
-        except Exception:
-            pass
-        plt.close()
-
-    except Exception as e:
-        print('Sample factors plotting failed:', e)
-else:
-    print('No sample_factors available; skipping sample heatmap')
-```
-
-### PCA of sample-factor loadings
-
-```{python viz-sample-pca, eval=TRUE}
-# PCA of sample factors (2D scatter)
-if sample_factor_df is not None and not sample_factor_df.empty:
-    try:
-        sf = sample_factor_df.copy()
-        meta_cols = [c for c in ['Species','Sample_ID'] if c in sf.columns]
-        factor_cols = [c for c in sf.columns if c not in meta_cols]
-        species_series = sf['Species'] if 'Species' in sf.columns else pd.Series(['unknown']*sf.shape[0], index=sf.index)
-        sample_vals = sf[factor_cols]
-
-        X = sample_vals.fillna(0).values
-        pca = PCA(n_components=2)
-        pcs = pca.fit_transform(X)
-        pcs_df = pd.DataFrame(pcs, index=sample_vals.index, columns=['PC1','PC2'])
-        pcs_df['Species'] = species_series.loc[pcs_df.index].values
-
-        plt.figure(figsize=(6,5))
-        sns.scatterplot(data=pcs_df, x='PC1', y='PC2', hue='Species', s=80)
-        plt.title('PCA of sample-factor loadings')
-        plt.tight_layout()
-        out = os.path.join(fig_dir, 'sample_factors_pca.png')
-        plt.savefig(out, dpi=150)
-        print('Saved:', out)
-        try:
-            plt.show()
-        except Exception:
-            pass
-        plt.close()
-
-    except Exception as e:
-        print('Sample PCA plotting failed:', e)
-else:
-    print('No sample_factors available; skipping sample PCA')
-```
-
-### Top orthologs per component
-
-```{python viz-top-genes, eval=TRUE}
-# Top orthologs per component (barplots)
-if gene_factor_df is not None and not gene_factor_df.empty:
-    try:
-        gf = gene_factor_df.copy()
-        # Determine number of components
-        comps = gf.columns
-        n_top = 10
-        for col in comps:
-            # rank by absolute loading
-            s = gf[col].abs().sort_values(ascending=False).head(n_top)
-            plt.figure(figsize=(6, max(2, n_top*0.25)))
-            sns.barplot(x=s.values, y=s.index, palette='magma')
-            plt.xlabel('Absolute loading')
-            plt.ylabel('Ortholog group')
-            plt.title(f'Top {n_top} genes - {col}')
-            plt.tight_layout()
-            out = os.path.join(fig_dir, f'top_orthologs_{col}.png')
-            plt.savefig(out, dpi=150)
-            print('Saved:', out)
-            try:
-                plt.show()
-            except Exception:
-                pass
-            plt.close()
-    except Exception as e:
-        print('Top orthologs plotting failed:', e)
-else:
-    print('No gene_factors available; skipping gene plots')
+            weight_score = 2.0 / cv
+        
+        # Combined score (weighted average)
+        combined_score = (
+            0.40 * var_score +
+            0.25 * sparsity_score +
+            0.20 * conv_score +
+            0.15 * weight_score
+        )
+        
+        scores.append({
+            'rank': r['rank'],
+            'variance_score': var_score,
+            'sparsity_score': sparsity_score,
+            'convergence_score': conv_score,
+            'weight_score': weight_score,
+            'combined_score': combined_score
+        })
+    
+    scores_df = pd.DataFrame(scores)
+    
+    # Find elbow in variance explained
+    var_exp = [r['metrics']['variance_explained'] for r in successful]
+    ranks = [r['rank'] for r in successful]
+    
+    elbow_rank = None
+    if len(var_exp) > 2:
+        marginal_gains = np.diff(var_exp)
+        elbow_indices = np.where(marginal_gains < 0.05)[0]
+        if len(elbow_indices) > 0:
+            elbow_rank = ranks[elbow_indices[0]]
+    
+    # Best by combined score
+    best_idx = scores_df['combined_score'].idxmax()
+    recommended_rank = scores_df.iloc[best_idx]['rank']
+    
+    print("\nScoring Summary:")
+    print(scores_df.to_string(index=False, float_format='%.3f'))
+    
+    print(f"\n{'='*60}")
+    print(f"RECOMMENDED RANK: {int(recommended_rank)}")
+    print(f"{'='*60}")
+    print(f"  Combined score: {scores_df.iloc[best_idx]['combined_score']:.3f}")
+    print(f"  Variance explained: {successful[best_idx]['metrics']['variance_explained']*100:.1f}%")
+    print(f"  Gene sparsity: {successful[best_idx]['metrics']['gene_sparsity']*100:.1f}%")
+    print(f"  Converged: {successful[best_idx]['metrics']['converged']}")
+    
+    if elbow_rank is not None:
+        print(f"\nElbow point detected at rank: {int(elbow_rank)}")
+        print("  (Diminishing returns beyond this point)")
+    
+    print("\nReasoning:")
+    if recommended_rank <= min(ranks):
+        print("  → Lower rank preferred: Model may be overfitting or data is simple")
+    elif recommended_rank >= max(ranks):
+        print("  → Higher rank preferred: Complex data may need more components")
+        print("  → Consider testing even higher ranks (e.g., +5, +10)")
+    else:
+        print("  → Middle rank optimal: Good balance of fit and interpretability")
+    
+    print("\nNext steps:")
+    print(f"  1. Review plots in: {comparison_dir}")
+    print(f"  2. Examine individual rank results in: {output_dir}/rank_XX/")
+    print(f"  3. Verify biological interpretability of top components")
+    print(f"  4. Re-run main analysis with chosen rank for final results")
 ```
 
 
+
+
+## Close log file
+
+```{python close-log, eval=TRUE}
+from datetime import datetime
+
+print()
+print("="*60)
+print(f"ANALYSIS COMPLETE")
+print(f"Finished: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+print(f"All output saved to: {output_dir}")
+print(f"Log file: {log_file}")
+print("="*60)
+
+# Restore stdout and close log file
+if hasattr(sys.stdout, 'log'):
+    sys.stdout.log.close()
+    sys.stdout = sys.stdout.terminal
+```
 
 # SYSTEM INFO
 
