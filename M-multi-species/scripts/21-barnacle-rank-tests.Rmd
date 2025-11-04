@@ -9,19 +9,16 @@ date: "2025-10-26"
 ```{bash}
 /Users/sr320/.local/bin/uv run python ../scripts/14.1-barnacle/build_tensor_and_run.py \
   --input-file ../output/14-pca-orthologs/vst_counts_matrix.csv \
-  --output-dir ../output/21-barnacle_05 \
-  --rank 5 --lambda-gene 0.1 --lambda-sample 0.1 --lambda-time 0.05 \
+  --output-dir ../output/21-barnacle/35/ \
+  --rank 35 --lambda-gene 0.1 --lambda-sample 0.1 --lambda-time 0.05 \
   --max-iter 2000 --tol 1e-5 --seed 21
 ```
 
 
-
-
 ```{bash}
-# Run the full convergence testing pipeline
-/Users/sr320/.local/bin/uv run python ../scripts/14.1-barnacle/convergence_test.py \
+/Users/sr320/.local/bin/uv run python ../scripts/14.1-barnacle/build_tensor_and_run.py \
   --input-file ../output/14-pca-orthologs/vst_counts_matrix.csv \
-  --output-dir ../output/21-barnacle-convergence-test \
-  --results-file convergence_test_results.csv
+  --output-dir ../output/21-barnacle/35-lg0/ \
+  --rank 35 --lambda-gene 0 --lambda-sample 0.1 --lambda-time 0.05 \
+  --max-iter 2000 --tol 1e-5 --seed 21
 ```
-
