@@ -10,5 +10,131 @@ LAMBDAS_GENE="0.00 0.01 0.05 0.1 0.2 0.4 0.8"
 LAMBDA_SAMPLE=0.1
 LAMBDA_TIME=0.05
 RANK=35
+
+
+OUTDIR_BASE=../output/26-rank35-optimization
+
+for LG in $LAMBDAS_GENE; do
+  OUTDIR=${OUTDIR_BASE}/lambda_gene_${LG}
+  mkdir -p "$OUTDIR"
+
+  /Users/sr320/.local/bin/uv run python ../scripts/14.1-barnacle/build_tensor_and_run.py \
+    --input-file ../output/14-pca-orthologs/vst_counts_matrix.csv \
+    --output-dir "$OUTDIR" \
+    --rank $RANK \
+    --lambda-gene $LG \
+    --lambda-sample $LAMBDA_SAMPLE \
+    --lambda-time $LAMBDA_TIME \
+    --max-iter 2000 \
+    --tol 1e-5 \
+    --seed 81
+done
+```
+```{r}
+library(tidyverse)
+
+# Use absolute or correctly relative path
+base_dir <- "../output/26-rank35-optimization"
+lambda_values <- c("0.00", "0.01", "0.05", "0.1", "0.2", "0.4", "0.8")
+
+thr <- 1.0  # threshold for "high" loading
+
+analyze_lambda <- function(lambda) {
+  f <- file.path(base_dir, paste0("lambda_gene_", lambda), "barnacle_factors", "gene_factors.csv")
+  
+  if (!file.exists(f)) {
+    stop(paste("Missing file:", f))
+  }
+  
+  df <- read_csv(f)
+  mat <- df %>%
+    column_to_rownames(var = colnames(df)[1]) %>%
+    as.matrix()
+  
+  amat <- abs(mat)
+  sparsity <- mean(amat <= thr)
+  overlap <- rowSums(amat > thr)
+  
+  tibble(
+    lambda_gene = lambda,
+    gene_sparsity = sparsity,
+    mean_overlap = mean(overlap),
+    median_overlap = median(overlap),
+    frac_single_component = mean(overlap == 1),
+    frac_multi_component = mean(overlap >= 2)
+  )
+}
+
+summary_df <- map_dfr(lambda_values, analyze_lambda)
+print(summary_df)
+```
+
+
+	•	λ = 0.20–0.40 → good regime:
+	•	~50 % of genes belong to a single component
+	•	mean overlap ≈ 1–1.5
+	•	sparsity high (0.95–0.97) but not total collapse.
+	
+```{r}
+library(tidyverse)
+library(jsonlite)
+
+base_dir <- "../output/26-rank35-optimization"
+lambda_values <- c("0.00", "0.01", "0.05", "0.1", "0.2", "0.4", "0.8")
+
+thr <- 1.0  # threshold for what counts as "high" loading
+
+analyze_lambda <- function(lambda) {
+  gfile <- file.path(base_dir, paste0("lambda_gene_", lambda), "barnacle_factors", "gene_factors.csv")
+  jfile <- file.path(base_dir, paste0("lambda_gene_", lambda), "barnacle_factors", "metadata.json")
+
+  if (!file.exists(gfile)) stop(paste("Missing:", gfile))
+  if (!file.exists(jfile)) stop(paste("Missing:", jfile))
+
+  # --- Gene sparsity metrics ---
+  df <- read_csv(gfile)
+  mat <- df %>% column_to_rownames(var = colnames(df)[1]) %>% as.matrix()
+  amat <- abs(mat)
+
+  sparsity <- mean(amat <= thr)
+  overlap <- rowSums(amat > thr)
+
+  # --- Variance explained ---
+  meta <- fromJSON(jfile)
+  var_exp <- meta$variance_explained %||% meta$summary$variance_explained  # handles format differences
+
+  tibble(
+    lambda_gene = as.numeric(lambda),
+    gene_sparsity = sparsity,
+    mean_overlap = mean(overlap),
+    frac_single_component = mean(overlap == 1),
+    variance_explained = var_exp
+  )
+}
+
+summary_df <- map_dfr(lambda_values, analyze_lambda)
+
+print(summary_df)
+
+# --- Plot ---
+summary_long <- summary_df %>%
+  pivot_longer(cols = c(gene_sparsity, variance_explained, frac_single_component),
+               names_to = "metric", values_to = "value")
+
+ggplot(summary_long, aes(x = lambda_gene, y = value, color = metric)) +
+  geom_line(size = 1.1) +
+  geom_point(size = 2) +
+  theme_minimal(base_size = 13) +
+  scale_x_log10() +
+  labs(title = "λ_gene optimization (Rank 35)",
+       x = "λ_gene (log scale)",
+       y = "Metric value",
+       color = "Metric") +
+  theme(legend.position = "bottom")
+```
+```{r}
+library(jsonlite)
+meta <- fromJSON("../output/26-rank35-optimization/lambda_gene_0.2/barnacle_factors/metadata.json")
+str(meta, max.level = 2)
 ```
 
