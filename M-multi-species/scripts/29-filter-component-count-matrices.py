@@ -101,7 +101,7 @@ def filter_count_matrix(count_matrix_file, gene_ids, output_file, gene_prefix=""
     print(f"Looking for {len(genes_to_keep)} genes...")
     
     # Read the count matrix
-    df = pd.read_csv(count_matrix_file)
+    df = pd.read_csv(count_matrix_file, encoding='utf-8')
     
     # Filter rows where gene_id is in our set
     filtered_df = df[df['gene_id'].isin(genes_to_keep)]
@@ -109,7 +109,7 @@ def filter_count_matrix(count_matrix_file, gene_ids, output_file, gene_prefix=""
     print(f"Found {len(filtered_df)} genes in count matrix")
     
     # Save filtered matrix
-    filtered_df.to_csv(output_file, index=False)
+    filtered_df.to_csv(output_file, index=False, encoding='utf-8')
     print(f"Saved to {output_file}")
     
     return len(filtered_df)
