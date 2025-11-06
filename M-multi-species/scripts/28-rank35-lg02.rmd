@@ -1,0 +1,376 @@
+---
+title: "28-rank35-lg02"
+output: html_document
+date: "2025-11-06"
+---
+
+```{bash}
+LAMBDAS_GENE="0.00 0.01 0.05 0.1 0.2 0.4 0.8"
+LAMBDA_SAMPLE=0.1
+LAMBDA_TIME=0.05
+RANK=35
+
+
+OUTDIR_BASE=../output/26-rank35-optimization
+
+for LG in $LAMBDAS_GENE; do
+  OUTDIR=${OUTDIR_BASE}/lambda_gene_${LG}
+  mkdir -p "$OUTDIR"
+
+  /Users/sr320/.local/bin/uv run python ../scripts/14.1-barnacle/build_tensor_and_run.py \
+    --input-file ../output/14-pca-orthologs/vst_counts_matrix.csv \
+    --output-dir "$OUTDIR" \
+    --rank $RANK \
+    --lambda-gene $LG \
+    --lambda-sample $LAMBDA_SAMPLE \
+    --lambda-time $LAMBDA_TIME \
+    --max-iter 2000 \
+    --tol 1e-5 \
+    --seed 81
+done
+```
+
+
+# Gene Factor Sparse Table
+
+
+```{r}
+library(tidyverse)
+
+# Use absolute or correctly relative path
+base_dir <- "../output/26-rank35-optimization"
+lambda_values <- c("0.00", "0.01", "0.05", "0.1", "0.2", "0.4", "0.8")
+
+thr <- 1.0  # threshold for "high" loading
+
+analyze_lambda <- function(lambda) {
+  f <- file.path(base_dir, paste0("lambda_gene_", lambda), "barnacle_factors", "gene_factors.csv")
+  
+  if (!file.exists(f)) {
+    stop(paste("Missing file:", f))
+  }
+  
+  df <- read_csv(f)
+  mat <- df %>%
+    column_to_rownames(var = colnames(df)[1]) %>%
+    as.matrix()
+  
+  amat <- abs(mat)
+  sparsity <- mean(amat <= thr)
+  overlap <- rowSums(amat > thr)
+  
+  tibble(
+    lambda_gene = lambda,
+    gene_sparsity = sparsity,
+    mean_overlap = mean(overlap),
+    median_overlap = median(overlap),
+    frac_single_component = mean(overlap == 1),
+    frac_multi_component = mean(overlap >= 2)
+  )
+}
+
+summary_df <- map_dfr(lambda_values, analyze_lambda)
+print(summary_df)
+```
+
+
+	•	λ = 0.20–0.40 → good regime:
+	•	~50 % of genes belong to a single component
+	•	mean overlap ≈ 1–1.5
+	•	sparsity high (0.95–0.97) but not total collapse.
+	
+	
+	
+# Visualizing
+	
+	
+	
+```{r,echo=FALSE, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(pheatmap)
+```
+
+```{bash}
+head ../output/13.00-multiomics-barnacle/rank_35/gene_factors.csv
+```
+
+```{bash}
+head ../output/26-rank35-optimization/lambda_gene_0.2/barnacle_factors/gene_factors.csv
+```
+```{bash}
+head ../output/26-rank35-optimization/lambda_gene_0.2/barnacle_factors/sample_factors.csv
+```
+
+```{bash}
+head ../output/26-rank35-optimization/lambda_gene_0.2/barnacle_factors/time_factors.csv
+```
+```{r}
+# Path to your CSV file
+csv_path <- "../output/26-rank35-optimization/lambda_gene_0.2/barnacle_factors/gene_factors.csv"
+
+# Read all lines
+lines <- readLines(csv_path)
+
+# Create new header
+new_header <- paste(
+  c("OG_ID", paste0("Component_", 1:35)),
+  collapse = ","
+)
+
+# Replace the first line
+lines[1] <- new_header
+
+# Write updated file
+writeLines(lines, csv_path)
+
+cat("✅ Header updated successfully!\n")
+```
+
+```{r}
+# Path to your CSV file
+csv_path <- "../output/26-rank35-optimization/lambda_gene_0.2/barnacle_factors/time_factors.csv"
+
+# Read all lines
+lines <- readLines(csv_path)
+
+# Create new header
+new_header <- paste(
+  c("OG_ID", paste0("Component_", 1:35)),
+  collapse = ","
+)
+
+# Replace the first line
+lines[1] <- new_header
+
+# Write updated file
+writeLines(lines, csv_path)
+
+cat("✅ Header updated successfully!\n")
+```
+
+```{r}
+# Path to your CSV file
+csv_path <- "../output/26-rank35-optimization/lambda_gene_0.2/barnacle_factors/sample_factors.csv"
+
+# Read all lines
+lines <- readLines(csv_path)
+
+# Create new header
+new_header <- paste(
+  c("OG_ID", paste0("Component_", 1:35)),
+  collapse = ","
+)
+
+# Replace the first line
+lines[1] <- new_header
+
+# Write updated file
+writeLines(lines, csv_path)
+
+cat("✅ Header updated successfully!\n")
+```
+
+
+
+	
+
+
+
+
+
+```{r}
+# Load required libraries
+library(readr)
+library(pheatmap)
+
+# Read the CSV (adjust the filename if needed)
+df <- read_csv("../output/26-rank35-optimization/lambda_gene_0.2/barnacle_factors/sample_factors.csv")
+
+# Make the first column row names
+df_mat <- df |> 
+  column_to_rownames(var = colnames(df)[1]) |> 
+  as.matrix()
+
+# Optional: scale rows or columns for better contrast
+df_scaled <- scale(df_mat)
+
+# Plot heatmap
+pheatmap(df_scaled,
+         color = colorRampPalette(c("navy","white","firebrick3"))(100),
+         clustering_method = "ward.D2",
+         show_rownames = TRUE,
+         show_colnames = TRUE,
+         main = "Heatmap of Samples vs Features")
+```
+
+
+```{r}
+# Load required libraries
+library(readr)
+library(pheatmap)
+
+# Read the CSV (adjust the filename if needed)
+df <- read_csv("../output/13.00-multiomics-barnacle/rank_05/sample_factors.csv")
+
+# Make the first column row names
+df_mat <- df |> 
+  column_to_rownames(var = colnames(df)[1]) |> 
+  as.matrix()
+
+# 1️⃣ Move the first column to rownames
+df <- df %>%
+  column_to_rownames(var = colnames(df)[1])
+
+# 2️⃣ Convert all remaining columns to numeric (forces any lingering text to NA)
+df_mat <- df %>%
+  mutate(across(everything(), as.numeric)) %>%
+  as.matrix()
+
+# 3️⃣ Optionally drop rows with any NA values
+df_mat <- df_mat[complete.cases(df_mat), ]
+
+# Optional: scale rows or columns for better contrast
+df_scaled <- scale(df_mat)
+
+# Plot heatmap
+pheatmap(df_scaled,
+         color = colorRampPalette(c("navy","white","firebrick3"))(100),
+         clustering_method = "ward.D2",
+         show_rownames = TRUE,
+         show_colnames = TRUE,
+         main = "Heatmap of Samples vs Features")
+```
+	
+	
+	
+	
+	
+```{r}
+library(tidyverse)
+library(jsonlite)
+
+base_dir <- "../output/26-rank35-optimization"
+lambda_values <- c("0.00", "0.01", "0.05", "0.1", "0.2", "0.4", "0.8")
+
+thr <- 1.0  # threshold for what counts as "high" loading
+
+analyze_lambda <- function(lambda) {
+  gfile <- file.path(base_dir, paste0("lambda_gene_", lambda), "barnacle_factors", "gene_factors.csv")
+  jfile <- file.path(base_dir, paste0("lambda_gene_", lambda), "barnacle_factors", "metadata.json")
+
+  if (!file.exists(gfile)) stop(paste("Missing:", gfile))
+  if (!file.exists(jfile)) stop(paste("Missing:", jfile))
+
+  # --- Gene sparsity metrics ---
+  df <- read_csv(gfile)
+  mat <- df %>% column_to_rownames(var = colnames(df)[1]) %>% as.matrix()
+  amat <- abs(mat)
+
+  sparsity <- mean(amat <= thr)
+  overlap <- rowSums(amat > thr)
+
+  # --- Variance explained ---
+  meta <- fromJSON(jfile)
+  var_exp <- meta$variance_explained %||% meta$summary$variance_explained  # handles format differences
+
+  tibble(
+    lambda_gene = as.numeric(lambda),
+    gene_sparsity = sparsity,
+    mean_overlap = mean(overlap),
+    frac_single_component = mean(overlap == 1),
+    variance_explained = var_exp
+  )
+}
+
+summary_df <- map_dfr(lambda_values, analyze_lambda)
+
+print(summary_df)
+
+# --- Plot ---
+summary_long <- summary_df %>%
+  pivot_longer(cols = c(gene_sparsity, variance_explained, frac_single_component),
+               names_to = "metric", values_to = "value")
+
+ggplot(summary_long, aes(x = lambda_gene, y = value, color = metric)) +
+  geom_line(size = 1.1) +
+  geom_point(size = 2) +
+  theme_minimal(base_size = 13) +
+  scale_x_log10() +
+  labs(title = "λ_gene optimization (Rank 35)",
+       x = "λ_gene (log scale)",
+       y = "Metric value",
+       color = "Metric") +
+  theme(legend.position = "bottom")
+```
+```{r}
+library(jsonlite)
+meta <- fromJSON("../output/26-rank35-optimization/lambda_gene_0.2/barnacle_factors/metadata.json")
+str(meta, max.level = 2)
+```
+
+# time
+
+
+```{r}
+library(tidyverse)
+
+# Read in data
+df <- read_csv("../output/26-rank35-optimization/lambda_gene_0.2/barnacle_factors/time_factors.csv") %>%
+  rename(TP = 1)   # rename the first column to TP
+
+# Reshape from wide to long
+df_long <- df %>%
+  pivot_longer(
+    cols = -TP,               # everything except TP
+    names_to = "Component",
+    values_to = "Loading"
+  )
+
+
+
+top_components <- df_long %>%
+  group_by(Component) %>%
+  summarize(var_loading = var(Loading)) %>%
+  slice_max(var_loading, n = 10) %>%
+  pull(Component)
+
+ggplot(df_long %>% filter(Component %in% top_components),
+       aes(x = TP, y = Loading, group = Component, color = Component)) +
+  geom_line(linewidth = 1.2) +
+  geom_point(size = 3) +
+  theme_classic(base_size = 14) +
+  labs(title = "Top 10 Most Variable Components Across Time Points",
+       x = "Time Point", y = "Loading Value")
+```
+# top 100 genes
+
+```{r}
+library(readr)
+library(dplyr)
+
+# Path to file
+file_path <- "../output/26-rank35-optimization/lambda_gene_0.2/barnacle_factors/gene_factors.csv"
+
+# Load data
+df <- read_csv(file_path)
+
+# Rename numeric columns to Component_1 ... Component_35
+colnames(df) <- c("OG_ID", paste0("Component_", 1:(ncol(df)-1)))
+
+# Create output directory
+outdir <- "../output/26-rank35-optimization/lambda_gene_0.2/top_genes_per_component"
+dir.create(outdir, showWarnings = FALSE, recursive = TRUE)
+
+# Loop over components
+for (comp in paste0("Component_", 1:(ncol(df) - 1))) {
+  top_genes <- df %>%
+    arrange(desc(.data[[comp]])) %>%
+    slice_head(n = 100) %>%
+    select(OG_ID, all_of(comp))
+  
+  # Write to CSV per component
+  write_csv(top_genes, file.path(outdir, paste0(comp, "_top100.csv")))
+}
+```
+
+
