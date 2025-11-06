@@ -26,7 +26,7 @@ def read_component_og_ids(component_file):
         List of OG_IDs
     """
     og_ids = []
-    with open(component_file, 'r') as f:
+    with open(component_file, 'r', encoding='utf-8') as f:
         reader = csv.DictReader(f)
         for row in reader:
             og_ids.append(row['OG_ID'])
@@ -53,7 +53,7 @@ def map_og_to_species_genes(ortholog_file, og_ids):
         'ptua': []
     }
     
-    with open(ortholog_file, 'r') as f:
+    with open(ortholog_file, 'r', encoding='utf-8') as f:
         reader = csv.DictReader(f)
         for row in reader:
             if row['group_id'] in og_set:
@@ -116,8 +116,9 @@ def filter_count_matrix(count_matrix_file, gene_ids, output_file, gene_prefix=""
 
 
 def main():
-    # Base paths
-    base_dir = "/home/runner/work/timeseries_molecular/timeseries_molecular"
+    # Base paths - use script location to find repository root
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    base_dir = os.path.abspath(os.path.join(script_dir, "..", ".."))
     
     # Input files
     component_file = os.path.join(
