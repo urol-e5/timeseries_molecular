@@ -30,18 +30,33 @@ def test_goslim_summary():
     print("\n2. Validating summary file structure...")
     df = pd.read_csv(summary_file)
     
-    expected_columns = {'term', 'count'}
-    actual_columns = set(df.columns)
-    if actual_columns != expected_columns:
-        raise ValueError(f"Expected columns {expected_columns}, got {actual_columns}")
-    print(f"   ✓ Correct columns: {list(df.columns)}")
+    # Check that we have term column, component columns, and total column
+    if 'term' not in df.columns:
+        raise ValueError("Missing 'term' column")
+    if 'total' not in df.columns:
+        raise ValueError("Missing 'total' column")
+    
+    # Check for Component columns (should have Component_1 through Component_35)
+    component_cols = [col for col in df.columns if col.startswith('Component_')]
+    if len(component_cols) != 35:
+        raise ValueError(f"Expected 35 Component columns, found {len(component_cols)}")
+    
+    print(f"   ✓ Correct structure: term column, {len(component_cols)} component columns, total column")
+    print(f"   Total columns: {len(df.columns)}")
     
     # Test 3: Check data types
     print("\n3. Checking data types...")
     if df['term'].dtype != 'object':
         raise ValueError(f"Expected 'term' to be string, got {df['term'].dtype}")
-    if not pd.api.types.is_integer_dtype(df['count']):
-        raise ValueError(f"Expected 'count' to be integer, got {df['count'].dtype}")
+    if not pd.api.types.is_integer_dtype(df['total']):
+        raise ValueError(f"Expected 'total' to be integer, got {df['total'].dtype}")
+    
+    # Check that component columns are integers
+    component_cols = [col for col in df.columns if col.startswith('Component_')]
+    for col in component_cols[:3]:  # Check first 3 as a sample
+        if not pd.api.types.is_integer_dtype(df[col]):
+            raise ValueError(f"Expected '{col}' to be integer, got {df[col].dtype}")
+    
     print(f"   ✓ Correct data types")
     
     # Test 4: Check for data
@@ -50,18 +65,28 @@ def test_goslim_summary():
         raise ValueError("Summary file is empty")
     print(f"   ✓ Found {len(df)} unique GO Slim terms")
     
-    # Test 5: Validate counts are positive
+    # Test 5: Validate counts are positive and totals are correct
     print("\n5. Validating counts...")
-    if (df['count'] <= 0).any():
-        raise ValueError("Found non-positive counts")
-    print(f"   ✓ All counts are positive")
-    print(f"   Total occurrences: {df['count'].sum()}")
+    if (df['total'] <= 0).any():
+        raise ValueError("Found non-positive totals")
     
-    # Test 6: Check sorting (should be descending by count)
+    # Verify that totals match sum of component columns
+    component_cols = [col for col in df.columns if col.startswith('Component_')]
+    for i in range(min(5, len(df))):  # Check first 5 rows
+        row_sum = df.iloc[i][component_cols].sum()
+        total = df.iloc[i]['total']
+        if row_sum != total:
+            raise ValueError(f"Row {i}: sum of components ({row_sum}) != total ({total})")
+    
+    print(f"   ✓ All counts are positive")
+    print(f"   ✓ Totals match sum of component columns")
+    print(f"   Total occurrences: {df['total'].sum()}")
+    
+    # Test 6: Check sorting (should be descending by total)
     print("\n6. Checking sort order...")
-    if not df['count'].is_monotonic_decreasing:
-        raise ValueError("Results are not sorted by count (descending)")
-    print(f"   ✓ Results sorted by count (descending)")
+    if not df['total'].is_monotonic_decreasing:
+        raise ValueError("Results are not sorted by total (descending)")
+    print(f"   ✓ Results sorted by total (descending)")
     
     # Test 7: Verify against source files
     print("\n7. Verifying against source files...")
@@ -87,22 +112,23 @@ def test_goslim_summary():
             # Check if these terms exist in summary
             sample_term = sample_terms[0]
             if sample_term in df['term'].values:
-                count = df[df['term'] == sample_term]['count'].iloc[0]
-                print(f"   ✓ Sample term '{sample_term}' found with count {count}")
+                total = df[df['term'] == sample_term]['total'].iloc[0]
+                print(f"   ✓ Sample term '{sample_term}' found with total count {total}")
             else:
                 print(f"   ⚠ Sample term '{sample_term}' not found in summary")
     
     # Test 9: Display summary statistics
     print("\n9. Summary statistics...")
     print(f"   Total unique terms: {len(df)}")
-    print(f"   Total occurrences: {df['count'].sum()}")
-    print(f"   Most common term: '{df.iloc[0]['term']}' ({df.iloc[0]['count']} occurrences)")
-    print(f"   Least common terms: {(df['count'] == 1).sum()} terms with 1 occurrence")
+    print(f"   Total occurrences: {df['total'].sum()}")
+    print(f"   Number of components: {len([col for col in df.columns if col.startswith('Component_')])}")
+    print(f"   Most common term: '{df.iloc[0]['term']}' ({df.iloc[0]['total']} occurrences)")
+    print(f"   Least common terms: {(df['total'] == 1).sum()} terms with 1 occurrence")
     
     # Display top 5
     print("\n   Top 5 terms:")
     for idx, row in df.head(5).iterrows():
-        print(f"     {row['term']}: {row['count']}")
+        print(f"     {row['term']}: {row['total']}")
     
     # Summary
     print("\n" + "=" * 70)

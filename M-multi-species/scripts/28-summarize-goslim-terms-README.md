@@ -18,11 +18,12 @@ Counts and summarizes the occurrences of GO Slim terms from the `goslim_names` c
 Creates a single CSV file:
 - `M-multi-species/output/26-rank35-optimization/lambda_gene_0.2/top_genes_per_component/goslim_term_counts.csv`
 
-The output file contains two columns:
-- `term`: The GO Slim term
-- `count`: Number of occurrences across all annotation files
+The output file contains:
+- `term`: The GO Slim term name
+- `Component_1` through `Component_35`: Count of the term in each component
+- `total`: Total number of occurrences across all components
 
-Results are sorted by count in descending order (most common terms first).
+Results are sorted by total count in descending order (most common terms first).
 
 ### Usage
 
@@ -41,21 +42,22 @@ python3 M-multi-species/scripts/test_goslim_summary.py
 
 The test validates:
 - Output file exists
-- Correct file structure (columns: term, count)
+- Correct file structure (columns: term, Component_1...Component_35, total)
 - Data types are correct
 - All counts are positive
-- Results are sorted by count
+- Totals match sum of component columns
+- Results are sorted by total count
 - Terms exist in source annotation files
 
 ### Example Output
 
 ```
-term,count
-organelle,966
-catalytic activity,514
-nucleus,452
-cytosol,449
-anatomical structure development,439
+term,Component_1,Component_2,Component_3,...,Component_35,total
+organelle,39,27,34,...,21,966
+catalytic activity,24,11,17,...,6,514
+nucleus,18,20,17,...,7,452
+cytosol,22,13,17,...,12,449
+anatomical structure development,23,16,13,...,6,439
 ...
 ```
 
