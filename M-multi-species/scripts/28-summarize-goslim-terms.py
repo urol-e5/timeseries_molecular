@@ -40,9 +40,10 @@ def count_goslim_terms(annotation_files):
             
             # Extract all terms from goslim_names column
             for terms_str in df['goslim_names'].dropna():
-                if terms_str and str(terms_str).strip():
+                terms_str = str(terms_str)
+                if terms_str and terms_str.strip():
                     # Split by semicolon and clean up each term
-                    terms = [t.strip() for t in str(terms_str).split(';') if t.strip()]
+                    terms = [t.strip() for t in terms_str.split(';') if t.strip()]
                     all_terms.extend(terms)
         
         except Exception as e:
