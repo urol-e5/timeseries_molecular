@@ -29,7 +29,7 @@ def parse_goslim_terms(goslim_str):
     Parse GO slim terms from a string.
     
     Terms are separated by semicolons.
-    Some terms may have GO IDs in brackets which we'll remove.
+    Some terms may have GO IDs in square brackets (e.g., [GO:0005509]) which are removed.
     
     Args:
         goslim_str: String containing GO slim terms
@@ -43,7 +43,7 @@ def parse_goslim_terms(goslim_str):
     # Split by semicolon
     terms = [t.strip() for t in str(goslim_str).split(';')]
     
-    # Remove GO IDs in brackets and clean up
+    # Remove GO IDs in square brackets (format: [GO:XXXXXX]) and clean up
     cleaned_terms = []
     for term in terms:
         # Remove GO IDs like [GO:0005509]
@@ -83,14 +83,24 @@ def main():
         
         print(f"Processing {file_path.name}...")
         
-        # Read the CSV file
-        df = pd.read_csv(file_path)
-        
-        # Extract and count GO slim terms
-        for goslim_str in df['goslim_names']:
-            terms = parse_goslim_terms(goslim_str)
-            for term in terms:
-                term_counts[term][component_name] += 1
+        try:
+            # Read the CSV file
+            df = pd.read_csv(file_path)
+            
+            # Check if goslim_names column exists
+            if 'goslim_names' not in df.columns:
+                print(f"  Warning: 'goslim_names' column not found in {file_path.name}, skipping...")
+                continue
+            
+            # Extract and count GO slim terms
+            for goslim_str in df['goslim_names']:
+                terms = parse_goslim_terms(goslim_str)
+                for term in terms:
+                    term_counts[term][component_name] += 1
+        except Exception as e:
+            print(f"  Error processing {file_path.name}: {e}")
+            print(f"  Skipping this file and continuing...")
+            continue
     
     # Create a DataFrame from the term counts
     # Get all unique terms (sorted alphabetically)
