@@ -4,7 +4,7 @@ output: html_document
 date: "2025-11-06"
 ---
 
-```{bash}
+```
 LAMBDAS_GENE="0.00 0.01 0.05 0.1 0.2 0.4 0.8"
 LAMBDA_SAMPLE=0.1
 LAMBDA_TIME=0.05
