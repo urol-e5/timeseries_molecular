@@ -1192,3 +1192,84 @@ FACTOR MATCH SCORE EVALUATION COMPLETE
 Summary: 12/12 ranks have valid Reconstruction FMS
          12/12 ranks have valid TLViz FMS
 → Use Reconstruction FMS and correlation for rank selection
+
+============================================================
+SYNTHETIC FMS ELBOW PLOT (STANDALONE)
+============================================================
+Loading FMS results from: ../output/13.00-multiomics-barnacle/rank_comparison/factor_match_scores.csv
+Loaded FMS data for 12 ranks
+Columns available: ['rank', 'fms_tlviz', 'fms_reconstruction', 'fms_synthetic', 'reconstruction_correlation', 'tlviz_success', 'reconstruction_success', 'synthetic_success', 'tlviz_method', 'reconstruction_method', 'synthetic_method', 'valid_elements']
+Found 12 ranks with valid synthetic FMS
+[<matplotlib.lines.Line2D object at 0x77c03dd562d0>]
+[<matplotlib.lines.Line2D object at 0x77c0463b6d50>]
+[<matplotlib.lines.Line2D object at 0x77c034d4fad0>]
+[<matplotlib.lines.Line2D object at 0x77c034d64f90>]
+Text(0.5, 0, 'Rank (Number of Components)')
+Text(0, 0.5, 'Factor Match Score')
+Text(0.5, 1.0, 'Factor Match Score Comparison: Finding the Elbow\nSynthetic FMS peaks at optimal rank, then declines (overfitting)')
+<matplotlib.legend.Legend object at 0x77c034efc050>
+(0.0, 1.05)
+<matplotlib.lines.Line2D object at 0x77c034ee8690>
+Text(74.575, 0.91, 'Excellent (>0.9)')
+<matplotlib.lines.Line2D object at 0x77c034d6f650>
+Text(74.575, 0.71, 'Good (>0.7)')
+<matplotlib.lines.Line2D object at 0x77c03dd1c990>
+Text(74.575, 0.51, 'Fair (>0.5)')
+[<matplotlib.lines.Line2D object at 0x77c034d7dd90>]
+[<matplotlib.lines.Line2D object at 0x77c034d7e750>]
+<matplotlib.lines.Line2D object at 0x77c034d4da90>
+Text(10, 0.48123809137542917, 'Optimal\nRank 10')
+Text(6.5, 0.879785657206089, 'Underfitting\n(Too simple)')
+Text(35.0, 0.879785657206089, 'Overfitting\n(Capturing noise)')
+Text(0.5, 0, 'Rank (Number of Components)')
+Text(0, 0.5, 'Synthetic Validation FMS')
+Text(0.5, 1.0, 'Synthetic FMS: Factor Recovery Test\nPeak indicates optimal balance between fit and stability')
+(0.35389934436773185, 1.05)
+<matplotlib.lines.Line2D object at 0x77c034d8a610>
+<matplotlib.lines.Line2D object at 0x77c034d8b350>
+<matplotlib.lines.Line2D object at 0x77c034d8bc90>
+<string>:138: UserWarning: Glyph 128300 (\N{MICROSCOPE}) missing from font(s) DejaVu Sans.
+<string>:138: UserWarning: Glyph 11088 (\N{WHITE MEDIUM STAR}) missing from font(s) DejaVu Sans.
+<string>:140: UserWarning: Glyph 128300 (\N{MICROSCOPE}) missing from font(s) DejaVu Sans.
+<string>:140: UserWarning: Glyph 11088 (\N{WHITE MEDIUM STAR}) missing from font(s) DejaVu Sans.
+
+✓ Saved Synthetic FMS elbow plot to: ../output/13.00-multiomics-barnacle/rank_comparison/synthetic_fms_elbow_plot.png
+
+============================================================
+SYNTHETIC FMS ELBOW ANALYSIS
+============================================================
+Optimal Rank: 10 (FMS = 0.9071)
+
+Complete Synthetic FMS Results:
+Rank     Synthetic FMS   Quality      Status
+-------- --------------- ------------ --------------------
+5        0.6170          Fair         
+8        0.6859          Fair         
+10       0.9071          Excellent    ★ OPTIMAL
+12       0.5074          Fair         
+15       0.7324          Good         
+20       0.4963          Poor         
+25       0.6034          Fair         
+35       0.5673          Fair         
+45       0.5851          Fair         
+55       0.4969          Poor         
+65       0.5136          Fair         
+75       0.4539          Poor         
+
+Interpretation:
+  • Synthetic FMS tests factor recovery from noisy data
+  • Peak at rank 10 indicates best balance:
+    - Sufficient complexity to capture patterns
+    - Robust enough to avoid overfitting noise
+  • Higher ranks show declining FMS (overfitting)
+  • Lower ranks show lower FMS (underfitting)
+
+Statistics:
+  • Improvement to optimal: +0.2213
+  • Average FMS after optimal: 0.5507
+  • Decline from peak: -0.3564
+
+============================================================
+
+SYNTHETIC FMS ELBOW PLOT GENERATION COMPLETE
+============================================================

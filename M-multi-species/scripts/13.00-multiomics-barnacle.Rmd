@@ -2100,6 +2100,229 @@ if 'all_fms_results' in locals() and len(all_fms_results) > 0:
         print(f"→ No valid FMS results - check tensor and factor matrices")
 ```
 
+### Plot Synthetic FMS Elbow (Standalone)
+
+This chunk can be run independently to generate the synthetic FMS elbow plot without re-running the expensive Factor Match Score evaluation. It loads the saved FMS results from the CSV file.
+
+```{python plot-synthetic-fms-elbow-standalone, eval=TRUE}
+# ===========================================
+# STANDALONE SYNTHETIC FMS ELBOW PLOT
+# ===========================================
+# This chunk loads saved FMS results and creates the elbow plot
+# Can be run independently without re-running FMS evaluation
+# ===========================================
+
+import os
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Get output directory
+output_dir = r.output_dir if 'r' in dir() else '../output/13.00-multiomics-barnacle'
+comparison_dir = os.path.join(output_dir, 'rank_comparison')
+fms_csv_file = os.path.join(comparison_dir, 'factor_match_scores.csv')
+
+print(f"\n{'='*60}")
+print("SYNTHETIC FMS ELBOW PLOT (STANDALONE)")
+print(f"{'='*60}")
+print(f"Loading FMS results from: {fms_csv_file}")
+
+# Check if FMS results file exists
+if not os.path.exists(fms_csv_file):
+    print(f"\nERROR: FMS results file not found!")
+    print(f"Expected location: {fms_csv_file}")
+    print(f"\nPlease run the Factor Match Score evaluation chunk first.")
+    print(f"It should create: {comparison_dir}/factor_match_scores.csv")
+else:
+    # Load FMS results
+    fms_df = pd.read_csv(fms_csv_file)
+    
+    print(f"Loaded FMS data for {len(fms_df)} ranks")
+    print(f"Columns available: {list(fms_df.columns)}")
+    
+    # Check if synthetic FMS data is available
+    if 'fms_synthetic' not in fms_df.columns:
+        print(f"\nERROR: No 'fms_synthetic' column found in FMS results!")
+        print(f"Synthetic validation was not performed.")
+        print(f"\nTo generate synthetic FMS data:")
+        print(f"1. Set USE_SYNTHETIC_VALIDATION = True in the FMS evaluation chunk")
+        print(f"2. Re-run the Factor Match Score evaluation chunk")
+    else:
+        # Check if any ranks have valid synthetic FMS
+        valid_synthetic = fms_df['synthetic_success'].fillna(False)
+        
+        if not valid_synthetic.any():
+            print(f"\nERROR: No valid synthetic FMS values found!")
+            print(f"All synthetic validation attempts failed or were skipped.")
+            print(f"\nTo generate synthetic FMS data:")
+            print(f"1. Set USE_SYNTHETIC_VALIDATION = True in the FMS evaluation chunk")
+            print(f"2. Re-run the Factor Match Score evaluation chunk")
+        else:
+            print(f"Found {valid_synthetic.sum()} ranks with valid synthetic FMS")
+            
+            # ===========================================
+            # CREATE SYNTHETIC FMS ELBOW PLOT
+            # ===========================================
+            
+            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
+            
+            # Plot 1: All three FMS metrics together
+            valid_tlviz = fms_df['tlviz_success'].fillna(False)
+            valid_recon = fms_df['reconstruction_success'].fillna(False)
+            
+            # Synthetic FMS (primary focus - should show elbow)
+            synthetic_data = fms_df.loc[valid_synthetic].sort_values('rank')
+            ax1.plot(synthetic_data['rank'], synthetic_data['fms_synthetic'], 
+                    'o-', linewidth=3, markersize=10, label='🔬 Synthetic Validation FMS', 
+                    color='#2ecc71', zorder=3)
+            
+            # Mark the peak (optimal rank)
+            max_synthetic_idx = synthetic_data['fms_synthetic'].idxmax()
+            optimal_rank = synthetic_data.loc[max_synthetic_idx, 'rank']
+            optimal_score = synthetic_data.loc[max_synthetic_idx, 'fms_synthetic']
+            ax1.plot(optimal_rank, optimal_score, 'r*', markersize=20, 
+                    label=f'★ Optimal: Rank {int(optimal_rank)} (FMS={optimal_score:.4f})',
+                    zorder=4)
+            
+            # Reconstruction FMS (should increase monotonically)
+            if valid_recon.any():
+                recon_data = fms_df.loc[valid_recon].sort_values('rank')
+                ax1.plot(recon_data['rank'], recon_data['fms_reconstruction'], 
+                        's--', linewidth=2, markersize=8, label='⭐ Reconstruction FMS', 
+                        color='#3498db', alpha=0.7, zorder=2)
+            
+            # TLViz FMS (if available - should be near 1.0)
+            if valid_tlviz.any():
+                tlviz_data = fms_df.loc[valid_tlviz].sort_values('rank')
+                ax1.plot(tlviz_data['rank'], tlviz_data['fms_tlviz'], 
+                        '^:', linewidth=1.5, markersize=6, label='⚠️  TLViz FMS (self-check)', 
+                        color='#95a5a6', alpha=0.5, zorder=1)
+            
+            ax1.set_xlabel('Rank (Number of Components)', fontsize=12, fontweight='bold')
+            ax1.set_ylabel('Factor Match Score', fontsize=12, fontweight='bold')
+            ax1.set_title('Factor Match Score Comparison: Finding the Elbow\n' +
+                         'Synthetic FMS peaks at optimal rank, then declines (overfitting)',
+                         fontsize=13, fontweight='bold')
+            ax1.grid(True, alpha=0.3, linestyle='--')
+            ax1.legend(loc='best', fontsize=10)
+            ax1.set_ylim([0, 1.05])
+            
+            # Add quality threshold lines
+            ax1.axhline(y=0.9, color='green', linestyle='--', alpha=0.3, linewidth=1)
+            ax1.text(ax1.get_xlim()[1]*0.95, 0.91, 'Excellent (>0.9)', 
+                    ha='right', va='bottom', fontsize=9, color='green', alpha=0.7)
+            ax1.axhline(y=0.7, color='orange', linestyle='--', alpha=0.3, linewidth=1)
+            ax1.text(ax1.get_xlim()[1]*0.95, 0.71, 'Good (>0.7)', 
+                    ha='right', va='bottom', fontsize=9, color='orange', alpha=0.7)
+            ax1.axhline(y=0.5, color='red', linestyle='--', alpha=0.3, linewidth=1)
+            ax1.text(ax1.get_xlim()[1]*0.95, 0.51, 'Fair (>0.5)', 
+                    ha='right', va='bottom', fontsize=9, color='red', alpha=0.7)
+            
+            # Plot 2: Focus on synthetic FMS with interpretation
+            ax2.plot(synthetic_data['rank'], synthetic_data['fms_synthetic'], 
+                    'o-', linewidth=3, markersize=10, color='#2ecc71')
+            
+            # Highlight optimal rank
+            ax2.plot(optimal_rank, optimal_score, 'r*', markersize=25)
+            
+            # Add annotations
+            ax2.axvline(x=optimal_rank, color='red', linestyle='--', alpha=0.5, linewidth=2)
+            ax2.text(optimal_rank, ax2.get_ylim()[0] + 0.05, 
+                    f'Optimal\nRank {int(optimal_rank)}',
+                    ha='center', va='bottom', fontsize=11, fontweight='bold',
+                    bbox=dict(boxstyle='round,pad=0.5', facecolor='yellow', alpha=0.7))
+            
+            # Annotate regions
+            if len(synthetic_data) > 1:
+                # Find ranks before and after optimal
+                before_optimal = synthetic_data[synthetic_data['rank'] < optimal_rank]
+                after_optimal = synthetic_data[synthetic_data['rank'] > optimal_rank]
+                
+                if len(before_optimal) > 0:
+                    mid_before = before_optimal['rank'].median()
+                    ax2.text(mid_before, ax2.get_ylim()[1] - 0.05, 
+                            'Underfitting\n(Too simple)', 
+                            ha='center', va='top', fontsize=10, style='italic',
+                            color='darkblue', alpha=0.7)
+                
+                if len(after_optimal) > 0:
+                    mid_after = after_optimal['rank'].median()
+                    ax2.text(mid_after, ax2.get_ylim()[1] - 0.05, 
+                            'Overfitting\n(Capturing noise)', 
+                            ha='center', va='top', fontsize=10, style='italic',
+                            color='darkred', alpha=0.7)
+            
+            ax2.set_xlabel('Rank (Number of Components)', fontsize=12, fontweight='bold')
+            ax2.set_ylabel('Synthetic Validation FMS', fontsize=12, fontweight='bold')
+            ax2.set_title('Synthetic FMS: Factor Recovery Test\n' +
+                         'Peak indicates optimal balance between fit and stability',
+                         fontsize=13, fontweight='bold')
+            ax2.grid(True, alpha=0.3, linestyle='--')
+            ax2.set_ylim([max(0, synthetic_data['fms_synthetic'].min() - 0.1), 1.05])
+            
+            # Add quality threshold lines
+            ax2.axhline(y=0.9, color='green', linestyle='--', alpha=0.3, linewidth=1)
+            ax2.axhline(y=0.7, color='orange', linestyle='--', alpha=0.3, linewidth=1)
+            ax2.axhline(y=0.5, color='red', linestyle='--', alpha=0.3, linewidth=1)
+            
+            plt.tight_layout()
+            synthetic_plot_file = os.path.join(comparison_dir, 'synthetic_fms_elbow_plot.png')
+            plt.savefig(synthetic_plot_file, dpi=150, bbox_inches='tight')
+            print(f"\n✓ Saved Synthetic FMS elbow plot to: {synthetic_plot_file}")
+            plt.close()
+            
+            # Print summary
+            print(f"\n{'='*60}")
+            print("SYNTHETIC FMS ELBOW ANALYSIS")
+            print(f"{'='*60}")
+            print(f"Optimal Rank: {int(optimal_rank)} (FMS = {optimal_score:.4f})")
+            
+            # Show all ranks with their scores
+            print(f"\nComplete Synthetic FMS Results:")
+            print(f"{'Rank':<8} {'Synthetic FMS':<15} {'Quality':<12} {'Status'}")
+            print(f"{'-'*8} {'-'*15} {'-'*12} {'-'*20}")
+            for idx, row in synthetic_data.iterrows():
+                rank_val = int(row['rank'])
+                fms_val = row['fms_synthetic']
+                
+                if fms_val > 0.9:
+                    quality = "Excellent"
+                elif fms_val > 0.7:
+                    quality = "Good"
+                elif fms_val > 0.5:
+                    quality = "Fair"
+                else:
+                    quality = "Poor"
+                
+                status = "★ OPTIMAL" if rank_val == optimal_rank else ""
+                print(f"{rank_val:<8} {fms_val:<15.4f} {quality:<12} {status}")
+            
+            print(f"\nInterpretation:")
+            print(f"  • Synthetic FMS tests factor recovery from noisy data")
+            print(f"  • Peak at rank {int(optimal_rank)} indicates best balance:")
+            print(f"    - Sufficient complexity to capture patterns")
+            print(f"    - Robust enough to avoid overfitting noise")
+            print(f"  • Higher ranks show declining FMS (overfitting)")
+            print(f"  • Lower ranks show lower FMS (underfitting)")
+            
+            # Additional statistics
+            if len(synthetic_data) > 1:
+                decline_after_optimal = after_optimal['fms_synthetic'].mean() if len(after_optimal) > 0 else np.nan
+                improvement_to_optimal = optimal_score - before_optimal['fms_synthetic'].max() if len(before_optimal) > 0 else np.nan
+                
+                print(f"\nStatistics:")
+                if not np.isnan(improvement_to_optimal):
+                    print(f"  • Improvement to optimal: +{improvement_to_optimal:.4f}")
+                if not np.isnan(decline_after_optimal):
+                    print(f"  • Average FMS after optimal: {decline_after_optimal:.4f}")
+                    print(f"  • Decline from peak: -{(optimal_score - decline_after_optimal):.4f}")
+            
+            print(f"\n{'='*60}")
+
+print(f"\nSYNTHETIC FMS ELBOW PLOT GENERATION COMPLETE")
+print(f"{'='*60}")
+```
+
 
 # VISUALIZATION
 
