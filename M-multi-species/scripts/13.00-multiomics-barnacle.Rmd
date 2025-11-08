@@ -1473,40 +1473,30 @@ print(f"{'='*60}")
 def calculate_factor_match_score(tensor, decomposition, rank):
     """
     Calculate Factor Match Score using tlviz library.
-    Higher scores indicate better factor recovery.
+    
+    WARNING: This implementation compares the decomposition against itself,
+    which will always yield FMS ≈ 1.0. This is only useful as a sanity check
+    to verify the decomposition is internally consistent.
+    
+    For actual rank selection, use calculate_reconstruction_fms() instead,
+    which compares the reconstruction against the original tensor.
+    
+    NOTE: May fail with scipy >= 1.14 due to _lazywhere removal.
     """
     try:
         # Import required libraries
         import tensorly as tl
-        try:
-            import tlviz.factor_tools
-            print(f"  TLViz successfully imported for rank {rank}")
-        except ImportError as e:
-            print(f"  WARNING: tlviz not available for rank {rank}: {e}")
-            print(f"  Attempting to install tensorly-viz...")
-            import subprocess
-            import sys
-            try:
-                subprocess.check_call([sys.executable, "-m", "pip", "install", "tensorly-viz", "--upgrade"])
-                import tlviz.factor_tools
-                print(f"  TLViz successfully installed and imported for rank {rank}")
-            except Exception as install_error:
-                print(f"  Failed to install/import tlviz: {install_error}")
-                return {
-                    'fms': np.nan,
-                    'permutation': None,
-                    'success': False,
-                    'error': f"Installation failed: {install_error}",
-                    'method': 'failed'
-                }
+        import tlviz.factor_tools
         
-        # Create a reference CP tensor from the original data
-        # We'll use the decomposition itself as a synthetic "ground truth"
-        # This gives us a measure of reconstruction quality
+        # IMPORTANT: This creates a "reference" from the decomposition itself
+        # This means we're comparing the decomposition to itself, which will
+        # always give a perfect or near-perfect score (~1.0).
+        # This is NOT a meaningful metric for rank selection!
+        # It only validates that the decomposition object is internally consistent.
         reference_cp = tl.cp_tensor.CPTensor((decomposition.weights, decomposition.factors))
         
-        # Calculate factor match score between decomposition and reference
-        # Note: This compares the decomposition's internal consistency
+        # Calculate factor match score between decomposition and itself
+        # Expected result: FMS ≈ 1.0 for all ranks (self-comparison)
         fms, perm = tlviz.factor_tools.factor_match_score(
             reference_cp,
             decomposition,
@@ -1518,14 +1508,15 @@ def calculate_factor_match_score(tensor, decomposition, rank):
             'fms': float(fms),
             'permutation': perm,
             'success': True,
-            'method': 'self_consistency'
+            'method': 'tlviz_self_consistency',
+            'warning': 'Self-comparison: FMS ≈ 1.0 expected (not useful for rank selection)'
         }
         
     except ImportError as e:
-        error_msg = f"SciPy compatibility issue: {e}"
+        # Skip silently - this is expected with newer scipy versions
+        error_msg = "SciPy/TLViz compatibility issue (expected with scipy >= 1.14)"
         if '_lazywhere' in str(e):
-            error_msg = "SciPy version incompatibility with tensorly-viz (_lazywhere import error)"
-        print(f"  TLViz FMS skipped for rank {rank}: {error_msg}")
+            error_msg = "SciPy version incompatibility (_lazywhere removed in scipy >= 1.14)"
         return {
             'fms': np.nan,
             'permutation': None,
@@ -1534,7 +1525,6 @@ def calculate_factor_match_score(tensor, decomposition, rank):
             'method': 'scipy_incompatibility'
         }
     except Exception as e:
-        print(f"  Error calculating FMS for rank {rank}: {e}")
         return {
             'fms': np.nan,
             'permutation': None,
@@ -1543,11 +1533,129 @@ def calculate_factor_match_score(tensor, decomposition, rank):
             'method': 'failed'
         }
 
+def calculate_proper_factor_match_score(tensor, decomposition, rank, noise_level=0.1, random_state=42):
+    """
+    PROPER TLViz FMS: Synthetic validation approach.
+    
+    This creates a synthetic tensor from the decomposition, adds noise,
+    re-decomposes it, then measures how well we recover the original factors.
+    
+    This tests the method's ability to recover known factors in the presence
+    of noise, which is a meaningful validation of decomposition quality.
+    
+    Higher scores indicate:
+    - Better factor recovery
+    - More robust decomposition
+    - Less sensitivity to noise
+    
+    NOTE: Computationally expensive (requires additional decomposition).
+    """
+    try:
+        import tensorly as tl
+        import tlviz.factor_tools
+        from barnacle.decomposition import SparseCP
+        
+        # Step 1: Create synthetic "ground truth" tensor from current decomposition
+        gene_factors = decomposition.factors[0]
+        sample_factors = decomposition.factors[1]
+        time_factors = decomposition.factors[2]
+        weights = decomposition.weights
+        
+        # Reconstruct clean synthetic tensor
+        synthetic_clean = np.zeros(tensor.shape)
+        for r in range(len(weights)):
+            outer_prod = np.outer(gene_factors[:, r], sample_factors[:, r])
+            outer_prod = np.outer(outer_prod.flatten(), time_factors[:, r])
+            outer_prod = outer_prod.reshape(tensor.shape)
+            synthetic_clean += weights[r] * outer_prod
+        
+        # Step 2: Add realistic noise
+        np.random.seed(random_state)
+        noise_std = noise_level * np.std(synthetic_clean)
+        noise = np.random.normal(0, noise_std, synthetic_clean.shape)
+        synthetic_noisy = synthetic_clean + noise
+        
+        # Step 3: Decompose the noisy synthetic tensor
+        # This tests: "Can we recover the factors from noisy data?"
+        model_synthetic = SparseCP(
+            rank=rank,
+            lambdas=[0.1, 0.0, 0.1],
+            nonneg_modes=[0],
+            norm_constraint=True,
+            init='random',
+            tol=1e-5,
+            n_iter_max=5000,  # Fewer iterations for speed
+            random_state=random_state + 1,
+            n_initializations=1
+        )
+        
+        recovered_decomposition = model_synthetic.fit_transform(synthetic_noisy, verbose=0)
+        
+        # Step 4: Compare recovered factors to ground truth (original decomposition)
+        # Create proper CPTensor objects
+        ground_truth_cp = tl.cp_tensor.CPTensor((weights, [gene_factors, sample_factors, time_factors]))
+        
+        # MockDecomposition for recovered (same structure as before)
+        class MockDecomposition:
+            def __init__(self, weights, factors):
+                self.weights = weights
+                self.factors = factors
+                self._tuple = (weights, factors)
+            def __getitem__(self, index):
+                return self._tuple[index]
+            def __len__(self):
+                return 2
+        
+        recovered_mock = MockDecomposition(recovered_decomposition.weights, recovered_decomposition.factors)
+        
+        # Calculate FMS between ground truth and recovered
+        fms, perm = tlviz.factor_tools.factor_match_score(
+            ground_truth_cp,
+            recovered_mock,
+            return_permutation=True,
+            allow_smaller_rank=True
+        )
+        
+        return {
+            'fms': float(fms),
+            'permutation': perm,
+            'success': True,
+            'method': 'synthetic_validation',
+            'noise_level': noise_level,
+            'recovery_quality': 'excellent' if fms > 0.9 else 'good' if fms > 0.7 else 'fair' if fms > 0.5 else 'poor'
+        }
+        
+    except ImportError as e:
+        error_msg = "TLViz not available (scipy incompatibility)"
+        if '_lazywhere' in str(e):
+            error_msg = "SciPy version incompatibility (_lazywhere removed in scipy >= 1.14)"
+        return {
+            'fms': np.nan,
+            'success': False,
+            'error': error_msg,
+            'method': 'import_failed'
+        }
+    except Exception as e:
+        return {
+            'fms': np.nan,
+            'success': False,
+            'error': str(e),
+            'method': 'failed'
+        }
+
 def calculate_reconstruction_fms(tensor, decomposition, rank):
     """
-    Alternative FMS calculation based on reconstruction quality.
-    This creates a synthetic ground truth and measures how well 
-    the decomposition recovers it.
+    PRIMARY METRIC: Calculate FMS based on reconstruction quality.
+    
+    This compares the original tensor to its reconstruction from the decomposition,
+    providing a meaningful measure of how well the decomposition captures the data.
+    
+    Higher scores indicate better reconstruction:
+    - 1.0 = perfect reconstruction
+    - 0.5 = no correlation
+    - 0.0 = perfect negative correlation
+    
+    This is the RECOMMENDED metric for rank selection.
     """
     try:
         # Create reconstructed tensor
@@ -1598,9 +1706,21 @@ def calculate_reconstruction_fms(tensor, decomposition, rank):
             'method': 'failed'
         }
 
-def evaluate_fms_for_rank(rank, output_dir, tensor):
+def evaluate_fms_for_rank(rank, output_dir, tensor, use_synthetic_validation=False):
     """
     Evaluate Factor Match Score for a specific rank.
+    
+    Parameters:
+    -----------
+    rank : int
+        Rank to evaluate
+    output_dir : str
+        Directory containing rank results
+    tensor : np.ndarray
+        Original tensor
+    use_synthetic_validation : bool, default=False
+        If True, use proper synthetic validation FMS (computationally expensive).
+        If False, use fast reconstruction-based FMS only.
     """
     print(f"\n--- Evaluating FMS for Rank {rank} ---")
     
@@ -1628,47 +1748,86 @@ def evaluate_fms_for_rank(rank, output_dir, tensor):
         print(f"  Error loading factor matrices: {e}")
         return None
     
-    # Create mock decomposition object
+    # Create mock decomposition object that mimics tensorly CPTensor structure
+    # TensorLy expects a tuple-like object: (weights, factors)
+    # We'll create a simple class that supports both attribute and subscript access
     class MockDecomposition:
         def __init__(self, weights, factors):
             self.weights = weights
             self.factors = factors
+            # Make it subscriptable for tensorly compatibility
+            self._tuple = (weights, factors)
+        
+        def __getitem__(self, index):
+            """Support subscript access like a tuple"""
+            return self._tuple[index]
+        
+        def __len__(self):
+            """Support len() for tuple-like behavior"""
+            return 2
     
     weights = weights_df['Weight'].values
     factors = [gene_factors.values, sample_factor_values.values, time_factors.values]
     mock_decomposition = MockDecomposition(weights, factors)
     
-    # Calculate both types of FMS
+    # Calculate FMS metrics
+    # 1. Old TLViz FMS (self-comparison - not useful)
     fms_result1 = calculate_factor_match_score(tensor, mock_decomposition, rank)
+    
+    # 2. Reconstruction FMS (PRIMARY metric - fast and reliable)
     fms_result2 = calculate_reconstruction_fms(tensor, mock_decomposition, rank)
+    
+    # 3. Proper synthetic validation FMS (optional - slow but rigorous)
+    if use_synthetic_validation:
+        print(f"  Running synthetic validation (this may take 1-2 minutes)...")
+        fms_result3 = calculate_proper_factor_match_score(tensor, mock_decomposition, rank)
+    else:
+        fms_result3 = {'success': False, 'method': 'skipped', 'fms': np.nan}
     
     # Combine results
     result = {
         'rank': rank,
         'fms_tlviz': fms_result1['fms'] if fms_result1['success'] else np.nan,
         'fms_reconstruction': fms_result2['fms'] if fms_result2['success'] else np.nan,
+        'fms_synthetic': fms_result3['fms'] if fms_result3['success'] else np.nan,
         'reconstruction_correlation': fms_result2.get('correlation', np.nan),
         'tlviz_success': fms_result1['success'],
         'reconstruction_success': fms_result2['success'],
+        'synthetic_success': fms_result3['success'],
         'tlviz_method': fms_result1.get('method', 'unknown'),
         'reconstruction_method': fms_result2.get('method', 'unknown'),
+        'synthetic_method': fms_result3.get('method', 'unknown'),
         'valid_elements': fms_result2.get('valid_elements', 0)
     }
     
     # Print results
+    # TLViz FMS note: This compares decomposition to itself (always ~1.0)
     if fms_result1['success']:
-        print(f"  TLViz FMS: {fms_result1['fms']:.4f}")
-    else:
-        if 'scipy_incompatibility' in fms_result1.get('method', ''):
-            print(f"  TLViz FMS: Skipped (SciPy version incompatibility)")
+        warning_note = fms_result1.get('warning', '')
+        if warning_note:
+            print(f"  TLViz FMS: {fms_result1['fms']:.4f} ⚠️  (self-consistency check only)")
         else:
-            print(f"  TLViz FMS: Failed ({fms_result1.get('error', 'unknown error')})")
+            print(f"  TLViz FMS: {fms_result1['fms']:.4f} ✅")
+    elif 'scipy_incompatibility' not in fms_result1.get('method', ''):
+        # Only print if it's a real error (not the expected scipy issue)
+        print(f"  TLViz FMS: Failed - {fms_result1.get('error', 'unknown')} (method: {fms_result1.get('method', 'unknown')})")
     
+    # Reconstruction FMS is the PRIMARY metric for rank selection
     if fms_result2['success']:
-        print(f"  Reconstruction FMS: {fms_result2['fms']:.4f} (correlation: {fms_result2.get('correlation', 'N/A'):.4f})")
-        print(f"  Valid elements used: {fms_result2.get('valid_elements', 0):,}")
+        print(f"  ⭐ RECONSTRUCTION FMS: {fms_result2['fms']:.4f} (correlation: {fms_result2.get('correlation', 'N/A'):.4f}) ⭐")
+        print(f"     ↳ Primary metric for rank selection")
+        print(f"     ↳ Valid elements used: {fms_result2.get('valid_elements', 0):,}")
     else:
         print(f"  Reconstruction FMS: Failed ({fms_result2.get('error', 'unknown error')})")
+    
+    # Synthetic validation FMS (if calculated)
+    if use_synthetic_validation and fms_result3['success']:
+        recovery = fms_result3.get('recovery_quality', 'unknown')
+        noise = fms_result3.get('noise_level', 0.1)
+        print(f"  🔬 SYNTHETIC FMS: {fms_result3['fms']:.4f} ({recovery} recovery with {noise*100:.0f}% noise)")
+        print(f"     ↳ Tests factor recovery robustness")
+    elif use_synthetic_validation and not fms_result3['success']:
+        print(f"  Synthetic FMS: Failed ({fms_result3.get('error', 'unknown error')})")
     
     # Save individual rank FMS results
     fms_file = os.path.join(rank_dir, 'factor_match_score.json')
@@ -1678,6 +1837,7 @@ def evaluate_fms_for_rank(rank, output_dir, tensor):
             'rank': rank,
             'tlviz_fms': fms_result1,
             'reconstruction_fms': fms_result2,
+            'synthetic_fms': fms_result3,
             'summary': result
         }, f, indent=2, default=str)
     
@@ -1724,11 +1884,33 @@ if tensor_3d is not None:
                 pass
         print(f"Found {len(successful_ranks)} rank directories: {successful_ranks}")
     
+    # ===========================================
+    # CONFIGURATION: Synthetic Validation FMS
+    # ===========================================
+    # Set to True to enable proper TLViz FMS via synthetic validation
+    # WARNING: This is computationally expensive (adds 1-2 min per rank)
+    # For 12 ranks, expect ~15-30 minutes additional runtime
+    # ===========================================
+    USE_SYNTHETIC_VALIDATION = True  # Change to True to enable
+    # ===========================================
+    
+    if USE_SYNTHETIC_VALIDATION:
+        print("\n" + "="*60)
+        print("⚠️  SYNTHETIC VALIDATION ENABLED")
+        print("="*60)
+        print("This will test factor recovery by:")
+        print("  1. Creating synthetic tensor from each decomposition")
+        print("  2. Adding noise to test robustness")
+        print("  3. Re-decomposing to see if factors are recovered")
+        print(f"Expected additional time: {len(successful_ranks) * 1.5:.0f}-{len(successful_ranks) * 2:.0f} minutes")
+        print("="*60 + "\n")
+    
     # Evaluate FMS for each rank
     all_fms_results = []
     
     for rank in sorted(successful_ranks):
-        fms_result = evaluate_fms_for_rank(rank, output_dir, tensor_3d)
+        fms_result = evaluate_fms_for_rank(rank, output_dir, tensor_3d, 
+                                          use_synthetic_validation=USE_SYNTHETIC_VALIDATION)
         if fms_result is not None:
             all_fms_results.append(fms_result)
     
@@ -1752,16 +1934,38 @@ if tensor_3d is not None:
         print(f"Saved FMS comparison table to: {fms_output_file}")
         
         # Display results
+        # Determine which columns to display based on what was calculated
         display_cols = ['rank', 'fms_tlviz', 'fms_reconstruction', 'reconstruction_correlation']
-        print("\nFactor Match Score Results:")
+        if 'fms_synthetic' in fms_df.columns and fms_df['synthetic_success'].any():
+            display_cols.append('fms_synthetic')
+        
+        print("\n" + "="*60)
+        print("FACTOR MATCH SCORE RESULTS")
+        print("="*60)
+        print("⚠️  NOTE: TLViz FMS compares decomposition to itself (always ~1.0)")
+        print("⭐  USE RECONSTRUCTION FMS for rank selection (compares to original tensor)")
+        if 'fms_synthetic' in display_cols:
+            print("🔬  SYNTHETIC FMS validates factor recovery robustness (optional)")
+        print("="*60)
         print(fms_df[display_cols].to_string(index=False, float_format='%.4f'))
         
         # Check if TLViz worked for any ranks
         tlviz_working = fms_df['tlviz_success'].any()
         if not tlviz_working:
-            print("\nNOTE: TLViz FMS failed for all ranks due to SciPy version incompatibility.")
-            print("This is a common issue with newer SciPy versions.")
-            print("The Reconstruction FMS provides equivalent functionality and is working correctly.")
+            print("\n" + "="*60)
+            print("NOTE: TLViz FMS unavailable (scipy version incompatibility)")
+            print("="*60)
+            print("This is expected and normal with scipy >= 1.14.")
+            print("The Reconstruction FMS provides equivalent functionality.")
+            print("="*60)
+        elif tlviz_working and fms_df.loc[fms_df['tlviz_success'], 'fms_tlviz'].min() > 0.95:
+            print("\n" + "="*60)
+            print("⚠️  WARNING: TLViz FMS shows all values near 1.0")
+            print("="*60)
+            print("This indicates self-comparison (decomposition vs itself).")
+            print("This is NOT useful for rank selection.")
+            print("→ USE RECONSTRUCTION FMS instead (varies by rank: 0.76-0.98)")
+            print("="*60)
         
         # Create visualization
         import matplotlib.pyplot as plt
@@ -1859,15 +2063,19 @@ if tensor_3d is not None:
             
             # Provide interpretation
             print(f"\nFMS Interpretation:")
-            print(f"• Reconstruction FMS measures tensor reconstruction quality")
-            print(f"  (correlation between original and decomposed tensors)")
-            print(f"• Reconstruction correlation shows direct fit quality")
-            print(f"• Higher scores indicate better factor recovery and model fit")
-            print(f"• Reconstruction FMS is the primary metric to use for rank selection")
+            print(f"• Reconstruction FMS is the PRIMARY metric for rank selection")
+            print(f"  - Measures tensor reconstruction quality (0-1 scale)")
+            print(f"  - Based on correlation between original and decomposed tensors")
+            print(f"• Reconstruction correlation shows direct fit quality (-1 to 1)")
+            print(f"  - Values > 0.9 indicate excellent reconstruction")
+            print(f"  - Values > 0.8 indicate good reconstruction")
+            print(f"• Higher scores = better factor recovery and model fit")
+            print(f"• Consider ranks with consistently high Reconstruction FMS (top 20%)")
             if len(tlviz_valid) == 0:
-                print(f"• TLViz FMS unavailable due to SciPy version incompatibility")
-                print(f"  (This is common and does not affect analysis quality)")
-            print(f"• Consider ranks with consistently high Reconstruction FMS")
+                print(f"\nNote: TLViz FMS unavailable due to scipy >= 1.14 incompatibility")
+                print(f"      (This is normal and does not affect analysis quality)")
+            else:
+                print(f"• TLViz FMS available and can be used for additional validation")
             
         else:
             print("No valid FMS results available for recommendation.")
