@@ -2693,7 +2693,60 @@ else:
     print(f"    Saved: time_component_lineplot.png")
     
     # ===========================================
-    # PLOT 3: COMPONENT CORRELATION HEATMAP
+    # PLOT 3: SAMPLE HEATMAP (Samples x Components)
+    # ===========================================
+    print(f"  Creating sample-component heatmap...")
+    
+    # Load sample factors with metadata
+    sample_factors_file = os.path.join(rank_dir, 'sample_factors.csv')
+    sample_factors = pd.read_csv(sample_factors_file, index_col=0)
+    
+    # Extract only the component columns
+    component_cols = [col for col in sample_factors.columns if col.startswith('Component_')]
+    sample_component_data = sample_factors[component_cols]
+    
+    # Create labels that include species and sample info
+    sample_labels = [f"{row['Species']}_{row['Sample_ID']}" for idx, row in sample_factors.iterrows()]
+    
+    # Add sample labels as index for clustering
+    sample_component_data.index = sample_labels
+    
+    # Create clustered heatmap using seaborn's clustermap
+    # This performs hierarchical clustering on samples (rows) based on their component loadings
+    print(f"    Performing hierarchical clustering on samples...")
+    
+    g = sns.clustermap(
+        sample_component_data,
+        cmap='RdBu_r',
+        center=0,
+        figsize=(max(12, rank*0.5), max(10, len(sample_labels)*0.3)),
+        cbar_kws={'label': 'Component Loading'},
+        row_cluster=True,   # Cluster samples (rows)
+        col_cluster=False,  # Don't cluster components (columns) - keep original order
+        xticklabels=True,
+        yticklabels=True,
+        dendrogram_ratio=0.15,
+        cbar_pos=(0.02, 0.8, 0.03, 0.15),
+        linewidths=0,
+        method='average',  # Linkage method for hierarchical clustering
+        metric='euclidean'  # Distance metric
+    )
+    
+    # Adjust labels and title
+    g.ax_heatmap.set_xlabel('Components', fontsize=12, fontweight='bold')
+    g.ax_heatmap.set_ylabel('Sample (Species_SampleID)', fontsize=12, fontweight='bold')
+    g.fig.suptitle(f'Rank {rank}: Sample Loadings Across Components\n' + 
+                   f'(Hierarchically clustered by component loading similarity)',
+                   fontsize=13, fontweight='bold', y=0.98)
+    
+    plt.tight_layout()
+    output_path = os.path.join(rank_dir, 'sample_component_heatmap.png')
+    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f"    Saved: sample_component_heatmap.png")
+    
+    # ===========================================
+    # PLOT 4: COMPONENT CORRELATION HEATMAP
     # ===========================================
     print(f"  Creating component correlation heatmap...")
     
@@ -2729,7 +2782,8 @@ else:
     print(f"\nThe following plots were created in rank_{rank:02d}/ directory:")
     print(f"  1. gene_component_heatmap_top{TOP_GENES_HEATMAP}.png - Top genes across components")
     print(f"  2. time_component_lineplot.png - Component patterns over time")
-    print(f"  3. component_correlation_heatmap.png - Component independence check")
+    print(f"  3. sample_component_heatmap.png - Individual samples across components")
+    print(f"  4. component_correlation_heatmap.png - Component independence check")
 ```
 
 
