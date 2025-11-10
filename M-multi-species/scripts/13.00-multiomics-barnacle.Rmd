@@ -2629,20 +2629,26 @@ else:
     weights = pd.read_csv(weights_file)
     
     # ===========================================
-    # PLOT 1: GENE HEATMAP (Top genes x Components)
+    # PLOT 1: GENE HEATMAPS (Multiple selection criteria)
     # ===========================================
-    print(f"  Creating gene-component heatmap...")
+    print(f"  Creating gene-component heatmaps with different selection criteria...")
     
-    # Get top genes by total importance
-    gene_importance = gene_factors.abs().sum(axis=1)
-    top_genes = gene_importance.nlargest(TOP_GENES_HEATMAP).index
-    top_gene_factors = gene_factors.loc[top_genes]
+    # ===========================================
+    # 1A: Sum of absolute loadings (broadly active genes)
+    # ===========================================
+    print(f"    1A: Sum of absolute loadings (broadly active genes)...")
+    gene_importance_sum = gene_factors.abs().sum(axis=1)
+    top_genes_sum = gene_importance_sum.nlargest(TOP_GENES_HEATMAP).index
+    top_gene_factors_sum = gene_factors.loc[top_genes_sum]
     
-    # Create heatmap
+    # Save data to CSV
+    csv_path = os.path.join(rank_dir, f'gene_heatmap_1A_sum_top{TOP_GENES_HEATMAP}_data.csv')
+    top_gene_factors_sum.to_csv(csv_path)
+    print(f"      Saved data: gene_heatmap_1A_sum_top{TOP_GENES_HEATMAP}_data.csv")
+    
     fig, ax = plt.subplots(figsize=(max(12, rank*0.5), 10))
-    
     sns.heatmap(
-        top_gene_factors,
+        top_gene_factors_sum,
         cmap='RdBu_r',
         center=0,
         cbar_kws={'label': 'Component Loading'},
@@ -2650,18 +2656,163 @@ else:
         yticklabels=True,
         ax=ax
     )
-    
     ax.set_xlabel('Components', fontsize=12, fontweight='bold')
     ax.set_ylabel('Gene ID', fontsize=12, fontweight='bold')
-    ax.set_title(f'Rank {rank}: Top {TOP_GENES_HEATMAP} Genes Across Components\n' + 
-                f'(Ordered by Total Importance)',
+    ax.set_title(f'Rank {rank}: Top {TOP_GENES_HEATMAP} Genes by Sum of Absolute Loadings\n' + 
+                f'(Genes that participate across multiple components)',
                 fontsize=13, fontweight='bold', pad=15)
-    
     plt.tight_layout()
-    output_path = os.path.join(rank_dir, f'gene_component_heatmap_top{TOP_GENES_HEATMAP}.png')
+    output_path = os.path.join(rank_dir, f'gene_heatmap_1A_sum_top{TOP_GENES_HEATMAP}.png')
     plt.savefig(output_path, dpi=150, bbox_inches='tight')
     plt.close()
-    print(f"    Saved: gene_component_heatmap_top{TOP_GENES_HEATMAP}.png")
+    print(f"      Saved plot: gene_heatmap_1A_sum_top{TOP_GENES_HEATMAP}.png")
+    
+    # ===========================================
+    # 1B: Maximum absolute loading (component-specific genes)
+    # ===========================================
+    print(f"    1B: Maximum absolute loading (component-specific genes)...")
+    gene_importance_max = gene_factors.abs().max(axis=1)
+    top_genes_max = gene_importance_max.nlargest(TOP_GENES_HEATMAP).index
+    top_gene_factors_max = gene_factors.loc[top_genes_max]
+    
+    # Save data to CSV
+    csv_path = os.path.join(rank_dir, f'gene_heatmap_1B_max_top{TOP_GENES_HEATMAP}_data.csv')
+    top_gene_factors_max.to_csv(csv_path)
+    print(f"      Saved data: gene_heatmap_1B_max_top{TOP_GENES_HEATMAP}_data.csv")
+    
+    fig, ax = plt.subplots(figsize=(max(12, rank*0.5), 10))
+    sns.heatmap(
+        top_gene_factors_max,
+        cmap='RdBu_r',
+        center=0,
+        cbar_kws={'label': 'Component Loading'},
+        xticklabels=True,
+        yticklabels=True,
+        ax=ax
+    )
+    ax.set_xlabel('Components', fontsize=12, fontweight='bold')
+    ax.set_ylabel('Gene ID', fontsize=12, fontweight='bold')
+    ax.set_title(f'Rank {rank}: Top {TOP_GENES_HEATMAP} Genes by Maximum Loading\n' + 
+                f'(Genes highly specific to individual components)',
+                fontsize=13, fontweight='bold', pad=15)
+    plt.tight_layout()
+    output_path = os.path.join(rank_dir, f'gene_heatmap_1B_max_top{TOP_GENES_HEATMAP}.png')
+    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f"      Saved plot: gene_heatmap_1B_max_top{TOP_GENES_HEATMAP}.png")
+    
+    # ===========================================
+    # 1C: Mean absolute loading (consistently active genes)
+    # ===========================================
+    print(f"    1C: Mean absolute loading (consistently active genes)...")
+    gene_importance_mean = gene_factors.abs().mean(axis=1)
+    top_genes_mean = gene_importance_mean.nlargest(TOP_GENES_HEATMAP).index
+    top_gene_factors_mean = gene_factors.loc[top_genes_mean]
+    
+    # Save data to CSV
+    csv_path = os.path.join(rank_dir, f'gene_heatmap_1C_mean_top{TOP_GENES_HEATMAP}_data.csv')
+    top_gene_factors_mean.to_csv(csv_path)
+    print(f"      Saved data: gene_heatmap_1C_mean_top{TOP_GENES_HEATMAP}_data.csv")
+    
+    fig, ax = plt.subplots(figsize=(max(12, rank*0.5), 10))
+    sns.heatmap(
+        top_gene_factors_mean,
+        cmap='RdBu_r',
+        center=0,
+        cbar_kws={'label': 'Component Loading'},
+        xticklabels=True,
+        yticklabels=True,
+        ax=ax
+    )
+    ax.set_xlabel('Components', fontsize=12, fontweight='bold')
+    ax.set_ylabel('Gene ID', fontsize=12, fontweight='bold')
+    ax.set_title(f'Rank {rank}: Top {TOP_GENES_HEATMAP} Genes by Mean Absolute Loading\n' + 
+                f'(Genes with consistent moderate activity across components)',
+                fontsize=13, fontweight='bold', pad=15)
+    plt.tight_layout()
+    output_path = os.path.join(rank_dir, f'gene_heatmap_1C_mean_top{TOP_GENES_HEATMAP}.png')
+    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f"      Saved plot: gene_heatmap_1C_mean_top{TOP_GENES_HEATMAP}.png")
+    
+    # ===========================================
+    # 1D: Variance of loadings (genes with high specificity)
+    # ===========================================
+    print(f"    1D: Variance of loadings (component-specific markers)...")
+    gene_variance = gene_factors.var(axis=1)
+    top_genes_var = gene_variance.nlargest(TOP_GENES_HEATMAP).index
+    top_gene_factors_var = gene_factors.loc[top_genes_var]
+    
+    # Save data to CSV
+    csv_path = os.path.join(rank_dir, f'gene_heatmap_1D_variance_top{TOP_GENES_HEATMAP}_data.csv')
+    top_gene_factors_var.to_csv(csv_path)
+    print(f"      Saved data: gene_heatmap_1D_variance_top{TOP_GENES_HEATMAP}_data.csv")
+    
+    fig, ax = plt.subplots(figsize=(max(12, rank*0.5), 10))
+    sns.heatmap(
+        top_gene_factors_var,
+        cmap='RdBu_r',
+        center=0,
+        cbar_kws={'label': 'Component Loading'},
+        xticklabels=True,
+        yticklabels=True,
+        ax=ax
+    )
+    ax.set_xlabel('Components', fontsize=12, fontweight='bold')
+    ax.set_ylabel('Gene ID', fontsize=12, fontweight='bold')
+    ax.set_title(f'Rank {rank}: Top {TOP_GENES_HEATMAP} Genes by Loading Variance\n' + 
+                f'(Genes with high specificity - strong in some components, weak in others)',
+                fontsize=13, fontweight='bold', pad=15)
+    plt.tight_layout()
+    output_path = os.path.join(rank_dir, f'gene_heatmap_1D_variance_top{TOP_GENES_HEATMAP}.png')
+    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f"      Saved plot: gene_heatmap_1D_variance_top{TOP_GENES_HEATMAP}.png")
+    
+    # ===========================================
+    # Summary comparison
+    # ===========================================
+    print(f"\n    Gene selection summary:")
+    print(f"      Sum method:      Favors genes active across many components")
+    print(f"      Max method:      Favors genes strongly specific to one component")
+    print(f"      Mean method:     Favors genes with consistent moderate activity")
+    print(f"      Variance method: Favors genes with high component specificity")
+    
+    # Check overlap between methods
+    overlap_sum_max = len(set(top_genes_sum) & set(top_genes_max))
+    overlap_sum_mean = len(set(top_genes_sum) & set(top_genes_mean))
+    overlap_max_var = len(set(top_genes_max) & set(top_genes_var))
+    
+    print(f"\n    Gene overlap between methods:")
+    print(f"      Sum & Max:      {overlap_sum_max}/{TOP_GENES_HEATMAP} genes in common")
+    print(f"      Sum & Mean:     {overlap_sum_mean}/{TOP_GENES_HEATMAP} genes in common")
+    print(f"      Max & Variance: {overlap_max_var}/{TOP_GENES_HEATMAP} genes in common")
+    
+    # ===========================================
+    # EXPORT TOP 500 GENES PER COMPONENT
+    # ===========================================
+    print(f"\n    Exporting top 500 genes per component...")
+    TOP_GENES_PER_COMPONENT = 500
+    
+    for component in gene_factors.columns:
+        # Get top genes by absolute loading for this component
+        component_loadings = gene_factors[component].abs().sort_values(ascending=False)
+        top_genes_for_component = component_loadings.head(TOP_GENES_PER_COMPONENT)
+        
+        # Create dataframe with gene ID and loading value (both absolute and signed)
+        top_genes_df = pd.DataFrame({
+            'gene_id': top_genes_for_component.index,
+            'absolute_loading': top_genes_for_component.values,
+            'signed_loading': gene_factors.loc[top_genes_for_component.index, component].values
+        })
+        
+        # Save to CSV
+        csv_filename = f'top_{TOP_GENES_PER_COMPONENT}_genes_{component}.csv'
+        csv_path = os.path.join(rank_dir, csv_filename)
+        top_genes_df.to_csv(csv_path, index=False)
+        
+    print(f"      Saved top {TOP_GENES_PER_COMPONENT} genes for each of {len(gene_factors.columns)} components")
+    print(f"      Files: top_{TOP_GENES_PER_COMPONENT}_genes_Component_X.csv")
     
     # ===========================================
     # PLOT 2: TIME COMPONENT LINE PLOT
@@ -2782,7 +2933,10 @@ else:
     print("RANK 10 VISUALIZATIONS COMPLETE")
     print(f"{'='*60}")
     print(f"\nThe following plots were created in rank_{rank:02d}/ directory:")
-    print(f"  1. gene_component_heatmap_top{TOP_GENES_HEATMAP}.png - Top genes across components")
+    print(f"  1A. gene_heatmap_1A_sum_top{TOP_GENES_HEATMAP}.png - Broadly active genes (sum)")
+    print(f"  1B. gene_heatmap_1B_max_top{TOP_GENES_HEATMAP}.png - Component-specific genes (max)")
+    print(f"  1C. gene_heatmap_1C_mean_top{TOP_GENES_HEATMAP}.png - Consistently active genes (mean)")
+    print(f"  1D. gene_heatmap_1D_variance_top{TOP_GENES_HEATMAP}.png - High specificity genes (variance)")
     print(f"  2. time_component_lineplot.png - Component patterns over time")
     print(f"  3. sample_component_heatmap.png - Individual samples across components")
     print(f"  4. component_correlation_heatmap.png - Component independence check")
