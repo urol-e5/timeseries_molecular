@@ -2584,13 +2584,13 @@ else:
 
 # INDIVIDUAL RANK VISUALIZATIONS
 
-## Detailed plots for each rank
+## Detailed plots for Rank 10
 
-This section creates comprehensive visualizations for each rank to aid in assessment and comparison.
+This section creates comprehensive visualizations for rank 10 (the optimal rank determined from previous analysis).
 
 ```{python individual-rank-visualizations, eval=TRUE}
 # ===========================================
-# CREATE DETAILED VISUALIZATIONS FOR EACH RANK
+# CREATE DETAILED VISUALIZATIONS FOR RANK 10
 # ===========================================
 import os
 import pandas as pd
@@ -2599,222 +2599,137 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 print(f"\n{'='*60}")
-print("CREATING INDIVIDUAL RANK VISUALIZATIONS")
+print("CREATING RANK 10 VISUALIZATIONS")
 print(f"{'='*60}")
 
 # Get output directory
 if 'output_dir' not in globals():
     output_dir = r.output_dir
 
-# Load log file to get ranks
-log_file = os.path.join(output_dir, 'rank_comparison_log.json')
+# Set rank to analyze
+SELECTED_RANK = 10
+TOP_GENES_HEATMAP = 50  # Number of top genes to show in heatmap
 
-if not os.path.exists(log_file):
-    print(f"ERROR: Log file not found: {log_file}")
-    print("Please run the 'barnacle-multiple-ranks' chunk first!")
+# Process only rank 10
+rank = SELECTED_RANK
+print(f"\n--- Rank {rank} ---")
+rank_dir = os.path.join(output_dir, f'rank_{rank:02d}')
+
+# Load factor matrices
+gene_factors_file = os.path.join(rank_dir, 'gene_factors.csv')
+time_factors_file = os.path.join(rank_dir, 'time_factors.csv')
+weights_file = os.path.join(rank_dir, 'component_weights.csv')
+
+if not all([os.path.exists(f) for f in [gene_factors_file, time_factors_file, weights_file]]):
+    print(f"ERROR: Missing factor files for rank {rank}")
+    print(f"Please ensure barnacle decomposition has been run for rank {rank}")
 else:
-    import json
-    with open(log_file, 'r') as f:
-        log_data = json.load(f)
+    gene_factors = pd.read_csv(gene_factors_file, index_col=0)
+    time_factors = pd.read_csv(time_factors_file, index_col=0)
+    weights = pd.read_csv(weights_file)
     
-    # Get successful ranks
-    successful_ranks = [r['rank'] for r in log_data['results'] if r['success']]
+    # ===========================================
+    # PLOT 1: GENE HEATMAP (Top genes x Components)
+    # ===========================================
+    print(f"  Creating gene-component heatmap...")
     
-    print(f"Creating visualizations for {len(successful_ranks)} ranks...")
+    # Get top genes by total importance
+    gene_importance = gene_factors.abs().sum(axis=1)
+    top_genes = gene_importance.nlargest(TOP_GENES_HEATMAP).index
+    top_gene_factors = gene_factors.loc[top_genes]
     
-    # Parameters for visualization
-    TOP_GENES_HEATMAP = 50  # Number of top genes to show in heatmap
+    # Create heatmap
+    fig, ax = plt.subplots(figsize=(max(12, rank*0.5), 10))
     
-    for rank in successful_ranks:
-        print(f"\n--- Rank {rank} ---")
-        rank_dir = os.path.join(output_dir, f'rank_{rank:02d}')
-        
-        # Load factor matrices
-        gene_factors_file = os.path.join(rank_dir, 'gene_factors.csv')
-        time_factors_file = os.path.join(rank_dir, 'time_factors.csv')
-        weights_file = os.path.join(rank_dir, 'component_weights.csv')
-        
-        if not all([os.path.exists(f) for f in [gene_factors_file, time_factors_file, weights_file]]):
-            print(f"  Skipping rank {rank} - missing factor files")
-            continue
-        
-        gene_factors = pd.read_csv(gene_factors_file, index_col=0)
-        time_factors = pd.read_csv(time_factors_file, index_col=0)
-        weights = pd.read_csv(weights_file)
-        
-        # ===========================================
-        # PLOT 1: GENE HEATMAP (Top genes x Components)
-        # ===========================================
-        print(f"  Creating gene-component heatmap...")
-        
-        # Get top genes by total importance
-        gene_importance = gene_factors.abs().sum(axis=1)
-        top_genes = gene_importance.nlargest(TOP_GENES_HEATMAP).index
-        top_gene_factors = gene_factors.loc[top_genes]
-        
-        # Create heatmap
-        fig, ax = plt.subplots(figsize=(max(12, rank*0.5), 10))
-        
-        sns.heatmap(
-            top_gene_factors,
-            cmap='RdBu_r',
-            center=0,
-            cbar_kws={'label': 'Component Loading'},
-            xticklabels=True,
-            yticklabels=True,
-            ax=ax
-        )
-        
-        ax.set_xlabel('Components', fontsize=12, fontweight='bold')
-        ax.set_ylabel('Gene ID', fontsize=12, fontweight='bold')
-        ax.set_title(f'Rank {rank}: Top {TOP_GENES_HEATMAP} Genes Across Components\n' + 
-                    f'(Ordered by Total Importance)',
-                    fontsize=13, fontweight='bold', pad=15)
-        
-        plt.tight_layout()
-        output_path = os.path.join(rank_dir, f'gene_component_heatmap_top{TOP_GENES_HEATMAP}.png')
-        plt.savefig(output_path, dpi=150, bbox_inches='tight')
-        plt.close()
-        print(f"    Saved: gene_component_heatmap_top{TOP_GENES_HEATMAP}.png")
-        
-        # ===========================================
-        # PLOT 2: TIME COMPONENT LINE PLOT
-        # ===========================================
-        print(f"  Creating time-component line plot...")
-        
-        fig, ax = plt.subplots(figsize=(12, 8))
-        
-        # Plot each component
-        for i, col in enumerate(time_factors.columns):
-            component_weights = weights[weights['Component'] == col]['Weight'].values[0]
-            ax.plot(time_factors.index, time_factors[col], 
-                   marker='o', linewidth=2, markersize=8,
-                   label=f'{col} (w={component_weights:.3f})', alpha=0.8)
-        
-        ax.set_xlabel('Timepoint', fontsize=12, fontweight='bold')
-        ax.set_ylabel('Component Loading', fontsize=12, fontweight='bold')
-        ax.set_title(f'Rank {rank}: Component Loadings Across Timepoints\n' +
-                    '(Each line = one component, weighted by importance)',
-                    fontsize=13, fontweight='bold', pad=15)
-        ax.grid(True, alpha=0.3)
-        ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=9)
-        ax.axhline(y=0, color='black', linestyle='-', linewidth=0.5, alpha=0.3)
-        
-        plt.tight_layout()
-        output_path = os.path.join(rank_dir, 'time_component_lineplot.png')
-        plt.savefig(output_path, dpi=150, bbox_inches='tight')
-        plt.close()
-        print(f"    Saved: time_component_lineplot.png")
-        
-        # ===========================================
-        # PLOT 3: COMPONENT WEIGHT BAR PLOT
-        # ===========================================
-        print(f"  Creating component weight bar plot...")
-        
-        fig, ax = plt.subplots(figsize=(max(10, rank*0.4), 6))
-        
-        bars = ax.bar(range(len(weights)), weights['Weight'], 
-                     color='steelblue', alpha=0.7, edgecolor='black')
-        
-        # Color top 5 components differently
-        for i in range(min(5, len(bars))):
-            bars[i].set_color('coral')
-            bars[i].set_alpha(0.9)
-        
-        ax.set_xlabel('Component', fontsize=12, fontweight='bold')
-        ax.set_ylabel('Weight', fontsize=12, fontweight='bold')
-        ax.set_title(f'Rank {rank}: Component Weights\n(Top 5 highlighted in coral)',
-                    fontsize=13, fontweight='bold', pad=15)
-        ax.set_xticks(range(len(weights)))
-        ax.set_xticklabels([f'C{i+1}' for i in range(len(weights))], rotation=45 if rank > 20 else 0)
-        ax.grid(True, alpha=0.3, axis='y')
-        
-        plt.tight_layout()
-        output_path = os.path.join(rank_dir, 'component_weights_barplot.png')
-        plt.savefig(output_path, dpi=150, bbox_inches='tight')
-        plt.close()
-        print(f"    Saved: component_weights_barplot.png")
-        
-        # ===========================================
-        # PLOT 4: GENE IMPORTANCE DISTRIBUTION
-        # ===========================================
-        print(f"  Creating gene importance distribution...")
-        
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
-        
-        # Histogram
-        ax1.hist(gene_importance, bins=50, color='steelblue', alpha=0.7, edgecolor='black')
-        ax1.axvline(gene_importance.nlargest(TOP_GENES_HEATMAP).iloc[-1], 
-                   color='red', linestyle='--', linewidth=2,
-                   label=f'Top {TOP_GENES_HEATMAP} threshold')
-        ax1.set_xlabel('Total Importance Score', fontsize=11)
-        ax1.set_ylabel('Number of Genes', fontsize=11)
-        ax1.set_title('Distribution of Gene Importance Scores', fontweight='bold')
-        ax1.grid(True, alpha=0.3, axis='y')
-        ax1.legend()
-        
-        # Cumulative curve
-        sorted_importance = gene_importance.sort_values(ascending=False).values
-        cumsum = np.cumsum(sorted_importance)
-        cumsum_pct = (cumsum / cumsum[-1]) * 100
-        
-        ax2.plot(range(len(cumsum_pct)), cumsum_pct, linewidth=2, color='darkgreen')
-        ax2.axhline(y=50, color='orange', linestyle='--', alpha=0.5, label='50% variance')
-        ax2.axhline(y=80, color='red', linestyle='--', alpha=0.5, label='80% variance')
-        ax2.set_xlabel('Number of Top Genes', fontsize=11)
-        ax2.set_ylabel('Cumulative Variance Explained (%)', fontsize=11)
-        ax2.set_title('Cumulative Importance by Gene Rank', fontweight='bold')
-        ax2.grid(True, alpha=0.3)
-        ax2.legend()
-        
-        fig.suptitle(f'Rank {rank}: Gene Importance Analysis', 
-                    fontsize=14, fontweight='bold', y=1.02)
-        plt.tight_layout()
-        output_path = os.path.join(rank_dir, 'gene_importance_distribution.png')
-        plt.savefig(output_path, dpi=150, bbox_inches='tight')
-        plt.close()
-        print(f"    Saved: gene_importance_distribution.png")
-        
-        # ===========================================
-        # PLOT 5: COMPONENT CORRELATION HEATMAP
-        # ===========================================
-        print(f"  Creating component correlation heatmap...")
-        
-        # Calculate correlation between components based on gene loadings
-        component_corr = gene_factors.corr()
-        
-        fig, ax = plt.subplots(figsize=(max(10, rank*0.4), max(8, rank*0.35)))
-        
-        sns.heatmap(
-            component_corr,
-            annot=True if rank <= 20 else False,
-            fmt='.2f' if rank <= 20 else '.1f',
-            cmap='coolwarm',
-            center=0,
-            square=True,
-            cbar_kws={'label': 'Correlation'},
-            ax=ax
-        )
-        
-        ax.set_title(f'Rank {rank}: Component Correlation Matrix\n' +
-                    '(Based on gene loadings - low correlation = good separation)',
-                    fontsize=13, fontweight='bold', pad=15)
-        
-        plt.tight_layout()
-        output_path = os.path.join(rank_dir, 'component_correlation_heatmap.png')
-        plt.savefig(output_path, dpi=150, bbox_inches='tight')
-        plt.close()
-        print(f"    Saved: component_correlation_heatmap.png")
+    sns.heatmap(
+        top_gene_factors,
+        cmap='RdBu_r',
+        center=0,
+        cbar_kws={'label': 'Component Loading'},
+        xticklabels=True,
+        yticklabels=True,
+        ax=ax
+    )
+    
+    ax.set_xlabel('Components', fontsize=12, fontweight='bold')
+    ax.set_ylabel('Gene ID', fontsize=12, fontweight='bold')
+    ax.set_title(f'Rank {rank}: Top {TOP_GENES_HEATMAP} Genes Across Components\n' + 
+                f'(Ordered by Total Importance)',
+                fontsize=13, fontweight='bold', pad=15)
+    
+    plt.tight_layout()
+    output_path = os.path.join(rank_dir, f'gene_component_heatmap_top{TOP_GENES_HEATMAP}.png')
+    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f"    Saved: gene_component_heatmap_top{TOP_GENES_HEATMAP}.png")
+    
+    # ===========================================
+    # PLOT 2: TIME COMPONENT LINE PLOT
+    # ===========================================
+    print(f"  Creating time-component line plot...")
+    
+    fig, ax = plt.subplots(figsize=(12, 8))
+    
+    # Plot each component
+    for i, col in enumerate(time_factors.columns):
+        component_weights = weights[weights['Component'] == col]['Weight'].values[0]
+        ax.plot(time_factors.index, time_factors[col], 
+               marker='o', linewidth=2, markersize=8,
+               label=f'{col} (w={component_weights:.3f})', alpha=0.8)
+    
+    ax.set_xlabel('Timepoint', fontsize=12, fontweight='bold')
+    ax.set_ylabel('Component Loading', fontsize=12, fontweight='bold')
+    ax.set_title(f'Rank {rank}: Component Loadings Across Timepoints\n' +
+                '(Each line = one component, weighted by importance)',
+                fontsize=13, fontweight='bold', pad=15)
+    ax.grid(True, alpha=0.3)
+    ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=9)
+    ax.axhline(y=0, color='black', linestyle='-', linewidth=0.5, alpha=0.3)
+    
+    plt.tight_layout()
+    output_path = os.path.join(rank_dir, 'time_component_lineplot.png')
+    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f"    Saved: time_component_lineplot.png")
+    
+    # ===========================================
+    # PLOT 3: COMPONENT CORRELATION HEATMAP
+    # ===========================================
+    print(f"  Creating component correlation heatmap...")
+    
+    # Calculate correlation between components based on gene loadings
+    component_corr = gene_factors.corr()
+    
+    fig, ax = plt.subplots(figsize=(max(10, rank*0.4), max(8, rank*0.35)))
+    
+    sns.heatmap(
+        component_corr,
+        annot=True if rank <= 20 else False,
+        fmt='.2f' if rank <= 20 else '.1f',
+        cmap='coolwarm',
+        center=0,
+        square=True,
+        cbar_kws={'label': 'Correlation'},
+        ax=ax
+    )
+    
+    ax.set_title(f'Rank {rank}: Component Correlation Matrix\n' +
+                '(Based on gene loadings - low correlation = good separation)',
+                fontsize=13, fontweight='bold', pad=15)
+    
+    plt.tight_layout()
+    output_path = os.path.join(rank_dir, 'component_correlation_heatmap.png')
+    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f"    Saved: component_correlation_heatmap.png")
     
     print(f"\n{'='*60}")
-    print("INDIVIDUAL RANK VISUALIZATIONS COMPLETE")
+    print("RANK 10 VISUALIZATIONS COMPLETE")
     print(f"{'='*60}")
-    print(f"\nFor each rank, the following plots were created in rank_XX/ directories:")
+    print(f"\nThe following plots were created in rank_{rank:02d}/ directory:")
     print(f"  1. gene_component_heatmap_top{TOP_GENES_HEATMAP}.png - Top genes across components")
     print(f"  2. time_component_lineplot.png - Component patterns over time")
-    print(f"  3. component_weights_barplot.png - Relative component importance")
-    print(f"  4. gene_importance_distribution.png - Gene importance statistics")
-    print(f"  5. component_correlation_heatmap.png - Component independence check")
+    print(f"  3. component_correlation_heatmap.png - Component independence check")
 ```
 
 
