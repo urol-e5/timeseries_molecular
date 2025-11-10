@@ -1452,7 +1452,13 @@ print("This log can be used by subsequent chunks to avoid re-running decompositi
 
 ### Factor Match Score evaluation
 
-This section evaluates each rank's decomposition quality using the Factor Match Score (FMS) from the `tlviz` library. This metric compares how well each decomposition matches the original tensor structure.
+This section evaluates each rank's decomposition quality using multiple Factor Match Score (FMS) metrics:
+
+1. **TLViz FMS** (self-comparison): Sanity check only, not useful for rank selection
+2. **Reconstruction FMS** (fast): Quick approximation based on tensor reconstruction correlation
+3. **Synthetic FMS** (RECOMMENDED): Most rigorous - tests factor recovery from noisy data
+
+The Synthetic FMS is the most reliable metric for determining optimal rank as it validates robustness.
 
 ```{python factor-match-score-evaluation, eval=TRUE}
 # ===========================================
@@ -1465,9 +1471,10 @@ import os
 print(f"\n{'='*60}")
 print("FACTOR MATCH SCORE (FMS) EVALUATION")
 print(f"{'='*60}")
-print("This analysis evaluates decomposition quality using the Factor Match Score")
-print("from the tensorly-viz (tlviz) library, which measures how well the")
-print("decomposed factors match the original tensor structure.")
+print("This analysis evaluates decomposition quality using multiple FMS metrics:")
+print("  1. TLViz FMS: Self-comparison (sanity check only)")
+print("  2. Reconstruction FMS: Fast approximation (correlation-based)")
+print("  3. Synthetic FMS: RECOMMENDED (tests factor recovery robustness)")
 print(f"{'='*60}")
 
 def calculate_factor_match_score(tensor, decomposition, rank):
@@ -1535,20 +1542,22 @@ def calculate_factor_match_score(tensor, decomposition, rank):
 
 def calculate_proper_factor_match_score(tensor, decomposition, rank, noise_level=0.1, random_state=42):
     """
-    PROPER TLViz FMS: Synthetic validation approach.
+    RECOMMENDED METRIC: Synthetic validation approach for FMS.
     
     This creates a synthetic tensor from the decomposition, adds noise,
     re-decomposes it, then measures how well we recover the original factors.
     
-    This tests the method's ability to recover known factors in the presence
-    of noise, which is a meaningful validation of decomposition quality.
+    This is the most rigorous validation of decomposition quality because it tests
+    the method's ability to recover known factors in the presence of noise.
     
     Higher scores indicate:
-    - Better factor recovery
+    - Better factor recovery from noisy data
     - More robust decomposition
     - Less sensitivity to noise
+    - Better rank selection
     
-    NOTE: Computationally expensive (requires additional decomposition).
+    NOTE: Computationally expensive (requires additional decomposition per rank).
+          
     """
     try:
         import tensorly as tl
@@ -1645,17 +1654,18 @@ def calculate_proper_factor_match_score(tensor, decomposition, rank, noise_level
 
 def calculate_reconstruction_fms(tensor, decomposition, rank):
     """
-    PRIMARY METRIC: Calculate FMS based on reconstruction quality.
+    Calculate FMS based on reconstruction quality.
     
     This compares the original tensor to its reconstruction from the decomposition,
-    providing a meaningful measure of how well the decomposition captures the data.
+    providing a measure of how well the decomposition captures the data.
     
     Higher scores indicate better reconstruction:
     - 1.0 = perfect reconstruction
     - 0.5 = no correlation
     - 0.0 = perfect negative correlation
     
-    This is the RECOMMENDED metric for rank selection.
+    Note: This is a fast approximation. For more rigorous validation, use
+    synthetic validation FMS (calculate_proper_factor_match_score).
     """
     try:
         # Create reconstructed tensor
@@ -1719,8 +1729,8 @@ def evaluate_fms_for_rank(rank, output_dir, tensor, use_synthetic_validation=Fal
     tensor : np.ndarray
         Original tensor
     use_synthetic_validation : bool, default=False
-        If True, use proper synthetic validation FMS (computationally expensive).
-        If False, use fast reconstruction-based FMS only.
+        If True, calculate synthetic validation FMS (RECOMMENDED but computationally expensive).
+        If False, only calculate reconstruction FMS (fast approximation).
     """
     print(f"\n--- Evaluating FMS for Rank {rank} ---")
     
@@ -1771,15 +1781,15 @@ def evaluate_fms_for_rank(rank, output_dir, tensor, use_synthetic_validation=Fal
     mock_decomposition = MockDecomposition(weights, factors)
     
     # Calculate FMS metrics
-    # 1. Old TLViz FMS (self-comparison - not useful)
+    # 1. TLViz FMS (self-comparison - sanity check only, not useful for rank selection)
     fms_result1 = calculate_factor_match_score(tensor, mock_decomposition, rank)
     
-    # 2. Reconstruction FMS (PRIMARY metric - fast and reliable)
+    # 2. Reconstruction FMS (fast approximation - useful for quick comparison)
     fms_result2 = calculate_reconstruction_fms(tensor, mock_decomposition, rank)
     
-    # 3. Proper synthetic validation FMS (optional - slow but rigorous)
+    # 3. Synthetic validation FMS (RECOMMENDED - most rigorous but computationally expensive)
     if use_synthetic_validation:
-        print(f"  Running synthetic validation (this may take 1-2 minutes)...")
+        print(f"  Running synthetic validation (this will take a long time)...")
         fms_result3 = calculate_proper_factor_match_score(tensor, mock_decomposition, rank)
     else:
         fms_result3 = {'success': False, 'method': 'skipped', 'fms': np.nan}
@@ -1812,20 +1822,21 @@ def evaluate_fms_for_rank(rank, output_dir, tensor, use_synthetic_validation=Fal
         # Only print if it's a real error (not the expected scipy issue)
         print(f"  TLViz FMS: Failed - {fms_result1.get('error', 'unknown')} (method: {fms_result1.get('method', 'unknown')})")
     
-    # Reconstruction FMS is the PRIMARY metric for rank selection
+    # Reconstruction FMS (fast approximation)
     if fms_result2['success']:
-        print(f"  ⭐ RECONSTRUCTION FMS: {fms_result2['fms']:.4f} (correlation: {fms_result2.get('correlation', 'N/A'):.4f}) ⭐")
-        print(f"     ↳ Primary metric for rank selection")
+        print(f"  📊 RECONSTRUCTION FMS: {fms_result2['fms']:.4f} (correlation: {fms_result2.get('correlation', 'N/A'):.4f})")
+        print(f"     ↳ Fast approximation for quick comparison")
         print(f"     ↳ Valid elements used: {fms_result2.get('valid_elements', 0):,}")
     else:
         print(f"  Reconstruction FMS: Failed ({fms_result2.get('error', 'unknown error')})")
     
-    # Synthetic validation FMS (if calculated)
+    # Synthetic validation FMS (RECOMMENDED for rank selection)
     if use_synthetic_validation and fms_result3['success']:
         recovery = fms_result3.get('recovery_quality', 'unknown')
         noise = fms_result3.get('noise_level', 0.1)
-        print(f"  🔬 SYNTHETIC FMS: {fms_result3['fms']:.4f} ({recovery} recovery with {noise*100:.0f}% noise)")
-        print(f"     ↳ Tests factor recovery robustness")
+        print(f"  ⭐ SYNTHETIC FMS: {fms_result3['fms']:.4f} ({recovery} recovery with {noise*100:.0f}% noise) ⭐")
+        print(f"     ↳ RECOMMENDED metric for rank selection")
+        print(f"     ↳ Tests factor recovery robustness with noise")
     elif use_synthetic_validation and not fms_result3['success']:
         print(f"  Synthetic FMS: Failed ({fms_result3.get('error', 'unknown error')})")
     
@@ -1887,22 +1898,29 @@ if tensor_3d is not None:
     # ===========================================
     # CONFIGURATION: Synthetic Validation FMS
     # ===========================================
-    # Set to True to enable proper TLViz FMS via synthetic validation
-    # WARNING: This is computationally expensive (adds 1-2 min per rank)
+    # Set to True to enable the RECOMMENDED synthetic validation FMS metric.
+    # This is the most rigorous method for rank selection as it tests factor
+    # recovery from noisy data, providing the best indication of optimal rank.
+    # 
+    # COMPUTATION TIME: Adds ~1-2 minutes per rank
     # For 12 ranks, expect ~15-30 minutes additional runtime
+    # 
+    # If False, only reconstruction FMS will be calculated (faster but less rigorous)
     # ===========================================
-    USE_SYNTHETIC_VALIDATION = True  # Change to True to enable
+    USE_SYNTHETIC_VALIDATION = True  # Change to False for faster (but less rigorous) analysis
     # ===========================================
     
     if USE_SYNTHETIC_VALIDATION:
         print("\n" + "="*60)
-        print("⚠️  SYNTHETIC VALIDATION ENABLED")
+        print("⭐ SYNTHETIC VALIDATION ENABLED (RECOMMENDED)")
         print("="*60)
-        print("This will test factor recovery by:")
+        print("This will test factor recovery robustness by:")
         print("  1. Creating synthetic tensor from each decomposition")
         print("  2. Adding noise to test robustness")
         print("  3. Re-decomposing to see if factors are recovered")
-        print(f"Expected additional time: {len(successful_ranks) * 1.5:.0f}-{len(successful_ranks) * 2:.0f} minutes")
+        print("  4. Comparing recovered factors to originals")
+        print(f"\nExpected additional time: {len(successful_ranks) * 1.5:.0f}-{len(successful_ranks) * 2:.0f} minutes")
+        print("This provides the most reliable metric for rank selection.")
         print("="*60 + "\n")
     
     # Evaluate FMS for each rank
@@ -1942,10 +1960,10 @@ if tensor_3d is not None:
         print("\n" + "="*60)
         print("FACTOR MATCH SCORE RESULTS")
         print("="*60)
-        print("⚠️  NOTE: TLViz FMS compares decomposition to itself (always ~1.0)")
-        print("⭐  USE RECONSTRUCTION FMS for rank selection (compares to original tensor)")
+        print("⚠️  TLViz FMS: Self-comparison only (always ~1.0, not useful)")
+        print("📊 Reconstruction FMS: Fast approximation (useful for quick comparison)")
         if 'fms_synthetic' in display_cols:
-            print("🔬  SYNTHETIC FMS validates factor recovery robustness (optional)")
+            print("⭐ SYNTHETIC FMS: RECOMMENDED for rank selection (tests robustness)")
         print("="*60)
         print(fms_df[display_cols].to_string(index=False, float_format='%.4f'))
         
@@ -1955,16 +1973,15 @@ if tensor_3d is not None:
             print("\n" + "="*60)
             print("NOTE: TLViz FMS unavailable (scipy version incompatibility)")
             print("="*60)
-            print("This is expected and normal with scipy >= 1.14.")
-            print("The Reconstruction FMS provides equivalent functionality.")
+            print("This is expected with scipy >= 1.14.")
+            print("Use Reconstruction FMS (fast) or Synthetic FMS (recommended).")
             print("="*60)
         elif tlviz_working and fms_df.loc[fms_df['tlviz_success'], 'fms_tlviz'].min() > 0.95:
             print("\n" + "="*60)
             print("⚠️  WARNING: TLViz FMS shows all values near 1.0")
             print("="*60)
-            print("This indicates self-comparison (decomposition vs itself).")
-            print("This is NOT useful for rank selection.")
-            print("→ USE RECONSTRUCTION FMS instead (varies by rank: 0.76-0.98)")
+            print("This indicates self-comparison (not useful for rank selection).")
+            print("→ Use Synthetic FMS (recommended) or Reconstruction FMS (fast)")
             print("="*60)
         
         # Create visualization
@@ -1988,7 +2005,7 @@ if tensor_3d is not None:
         
         # Adjust title based on whether TLViz worked
         if not tlviz_working:
-            title = 'Factor Match Score vs Rank\n(Reconstruction-based FMS - Primary Metric)'
+            title = 'Factor Match Score vs Rank\n(Reconstruction FMS: Fast Approximation)'
         else:
             title = 'Factor Match Score vs Rank\n(Higher = Better Factor Recovery)'
         
@@ -2031,51 +2048,67 @@ if tensor_3d is not None:
         valid_df = fms_df[fms_df['reconstruction_success']]
         
         if len(valid_df) > 0:
-            # Best reconstruction FMS
-            best_recon_idx = valid_df['fms_reconstruction'].idxmax()
-            best_recon_rank = valid_df.iloc[best_recon_idx]['rank']
-            best_recon_score = valid_df.iloc[best_recon_idx]['fms_reconstruction']
+            # Check for synthetic FMS results (RECOMMENDED metric)
+            synthetic_valid = fms_df[fms_df['synthetic_success']]
+            
+            if len(synthetic_valid) > 0:
+                # Synthetic FMS is available - use it as PRIMARY recommendation
+                best_synthetic_idx = synthetic_valid['fms_synthetic'].idxmax()
+                best_synthetic_rank = synthetic_valid.iloc[best_synthetic_idx]['rank']
+                best_synthetic_score = synthetic_valid.iloc[best_synthetic_idx]['fms_synthetic']
+                
+                print(f"⭐ RECOMMENDED: Rank {int(best_synthetic_rank)} (Synthetic FMS: {best_synthetic_score:.4f})")
+                print(f"   ↳ Based on factor recovery robustness with noise")
+                
+                # Show top 3 ranks by synthetic FMS
+                top_synthetic = synthetic_valid.nlargest(3, 'fms_synthetic')[['rank', 'fms_synthetic']]
+                print(f"\nTop 3 ranks by Synthetic FMS:")
+                for idx, row in top_synthetic.iterrows():
+                    print(f"  Rank {int(row['rank'])}: {row['fms_synthetic']:.4f}")
+            else:
+                print(f"⚠️  Synthetic FMS not calculated (set USE_SYNTHETIC_VALIDATION=True)")
+                print(f"   ↳ Using Reconstruction FMS for recommendation (less rigorous)")
+                
+                # Fall back to reconstruction FMS
+                best_recon_idx = valid_df['fms_reconstruction'].idxmax()
+                best_recon_rank = valid_df.iloc[best_recon_idx]['rank']
+                best_recon_score = valid_df.iloc[best_recon_idx]['fms_reconstruction']
+                
+                print(f"\n📊 Rank {int(best_recon_rank)} (Reconstruction FMS: {best_recon_score:.4f})")
+                print(f"   ↳ Based on reconstruction correlation (fast approximation)")
+            
+            # Additional metrics for context
+            print(f"\n--- Additional Metrics ---")
             
             # Best reconstruction correlation
             best_corr_idx = valid_df['reconstruction_correlation'].idxmax()
             best_corr_rank = valid_df.iloc[best_corr_idx]['rank']
             best_corr_score = valid_df.iloc[best_corr_idx]['reconstruction_correlation']
+            print(f"Best Reconstruction Correlation: Rank {int(best_corr_rank)} ({best_corr_score:.4f})")
             
-            print(f"Best Reconstruction FMS: Rank {int(best_recon_rank)} (score: {best_recon_score:.4f})")
-            print(f"Best Reconstruction Correlation: Rank {int(best_corr_rank)} (score: {best_corr_score:.4f})")
-            
-            # Check for TLViz results
+            # Check for TLViz results (informational only)
             tlviz_valid = fms_df[fms_df['tlviz_success']]
             if len(tlviz_valid) > 0:
                 best_tlviz_idx = tlviz_valid['fms_tlviz'].idxmax()
                 best_tlviz_rank = tlviz_valid.iloc[best_tlviz_idx]['rank']
                 best_tlviz_score = tlviz_valid.iloc[best_tlviz_idx]['fms_tlviz']
-                print(f"Best TLViz FMS: Rank {int(best_tlviz_rank)} (score: {best_tlviz_score:.4f})")
-            else:
-                print(f"TLViz FMS: Not available (SciPy compatibility issue)")
-            
-            # Look for ranks with consistently high scores (top 20%)
-            threshold = valid_df['fms_reconstruction'].quantile(0.8)
-            high_scoring_ranks = valid_df[valid_df['fms_reconstruction'] >= threshold]['rank'].tolist()
-            
-            print(f"\nHigh-scoring ranks (top 20%): {[int(r) for r in high_scoring_ranks]}")
-            print(f"Threshold: {threshold:.4f}")
+                print(f"TLViz FMS (informational): Rank {int(best_tlviz_rank)} ({best_tlviz_score:.4f})")
             
             # Provide interpretation
-            print(f"\nFMS Interpretation:")
-            print(f"• Reconstruction FMS is the PRIMARY metric for rank selection")
-            print(f"  - Measures tensor reconstruction quality (0-1 scale)")
-            print(f"  - Based on correlation between original and decomposed tensors")
-            print(f"• Reconstruction correlation shows direct fit quality (-1 to 1)")
-            print(f"  - Values > 0.9 indicate excellent reconstruction")
-            print(f"  - Values > 0.8 indicate good reconstruction")
-            print(f"• Higher scores = better factor recovery and model fit")
-            print(f"• Consider ranks with consistently high Reconstruction FMS (top 20%)")
-            if len(tlviz_valid) == 0:
-                print(f"\nNote: TLViz FMS unavailable due to scipy >= 1.14 incompatibility")
-                print(f"      (This is normal and does not affect analysis quality)")
-            else:
-                print(f"• TLViz FMS available and can be used for additional validation")
+            print(f"\n--- FMS Metrics Explained ---")
+            if len(synthetic_valid) > 0:
+                print(f"⭐ Synthetic FMS (RECOMMENDED):")
+                print(f"   • Tests factor recovery from noisy data")
+                print(f"   • Most rigorous validation of decomposition quality")
+                print(f"   • Best metric for determining optimal rank")
+                print(f"   • Values > 0.9 = excellent, > 0.7 = good, > 0.5 = fair")
+            print(f"📊 Reconstruction FMS (fast approximation):")
+            print(f"   • Based on correlation with original tensor")
+            print(f"   • Useful for quick comparison")
+            print(f"   • Less rigorous than synthetic validation")
+            print(f"⚠️  TLViz FMS (self-comparison only):")
+            print(f"   • Not useful for rank selection (always ~1.0)")
+            print(f"   • Only validates internal consistency")
             
         else:
             print("No valid FMS results available for recommendation.")
@@ -2177,10 +2210,10 @@ else:
             valid_tlviz = fms_df['tlviz_success'].fillna(False)
             valid_recon = fms_df['reconstruction_success'].fillna(False)
             
-            # Synthetic FMS (primary focus - should show elbow)
+            # Synthetic FMS (RECOMMENDED - should show elbow)
             synthetic_data = fms_df.loc[valid_synthetic].sort_values('rank')
             ax.plot(synthetic_data['rank'], synthetic_data['fms_synthetic'], 
-                    'o-', linewidth=3, markersize=10, label='🔬 Synthetic Validation FMS', 
+                    'o-', linewidth=3, markersize=10, label='⭐ Synthetic Validation FMS (RECOMMENDED)', 
                     color='#2ecc71', zorder=3)
             
             # Mark the peak (optimal rank)
@@ -2191,24 +2224,24 @@ else:
                     label=f'★ Optimal: Rank {int(optimal_rank)} (FMS={optimal_score:.4f})',
                     zorder=4)
             
-            # Reconstruction FMS (should increase monotonically)
+            # Reconstruction FMS (fast approximation - typically increases monotonically)
             if valid_recon.any():
                 recon_data = fms_df.loc[valid_recon].sort_values('rank')
                 ax.plot(recon_data['rank'], recon_data['fms_reconstruction'], 
-                        's--', linewidth=2, markersize=8, label='⭐ Reconstruction FMS', 
+                        's--', linewidth=2, markersize=8, label='📊 Reconstruction FMS (fast)', 
                         color='#3498db', alpha=0.7, zorder=2)
             
-            # TLViz FMS (if available - should be near 1.0)
+            # TLViz FMS (if available - self-comparison, typically near 1.0)
             if valid_tlviz.any():
                 tlviz_data = fms_df.loc[valid_tlviz].sort_values('rank')
                 ax.plot(tlviz_data['rank'], tlviz_data['fms_tlviz'], 
-                        '^:', linewidth=1.5, markersize=6, label='⚠️  TLViz FMS (self-check)', 
+                        '^:', linewidth=1.5, markersize=6, label='⚠️  TLViz FMS (sanity check only)', 
                         color='#95a5a6', alpha=0.5, zorder=1)
             
             ax.set_xlabel('Rank (Number of Components)', fontsize=12, fontweight='bold')
             ax.set_ylabel('Factor Match Score', fontsize=12, fontweight='bold')
-            ax.set_title('Factor Match Score Comparison: Finding the Elbow\n' +
-                         'Synthetic FMS peaks at optimal rank, then declines (overfitting)',
+            ax.set_title('Factor Match Score Comparison: Finding Optimal Rank\n' +
+                         'Synthetic FMS (RECOMMENDED): Peaks at optimal rank, then declines with overfitting',
                          fontsize=13, fontweight='bold')
             ax.grid(True, alpha=0.3, linestyle='--')
             ax.legend(loc='best', fontsize=10)
