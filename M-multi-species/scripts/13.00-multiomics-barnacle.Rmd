@@ -2670,17 +2670,19 @@ else:
     
     fig, ax = plt.subplots(figsize=(12, 8))
     
+    # Define different marker shapes for each component
+    markers = ['o', 's', '^', 'D', 'v', '<', '>', 'p', '*', 'h', '+', 'x', '8', 'H', 'd', '|', '_']
+    
     # Plot each component
     for i, col in enumerate(time_factors.columns):
-        component_weights = weights[weights['Component'] == col]['Weight'].values[0]
+        marker_style = markers[i % len(markers)]  # Cycle through markers if more components than markers
         ax.plot(time_factors.index, time_factors[col], 
-               marker='o', linewidth=2, markersize=8,
-               label=f'{col} (w={component_weights:.3f})', alpha=0.8)
+               marker=marker_style, linewidth=2, markersize=8,
+               label=f'{col}', alpha=0.8)
     
     ax.set_xlabel('Timepoint', fontsize=12, fontweight='bold')
     ax.set_ylabel('Component Loading', fontsize=12, fontweight='bold')
-    ax.set_title(f'Rank {rank}: Component Loadings Across Timepoints\n' +
-                '(Each line = one component, weighted by importance)',
+    ax.set_title(f'Rank {rank}: Component Loadings Across Timepoints',
                 fontsize=13, fontweight='bold', pad=15)
     ax.grid(True, alpha=0.3)
     ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=9)
