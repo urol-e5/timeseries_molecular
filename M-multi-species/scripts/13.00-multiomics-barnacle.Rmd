@@ -2100,6 +2100,13 @@ if 'all_fms_results' in locals() and len(all_fms_results) > 0:
         print(f"→ No valid FMS results - check tensor and factor matrices")
 ```
 
+
+
+
+# VISUALIZATION
+
+## Plot rank comparisons
+
 ### Plot Synthetic FMS Elbow (Standalone)
 
 This chunk can be run independently to generate the synthetic FMS elbow plot without re-running the expensive Factor Match Score evaluation. It loads the saved FMS results from the CSV file.
@@ -2164,15 +2171,15 @@ else:
             # CREATE SYNTHETIC FMS ELBOW PLOT
             # ===========================================
             
-            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
+            fig, ax = plt.subplots(1, 1, figsize=(10, 7))
             
-            # Plot 1: All three FMS metrics together
+            # Get data for plotting
             valid_tlviz = fms_df['tlviz_success'].fillna(False)
             valid_recon = fms_df['reconstruction_success'].fillna(False)
             
             # Synthetic FMS (primary focus - should show elbow)
             synthetic_data = fms_df.loc[valid_synthetic].sort_values('rank')
-            ax1.plot(synthetic_data['rank'], synthetic_data['fms_synthetic'], 
+            ax.plot(synthetic_data['rank'], synthetic_data['fms_synthetic'], 
                     'o-', linewidth=3, markersize=10, label='🔬 Synthetic Validation FMS', 
                     color='#2ecc71', zorder=3)
             
@@ -2180,90 +2187,43 @@ else:
             max_synthetic_idx = synthetic_data['fms_synthetic'].idxmax()
             optimal_rank = synthetic_data.loc[max_synthetic_idx, 'rank']
             optimal_score = synthetic_data.loc[max_synthetic_idx, 'fms_synthetic']
-            ax1.plot(optimal_rank, optimal_score, 'r*', markersize=20, 
+            ax.plot(optimal_rank, optimal_score, 'r*', markersize=20, 
                     label=f'★ Optimal: Rank {int(optimal_rank)} (FMS={optimal_score:.4f})',
                     zorder=4)
             
             # Reconstruction FMS (should increase monotonically)
             if valid_recon.any():
                 recon_data = fms_df.loc[valid_recon].sort_values('rank')
-                ax1.plot(recon_data['rank'], recon_data['fms_reconstruction'], 
+                ax.plot(recon_data['rank'], recon_data['fms_reconstruction'], 
                         's--', linewidth=2, markersize=8, label='⭐ Reconstruction FMS', 
                         color='#3498db', alpha=0.7, zorder=2)
             
             # TLViz FMS (if available - should be near 1.0)
             if valid_tlviz.any():
                 tlviz_data = fms_df.loc[valid_tlviz].sort_values('rank')
-                ax1.plot(tlviz_data['rank'], tlviz_data['fms_tlviz'], 
+                ax.plot(tlviz_data['rank'], tlviz_data['fms_tlviz'], 
                         '^:', linewidth=1.5, markersize=6, label='⚠️  TLViz FMS (self-check)', 
                         color='#95a5a6', alpha=0.5, zorder=1)
             
-            ax1.set_xlabel('Rank (Number of Components)', fontsize=12, fontweight='bold')
-            ax1.set_ylabel('Factor Match Score', fontsize=12, fontweight='bold')
-            ax1.set_title('Factor Match Score Comparison: Finding the Elbow\n' +
+            ax.set_xlabel('Rank (Number of Components)', fontsize=12, fontweight='bold')
+            ax.set_ylabel('Factor Match Score', fontsize=12, fontweight='bold')
+            ax.set_title('Factor Match Score Comparison: Finding the Elbow\n' +
                          'Synthetic FMS peaks at optimal rank, then declines (overfitting)',
                          fontsize=13, fontweight='bold')
-            ax1.grid(True, alpha=0.3, linestyle='--')
-            ax1.legend(loc='best', fontsize=10)
-            ax1.set_ylim([0, 1.05])
+            ax.grid(True, alpha=0.3, linestyle='--')
+            ax.legend(loc='best', fontsize=10)
+            ax.set_ylim([0, 1.05])
             
             # Add quality threshold lines
-            ax1.axhline(y=0.9, color='green', linestyle='--', alpha=0.3, linewidth=1)
-            ax1.text(ax1.get_xlim()[1]*0.95, 0.91, 'Excellent (>0.9)', 
+            ax.axhline(y=0.9, color='green', linestyle='--', alpha=0.3, linewidth=1)
+            ax.text(ax.get_xlim()[1]*0.95, 0.91, 'Excellent (>0.9)', 
                     ha='right', va='bottom', fontsize=9, color='green', alpha=0.7)
-            ax1.axhline(y=0.7, color='orange', linestyle='--', alpha=0.3, linewidth=1)
-            ax1.text(ax1.get_xlim()[1]*0.95, 0.71, 'Good (>0.7)', 
+            ax.axhline(y=0.7, color='orange', linestyle='--', alpha=0.3, linewidth=1)
+            ax.text(ax.get_xlim()[1]*0.95, 0.71, 'Good (>0.7)', 
                     ha='right', va='bottom', fontsize=9, color='orange', alpha=0.7)
-            ax1.axhline(y=0.5, color='red', linestyle='--', alpha=0.3, linewidth=1)
-            ax1.text(ax1.get_xlim()[1]*0.95, 0.51, 'Fair (>0.5)', 
+            ax.axhline(y=0.5, color='red', linestyle='--', alpha=0.3, linewidth=1)
+            ax.text(ax.get_xlim()[1]*0.95, 0.51, 'Fair (>0.5)', 
                     ha='right', va='bottom', fontsize=9, color='red', alpha=0.7)
-            
-            # Plot 2: Focus on synthetic FMS with interpretation
-            ax2.plot(synthetic_data['rank'], synthetic_data['fms_synthetic'], 
-                    'o-', linewidth=3, markersize=10, color='#2ecc71')
-            
-            # Highlight optimal rank
-            ax2.plot(optimal_rank, optimal_score, 'r*', markersize=25)
-            
-            # Add annotations
-            ax2.axvline(x=optimal_rank, color='red', linestyle='--', alpha=0.5, linewidth=2)
-            ax2.text(optimal_rank, ax2.get_ylim()[0] + 0.05, 
-                    f'Optimal\nRank {int(optimal_rank)}',
-                    ha='center', va='bottom', fontsize=11, fontweight='bold',
-                    bbox=dict(boxstyle='round,pad=0.5', facecolor='yellow', alpha=0.7))
-            
-            # Annotate regions
-            if len(synthetic_data) > 1:
-                # Find ranks before and after optimal
-                before_optimal = synthetic_data[synthetic_data['rank'] < optimal_rank]
-                after_optimal = synthetic_data[synthetic_data['rank'] > optimal_rank]
-                
-                if len(before_optimal) > 0:
-                    mid_before = before_optimal['rank'].median()
-                    ax2.text(mid_before, ax2.get_ylim()[1] - 0.05, 
-                            'Underfitting\n(Too simple)', 
-                            ha='center', va='top', fontsize=10, style='italic',
-                            color='darkblue', alpha=0.7)
-                
-                if len(after_optimal) > 0:
-                    mid_after = after_optimal['rank'].median()
-                    ax2.text(mid_after, ax2.get_ylim()[1] - 0.05, 
-                            'Overfitting\n(Capturing noise)', 
-                            ha='center', va='top', fontsize=10, style='italic',
-                            color='darkred', alpha=0.7)
-            
-            ax2.set_xlabel('Rank (Number of Components)', fontsize=12, fontweight='bold')
-            ax2.set_ylabel('Synthetic Validation FMS', fontsize=12, fontweight='bold')
-            ax2.set_title('Synthetic FMS: Factor Recovery Test\n' +
-                         'Peak indicates optimal balance between fit and stability',
-                         fontsize=13, fontweight='bold')
-            ax2.grid(True, alpha=0.3, linestyle='--')
-            ax2.set_ylim([max(0, synthetic_data['fms_synthetic'].min() - 0.1), 1.05])
-            
-            # Add quality threshold lines
-            ax2.axhline(y=0.9, color='green', linestyle='--', alpha=0.3, linewidth=1)
-            ax2.axhline(y=0.7, color='orange', linestyle='--', alpha=0.3, linewidth=1)
-            ax2.axhline(y=0.5, color='red', linestyle='--', alpha=0.3, linewidth=1)
             
             plt.tight_layout()
             synthetic_plot_file = os.path.join(comparison_dir, 'synthetic_fms_elbow_plot.png')
@@ -2322,11 +2282,6 @@ else:
 print(f"\nSYNTHETIC FMS ELBOW PLOT GENERATION COMPLETE")
 print(f"{'='*60}")
 ```
-
-
-# VISUALIZATION
-
-## Plot rank comparisons
 
 ### 1. Comparison Plots
 

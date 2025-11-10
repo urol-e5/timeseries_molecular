@@ -1273,3 +1273,71 @@ Statistics:
 
 SYNTHETIC FMS ELBOW PLOT GENERATION COMPLETE
 ============================================================
+
+============================================================
+SYNTHETIC FMS ELBOW PLOT (STANDALONE)
+============================================================
+Loading FMS results from: ../output/13.00-multiomics-barnacle/rank_comparison/factor_match_scores.csv
+Loaded FMS data for 12 ranks
+Columns available: ['rank', 'fms_tlviz', 'fms_reconstruction', 'fms_synthetic', 'reconstruction_correlation', 'tlviz_success', 'reconstruction_success', 'synthetic_success', 'tlviz_method', 'reconstruction_method', 'synthetic_method', 'valid_elements']
+Found 12 ranks with valid synthetic FMS
+[<matplotlib.lines.Line2D object at 0x77c034c276d0>]
+[<matplotlib.lines.Line2D object at 0x77c0461a6d50>]
+[<matplotlib.lines.Line2D object at 0x77c034f00a50>]
+[<matplotlib.lines.Line2D object at 0x77c034eef350>]
+Text(0.5, 0, 'Rank (Number of Components)')
+Text(0, 0.5, 'Factor Match Score')
+Text(0.5, 1.0, 'Factor Match Score Comparison: Finding the Elbow\nSynthetic FMS peaks at optimal rank, then declines (overfitting)')
+<matplotlib.legend.Legend object at 0x77c034c262d0>
+(0.0, 1.05)
+<matplotlib.lines.Line2D object at 0x77c0460e7890>
+Text(74.575, 0.91, 'Excellent (>0.9)')
+<matplotlib.lines.Line2D object at 0x77c034c2d350>
+Text(74.575, 0.71, 'Good (>0.7)')
+<matplotlib.lines.Line2D object at 0x77c046005a10>
+Text(74.575, 0.51, 'Fair (>0.5)')
+<string>:91: UserWarning: Glyph 128300 (\N{MICROSCOPE}) missing from font(s) DejaVu Sans.
+<string>:91: UserWarning: Glyph 11088 (\N{WHITE MEDIUM STAR}) missing from font(s) DejaVu Sans.
+<string>:93: UserWarning: Glyph 128300 (\N{MICROSCOPE}) missing from font(s) DejaVu Sans.
+<string>:93: UserWarning: Glyph 11088 (\N{WHITE MEDIUM STAR}) missing from font(s) DejaVu Sans.
+
+✓ Saved Synthetic FMS elbow plot to: ../output/13.00-multiomics-barnacle/rank_comparison/synthetic_fms_elbow_plot.png
+
+============================================================
+SYNTHETIC FMS ELBOW ANALYSIS
+============================================================
+Optimal Rank: 10 (FMS = 0.9071)
+
+Complete Synthetic FMS Results:
+Rank     Synthetic FMS   Quality      Status
+-------- --------------- ------------ --------------------
+5        0.6170          Fair         
+8        0.6859          Fair         
+10       0.9071          Excellent    ★ OPTIMAL
+12       0.5074          Fair         
+15       0.7324          Good         
+20       0.4963          Poor         
+25       0.6034          Fair         
+35       0.5673          Fair         
+45       0.5851          Fair         
+55       0.4969          Poor         
+65       0.5136          Fair         
+75       0.4539          Poor         
+
+Interpretation:
+  • Synthetic FMS tests factor recovery from noisy data
+  • Peak at rank 10 indicates best balance:
+    - Sufficient complexity to capture patterns
+    - Robust enough to avoid overfitting noise
+  • Higher ranks show declining FMS (overfitting)
+  • Lower ranks show lower FMS (underfitting)
+
+Statistics:
+  • Improvement to optimal: +0.2213
+  • Average FMS after optimal: 0.5507
+  • Decline from peak: -0.3564
+
+============================================================
+
+SYNTHETIC FMS ELBOW PLOT GENERATION COMPLETE
+============================================================
