@@ -1341,3 +1341,1849 @@ Statistics:
 
 SYNTHETIC FMS ELBOW PLOT GENERATION COMPLETE
 ============================================================
+
+============================================================
+Creating rank comparison visualizations
+============================================================
+Loading results from log file: ../output/13.00-multiomics-barnacle/rank_comparison_log.json
+  Log timestamp: 2025-10-21T06:48:19.041205
+  Total runs: 12
+  Successful: 12
+  Failed: 0
+  Loaded 12 results from log file
+  Saved metrics table
+Text(0.5, 0.98, 'Rank Comparison: Key Metrics')
+[<matplotlib.lines.Line2D object at 0x77c04646d0d0>]
+<matplotlib.lines.Line2D object at 0x77c034d64350>
+<matplotlib.lines.Line2D object at 0x77c034c5b610>
+Text(0.5, 0, 'Rank (Number of Components)')
+Text(0, 0.5, 'Variance Explained')
+Text(0.5, 1.0, 'Variance Explained vs Rank')
+<matplotlib.legend.Legend object at 0x77c034c44050>
+(0.0, 1.05)
+[<matplotlib.lines.Line2D object at 0x77c034a30550>]
+Text(0.5, 0, 'Rank (Number of Components)')
+Text(0, 0.5, 'Relative Reconstruction Error')
+Text(0.5, 1.0, 'Reconstruction Error vs Rank')
+[<matplotlib.lines.Line2D object at 0x77c034a31290>]
+Text(0.5, 0, 'Rank (Number of Components)')
+Text(0, 0.5, 'Final Loss')
+Text(0.5, 1.0, 'Final Loss vs Rank')
+[<matplotlib.lines.Line2D object at 0x77c034a320d0>]
+<matplotlib.lines.Line2D object at 0x77c03dd05010>
+Text(0.5, 0, 'Rank (Number of Components)')
+Text(0, 0.5, 'Gene Factor Sparsity')
+Text(0.5, 1.0, 'Gene Sparsity vs Rank')
+<matplotlib.legend.Legend object at 0x77c034e0e1d0>
+(0.0, 1.05)
+[<matplotlib.lines.Line2D object at 0x77c034a3ed90>]
+Text(0.5, 0, 'Rank (Number of Components)')
+Text(0, 0.5, 'Weight Coefficient of Variation')
+Text(0.5, 1.0, 'Component Weight Variability vs Rank')
+<BarContainer object of 12 artists>
+Text(0.5, 0, 'Rank (Number of Components)')
+Text(0, 0.5, 'Iterations to Convergence')
+Text(0.5, 1.0, 'Convergence Speed vs Rank\n(Green=Converged, Red=Max Iterations)')
+  Saved: rank_comparison_summary.png
+[<matplotlib.lines.Line2D object at 0x77c034b05d10>]
+Text(10, -10, '+9.0%')
+Text(10, -10, '+5.5%')
+Text(10, -10, '+4.6%')
+Text(10, -10, '+5.9%')
+Text(10, -10, '+7.6%')
+Text(10, -10, '+6.2%')
+Text(10, -10, '+9.5%')
+Text(10, -10, '+6.8%')
+Text(10, -10, '+4.8%')
+Text(10, -10, '+3.7%')
+Text(10, -10, '+2.9%')
+<matplotlib.lines.Line2D object at 0x77c0461c5fd0>
+<matplotlib.lines.Line2D object at 0x77c034cd8f90>
+Text(0.5, 0, 'Rank (Number of Components)')
+Text(0, 0.5, 'Variance Explained')
+Text(0.5, 1.0, 'Elbow Plot: Finding Optimal Rank\n(Look for diminishing returns)')
+<matplotlib.legend.Legend object at 0x77c02c1ac810>
+(0.0, 1.05)
+[<matplotlib.axis.XTick object at 0x77c02c194910>, <matplotlib.axis.XTick object at 0x77c034c04c10>, <matplotlib.axis.XTick object at 0x77c02c1a13d0>, <matplotlib.axis.XTick object at 0x77c02c1eb610>, <matplotlib.axis.XTick object at 0x77c02c1e7690>, <matplotlib.axis.XTick object at 0x77c02c1fae50>, <matplotlib.axis.XTick object at 0x77c023701090>, <matplotlib.axis.XTick object at 0x77c023703210>, <matplotlib.axis.XTick object at 0x77c023705550>, <matplotlib.axis.XTick object at 0x77c02c1ac690>, <matplotlib.axis.XTick object at 0x77c02370c390>, <matplotlib.axis.XTick object at 0x77c02370e690>]
+  Saved: elbow_plot.png
+[<matplotlib.lines.Line2D object at 0x77c034f01f10>]
+[<matplotlib.lines.Line2D object at 0x77c02371bc10>]
+[<matplotlib.lines.Line2D object at 0x77c023703150>]
+[<matplotlib.lines.Line2D object at 0x77c03dd142d0>]
+[<matplotlib.lines.Line2D object at 0x77c02374ec90>]
+[<matplotlib.lines.Line2D object at 0x77c03dd5aad0>]
+[<matplotlib.lines.Line2D object at 0x77c03dd5b250>]
+[<matplotlib.lines.Line2D object at 0x77c03dd58550>]
+[<matplotlib.lines.Line2D object at 0x77c03dd5b050>]
+[<matplotlib.lines.Line2D object at 0x77c03dd5a450>]
+[<matplotlib.lines.Line2D object at 0x77c034a6d410>]
+[<matplotlib.lines.Line2D object at 0x77c03dd0c390>]
+Text(0.5, 0, 'Iteration')
+Text(0, 0.5, 'Loss')
+Text(0.5, 1.0, 'Loss Convergence Trajectories by Rank')
+<matplotlib.legend.Legend object at 0x77c034ce10d0>
+  Saved: loss_trajectories.png
+
+All comparison plots saved to: ../output/13.00-multiomics-barnacle/rank_comparison
+
+============================================================
+CREATING INDIVIDUAL RANK VISUALIZATIONS
+============================================================
+Creating visualizations for 12 ranks...
+
+--- Rank 5 ---
+  Creating gene-component heatmap...
+<Axes: >
+Text(0.5, 80.7222222222222, 'Components')
+Text(120.72222222222221, 0.5, 'Gene ID')
+Text(0.5, 1.0, 'Rank 5: Top 50 Genes Across Components\n(Ordered by Total Importance)')
+    Saved: gene_component_heatmap_top50.png
+  Creating time-component line plot...
+[<matplotlib.lines.Line2D object at 0x77c045ed0e50>]
+[<matplotlib.lines.Line2D object at 0x77c0462cced0>]
+[<matplotlib.lines.Line2D object at 0x77c046156d50>]
+[<matplotlib.lines.Line2D object at 0x77c046156750>]
+[<matplotlib.lines.Line2D object at 0x77c046155910>]
+Text(0.5, 0, 'Timepoint')
+Text(0, 0.5, 'Component Loading')
+Text(0.5, 1.0, 'Rank 5: Component Loadings Across Timepoints\n(Each line = one component, weighted by importance)')
+<matplotlib.legend.Legend object at 0x77c0f18fc810>
+<matplotlib.lines.Line2D object at 0x77c045fda410>
+    Saved: time_component_lineplot.png
+  Creating component weight bar plot...
+Text(0.5, 0, 'Component')
+Text(0, 0.5, 'Weight')
+Text(0.5, 1.0, 'Rank 5: Component Weights\n(Top 5 highlighted in coral)')
+[<matplotlib.axis.XTick object at 0x77c046286f50>, <matplotlib.axis.XTick object at 0x77c046373b50>, <matplotlib.axis.XTick object at 0x77c0237794d0>, <matplotlib.axis.XTick object at 0x77c02377b7d0>, <matplotlib.axis.XTick object at 0x77c023781550>]
+[Text(0, 0, 'C1'), Text(1, 0, 'C2'), Text(2, 0, 'C3'), Text(3, 0, 'C4'), Text(4, 0, 'C5')]
+    Saved: component_weights_barplot.png
+  Creating gene importance distribution...
+(array([442., 705., 795., 744., 712., 705., 651., 605., 614., 501., 493.,
+       424., 422., 356., 285., 307., 252., 211., 163., 150., 128., 108.,
+        85.,  62.,  55.,  56.,  38.,  26.,  27.,  15.,  13.,  17.,   9.,
+         8.,   8.,   7.,   4.,   3.,   3.,   4.,   3.,   4.,   0.,   2.,
+         0.,   0.,   0.,   0.,   0.,   1.]), array([ 0.        ,  0.41655391,  0.83310782,  1.24966172,  1.66621563,
+        2.08276954,  2.49932345,  2.91587736,  3.33243126,  3.74898517,
+        4.16553908,  4.58209299,  4.9986469 ,  5.4152008 ,  5.83175471,
+        6.24830862,  6.66486253,  7.08141644,  7.49797034,  7.91452425,
+        8.33107816,  8.74763207,  9.16418597,  9.58073988,  9.99729379,
+       10.4138477 , 10.83040161, 11.24695551, 11.66350942, 12.08006333,
+       12.49661724, 12.91317115, 13.32972505, 13.74627896, 14.16283287,
+       14.57938678, 14.99594069, 15.41249459, 15.8290485 , 16.24560241,
+       16.66215632, 17.07871023, 17.49526413, 17.91181804, 18.32837195,
+       18.74492586, 19.16147977, 19.57803367, 19.99458758, 20.41114149,
+       20.8276954 ]), <BarContainer object of 50 artists>)
+<matplotlib.lines.Line2D object at 0x77c034c5d990>
+Text(0.5, 0, 'Total Importance Score')
+Text(0, 0.5, 'Number of Genes')
+Text(0.5, 1.0, 'Distribution of Gene Importance Scores')
+<matplotlib.legend.Legend object at 0x77c04646cad0>
+[<matplotlib.lines.Line2D object at 0x77c045eeb550>]
+<matplotlib.lines.Line2D object at 0x77c046373f90>
+<matplotlib.lines.Line2D object at 0x77c04623a390>
+Text(0.5, 0, 'Number of Top Genes')
+Text(0, 0.5, 'Cumulative Variance Explained (%)')
+Text(0.5, 1.0, 'Cumulative Importance by Gene Rank')
+<matplotlib.legend.Legend object at 0x77c0461f0210>
+Text(0.5, 1.02, 'Rank 5: Gene Importance Analysis')
+    Saved: gene_importance_distribution.png
+  Creating component correlation heatmap...
+<Axes: >
+Text(0.5, 1.0, 'Rank 5: Component Correlation Matrix\n(Based on gene loadings - low correlation = good separation)')
+    Saved: component_correlation_heatmap.png
+
+--- Rank 8 ---
+  Creating gene-component heatmap...
+<Axes: >
+Text(0.5, 80.7222222222222, 'Components')
+Text(120.72222222222221, 0.5, 'Gene ID')
+Text(0.5, 1.0, 'Rank 8: Top 50 Genes Across Components\n(Ordered by Total Importance)')
+    Saved: gene_component_heatmap_top50.png
+  Creating time-component line plot...
+[<matplotlib.lines.Line2D object at 0x77c04608e590>]
+[<matplotlib.lines.Line2D object at 0x77c02c980d10>]
+[<matplotlib.lines.Line2D object at 0x77c02c9c0e50>]
+[<matplotlib.lines.Line2D object at 0x77c02c9c1b90>]
+[<matplotlib.lines.Line2D object at 0x77c02c9c2990>]
+[<matplotlib.lines.Line2D object at 0x77c02c9c3790>]
+[<matplotlib.lines.Line2D object at 0x77c02c9cc550>]
+[<matplotlib.lines.Line2D object at 0x77c02c9cd290>]
+Text(0.5, 0, 'Timepoint')
+Text(0, 0.5, 'Component Loading')
+Text(0.5, 1.0, 'Rank 8: Component Loadings Across Timepoints\n(Each line = one component, weighted by importance)')
+<matplotlib.legend.Legend object at 0x77c04634f150>
+<matplotlib.lines.Line2D object at 0x77c034ce4f50>
+    Saved: time_component_lineplot.png
+  Creating component weight bar plot...
+Text(0.5, 0, 'Component')
+Text(0, 0.5, 'Weight')
+Text(0.5, 1.0, 'Rank 8: Component Weights\n(Top 5 highlighted in coral)')
+[<matplotlib.axis.XTick object at 0x77c02c82ef10>, <matplotlib.axis.XTick object at 0x77c02c802b50>, <matplotlib.axis.XTick object at 0x77c046232350>, <matplotlib.axis.XTick object at 0x77c0461ddf90>, <matplotlib.axis.XTick object at 0x77c0461dc550>, <matplotlib.axis.XTick object at 0x77c0462a5b90>, <matplotlib.axis.XTick object at 0x77c0460550d0>, <matplotlib.axis.XTick object at 0x77c0460d13d0>]
+[Text(0, 0, 'C1'), Text(1, 0, 'C2'), Text(2, 0, 'C3'), Text(3, 0, 'C4'), Text(4, 0, 'C5'), Text(5, 0, 'C6'), Text(6, 0, 'C7'), Text(7, 0, 'C8')]
+    Saved: component_weights_barplot.png
+  Creating gene importance distribution...
+(array([4.160e+02, 1.137e+03, 1.071e+03, 8.930e+02, 6.880e+02, 6.660e+02,
+       6.340e+02, 6.030e+02, 5.380e+02, 5.130e+02, 4.490e+02, 4.220e+02,
+       3.690e+02, 3.160e+02, 3.030e+02, 2.460e+02, 1.890e+02, 1.660e+02,
+       1.230e+02, 1.030e+02, 7.700e+01, 7.200e+01, 5.200e+01, 4.000e+01,
+       3.900e+01, 2.100e+01, 2.400e+01, 8.000e+00, 9.000e+00, 8.000e+00,
+       1.000e+01, 4.000e+00, 2.000e+00, 2.000e+00, 2.000e+00, 2.000e+00,
+       0.000e+00, 4.000e+00, 0.000e+00, 0.000e+00, 0.000e+00, 1.000e+00,
+       0.000e+00, 0.000e+00, 0.000e+00, 0.000e+00, 0.000e+00, 0.000e+00,
+       0.000e+00, 1.000e+00]), array([ 0.        ,  0.62932014,  1.25864027,  1.88796041,  2.51728054,
+        3.14660068,  3.77592081,  4.40524095,  5.03456108,  5.66388122,
+        6.29320135,  6.92252149,  7.55184162,  8.18116176,  8.81048189,
+        9.43980203, 10.06912216, 10.6984423 , 11.32776243, 11.95708257,
+       12.5864027 , 13.21572284, 13.84504297, 14.47436311, 15.10368324,
+       15.73300338, 16.36232351, 16.99164365, 17.62096378, 18.25028392,
+       18.87960405, 19.50892419, 20.13824432, 20.76756446, 21.39688459,
+       22.02620473, 22.65552486, 23.284845  , 23.91416513, 24.54348527,
+       25.1728054 , 25.80212554, 26.43144567, 27.06076581, 27.69008594,
+       28.31940608, 28.94872622, 29.57804635, 30.20736649, 30.83668662,
+       31.46600676]), <BarContainer object of 50 artists>)
+<matplotlib.lines.Line2D object at 0x77c04602fa90>
+Text(0.5, 0, 'Total Importance Score')
+Text(0, 0.5, 'Number of Genes')
+Text(0.5, 1.0, 'Distribution of Gene Importance Scores')
+<matplotlib.legend.Legend object at 0x77c045ef2890>
+[<matplotlib.lines.Line2D object at 0x77c046278810>]
+<matplotlib.lines.Line2D object at 0x77c02c80da50>
+<matplotlib.lines.Line2D object at 0x77c0462505d0>
+Text(0.5, 0, 'Number of Top Genes')
+Text(0, 0.5, 'Cumulative Variance Explained (%)')
+Text(0.5, 1.0, 'Cumulative Importance by Gene Rank')
+<matplotlib.legend.Legend object at 0x77c02c8035d0>
+Text(0.5, 1.02, 'Rank 8: Gene Importance Analysis')
+    Saved: gene_importance_distribution.png
+  Creating component correlation heatmap...
+<Axes: >
+Text(0.5, 1.0, 'Rank 8: Component Correlation Matrix\n(Based on gene loadings - low correlation = good separation)')
+    Saved: component_correlation_heatmap.png
+
+--- Rank 10 ---
+  Creating gene-component heatmap...
+<Axes: >
+Text(0.5, 80.7222222222222, 'Components')
+Text(120.72222222222221, 0.5, 'Gene ID')
+Text(0.5, 1.0, 'Rank 10: Top 50 Genes Across Components\n(Ordered by Total Importance)')
+    Saved: gene_component_heatmap_top50.png
+  Creating time-component line plot...
+[<matplotlib.lines.Line2D object at 0x77c02c892f10>]
+[<matplotlib.lines.Line2D object at 0x77c02c89b5d0>]
+[<matplotlib.lines.Line2D object at 0x77c02c8c4d50>]
+[<matplotlib.lines.Line2D object at 0x77c02c8c5ad0>]
+[<matplotlib.lines.Line2D object at 0x77c02c8c6910>]
+[<matplotlib.lines.Line2D object at 0x77c02c8c75d0>]
+[<matplotlib.lines.Line2D object at 0x77c02c8d03d0>]
+[<matplotlib.lines.Line2D object at 0x77c02c8d0fd0>]
+[<matplotlib.lines.Line2D object at 0x77c02c8d1f10>]
+[<matplotlib.lines.Line2D object at 0x77c02c8d2c50>]
+Text(0.5, 0, 'Timepoint')
+Text(0, 0.5, 'Component Loading')
+Text(0.5, 1.0, 'Rank 10: Component Loadings Across Timepoints\n(Each line = one component, weighted by importance)')
+<matplotlib.legend.Legend object at 0x77c01235c810>
+<matplotlib.lines.Line2D object at 0x77c02c888510>
+    Saved: time_component_lineplot.png
+  Creating component weight bar plot...
+Text(0.5, 0, 'Component')
+Text(0, 0.5, 'Weight')
+Text(0.5, 1.0, 'Rank 10: Component Weights\n(Top 5 highlighted in coral)')
+[<matplotlib.axis.XTick object at 0x77c02c743990>, <matplotlib.axis.XTick object at 0x77c02c70c6d0>, <matplotlib.axis.XTick object at 0x77c02c777d90>, <matplotlib.axis.XTick object at 0x77c02c77a190>, <matplotlib.axis.XTick object at 0x77c02c77c4d0>, <matplotlib.axis.XTick object at 0x77c02c77d750>, <matplotlib.axis.XTick object at 0x77c02c77f910>, <matplotlib.axis.XTick object at 0x77c02c785c10>, <matplotlib.axis.XTick object at 0x77c02c787d10>, <matplotlib.axis.XTick object at 0x77c02c789f90>]
+[Text(0, 0, 'C1'), Text(1, 0, 'C2'), Text(2, 0, 'C3'), Text(3, 0, 'C4'), Text(4, 0, 'C5'), Text(5, 0, 'C6'), Text(6, 0, 'C7'), Text(7, 0, 'C8'), Text(8, 0, 'C9'), Text(9, 0, 'C10')]
+    Saved: component_weights_barplot.png
+  Creating gene importance distribution...
+(array([148., 553., 795., 912., 943., 760., 748., 641., 531., 575., 499.,
+       444., 408., 316., 331., 305., 226., 198., 157., 144., 114.,  80.,
+        87.,  57.,  49.,  54.,  28.,  35.,  17.,   6.,   8.,   7.,  10.,
+         8.,   4.,   6.,   1.,   2.,   4.,   3.,   4.,   2.,   0.,   1.,
+         0.,   0.,   1.,   0.,   0.,   1.]), array([ 0.        ,  0.79823011,  1.59646021,  2.39469032,  3.19292042,
+        3.99115053,  4.78938063,  5.58761074,  6.38584084,  7.18407095,
+        7.98230105,  8.78053116,  9.57876126, 10.37699137, 11.17522147,
+       11.97345158, 12.77168168, 13.56991179, 14.3681419 , 15.166372  ,
+       15.96460211, 16.76283221, 17.56106232, 18.35929242, 19.15752253,
+       19.95575263, 20.75398274, 21.55221284, 22.35044295, 23.14867305,
+       23.94690316, 24.74513326, 25.54336337, 26.34159347, 27.13982358,
+       27.93805369, 28.73628379, 29.5345139 , 30.332744  , 31.13097411,
+       31.92920421, 32.72743432, 33.52566442, 34.32389453, 35.12212463,
+       35.92035474, 36.71858484, 37.51681495, 38.31504505, 39.11327516,
+       39.91150526]), <BarContainer object of 50 artists>)
+<matplotlib.lines.Line2D object at 0x77c02c84db10>
+Text(0.5, 0, 'Total Importance Score')
+Text(0, 0.5, 'Number of Genes')
+Text(0.5, 1.0, 'Distribution of Gene Importance Scores')
+<matplotlib.legend.Legend object at 0x77c02c7ea890>
+[<matplotlib.lines.Line2D object at 0x77c02c70f310>]
+<matplotlib.lines.Line2D object at 0x77c02c675510>
+<matplotlib.lines.Line2D object at 0x77c02c676610>
+Text(0.5, 0, 'Number of Top Genes')
+Text(0, 0.5, 'Cumulative Variance Explained (%)')
+Text(0.5, 1.0, 'Cumulative Importance by Gene Rank')
+<matplotlib.legend.Legend object at 0x77c02c77f390>
+Text(0.5, 1.02, 'Rank 10: Gene Importance Analysis')
+    Saved: gene_importance_distribution.png
+  Creating component correlation heatmap...
+<Axes: >
+Text(0.5, 1.0, 'Rank 10: Component Correlation Matrix\n(Based on gene loadings - low correlation = good separation)')
+    Saved: component_correlation_heatmap.png
+
+--- Rank 12 ---
+  Creating gene-component heatmap...
+<Axes: >
+Text(0.5, 80.7222222222222, 'Components')
+Text(120.72222222222221, 0.5, 'Gene ID')
+Text(0.5, 1.0, 'Rank 12: Top 50 Genes Across Components\n(Ordered by Total Importance)')
+    Saved: gene_component_heatmap_top50.png
+  Creating time-component line plot...
+[<matplotlib.lines.Line2D object at 0x77c02c8fd210>]
+[<matplotlib.lines.Line2D object at 0x77c01adf2950>]
+[<matplotlib.lines.Line2D object at 0x77c01adf1890>]
+[<matplotlib.lines.Line2D object at 0x77c01adf3f50>]
+[<matplotlib.lines.Line2D object at 0x77c01235a9d0>]
+[<matplotlib.lines.Line2D object at 0x77c01235b6d0>]
+[<matplotlib.lines.Line2D object at 0x77c0123590d0>]
+[<matplotlib.lines.Line2D object at 0x77c0123588d0>]
+[<matplotlib.lines.Line2D object at 0x77c01ad92050>]
+[<matplotlib.lines.Line2D object at 0x77c01ad92950>]
+[<matplotlib.lines.Line2D object at 0x77c01ad91c90>]
+[<matplotlib.lines.Line2D object at 0x77c01ad93b90>]
+Text(0.5, 0, 'Timepoint')
+Text(0, 0.5, 'Component Loading')
+Text(0.5, 1.0, 'Rank 12: Component Loadings Across Timepoints\n(Each line = one component, weighted by importance)')
+<matplotlib.legend.Legend object at 0x77c02c8b4810>
+<matplotlib.lines.Line2D object at 0x77c01235a4d0>
+    Saved: time_component_lineplot.png
+  Creating component weight bar plot...
+Text(0.5, 0, 'Component')
+Text(0, 0.5, 'Weight')
+Text(0.5, 1.0, 'Rank 12: Component Weights\n(Top 5 highlighted in coral)')
+[<matplotlib.axis.XTick object at 0x77c012342510>, <matplotlib.axis.XTick object at 0x77c0123346d0>, <matplotlib.axis.XTick object at 0x77c01ad89510>, <matplotlib.axis.XTick object at 0x77c01ad89550>, <matplotlib.axis.XTick object at 0x77c01ad8a1d0>, <matplotlib.axis.XTick object at 0x77c0123a0b90>, <matplotlib.axis.XTick object at 0x77c0123a3890>, <matplotlib.axis.XTick object at 0x77c0123a5750>, <matplotlib.axis.XTick object at 0x77c0123a74d0>, <matplotlib.axis.XTick object at 0x77c01237eb50>, <matplotlib.axis.XTick object at 0x77c01232d390>, <matplotlib.axis.XTick object at 0x77c02c865d50>]
+[Text(0, 0, 'C1'), Text(1, 0, 'C2'), Text(2, 0, 'C3'), Text(3, 0, 'C4'), Text(4, 0, 'C5'), Text(5, 0, 'C6'), Text(6, 0, 'C7'), Text(7, 0, 'C8'), Text(8, 0, 'C9'), Text(9, 0, 'C10'), Text(10, 0, 'C11'), Text(11, 0, 'C12')]
+    Saved: component_weights_barplot.png
+  Creating gene importance distribution...
+(array([288., 808., 903., 888., 743., 733., 670., 660., 524., 553., 478.,
+       438., 398., 344., 313., 253., 232., 193., 160., 122.,  88.,  76.,
+        80.,  54.,  46.,  34.,  26.,  27.,  15.,  15.,  17.,   8.,   9.,
+         7.,   6.,   3.,   2.,   0.,   2.,   1.,   2.,   1.,   0.,   0.,
+         0.,   1.,   1.,   0.,   0.,   1.]), array([ 0.        ,  0.78904138,  1.57808276,  2.36712413,  3.15616551,
+        3.94520689,  4.73424827,  5.52328964,  6.31233102,  7.1013724 ,
+        7.89041378,  8.67945516,  9.46849653, 10.25753791, 11.04657929,
+       11.83562067, 12.62466204, 13.41370342, 14.2027448 , 14.99178618,
+       15.78082756, 16.56986893, 17.35891031, 18.14795169, 18.93699307,
+       19.72603444, 20.51507582, 21.3041172 , 22.09315858, 22.88219996,
+       23.67124133, 24.46028271, 25.24932409, 26.03836547, 26.82740684,
+       27.61644822, 28.4054896 , 29.19453098, 29.98357236, 30.77261373,
+       31.56165511, 32.35069649, 33.13973787, 33.92877924, 34.71782062,
+       35.506862  , 36.29590338, 37.08494476, 37.87398613, 38.66302751,
+       39.45206889]), <BarContainer object of 50 artists>)
+<matplotlib.lines.Line2D object at 0x77c02c439050>
+Text(0.5, 0, 'Total Importance Score')
+Text(0, 0.5, 'Number of Genes')
+Text(0.5, 1.0, 'Distribution of Gene Importance Scores')
+<matplotlib.legend.Legend object at 0x77c01ade2890>
+[<matplotlib.lines.Line2D object at 0x77c02c8a3550>]
+<matplotlib.lines.Line2D object at 0x77c02c82e7d0>
+<matplotlib.lines.Line2D object at 0x77c02c875bd0>
+Text(0.5, 0, 'Number of Top Genes')
+Text(0, 0.5, 'Cumulative Variance Explained (%)')
+Text(0.5, 1.0, 'Cumulative Importance by Gene Rank')
+<matplotlib.legend.Legend object at 0x77c01236f8d0>
+Text(0.5, 1.02, 'Rank 12: Gene Importance Analysis')
+    Saved: gene_importance_distribution.png
+  Creating component correlation heatmap...
+<Axes: >
+Text(0.5, 1.0, 'Rank 12: Component Correlation Matrix\n(Based on gene loadings - low correlation = good separation)')
+    Saved: component_correlation_heatmap.png
+
+--- Rank 15 ---
+  Creating gene-component heatmap...
+<Axes: >
+Text(0.5, 80.7222222222222, 'Components')
+Text(120.72222222222221, 0.5, 'Gene ID')
+Text(0.5, 1.0, 'Rank 15: Top 50 Genes Across Components\n(Ordered by Total Importance)')
+    Saved: gene_component_heatmap_top50.png
+  Creating time-component line plot...
+[<matplotlib.lines.Line2D object at 0x77c046127790>]
+[<matplotlib.lines.Line2D object at 0x77c0461aa510>]
+[<matplotlib.lines.Line2D object at 0x77c02376b590>]
+[<matplotlib.lines.Line2D object at 0x77c023769a50>]
+[<matplotlib.lines.Line2D object at 0x77c023768910>]
+[<matplotlib.lines.Line2D object at 0x77c02376b3d0>]
+[<matplotlib.lines.Line2D object at 0x77c0462574d0>]
+[<matplotlib.lines.Line2D object at 0x77c0462560d0>]
+[<matplotlib.lines.Line2D object at 0x77c046254c90>]
+[<matplotlib.lines.Line2D object at 0x77c0462556d0>]
+[<matplotlib.lines.Line2D object at 0x77c02c8afd10>]
+[<matplotlib.lines.Line2D object at 0x77c02c8ace90>]
+[<matplotlib.lines.Line2D object at 0x77c02c8af890>]
+[<matplotlib.lines.Line2D object at 0x77c02c8ae810>]
+[<matplotlib.lines.Line2D object at 0x77c02c8ad8d0>]
+Text(0.5, 0, 'Timepoint')
+Text(0, 0.5, 'Component Loading')
+Text(0.5, 1.0, 'Rank 15: Component Loadings Across Timepoints\n(Each line = one component, weighted by importance)')
+<matplotlib.legend.Legend object at 0x77c04646c810>
+<matplotlib.lines.Line2D object at 0x77c02c8aeed0>
+    Saved: time_component_lineplot.png
+  Creating component weight bar plot...
+Text(0.5, 0, 'Component')
+Text(0, 0.5, 'Weight')
+Text(0.5, 1.0, 'Rank 15: Component Weights\n(Top 5 highlighted in coral)')
+[<matplotlib.axis.XTick object at 0x77c02c93a510>, <matplotlib.axis.XTick object at 0x77c0123f46d0>, <matplotlib.axis.XTick object at 0x77c034e193d0>, <matplotlib.axis.XTick object at 0x77c02c203c90>, <matplotlib.axis.XTick object at 0x77c02c205f10>, <matplotlib.axis.XTick object at 0x77c02c20c190>, <matplotlib.axis.XTick object at 0x77c02c20e490>, <matplotlib.axis.XTick object at 0x77c02c214690>, <matplotlib.axis.XTick object at 0x77c02c49d050>, <matplotlib.axis.XTick object at 0x77c02c217210>, <matplotlib.axis.XTick object at 0x77c02c21d550>, <matplotlib.axis.XTick object at 0x77c02c21f6d0>, <matplotlib.axis.XTick object at 0x77c02c225bd0>, <matplotlib.axis.XTick object at 0x77c02c216910>, <matplotlib.axis.XTick object at 0x77c02c2286d0>]
+[Text(0, 0, 'C1'), Text(1, 0, 'C2'), Text(2, 0, 'C3'), Text(3, 0, 'C4'), Text(4, 0, 'C5'), Text(5, 0, 'C6'), Text(6, 0, 'C7'), Text(7, 0, 'C8'), Text(8, 0, 'C9'), Text(9, 0, 'C10'), Text(10, 0, 'C11'), Text(11, 0, 'C12'), Text(12, 0, 'C13'), Text(13, 0, 'C14'), Text(14, 0, 'C15')]
+    Saved: component_weights_barplot.png
+  Creating gene importance distribution...
+(array([2.930e+02, 9.260e+02, 1.196e+03, 9.910e+02, 7.580e+02, 6.900e+02,
+       6.290e+02, 6.110e+02, 5.830e+02, 5.050e+02, 4.590e+02, 3.840e+02,
+       3.710e+02, 3.160e+02, 2.860e+02, 2.010e+02, 1.880e+02, 1.630e+02,
+       1.280e+02, 1.050e+02, 9.200e+01, 7.000e+01, 6.400e+01, 4.400e+01,
+       3.200e+01, 3.300e+01, 2.300e+01, 1.600e+01, 2.200e+01, 1.300e+01,
+       9.000e+00, 3.000e+00, 1.000e+00, 4.000e+00, 2.000e+00, 5.000e+00,
+       1.000e+00, 2.000e+00, 1.000e+00, 0.000e+00, 0.000e+00, 0.000e+00,
+       0.000e+00, 0.000e+00, 2.000e+00, 0.000e+00, 0.000e+00, 0.000e+00,
+       0.000e+00, 1.000e+00]), array([ 0.        ,  0.80290751,  1.60581502,  2.40872252,  3.21163003,
+        4.01453754,  4.81744505,  5.62035255,  6.42326006,  7.22616757,
+        8.02907508,  8.83198259,  9.63489009, 10.4377976 , 11.24070511,
+       12.04361262, 12.84652012, 13.64942763, 14.45233514, 15.25524265,
+       16.05815016, 16.86105766, 17.66396517, 18.46687268, 19.26978019,
+       20.07268769, 20.8755952 , 21.67850271, 22.48141022, 23.28431773,
+       24.08722523, 24.89013274, 25.69304025, 26.49594776, 27.29885526,
+       28.10176277, 28.90467028, 29.70757779, 30.51048529, 31.3133928 ,
+       32.11630031, 32.91920782, 33.72211533, 34.52502283, 35.32793034,
+       36.13083785, 36.93374536, 37.73665286, 38.53956037, 39.34246788,
+       40.14537539]), <BarContainer object of 50 artists>)
+<matplotlib.lines.Line2D object at 0x77c02c9e1050>
+Text(0.5, 0, 'Total Importance Score')
+Text(0, 0.5, 'Number of Genes')
+Text(0.5, 1.0, 'Distribution of Gene Importance Scores')
+<matplotlib.legend.Legend object at 0x77c02c6991d0>
+[<matplotlib.lines.Line2D object at 0x77c02c938810>]
+<matplotlib.lines.Line2D object at 0x77c009902e90>
+<matplotlib.lines.Line2D object at 0x77c009903bd0>
+Text(0.5, 0, 'Number of Top Genes')
+Text(0, 0.5, 'Cumulative Variance Explained (%)')
+Text(0.5, 1.0, 'Cumulative Importance by Gene Rank')
+<matplotlib.legend.Legend object at 0x77c02c24c810>
+Text(0.5, 1.02, 'Rank 15: Gene Importance Analysis')
+    Saved: gene_importance_distribution.png
+  Creating component correlation heatmap...
+<Axes: >
+Text(0.5, 1.0, 'Rank 15: Component Correlation Matrix\n(Based on gene loadings - low correlation = good separation)')
+    Saved: component_correlation_heatmap.png
+
+--- Rank 20 ---
+  Creating gene-component heatmap...
+<Axes: >
+Text(0.5, 80.7222222222222, 'Components')
+Text(120.72222222222221, 0.5, 'Gene ID')
+Text(0.5, 1.0, 'Rank 20: Top 50 Genes Across Components\n(Ordered by Total Importance)')
+    Saved: gene_component_heatmap_top50.png
+  Creating time-component line plot...
+[<matplotlib.lines.Line2D object at 0x77c00999a510>]
+[<matplotlib.lines.Line2D object at 0x77c04646c810>]
+[<matplotlib.lines.Line2D object at 0x77c04646f0d0>]
+[<matplotlib.lines.Line2D object at 0x77c046104610>]
+[<matplotlib.lines.Line2D object at 0x77c012396250>]
+[<matplotlib.lines.Line2D object at 0x77c0461079d0>]
+[<matplotlib.lines.Line2D object at 0x77c046104e10>]
+[<matplotlib.lines.Line2D object at 0x77c046105390>]
+[<matplotlib.lines.Line2D object at 0x77c01add7890>]
+[<matplotlib.lines.Line2D object at 0x77c01add7210>]
+[<matplotlib.lines.Line2D object at 0x77c01add7d90>]
+[<matplotlib.lines.Line2D object at 0x77c01ade0910>]
+[<matplotlib.lines.Line2D object at 0x77c01ade3a50>]
+[<matplotlib.lines.Line2D object at 0x77c01ade2a90>]
+[<matplotlib.lines.Line2D object at 0x77c01ade3450>]
+[<matplotlib.lines.Line2D object at 0x77c0123626d0>]
+[<matplotlib.lines.Line2D object at 0x77c012361e50>]
+[<matplotlib.lines.Line2D object at 0x77c012363010>]
+[<matplotlib.lines.Line2D object at 0x77c012360e50>]
+[<matplotlib.lines.Line2D object at 0x77c0237f94d0>]
+Text(0.5, 0, 'Timepoint')
+Text(0, 0.5, 'Component Loading')
+Text(0.5, 1.0, 'Rank 20: Component Loadings Across Timepoints\n(Each line = one component, weighted by importance)')
+<matplotlib.legend.Legend object at 0x77c02c33c6d0>
+<matplotlib.lines.Line2D object at 0x77c01add53d0>
+    Saved: time_component_lineplot.png
+  Creating component weight bar plot...
+Text(0.5, 0, 'Component')
+Text(0, 0.5, 'Weight')
+Text(0.5, 1.0, 'Rank 20: Component Weights\n(Top 5 highlighted in coral)')
+[<matplotlib.axis.XTick object at 0x77c046200590>, <matplotlib.axis.XTick object at 0x77c046203b50>, <matplotlib.axis.XTick object at 0x77c045eebf90>, <matplotlib.axis.XTick object at 0x77c045ee9a50>, <matplotlib.axis.XTick object at 0x77c045f2b150>, <matplotlib.axis.XTick object at 0x77c0461e7f10>, <matplotlib.axis.XTick object at 0x77c02c5adb90>, <matplotlib.axis.XTick object at 0x77c02c5acc10>, <matplotlib.axis.XTick object at 0x77c02c5af550>, <matplotlib.axis.XTick object at 0x77c03dd04c50>, <matplotlib.axis.XTick object at 0x77c04636dd10>, <matplotlib.axis.XTick object at 0x77c046119450>, <matplotlib.axis.XTick object at 0x77c04635a350>, <matplotlib.axis.XTick object at 0x77c0462032d0>, <matplotlib.axis.XTick object at 0x77c03dd65410>, <matplotlib.axis.XTick object at 0x77c0460165d0>, <matplotlib.axis.XTick object at 0x77c046014310>, <matplotlib.axis.XTick object at 0x77c045fb6210>, <matplotlib.axis.XTick object at 0x77c0460dd990>, <matplotlib.axis.XTick object at 0x77c02c597950>]
+[Text(0, 0, 'C1'), Text(1, 0, 'C2'), Text(2, 0, 'C3'), Text(3, 0, 'C4'), Text(4, 0, 'C5'), Text(5, 0, 'C6'), Text(6, 0, 'C7'), Text(7, 0, 'C8'), Text(8, 0, 'C9'), Text(9, 0, 'C10'), Text(10, 0, 'C11'), Text(11, 0, 'C12'), Text(12, 0, 'C13'), Text(13, 0, 'C14'), Text(14, 0, 'C15'), Text(15, 0, 'C16'), Text(16, 0, 'C17'), Text(17, 0, 'C18'), Text(18, 0, 'C19'), Text(19, 0, 'C20')]
+    Saved: component_weights_barplot.png
+  Creating gene importance distribution...
+(array([1.120e+02, 7.690e+02, 1.579e+03, 1.315e+03, 1.026e+03, 8.280e+02,
+       7.550e+02, 6.180e+02, 5.430e+02, 4.530e+02, 3.690e+02, 3.190e+02,
+       2.800e+02, 2.160e+02, 1.900e+02, 1.650e+02, 1.260e+02, 1.040e+02,
+       8.800e+01, 6.500e+01, 5.900e+01, 5.300e+01, 3.400e+01, 2.900e+01,
+       1.900e+01, 1.900e+01, 1.400e+01, 1.500e+01, 1.400e+01, 7.000e+00,
+       6.000e+00, 7.000e+00, 6.000e+00, 6.000e+00, 5.000e+00, 1.000e+00,
+       1.000e+00, 0.000e+00, 0.000e+00, 1.000e+00, 1.000e+00, 0.000e+00,
+       3.000e+00, 1.000e+00, 0.000e+00, 1.000e+00, 0.000e+00, 0.000e+00,
+       0.000e+00, 1.000e+00]), array([ 0.        ,  1.14694073,  2.29388146,  3.4408222 ,  4.58776293,
+        5.73470366,  6.88164439,  8.02858512,  9.17552585, 10.32246659,
+       11.46940732, 12.61634805, 13.76328878, 14.91022951, 16.05717024,
+       17.20411098, 18.35105171, 19.49799244, 20.64493317, 21.7918739 ,
+       22.93881464, 24.08575537, 25.2326961 , 26.37963683, 27.52657756,
+       28.67351829, 29.82045903, 30.96739976, 32.11434049, 33.26128122,
+       34.40822195, 35.55516268, 36.70210342, 37.84904415, 38.99598488,
+       40.14292561, 41.28986634, 42.43680708, 43.58374781, 44.73068854,
+       45.87762927, 47.02457   , 48.17151073, 49.31845147, 50.4653922 ,
+       51.61233293, 52.75927366, 53.90621439, 55.05315513, 56.20009586,
+       57.34703659]), <BarContainer object of 50 artists>)
+<matplotlib.lines.Line2D object at 0x77c012375f50>
+Text(0.5, 0, 'Total Importance Score')
+Text(0, 0.5, 'Number of Genes')
+Text(0.5, 1.0, 'Distribution of Gene Importance Scores')
+<matplotlib.legend.Legend object at 0x77c0462ecad0>
+[<matplotlib.lines.Line2D object at 0x77c045f35210>]
+<matplotlib.lines.Line2D object at 0x77c000f72d10>
+<matplotlib.lines.Line2D object at 0x77c046132750>
+Text(0.5, 0, 'Number of Top Genes')
+Text(0, 0.5, 'Cumulative Variance Explained (%)')
+Text(0.5, 1.0, 'Cumulative Importance by Gene Rank')
+<matplotlib.legend.Legend object at 0x77c04649bad0>
+Text(0.5, 1.02, 'Rank 20: Gene Importance Analysis')
+    Saved: gene_importance_distribution.png
+  Creating component correlation heatmap...
+<Axes: >
+Text(0.5, 1.0, 'Rank 20: Component Correlation Matrix\n(Based on gene loadings - low correlation = good separation)')
+    Saved: component_correlation_heatmap.png
+
+--- Rank 25 ---
+  Creating gene-component heatmap...
+<Axes: >
+Text(0.5, 80.7222222222222, 'Components')
+Text(126.97222222222221, 0.5, 'Gene ID')
+Text(0.5, 1.0, 'Rank 25: Top 50 Genes Across Components\n(Ordered by Total Importance)')
+    Saved: gene_component_heatmap_top50.png
+  Creating time-component line plot...
+[<matplotlib.lines.Line2D object at 0x77c01ad55210>]
+[<matplotlib.lines.Line2D object at 0x77c000f656d0>]
+[<matplotlib.lines.Line2D object at 0x77c000f67490>]
+[<matplotlib.lines.Line2D object at 0x77c000f64a10>]
+[<matplotlib.lines.Line2D object at 0x77c02c4d3010>]
+[<matplotlib.lines.Line2D object at 0x77c02c4d16d0>]
+[<matplotlib.lines.Line2D object at 0x77c02c4d2e90>]
+[<matplotlib.lines.Line2D object at 0x77c02c4d0790>]
+[<matplotlib.lines.Line2D object at 0x77c02c4cf4d0>]
+[<matplotlib.lines.Line2D object at 0x77c02c4cd510>]
+[<matplotlib.lines.Line2D object at 0x77c02c4cef90>]
+[<matplotlib.lines.Line2D object at 0x77c02c4ce5d0>]
+[<matplotlib.lines.Line2D object at 0x77c02c4cfb10>]
+[<matplotlib.lines.Line2D object at 0x77c0099cb410>]
+[<matplotlib.lines.Line2D object at 0x77c0099ca1d0>]
+[<matplotlib.lines.Line2D object at 0x77c0099c9a50>]
+[<matplotlib.lines.Line2D object at 0x77c0099c8890>]
+[<matplotlib.lines.Line2D object at 0x77c0099c8d50>]
+[<matplotlib.lines.Line2D object at 0x77c0099b2690>]
+[<matplotlib.lines.Line2D object at 0x77c0099b3110>]
+[<matplotlib.lines.Line2D object at 0x77c0099b1350>]
+[<matplotlib.lines.Line2D object at 0x77c0099b09d0>]
+[<matplotlib.lines.Line2D object at 0x77c000f4df90>]
+[<matplotlib.lines.Line2D object at 0x77c000f4d750>]
+[<matplotlib.lines.Line2D object at 0x77c000f4d610>]
+Text(0.5, 0, 'Timepoint')
+Text(0, 0.5, 'Component Loading')
+Text(0.5, 1.0, 'Rank 25: Component Loadings Across Timepoints\n(Each line = one component, weighted by importance)')
+<matplotlib.legend.Legend object at 0x77c04634c810>
+<matplotlib.lines.Line2D object at 0x77c000f375d0>
+    Saved: time_component_lineplot.png
+  Creating component weight bar plot...
+Text(0.5, 0, 'Component')
+Text(0, 0.5, 'Weight')
+Text(0.5, 1.0, 'Rank 25: Component Weights\n(Top 5 highlighted in coral)')
+[<matplotlib.axis.XTick object at 0x77c0099aa510>, <matplotlib.axis.XTick object at 0x77c0099c9110>, <matplotlib.axis.XTick object at 0x77c0237693d0>, <matplotlib.axis.XTick object at 0x77c02c33c510>, <matplotlib.axis.XTick object at 0x77c00999dcd0>, <matplotlib.axis.XTick object at 0x77c0f18bb850>, <matplotlib.axis.XTick object at 0x77c046107c10>, <matplotlib.axis.XTick object at 0x77c02c195e10>, <matplotlib.axis.XTick object at 0x77c0461b3310>, <matplotlib.axis.XTick object at 0x77c0461b2fd0>, <matplotlib.axis.XTick object at 0x77c0462308d0>, <matplotlib.axis.XTick object at 0x77c046232fd0>, <matplotlib.axis.XTick object at 0x77c02c4f7a50>, <matplotlib.axis.XTick object at 0x77c04621be90>, <matplotlib.axis.XTick object at 0x77c04621ac10>, <matplotlib.axis.XTick object at 0x77c046218210>, <matplotlib.axis.XTick object at 0x77c02c4e1790>, <matplotlib.axis.XTick object at 0x77c02c4e0f90>, <matplotlib.axis.XTick object at 0x77c02c4cb750>, <matplotlib.axis.XTick object at 0x77c02c4ca910>, <matplotlib.axis.XTick object at 0x77c0461b14d0>, <matplotlib.axis.XTick object at 0x77c01adee410>, <matplotlib.axis.XTick object at 0x77c034a33450>, <matplotlib.axis.XTick object at 0x77c0237db4d0>, <matplotlib.axis.XTick object at 0x77c00995cc10>]
+[Text(0, 0, 'C1'), Text(1, 0, 'C2'), Text(2, 0, 'C3'), Text(3, 0, 'C4'), Text(4, 0, 'C5'), Text(5, 0, 'C6'), Text(6, 0, 'C7'), Text(7, 0, 'C8'), Text(8, 0, 'C9'), Text(9, 0, 'C10'), Text(10, 0, 'C11'), Text(11, 0, 'C12'), Text(12, 0, 'C13'), Text(13, 0, 'C14'), Text(14, 0, 'C15'), Text(15, 0, 'C16'), Text(16, 0, 'C17'), Text(17, 0, 'C18'), Text(18, 0, 'C19'), Text(19, 0, 'C20'), Text(20, 0, 'C21'), Text(21, 0, 'C22'), Text(22, 0, 'C23'), Text(23, 0, 'C24'), Text(24, 0, 'C25')]
+    Saved: component_weights_barplot.png
+  Creating gene importance distribution...
+(array([6.000e+01, 3.350e+02, 1.040e+03, 1.210e+03, 1.003e+03, 8.840e+02,
+       7.420e+02, 6.320e+02, 5.800e+02, 5.660e+02, 4.560e+02, 3.730e+02,
+       3.220e+02, 3.020e+02, 2.650e+02, 2.280e+02, 1.810e+02, 1.820e+02,
+       1.290e+02, 1.060e+02, 9.700e+01, 9.200e+01, 8.600e+01, 7.200e+01,
+       5.500e+01, 3.600e+01, 3.100e+01, 2.500e+01, 2.100e+01, 2.600e+01,
+       1.200e+01, 1.300e+01, 9.000e+00, 9.000e+00, 8.000e+00, 2.000e+00,
+       3.000e+00, 9.000e+00, 6.000e+00, 3.000e+00, 3.000e+00, 2.000e+00,
+       1.000e+00, 1.000e+00, 1.000e+00, 2.000e+00, 0.000e+00, 0.000e+00,
+       0.000e+00, 2.000e+00]), array([ 0.        ,  0.95121768,  1.90243535,  2.85365303,  3.80487071,
+        4.75608839,  5.70730606,  6.65852374,  7.60974142,  8.5609591 ,
+        9.51217677, 10.46339445, 11.41461213, 12.3658298 , 13.31704748,
+       14.26826516, 15.21948284, 16.17070051, 17.12191819, 18.07313587,
+       19.02435355, 19.97557122, 20.9267889 , 21.87800658, 22.82922425,
+       23.78044193, 24.73165961, 25.68287729, 26.63409496, 27.58531264,
+       28.53653032, 29.487748  , 30.43896567, 31.39018335, 32.34140103,
+       33.29261871, 34.24383638, 35.19505406, 36.14627174, 37.09748941,
+       38.04870709, 38.99992477, 39.95114245, 40.90236012, 41.8535778 ,
+       42.80479548, 43.75601316, 44.70723083, 45.65844851, 46.60966619,
+       47.56088386]), <BarContainer object of 50 artists>)
+<matplotlib.lines.Line2D object at 0x77c01239a3d0>
+Text(0.5, 0, 'Total Importance Score')
+Text(0, 0.5, 'Number of Genes')
+Text(0.5, 1.0, 'Distribution of Gene Importance Scores')
+<matplotlib.legend.Legend object at 0x77c02c314ad0>
+[<matplotlib.lines.Line2D object at 0x77c0099d3550>]
+<matplotlib.lines.Line2D object at 0x77c0f18fce50>
+<matplotlib.lines.Line2D object at 0x77c02c43ac50>
+Text(0.5, 0, 'Number of Top Genes')
+Text(0, 0.5, 'Cumulative Variance Explained (%)')
+Text(0.5, 1.0, 'Cumulative Importance by Gene Rank')
+<matplotlib.legend.Legend object at 0x77c0461b1f90>
+Text(0.5, 1.02, 'Rank 25: Gene Importance Analysis')
+    Saved: gene_importance_distribution.png
+  Creating component correlation heatmap...
+<Axes: >
+Text(0.5, 1.0, 'Rank 25: Component Correlation Matrix\n(Based on gene loadings - low correlation = good separation)')
+    Saved: component_correlation_heatmap.png
+
+--- Rank 35 ---
+  Creating gene-component heatmap...
+<Axes: >
+Text(0.5, 80.7222222222222, 'Components')
+Text(189.47222222222223, 0.5, 'Gene ID')
+Text(0.5, 1.0, 'Rank 35: Top 50 Genes Across Components\n(Ordered by Total Importance)')
+    Saved: gene_component_heatmap_top50.png
+  Creating time-component line plot...
+[<matplotlib.lines.Line2D object at 0x77c02c7043d0>]
+[<matplotlib.lines.Line2D object at 0x77c02c7b5450>]
+[<matplotlib.lines.Line2D object at 0x77c02c7a7e10>]
+[<matplotlib.lines.Line2D object at 0x77c02c7eb950>]
+[<matplotlib.lines.Line2D object at 0x77c02c7ea1d0>]
+[<matplotlib.lines.Line2D object at 0x77c02c7ea190>]
+[<matplotlib.lines.Line2D object at 0x77c02c7e9c90>]
+[<matplotlib.lines.Line2D object at 0x77c02c7e8490>]
+[<matplotlib.lines.Line2D object at 0x77c02c733490>]
+[<matplotlib.lines.Line2D object at 0x77c02c732790>]
+[<matplotlib.lines.Line2D object at 0x77c02c733b10>]
+[<matplotlib.lines.Line2D object at 0x77c02c752f10>]
+[<matplotlib.lines.Line2D object at 0x77c02c753a50>]
+[<matplotlib.lines.Line2D object at 0x77c02c751390>]
+[<matplotlib.lines.Line2D object at 0x77c02c752f90>]
+[<matplotlib.lines.Line2D object at 0x77c02c7535d0>]
+[<matplotlib.lines.Line2D object at 0x77c02c7c1b10>]
+[<matplotlib.lines.Line2D object at 0x77c02c7c0750>]
+[<matplotlib.lines.Line2D object at 0x77c02c7c1550>]
+[<matplotlib.lines.Line2D object at 0x77c02c7c3ad0>]
+[<matplotlib.lines.Line2D object at 0x77c02c8fe010>]
+[<matplotlib.lines.Line2D object at 0x77c02c8fdb90>]
+[<matplotlib.lines.Line2D object at 0x77c02c8fe3d0>]
+[<matplotlib.lines.Line2D object at 0x77c02c87c090>]
+[<matplotlib.lines.Line2D object at 0x77c02c87e590>]
+[<matplotlib.lines.Line2D object at 0x77c012324450>]
+[<matplotlib.lines.Line2D object at 0x77c012325990>]
+[<matplotlib.lines.Line2D object at 0x77c012325790>]
+[<matplotlib.lines.Line2D object at 0x77c012324ed0>]
+[<matplotlib.lines.Line2D object at 0x77c012327f50>]
+[<matplotlib.lines.Line2D object at 0x77c02c8901d0>]
+[<matplotlib.lines.Line2D object at 0x77c02c892210>]
+[<matplotlib.lines.Line2D object at 0x77c02c892290>]
+[<matplotlib.lines.Line2D object at 0x77c02c891e10>]
+[<matplotlib.lines.Line2D object at 0x77c02c882c50>]
+Text(0.5, 0, 'Timepoint')
+Text(0, 0.5, 'Component Loading')
+Text(0.5, 1.0, 'Rank 35: Component Loadings Across Timepoints\n(Each line = one component, weighted by importance)')
+<matplotlib.legend.Legend object at 0x77c02c48eb90>
+<matplotlib.lines.Line2D object at 0x77c02c798890>
+    Saved: time_component_lineplot.png
+  Creating component weight bar plot...
+Text(0.5, 0, 'Component')
+Text(0, 0.5, 'Weight')
+Text(0.5, 1.0, 'Rank 35: Component Weights\n(Top 5 highlighted in coral)')
+[<matplotlib.axis.XTick object at 0x77c02c3b2510>, <matplotlib.axis.XTick object at 0x77c02c8fc6d0>, <matplotlib.axis.XTick object at 0x77bff859f8d0>, <matplotlib.axis.XTick object at 0x77bff85a5e90>, <matplotlib.axis.XTick object at 0x77bff85ac190>, <matplotlib.axis.XTick object at 0x77bff85ae450>, <matplotlib.axis.XTick object at 0x77bff85af1d0>, <matplotlib.axis.XTick object at 0x77bff85b52d0>, <matplotlib.axis.XTick object at 0x77bff85b7550>, <matplotlib.axis.XTick object at 0x77bff85c1810>, <matplotlib.axis.XTick object at 0x77bff85c3a90>, <matplotlib.axis.XTick object at 0x77bff85b47d0>, <matplotlib.axis.XTick object at 0x77bff85c9f10>, <matplotlib.axis.XTick object at 0x77bff85d01d0>, <matplotlib.axis.XTick object at 0x77bff85d2490>, <matplotlib.axis.XTick object at 0x77bff85d4690>, <matplotlib.axis.XTick object at 0x77bff85d0c90>, <matplotlib.axis.XTick object at 0x77c02c3d5650>, <matplotlib.axis.XTick object at 0x77c02c3d75d0>, <matplotlib.axis.XTick object at 0x77c02c379a10>, <matplotlib.axis.XTick object at 0x77c02c37a350>, <matplotlib.axis.XTick object at 0x77c02c349e50>, <matplotlib.axis.XTick object at 0x77c02c349490>, <matplotlib.axis.XTick object at 0x77c02c37d110>, <matplotlib.axis.XTick object at 0x77c02c334850>, <matplotlib.axis.XTick object at 0x77c02c337c10>, <matplotlib.axis.XTick object at 0x77c02c336910>, <matplotlib.axis.XTick object at 0x77c000f807d0>, <matplotlib.axis.XTick object at 0x77c000f83190>, <matplotlib.axis.XTick object at 0x77c02c3c1910>, <matplotlib.axis.XTick object at 0x77c02c368410>, <matplotlib.axis.XTick object at 0x77bff85c0f50>, <matplotlib.axis.XTick object at 0x77c02c36b190>, <matplotlib.axis.XTick object at 0x77c02c35ca50>, <matplotlib.axis.XTick object at 0x77c02c35f110>]
+[Text(0, 0, 'C1'), Text(1, 0, 'C2'), Text(2, 0, 'C3'), Text(3, 0, 'C4'), Text(4, 0, 'C5'), Text(5, 0, 'C6'), Text(6, 0, 'C7'), Text(7, 0, 'C8'), Text(8, 0, 'C9'), Text(9, 0, 'C10'), Text(10, 0, 'C11'), Text(11, 0, 'C12'), Text(12, 0, 'C13'), Text(13, 0, 'C14'), Text(14, 0, 'C15'), Text(15, 0, 'C16'), Text(16, 0, 'C17'), Text(17, 0, 'C18'), Text(18, 0, 'C19'), Text(19, 0, 'C20'), Text(20, 0, 'C21'), Text(21, 0, 'C22'), Text(22, 0, 'C23'), Text(23, 0, 'C24'), Text(24, 0, 'C25'), Text(25, 0, 'C26'), Text(26, 0, 'C27'), Text(27, 0, 'C28'), Text(28, 0, 'C29'), Text(29, 0, 'C30'), Text(30, 0, 'C31'), Text(31, 0, 'C32'), Text(32, 0, 'C33'), Text(33, 0, 'C34'), Text(34, 0, 'C35')]
+    Saved: component_weights_barplot.png
+  Creating gene importance distribution...
+(array([3.200e+01, 1.250e+02, 6.140e+02, 1.244e+03, 1.426e+03, 1.182e+03,
+       1.009e+03, 8.030e+02, 6.340e+02, 5.210e+02, 4.310e+02, 3.620e+02,
+       3.020e+02, 2.780e+02, 2.200e+02, 1.640e+02, 1.220e+02, 1.180e+02,
+       8.800e+01, 9.600e+01, 7.000e+01, 6.600e+01, 5.100e+01, 3.600e+01,
+       3.900e+01, 3.700e+01, 2.800e+01, 2.400e+01, 1.600e+01, 2.000e+01,
+       1.200e+01, 6.000e+00, 1.200e+01, 5.000e+00, 3.000e+00, 4.000e+00,
+       6.000e+00, 3.000e+00, 1.000e+00, 1.000e+00, 1.000e+00, 2.000e+00,
+       1.000e+00, 2.000e+00, 3.000e+00, 0.000e+00, 1.000e+00, 0.000e+00,
+       0.000e+00, 2.000e+00]), array([ 0.        ,  1.08865263,  2.17730526,  3.26595789,  4.35461052,
+        5.44326315,  6.53191578,  7.62056841,  8.70922105,  9.79787368,
+       10.88652631, 11.97517894, 13.06383157, 14.1524842 , 15.24113683,
+       16.32978946, 17.41844209, 18.50709472, 19.59574735, 20.68439998,
+       21.77305261, 22.86170524, 23.95035787, 25.03901051, 26.12766314,
+       27.21631577, 28.3049684 , 29.39362103, 30.48227366, 31.57092629,
+       32.65957892, 33.74823155, 34.83688418, 35.92553681, 37.01418944,
+       38.10284207, 39.1914947 , 40.28014733, 41.36879997, 42.4574526 ,
+       43.54610523, 44.63475786, 45.72341049, 46.81206312, 47.90071575,
+       48.98936838, 50.07802101, 51.16667364, 52.25532627, 53.3439789 ,
+       54.43263153]), <BarContainer object of 50 artists>)
+<matplotlib.lines.Line2D object at 0x77c02c75a550>
+Text(0.5, 0, 'Total Importance Score')
+Text(0, 0.5, 'Number of Genes')
+Text(0.5, 1.0, 'Distribution of Gene Importance Scores')
+<matplotlib.legend.Legend object at 0x77c02c732890>
+[<matplotlib.lines.Line2D object at 0x77bff8540810>]
+<matplotlib.lines.Line2D object at 0x77c02c2e4d90>
+<matplotlib.lines.Line2D object at 0x77c0461ba9d0>
+Text(0.5, 0, 'Number of Top Genes')
+Text(0, 0.5, 'Cumulative Variance Explained (%)')
+Text(0.5, 1.0, 'Cumulative Importance by Gene Rank')
+<matplotlib.legend.Legend object at 0x77c02c390ed0>
+Text(0.5, 1.02, 'Rank 35: Gene Importance Analysis')
+    Saved: gene_importance_distribution.png
+  Creating component correlation heatmap...
+<Axes: >
+Text(0.5, 1.0, 'Rank 35: Component Correlation Matrix\n(Based on gene loadings - low correlation = good separation)')
+    Saved: component_correlation_heatmap.png
+
+--- Rank 45 ---
+  Creating gene-component heatmap...
+<Axes: >
+Text(0.5, 80.7222222222222, 'Components')
+Text(251.97222222222223, 0.5, 'Gene ID')
+Text(0.5, 1.0, 'Rank 45: Top 50 Genes Across Components\n(Ordered by Total Importance)')
+    Saved: gene_component_heatmap_top50.png
+  Creating time-component line plot...
+[<matplotlib.lines.Line2D object at 0x77c02c612c10>]
+[<matplotlib.lines.Line2D object at 0x77c02c6b4a50>]
+[<matplotlib.lines.Line2D object at 0x77c02c84d5d0>]
+[<matplotlib.lines.Line2D object at 0x77c01ade6010>]
+[<matplotlib.lines.Line2D object at 0x77c01ade5390>]
+[<matplotlib.lines.Line2D object at 0x77c01ade4250>]
+[<matplotlib.lines.Line2D object at 0x77c01ade7d50>]
+[<matplotlib.lines.Line2D object at 0x77c01ade6c10>]
+[<matplotlib.lines.Line2D object at 0x77c02c574250>]
+[<matplotlib.lines.Line2D object at 0x77c02c574910>]
+[<matplotlib.lines.Line2D object at 0x77c02c577a90>]
+[<matplotlib.lines.Line2D object at 0x77c02c574ad0>]
+[<matplotlib.lines.Line2D object at 0x77c02c7f7050>]
+[<matplotlib.lines.Line2D object at 0x77c02c7f4b50>]
+[<matplotlib.lines.Line2D object at 0x77c02c7f7710>]
+[<matplotlib.lines.Line2D object at 0x77c02c7f7950>]
+[<matplotlib.lines.Line2D object at 0x77c02c7f44d0>]
+[<matplotlib.lines.Line2D object at 0x77c02c6c40d0>]
+[<matplotlib.lines.Line2D object at 0x77c02c6c5250>]
+[<matplotlib.lines.Line2D object at 0x77c02c6c7890>]
+[<matplotlib.lines.Line2D object at 0x77c02c6c7c10>]
+[<matplotlib.lines.Line2D object at 0x77c012336610>]
+[<matplotlib.lines.Line2D object at 0x77c012335190>]
+[<matplotlib.lines.Line2D object at 0x77c0123367d0>]
+[<matplotlib.lines.Line2D object at 0x77c012334250>]
+[<matplotlib.lines.Line2D object at 0x77c04612c790>]
+[<matplotlib.lines.Line2D object at 0x77c04612c7d0>]
+[<matplotlib.lines.Line2D object at 0x77c04612ef10>]
+[<matplotlib.lines.Line2D object at 0x77c04612db90>]
+[<matplotlib.lines.Line2D object at 0x77c01233d8d0>]
+[<matplotlib.lines.Line2D object at 0x77c01233de90>]
+[<matplotlib.lines.Line2D object at 0x77c01233f210>]
+[<matplotlib.lines.Line2D object at 0x77c01233d2d0>]
+[<matplotlib.lines.Line2D object at 0x77c02c506550>]
+[<matplotlib.lines.Line2D object at 0x77c02c506590>]
+[<matplotlib.lines.Line2D object at 0x77c02c507a50>]
+[<matplotlib.lines.Line2D object at 0x77c02c507d50>]
+[<matplotlib.lines.Line2D object at 0x77c02c8646d0>]
+[<matplotlib.lines.Line2D object at 0x77c02c864890>]
+[<matplotlib.lines.Line2D object at 0x77c02c865dd0>]
+[<matplotlib.lines.Line2D object at 0x77c02c8656d0>]
+[<matplotlib.lines.Line2D object at 0x77c045ee6710>]
+[<matplotlib.lines.Line2D object at 0x77c045ee5190>]
+[<matplotlib.lines.Line2D object at 0x77c045ee5d90>]
+[<matplotlib.lines.Line2D object at 0x77c045ee4090>]
+Text(0.5, 0, 'Timepoint')
+Text(0, 0.5, 'Component Loading')
+Text(0.5, 1.0, 'Rank 45: Component Loadings Across Timepoints\n(Each line = one component, weighted by importance)')
+<matplotlib.legend.Legend object at 0x77c02c6ec810>
+<matplotlib.lines.Line2D object at 0x77c02c2363d0>
+    Saved: time_component_lineplot.png
+  Creating component weight bar plot...
+Text(0.5, 0, 'Component')
+Text(0, 0.5, 'Weight')
+Text(0.5, 1.0, 'Rank 45: Component Weights\n(Top 5 highlighted in coral)')
+[<matplotlib.axis.XTick object at 0x77c02c630590>, <matplotlib.axis.XTick object at 0x77c02c161110>, <matplotlib.axis.XTick object at 0x77c02c9c1550>, <matplotlib.axis.XTick object at 0x77c02c9c3390>, <matplotlib.axis.XTick object at 0x77c02c809cd0>, <matplotlib.axis.XTick object at 0x77c02c593550>, <matplotlib.axis.XTick object at 0x77c02c592350>, <matplotlib.axis.XTick object at 0x77c01adaed50>, <matplotlib.axis.XTick object at 0x77c01adaf7d0>, <matplotlib.axis.XTick object at 0x77c02c561d90>, <matplotlib.axis.XTick object at 0x77c02c561550>, <matplotlib.axis.XTick object at 0x77c046156190>, <matplotlib.axis.XTick object at 0x77c023702d90>, <matplotlib.axis.XTick object at 0x77c023701e10>, <matplotlib.axis.XTick object at 0x77c023703dd0>, <matplotlib.axis.XTick object at 0x77c02c54c810>, <matplotlib.axis.XTick object at 0x77c02c54c310>, <matplotlib.axis.XTick object at 0x77c02c5c8450>, <matplotlib.axis.XTick object at 0x77c02c989550>, <matplotlib.axis.XTick object at 0x77c02c54ee50>, <matplotlib.axis.XTick object at 0x77c0123ae290>, <matplotlib.axis.XTick object at 0x77c0123acd90>, <matplotlib.axis.XTick object at 0x77c02c814210>, <matplotlib.axis.XTick object at 0x77c02c815810>, <matplotlib.axis.XTick object at 0x77c02c6e9cd0>, <matplotlib.axis.XTick object at 0x77c02c93a190>, <matplotlib.axis.XTick object at 0x77c02c586a90>, <matplotlib.axis.XTick object at 0x77c02c584390>, <matplotlib.axis.XTick object at 0x77c0123a80d0>, <matplotlib.axis.XTick object at 0x77c0123abf10>, <matplotlib.axis.XTick object at 0x77c0123a9550>, <matplotlib.axis.XTick object at 0x77c009910f90>, <matplotlib.axis.XTick object at 0x77c045edfed0>, <matplotlib.axis.XTick object at 0x77c045edcc10>, <matplotlib.axis.XTick object at 0x77c00992bd50>, <matplotlib.axis.XTick object at 0x77c03dd65410>, <matplotlib.axis.XTick object at 0x77c009928110>, <matplotlib.axis.XTick object at 0x77c00999cf50>, <matplotlib.axis.XTick object at 0x77c0461a2e90>, <matplotlib.axis.XTick object at 0x77c0461a0490>, <matplotlib.axis.XTick object at 0x77c00999dc10>, <matplotlib.axis.XTick object at 0x77c02c808c10>, <matplotlib.axis.XTick object at 0x77c023760850>, <matplotlib.axis.XTick object at 0x77c01236c190>, <matplotlib.axis.XTick object at 0x77c02c674a10>]
+[Text(0, 0, 'C1'), Text(1, 0, 'C2'), Text(2, 0, 'C3'), Text(3, 0, 'C4'), Text(4, 0, 'C5'), Text(5, 0, 'C6'), Text(6, 0, 'C7'), Text(7, 0, 'C8'), Text(8, 0, 'C9'), Text(9, 0, 'C10'), Text(10, 0, 'C11'), Text(11, 0, 'C12'), Text(12, 0, 'C13'), Text(13, 0, 'C14'), Text(14, 0, 'C15'), Text(15, 0, 'C16'), Text(16, 0, 'C17'), Text(17, 0, 'C18'), Text(18, 0, 'C19'), Text(19, 0, 'C20'), Text(20, 0, 'C21'), Text(21, 0, 'C22'), Text(22, 0, 'C23'), Text(23, 0, 'C24'), Text(24, 0, 'C25'), Text(25, 0, 'C26'), Text(26, 0, 'C27'), Text(27, 0, 'C28'), Text(28, 0, 'C29'), Text(29, 0, 'C30'), Text(30, 0, 'C31'), Text(31, 0, 'C32'), Text(32, 0, 'C33'), Text(33, 0, 'C34'), Text(34, 0, 'C35'), Text(35, 0, 'C36'), Text(36, 0, 'C37'), Text(37, 0, 'C38'), Text(38, 0, 'C39'), Text(39, 0, 'C40'), Text(40, 0, 'C41'), Text(41, 0, 'C42'), Text(42, 0, 'C43'), Text(43, 0, 'C44'), Text(44, 0, 'C45')]
+    Saved: component_weights_barplot.png
+  Creating gene importance distribution...
+(array([3.800e+01, 4.220e+02, 1.937e+03, 2.191e+03, 1.580e+03, 1.107e+03,
+       8.170e+02, 5.340e+02, 3.920e+02, 2.790e+02, 2.150e+02, 1.410e+02,
+       1.500e+02, 1.030e+02, 5.500e+01, 5.300e+01, 3.700e+01, 3.700e+01,
+       3.000e+01, 1.500e+01, 1.700e+01, 1.500e+01, 1.000e+01, 7.000e+00,
+       6.000e+00, 7.000e+00, 7.000e+00, 4.000e+00, 2.000e+00, 5.000e+00,
+       1.000e+00, 1.000e+00, 0.000e+00, 0.000e+00, 1.000e+00, 0.000e+00,
+       1.000e+00, 2.000e+00, 0.000e+00, 0.000e+00, 1.000e+00, 0.000e+00,
+       2.000e+00, 0.000e+00, 0.000e+00, 0.000e+00, 0.000e+00, 0.000e+00,
+       0.000e+00, 1.000e+00]), array([ 0.        ,  1.49122879,  2.98245759,  4.47368638,  5.96491518,
+        7.45614397,  8.94737276, 10.43860156, 11.92983035, 13.42105914,
+       14.91228794, 16.40351673, 17.89474553, 19.38597432, 20.87720311,
+       22.36843191, 23.8596607 , 25.35088949, 26.84211829, 28.33334708,
+       29.82457588, 31.31580467, 32.80703346, 34.29826226, 35.78949105,
+       37.28071985, 38.77194864, 40.26317743, 41.75440623, 43.24563502,
+       44.73686381, 46.22809261, 47.7193214 , 49.2105502 , 50.70177899,
+       52.19300778, 53.68423658, 55.17546537, 56.66669416, 58.15792296,
+       59.64915175, 61.14038055, 62.63160934, 64.12283813, 65.61406693,
+       67.10529572, 68.59652452, 70.08775331, 71.5789821 , 73.0702109 ,
+       74.56143969]), <BarContainer object of 50 artists>)
+<matplotlib.lines.Line2D object at 0x77c01ad8d990>
+Text(0.5, 0, 'Total Importance Score')
+Text(0, 0.5, 'Number of Genes')
+Text(0.5, 1.0, 'Distribution of Gene Importance Scores')
+<matplotlib.legend.Legend object at 0x77c0123ba890>
+[<matplotlib.lines.Line2D object at 0x77c009900810>]
+<matplotlib.lines.Line2D object at 0x77c000f16b90>
+<matplotlib.lines.Line2D object at 0x77c000f170d0>
+Text(0.5, 0, 'Number of Top Genes')
+Text(0, 0.5, 'Cumulative Variance Explained (%)')
+Text(0.5, 1.0, 'Cumulative Importance by Gene Rank')
+<matplotlib.legend.Legend object at 0x77c0462b6590>
+Text(0.5, 1.02, 'Rank 45: Gene Importance Analysis')
+    Saved: gene_importance_distribution.png
+  Creating component correlation heatmap...
+<Axes: >
+Text(0.5, 1.0, 'Rank 45: Component Correlation Matrix\n(Based on gene loadings - low correlation = good separation)')
+    Saved: component_correlation_heatmap.png
+
+--- Rank 55 ---
+  Creating gene-component heatmap...
+<Axes: >
+Text(0.5, 80.7222222222222, 'Components')
+Text(314.47222222222223, 0.5, 'Gene ID')
+Text(0.5, 1.0, 'Rank 55: Top 50 Genes Across Components\n(Ordered by Total Importance)')
+    Saved: gene_component_heatmap_top50.png
+  Creating time-component line plot...
+[<matplotlib.lines.Line2D object at 0x77c02c8b4ed0>]
+[<matplotlib.lines.Line2D object at 0x77c02c7a1c10>]
+[<matplotlib.lines.Line2D object at 0x77c02c36b950>]
+[<matplotlib.lines.Line2D object at 0x77c02c36b790>]
+[<matplotlib.lines.Line2D object at 0x77c02c37f3d0>]
+[<matplotlib.lines.Line2D object at 0x77c02c37cc10>]
+[<matplotlib.lines.Line2D object at 0x77c02c37ff10>]
+[<matplotlib.lines.Line2D object at 0x77c02c37fe50>]
+[<matplotlib.lines.Line2D object at 0x77c012326f10>]
+[<matplotlib.lines.Line2D object at 0x77c012327bd0>]
+[<matplotlib.lines.Line2D object at 0x77c012324290>]
+[<matplotlib.lines.Line2D object at 0x77c012327d10>]
+[<matplotlib.lines.Line2D object at 0x77c012327dd0>]
+[<matplotlib.lines.Line2D object at 0x77bff8522b90>]
+[<matplotlib.lines.Line2D object at 0x77bff85205d0>]
+[<matplotlib.lines.Line2D object at 0x77bff8522850>]
+[<matplotlib.lines.Line2D object at 0x77bff8521090>]
+[<matplotlib.lines.Line2D object at 0x77c02c732750>]
+[<matplotlib.lines.Line2D object at 0x77c02c731550>]
+[<matplotlib.lines.Line2D object at 0x77c02c730250>]
+[<matplotlib.lines.Line2D object at 0x77c02c8fb610>]
+[<matplotlib.lines.Line2D object at 0x77bff85318d0>]
+[<matplotlib.lines.Line2D object at 0x77bff8531c90>]
+[<matplotlib.lines.Line2D object at 0x77bff85306d0>]
+[<matplotlib.lines.Line2D object at 0x77bff8530590>]
+[<matplotlib.lines.Line2D object at 0x77bff8533610>]
+[<matplotlib.lines.Line2D object at 0x77c02c716150>]
+[<matplotlib.lines.Line2D object at 0x77c02c715e50>]
+[<matplotlib.lines.Line2D object at 0x77c02c717ed0>]
+[<matplotlib.lines.Line2D object at 0x77c02c714e90>]
+[<matplotlib.lines.Line2D object at 0x77c02c2c2890>]
+[<matplotlib.lines.Line2D object at 0x77c02c2c1b90>]
+[<matplotlib.lines.Line2D object at 0x77c02c2c0350>]
+[<matplotlib.lines.Line2D object at 0x77c02c2c0410>]
+[<matplotlib.lines.Line2D object at 0x77c02c2c3510>]
+[<matplotlib.lines.Line2D object at 0x77c02377ba90>]
+[<matplotlib.lines.Line2D object at 0x77c02377b010>]
+[<matplotlib.lines.Line2D object at 0x77c023779490>]
+[<matplotlib.lines.Line2D object at 0x77c02377b950>]
+[<matplotlib.lines.Line2D object at 0x77c02c49eb10>]
+[<matplotlib.lines.Line2D object at 0x77c02c49f950>]
+[<matplotlib.lines.Line2D object at 0x77c02c49e790>]
+[<matplotlib.lines.Line2D object at 0x77c02c49ea10>]
+[<matplotlib.lines.Line2D object at 0x77c02c337390>]
+[<matplotlib.lines.Line2D object at 0x77c02c334590>]
+[<matplotlib.lines.Line2D object at 0x77c02c3356d0>]
+[<matplotlib.lines.Line2D object at 0x77c02c337ed0>]
+[<matplotlib.lines.Line2D object at 0x77bff85162d0>]
+[<matplotlib.lines.Line2D object at 0x77bff8517950>]
+[<matplotlib.lines.Line2D object at 0x77bff8515e10>]
+[<matplotlib.lines.Line2D object at 0x77bff8517750>]
+[<matplotlib.lines.Line2D object at 0x77bff8517290>]
+[<matplotlib.lines.Line2D object at 0x77bff853ab50>]
+[<matplotlib.lines.Line2D object at 0x77bff853b510>]
+[<matplotlib.lines.Line2D object at 0x77bff8539ad0>]
+Text(0.5, 0, 'Timepoint')
+Text(0, 0.5, 'Component Loading')
+Text(0.5, 1.0, 'Rank 55: Component Loadings Across Timepoints\n(Each line = one component, weighted by importance)')
+<matplotlib.legend.Legend object at 0x77c02c8b4810>
+<matplotlib.lines.Line2D object at 0x77c02c8c6590>
+    Saved: time_component_lineplot.png
+  Creating component weight bar plot...
+Text(0.5, 0, 'Component')
+Text(0, 0.5, 'Weight')
+Text(0.5, 1.0, 'Rank 55: Component Weights\n(Top 5 highlighted in coral)')
+[<matplotlib.axis.XTick object at 0x77c02c838590>, <matplotlib.axis.XTick object at 0x77c034e546d0>, <matplotlib.axis.XTick object at 0x77c02c8393d0>, <matplotlib.axis.XTick object at 0x77c02c83ff50>, <matplotlib.axis.XTick object at 0x77c046007010>, <matplotlib.axis.XTick object at 0x77c045fe2710>, <matplotlib.axis.XTick object at 0x77c02c89a350>, <matplotlib.axis.XTick object at 0x77c02c5eb7d0>, <matplotlib.axis.XTick object at 0x77c02c874450>, <matplotlib.axis.XTick object at 0x77c00994e890>, <matplotlib.axis.XTick object at 0x77c046031e50>, <matplotlib.axis.XTick object at 0x77c0462b7c10>, <matplotlib.axis.XTick object at 0x77c02c5857d0>, <matplotlib.axis.XTick object at 0x77c0461c2fd0>, <matplotlib.axis.XTick object at 0x77c02c83c9d0>, <matplotlib.axis.XTick object at 0x77c0461c2050>, <matplotlib.axis.XTick object at 0x77c000f4e690>, <matplotlib.axis.XTick object at 0x77c000f4f410>, <matplotlib.axis.XTick object at 0x77c02c866d10>, <matplotlib.axis.XTick object at 0x77c00994da10>, <matplotlib.axis.XTick object at 0x77c02c865c10>, <matplotlib.axis.XTick object at 0x77c0099e1550>, <matplotlib.axis.XTick object at 0x77c02375fad0>, <matplotlib.axis.XTick object at 0x77c02c4ff9d0>, <matplotlib.axis.XTick object at 0x77c0099e3bd0>, <matplotlib.axis.XTick object at 0x77c02c4fc6d0>, <matplotlib.axis.XTick object at 0x77c02c34ff50>, <matplotlib.axis.XTick object at 0x77c0099a91d0>, <matplotlib.axis.XTick object at 0x77c0099a8c10>, <matplotlib.axis.XTick object at 0x77c0237ba790>, <matplotlib.axis.XTick object at 0x77c0237b8410>, <matplotlib.axis.XTick object at 0x77c0237b9c10>, <matplotlib.axis.XTick object at 0x77c02c9a4b90>, <matplotlib.axis.XTick object at 0x77c02c9a4910>, <matplotlib.axis.XTick object at 0x77c02c4cf250>, <matplotlib.axis.XTick object at 0x77c02c4fc410>, <matplotlib.axis.XTick object at 0x77c000f34310>, <matplotlib.axis.XTick object at 0x77c000f36410>, <matplotlib.axis.XTick object at 0x77c0461f0b50>, <matplotlib.axis.XTick object at 0x77c0461f3790>, <matplotlib.axis.XTick object at 0x77c0099a95d0>, <matplotlib.axis.XTick object at 0x77c046129350>, <matplotlib.axis.XTick object at 0x77c02c4e1b10>, <matplotlib.axis.XTick object at 0x77c02c4e3110>, <matplotlib.axis.XTick object at 0x77c02c3145d0>, <matplotlib.axis.XTick object at 0x77c02c3152d0>, <matplotlib.axis.XTick object at 0x77c02c3154d0>, <matplotlib.axis.XTick object at 0x77c009964c10>, <matplotlib.axis.XTick object at 0x77c009967a50>, <matplotlib.axis.XTick object at 0x77c02c4c29d0>, <matplotlib.axis.XTick object at 0x77c04620dc10>, <matplotlib.axis.XTick object at 0x77c00994cf50>, <matplotlib.axis.XTick object at 0x77c04620d890>, <matplotlib.axis.XTick object at 0x77c0099186d0>, <matplotlib.axis.XTick object at 0x77c00991a8d0>]
+[Text(0, 0, 'C1'), Text(1, 0, 'C2'), Text(2, 0, 'C3'), Text(3, 0, 'C4'), Text(4, 0, 'C5'), Text(5, 0, 'C6'), Text(6, 0, 'C7'), Text(7, 0, 'C8'), Text(8, 0, 'C9'), Text(9, 0, 'C10'), Text(10, 0, 'C11'), Text(11, 0, 'C12'), Text(12, 0, 'C13'), Text(13, 0, 'C14'), Text(14, 0, 'C15'), Text(15, 0, 'C16'), Text(16, 0, 'C17'), Text(17, 0, 'C18'), Text(18, 0, 'C19'), Text(19, 0, 'C20'), Text(20, 0, 'C21'), Text(21, 0, 'C22'), Text(22, 0, 'C23'), Text(23, 0, 'C24'), Text(24, 0, 'C25'), Text(25, 0, 'C26'), Text(26, 0, 'C27'), Text(27, 0, 'C28'), Text(28, 0, 'C29'), Text(29, 0, 'C30'), Text(30, 0, 'C31'), Text(31, 0, 'C32'), Text(32, 0, 'C33'), Text(33, 0, 'C34'), Text(34, 0, 'C35'), Text(35, 0, 'C36'), Text(36, 0, 'C37'), Text(37, 0, 'C38'), Text(38, 0, 'C39'), Text(39, 0, 'C40'), Text(40, 0, 'C41'), Text(41, 0, 'C42'), Text(42, 0, 'C43'), Text(43, 0, 'C44'), Text(44, 0, 'C45'), Text(45, 0, 'C46'), Text(46, 0, 'C47'), Text(47, 0, 'C48'), Text(48, 0, 'C49'), Text(49, 0, 'C50'), Text(50, 0, 'C51'), Text(51, 0, 'C52'), Text(52, 0, 'C53'), Text(53, 0, 'C54'), Text(54, 0, 'C55')]
+    Saved: component_weights_barplot.png
+  Creating gene importance distribution...
+(array([3.200e+01, 2.920e+02, 1.842e+03, 2.458e+03, 1.716e+03, 1.138e+03,
+       8.050e+02, 5.550e+02, 3.930e+02, 2.350e+02, 2.060e+02, 1.260e+02,
+       1.170e+02, 7.000e+01, 5.300e+01, 3.500e+01, 3.800e+01, 2.200e+01,
+       2.000e+01, 1.000e+01, 9.000e+00, 1.000e+01, 6.000e+00, 9.000e+00,
+       4.000e+00, 1.100e+01, 1.000e+00, 2.000e+00, 1.000e+00, 1.000e+00,
+       1.000e+00, 0.000e+00, 1.000e+00, 0.000e+00, 1.000e+00, 0.000e+00,
+       1.000e+00, 0.000e+00, 0.000e+00, 0.000e+00, 0.000e+00, 1.000e+00,
+       0.000e+00, 0.000e+00, 0.000e+00, 0.000e+00, 0.000e+00, 0.000e+00,
+       0.000e+00, 1.000e+00]), array([ 0.        ,  1.4403933 ,  2.88078661,  4.32117991,  5.76157321,
+        7.20196652,  8.64235982, 10.08275312, 11.52314643, 12.96353973,
+       14.40393303, 15.84432634, 17.28471964, 18.72511294, 20.16550625,
+       21.60589955, 23.04629285, 24.48668616, 25.92707946, 27.36747276,
+       28.80786607, 30.24825937, 31.68865267, 33.12904598, 34.56943928,
+       36.00983258, 37.45022589, 38.89061919, 40.33101249, 41.7714058 ,
+       43.2117991 , 44.6521924 , 46.09258571, 47.53297901, 48.97337231,
+       50.41376562, 51.85415892, 53.29455222, 54.73494553, 56.17533883,
+       57.61573213, 59.05612544, 60.49651874, 61.93691204, 63.37730535,
+       64.81769865, 66.25809195, 67.69848526, 69.13887856, 70.57927186,
+       72.01966517]), <BarContainer object of 50 artists>)
+<matplotlib.lines.Line2D object at 0x77c02c83f950>
+Text(0.5, 0, 'Total Importance Score')
+Text(0, 0.5, 'Number of Genes')
+Text(0.5, 1.0, 'Distribution of Gene Importance Scores')
+<matplotlib.legend.Legend object at 0x77c02376a890>
+[<matplotlib.lines.Line2D object at 0x77c02c7c8810>]
+<matplotlib.lines.Line2D object at 0x77c02c324510>
+<matplotlib.lines.Line2D object at 0x77c045ebd0d0>
+Text(0.5, 0, 'Number of Top Genes')
+Text(0, 0.5, 'Cumulative Variance Explained (%)')
+Text(0.5, 1.0, 'Cumulative Importance by Gene Rank')
+<matplotlib.legend.Legend object at 0x77c02c866ad0>
+Text(0.5, 1.02, 'Rank 55: Gene Importance Analysis')
+    Saved: gene_importance_distribution.png
+  Creating component correlation heatmap...
+<Axes: >
+Text(0.5, 1.0, 'Rank 55: Component Correlation Matrix\n(Based on gene loadings - low correlation = good separation)')
+    Saved: component_correlation_heatmap.png
+
+--- Rank 65 ---
+  Creating gene-component heatmap...
+<Axes: >
+Text(0.5, 80.7222222222222, 'Components')
+Text(376.97222222222223, 0.5, 'Gene ID')
+Text(0.5, 1.0, 'Rank 65: Top 50 Genes Across Components\n(Ordered by Total Importance)')
+    Saved: gene_component_heatmap_top50.png
+  Creating time-component line plot...
+[<matplotlib.lines.Line2D object at 0x77c01ad53b50>]
+[<matplotlib.lines.Line2D object at 0x77c0462772d0>]
+[<matplotlib.lines.Line2D object at 0x77c0123a7090>]
+[<matplotlib.lines.Line2D object at 0x77c0123a7210>]
+[<matplotlib.lines.Line2D object at 0x77c0123a7ed0>]
+[<matplotlib.lines.Line2D object at 0x77c0123a7cd0>]
+[<matplotlib.lines.Line2D object at 0x77c02c7df510>]
+[<matplotlib.lines.Line2D object at 0x77c02c7de0d0>]
+[<matplotlib.lines.Line2D object at 0x77c02c7dddd0>]
+[<matplotlib.lines.Line2D object at 0x77c02c7de910>]
+[<matplotlib.lines.Line2D object at 0x77c02c7ddc10>]
+[<matplotlib.lines.Line2D object at 0x77c04646fe10>]
+[<matplotlib.lines.Line2D object at 0x77c04646eed0>]
+[<matplotlib.lines.Line2D object at 0x77c04646f110>]
+[<matplotlib.lines.Line2D object at 0x77c01adb3810>]
+[<matplotlib.lines.Line2D object at 0x77c01adb3ed0>]
+[<matplotlib.lines.Line2D object at 0x77c01adb2d90>]
+[<matplotlib.lines.Line2D object at 0x77c01adb1350>]
+[<matplotlib.lines.Line2D object at 0x77c009968d10>]
+[<matplotlib.lines.Line2D object at 0x77c00996bfd0>]
+[<matplotlib.lines.Line2D object at 0x77c045eece90>]
+[<matplotlib.lines.Line2D object at 0x77c045eec750>]
+[<matplotlib.lines.Line2D object at 0x77c045eeea90>]
+[<matplotlib.lines.Line2D object at 0x77c02c78a190>]
+[<matplotlib.lines.Line2D object at 0x77c02c788550>]
+[<matplotlib.lines.Line2D object at 0x77c02c78bd50>]
+[<matplotlib.lines.Line2D object at 0x77c02c789ed0>]
+[<matplotlib.lines.Line2D object at 0x77c01ad85990>]
+[<matplotlib.lines.Line2D object at 0x77c01ad86bd0>]
+[<matplotlib.lines.Line2D object at 0x77c01ad85ad0>]
+[<matplotlib.lines.Line2D object at 0x77c04634c890>]
+[<matplotlib.lines.Line2D object at 0x77c04634d790>]
+[<matplotlib.lines.Line2D object at 0x77c02c203850>]
+[<matplotlib.lines.Line2D object at 0x77c02c202750>]
+[<matplotlib.lines.Line2D object at 0x77c02c203ad0>]
+[<matplotlib.lines.Line2D object at 0x77c02c202210>]
+[<matplotlib.lines.Line2D object at 0x77c02c202690>]
+[<matplotlib.lines.Line2D object at 0x77c02c30b410>]
+[<matplotlib.lines.Line2D object at 0x77c02c30a750>]
+[<matplotlib.lines.Line2D object at 0x77c02c30a7d0>]
+[<matplotlib.lines.Line2D object at 0x77c02c309ed0>]
+[<matplotlib.lines.Line2D object at 0x77c02c411050>]
+[<matplotlib.lines.Line2D object at 0x77c02c411f10>]
+[<matplotlib.lines.Line2D object at 0x77c02c410ed0>]
+[<matplotlib.lines.Line2D object at 0x77c02c412790>]
+[<matplotlib.lines.Line2D object at 0x77c02c413590>]
+[<matplotlib.lines.Line2D object at 0x77c02c21d250>]
+[<matplotlib.lines.Line2D object at 0x77c02c21ff10>]
+[<matplotlib.lines.Line2D object at 0x77c02c21f410>]
+[<matplotlib.lines.Line2D object at 0x77c02c21f5d0>]
+[<matplotlib.lines.Line2D object at 0x77c02c21e590>]
+[<matplotlib.lines.Line2D object at 0x77c02c2e6690>]
+[<matplotlib.lines.Line2D object at 0x77c02c2e5bd0>]
+[<matplotlib.lines.Line2D object at 0x77c02c2e7410>]
+[<matplotlib.lines.Line2D object at 0x77c02c2e7090>]
+[<matplotlib.lines.Line2D object at 0x77c02c291a50>]
+[<matplotlib.lines.Line2D object at 0x77c02c292150>]
+[<matplotlib.lines.Line2D object at 0x77c02c293cd0>]
+[<matplotlib.lines.Line2D object at 0x77c02c2924d0>]
+[<matplotlib.lines.Line2D object at 0x77c02c2077d0>]
+[<matplotlib.lines.Line2D object at 0x77c02c205850>]
+[<matplotlib.lines.Line2D object at 0x77c02c204f50>]
+[<matplotlib.lines.Line2D object at 0x77c02c205290>]
+[<matplotlib.lines.Line2D object at 0x77c02c204410>]
+[<matplotlib.lines.Line2D object at 0x77c0f18b8390>]
+Text(0.5, 0, 'Timepoint')
+Text(0, 0.5, 'Component Loading')
+Text(0.5, 1.0, 'Rank 65: Component Loadings Across Timepoints\n(Each line = one component, weighted by importance)')
+<matplotlib.legend.Legend object at 0x77c02c2010d0>
+<matplotlib.lines.Line2D object at 0x77c02c206c90>
+    Saved: time_component_lineplot.png
+  Creating component weight bar plot...
+Text(0.5, 0, 'Component')
+Text(0, 0.5, 'Weight')
+Text(0.5, 1.0, 'Rank 65: Component Weights\n(Top 5 highlighted in coral)')
+[<matplotlib.axis.XTick object at 0x77c03dd08590>, <matplotlib.axis.XTick object at 0x77c02c7f46d0>, <matplotlib.axis.XTick object at 0x77c02c4b2810>, <matplotlib.axis.XTick object at 0x77c02c5744d0>, <matplotlib.axis.XTick object at 0x77c02c576e50>, <matplotlib.axis.XTick object at 0x77c009981890>, <matplotlib.axis.XTick object at 0x77c045ebd9d0>, <matplotlib.axis.XTick object at 0x77c02c6ad850>, <matplotlib.axis.XTick object at 0x77c02c6ada50>, <matplotlib.axis.XTick object at 0x77c009981f90>, <matplotlib.axis.XTick object at 0x77c01adace90>, <matplotlib.axis.XTick object at 0x77c046286090>, <matplotlib.axis.XTick object at 0x77c046287150>, <matplotlib.axis.XTick object at 0x77c0461556d0>, <matplotlib.axis.XTick object at 0x77c046285510>, <matplotlib.axis.XTick object at 0x77c02c4ad150>, <matplotlib.axis.XTick object at 0x77c02c4aea50>, <matplotlib.axis.XTick object at 0x77c01ad93c90>, <matplotlib.axis.XTick object at 0x77c01ad938d0>, <matplotlib.axis.XTick object at 0x77c02c93ae50>, <matplotlib.axis.XTick object at 0x77c02c938a50>, <matplotlib.axis.XTick object at 0x77c02c19e3d0>, <matplotlib.axis.XTick object at 0x77c012307290>, <matplotlib.axis.XTick object at 0x77c012304d10>, <matplotlib.axis.XTick object at 0x77c02c551e90>, <matplotlib.axis.XTick object at 0x77c02c513e90>, <matplotlib.axis.XTick object at 0x77c02c5520d0>, <matplotlib.axis.XTick object at 0x77c0099b1950>, <matplotlib.axis.XTick object at 0x77c0099b1110>, <matplotlib.axis.XTick object at 0x77c034ab3e50>, <matplotlib.axis.XTick object at 0x77c0099b08d0>, <matplotlib.axis.XTick object at 0x77c02c29ef50>, <matplotlib.axis.XTick object at 0x77c0237e3390>, <matplotlib.axis.XTick object at 0x77c0237e1550>, <matplotlib.axis.XTick object at 0x77c02c4d3710>, <matplotlib.axis.XTick object at 0x77c012318910>, <matplotlib.axis.XTick object at 0x77c046154a10>, <matplotlib.axis.XTick object at 0x77c01231b910>, <matplotlib.axis.XTick object at 0x77c046105d50>, <matplotlib.axis.XTick object at 0x77c02c57cdd0>, <matplotlib.axis.XTick object at 0x77c02c57ded0>, <matplotlib.axis.XTick object at 0x77c02c5746d0>, <matplotlib.axis.XTick object at 0x77c01ade1250>, <matplotlib.axis.XTick object at 0x77c02c172350>, <matplotlib.axis.XTick object at 0x77c01adcfe90>, <matplotlib.axis.XTick object at 0x77c01adccdd0>, <matplotlib.axis.XTick object at 0x77c01adcf310>, <matplotlib.axis.XTick object at 0x77c012364850>, <matplotlib.axis.XTick object at 0x77c012364150>, <matplotlib.axis.XTick object at 0x77c02c5c1490>, <matplotlib.axis.XTick object at 0x77c02c5c1450>, <matplotlib.axis.XTick object at 0x77c02c587990>, <matplotlib.axis.XTick object at 0x77c02c587bd0>, <matplotlib.axis.XTick object at 0x77c000f16fd0>, <matplotlib.axis.XTick object at 0x77c000f156d0>, <matplotlib.axis.XTick object at 0x77c02c632350>, <matplotlib.axis.XTick object at 0x77c02c631450>, <matplotlib.axis.XTick object at 0x77c02c585850>, <matplotlib.axis.XTick object at 0x77c02c5ca690>, <matplotlib.axis.XTick object at 0x77c02c5ca350>, <matplotlib.axis.XTick object at 0x77c02c7f2150>, <matplotlib.axis.XTick object at 0x77c02c7f3550>, <matplotlib.axis.XTick object at 0x77c02c7f37d0>, <matplotlib.axis.XTick object at 0x77c0123aa590>, <matplotlib.axis.XTick object at 0x77c01ad02590>]
+[Text(0, 0, 'C1'), Text(1, 0, 'C2'), Text(2, 0, 'C3'), Text(3, 0, 'C4'), Text(4, 0, 'C5'), Text(5, 0, 'C6'), Text(6, 0, 'C7'), Text(7, 0, 'C8'), Text(8, 0, 'C9'), Text(9, 0, 'C10'), Text(10, 0, 'C11'), Text(11, 0, 'C12'), Text(12, 0, 'C13'), Text(13, 0, 'C14'), Text(14, 0, 'C15'), Text(15, 0, 'C16'), Text(16, 0, 'C17'), Text(17, 0, 'C18'), Text(18, 0, 'C19'), Text(19, 0, 'C20'), Text(20, 0, 'C21'), Text(21, 0, 'C22'), Text(22, 0, 'C23'), Text(23, 0, 'C24'), Text(24, 0, 'C25'), Text(25, 0, 'C26'), Text(26, 0, 'C27'), Text(27, 0, 'C28'), Text(28, 0, 'C29'), Text(29, 0, 'C30'), Text(30, 0, 'C31'), Text(31, 0, 'C32'), Text(32, 0, 'C33'), Text(33, 0, 'C34'), Text(34, 0, 'C35'), Text(35, 0, 'C36'), Text(36, 0, 'C37'), Text(37, 0, 'C38'), Text(38, 0, 'C39'), Text(39, 0, 'C40'), Text(40, 0, 'C41'), Text(41, 0, 'C42'), Text(42, 0, 'C43'), Text(43, 0, 'C44'), Text(44, 0, 'C45'), Text(45, 0, 'C46'), Text(46, 0, 'C47'), Text(47, 0, 'C48'), Text(48, 0, 'C49'), Text(49, 0, 'C50'), Text(50, 0, 'C51'), Text(51, 0, 'C52'), Text(52, 0, 'C53'), Text(53, 0, 'C54'), Text(54, 0, 'C55'), Text(55, 0, 'C56'), Text(56, 0, 'C57'), Text(57, 0, 'C58'), Text(58, 0, 'C59'), Text(59, 0, 'C60'), Text(60, 0, 'C61'), Text(61, 0, 'C62'), Text(62, 0, 'C63'), Text(63, 0, 'C64'), Text(64, 0, 'C65')]
+    Saved: component_weights_barplot.png
+  Creating gene importance distribution...
+(array([2.400e+01, 7.000e+01, 9.690e+02, 2.179e+03, 1.834e+03, 1.330e+03,
+       9.920e+02, 7.070e+02, 4.970e+02, 4.050e+02, 2.840e+02, 2.190e+02,
+       1.450e+02, 1.140e+02, 8.900e+01, 7.400e+01, 5.100e+01, 4.200e+01,
+       3.100e+01, 3.400e+01, 2.200e+01, 2.200e+01, 1.200e+01, 1.900e+01,
+       9.000e+00, 5.000e+00, 1.300e+01, 4.000e+00, 5.000e+00, 7.000e+00,
+       1.000e+00, 2.000e+00, 1.000e+00, 2.000e+00, 2.000e+00, 1.000e+00,
+       0.000e+00, 0.000e+00, 0.000e+00, 0.000e+00, 0.000e+00, 1.000e+00,
+       0.000e+00, 0.000e+00, 0.000e+00, 0.000e+00, 2.000e+00, 2.000e+00,
+       0.000e+00, 1.000e+00]), array([ 0.        ,  1.02916324,  2.05832648,  3.08748971,  4.11665295,
+        5.14581619,  6.17497943,  7.20414267,  8.2333059 ,  9.26246914,
+       10.29163238, 11.32079562, 12.34995886, 13.37912209, 14.40828533,
+       15.43744857, 16.46661181, 17.49577505, 18.52493829, 19.55410152,
+       20.58326476, 21.612428  , 22.64159124, 23.67075448, 24.69991771,
+       25.72908095, 26.75824419, 27.78740743, 28.81657067, 29.8457339 ,
+       30.87489714, 31.90406038, 32.93322362, 33.96238686, 34.99155009,
+       36.02071333, 37.04987657, 38.07903981, 39.10820305, 40.13736628,
+       41.16652952, 42.19569276, 43.224856  , 44.25401924, 45.28318248,
+       46.31234571, 47.34150895, 48.37067219, 49.39983543, 50.42899867,
+       51.4581619 ]), <BarContainer object of 50 artists>)
+<matplotlib.lines.Line2D object at 0x77c02c5f9dd0>
+Text(0.5, 0, 'Total Importance Score')
+Text(0, 0.5, 'Number of Genes')
+Text(0.5, 1.0, 'Distribution of Gene Importance Scores')
+<matplotlib.legend.Legend object at 0x77c03dd04ad0>
+[<matplotlib.lines.Line2D object at 0x77c02c7e8810>]
+<matplotlib.lines.Line2D object at 0x77c01ad4ff50>
+<matplotlib.lines.Line2D object at 0x77c01ad4e0d0>
+Text(0.5, 0, 'Number of Top Genes')
+Text(0, 0.5, 'Cumulative Variance Explained (%)')
+Text(0.5, 1.0, 'Cumulative Importance by Gene Rank')
+<matplotlib.legend.Legend object at 0x77c02c2e49d0>
+Text(0.5, 1.02, 'Rank 65: Gene Importance Analysis')
+    Saved: gene_importance_distribution.png
+  Creating component correlation heatmap...
+<Axes: >
+Text(0.5, 1.0, 'Rank 65: Component Correlation Matrix\n(Based on gene loadings - low correlation = good separation)')
+    Saved: component_correlation_heatmap.png
+
+--- Rank 75 ---
+  Creating gene-component heatmap...
+<Axes: >
+Text(0.5, 80.7222222222222, 'Components')
+Text(439.47222222222223, 0.5, 'Gene ID')
+Text(0.5, 1.0, 'Rank 75: Top 50 Genes Across Components\n(Ordered by Total Importance)')
+    Saved: gene_component_heatmap_top50.png
+  Creating time-component line plot...
+[<matplotlib.lines.Line2D object at 0x77c0f182d550>]
+[<matplotlib.lines.Line2D object at 0x77c01add7010>]
+[<matplotlib.lines.Line2D object at 0x77c0464790d0>]
+[<matplotlib.lines.Line2D object at 0x77c046479a50>]
+[<matplotlib.lines.Line2D object at 0x77c04647a310>]
+[<matplotlib.lines.Line2D object at 0x77c04647a890>]
+[<matplotlib.lines.Line2D object at 0x77c02c1b6190>]
+[<matplotlib.lines.Line2D object at 0x77c02c1b4190>]
+[<matplotlib.lines.Line2D object at 0x77c02c1b68d0>]
+[<matplotlib.lines.Line2D object at 0x77c02c1b5f90>]
+[<matplotlib.lines.Line2D object at 0x77c0237a3510>]
+[<matplotlib.lines.Line2D object at 0x77c0237a23d0>]
+[<matplotlib.lines.Line2D object at 0x77c0237a11d0>]
+[<matplotlib.lines.Line2D object at 0x77c0237a2a50>]
+[<matplotlib.lines.Line2D object at 0x77c0237a2810>]
+[<matplotlib.lines.Line2D object at 0x77c0461c7690>]
+[<matplotlib.lines.Line2D object at 0x77c0461c7fd0>]
+[<matplotlib.lines.Line2D object at 0x77c0461c5990>]
+[<matplotlib.lines.Line2D object at 0x77c04610f550>]
+[<matplotlib.lines.Line2D object at 0x77c04610dc50>]
+[<matplotlib.lines.Line2D object at 0x77c04610fc50>]
+[<matplotlib.lines.Line2D object at 0x77c04610fe50>]
+[<matplotlib.lines.Line2D object at 0x77c046344250>]
+[<matplotlib.lines.Line2D object at 0x77c046344390>]
+[<matplotlib.lines.Line2D object at 0x77c046347450>]
+[<matplotlib.lines.Line2D object at 0x77c0463454d0>]
+[<matplotlib.lines.Line2D object at 0x77c0463474d0>]
+[<matplotlib.lines.Line2D object at 0x77c01ad37390>]
+[<matplotlib.lines.Line2D object at 0x77c01ad37850>]
+[<matplotlib.lines.Line2D object at 0x77c01ad36bd0>]
+[<matplotlib.lines.Line2D object at 0x77c01ad37d50>]
+[<matplotlib.lines.Line2D object at 0x77c0461a5f50>]
+[<matplotlib.lines.Line2D object at 0x77c0461a7050>]
+[<matplotlib.lines.Line2D object at 0x77c0461a7990>]
+[<matplotlib.lines.Line2D object at 0x77c0461a6790>]
+[<matplotlib.lines.Line2D object at 0x77c0462eca10>]
+[<matplotlib.lines.Line2D object at 0x77c0462effd0>]
+[<matplotlib.lines.Line2D object at 0x77c0462ee510>]
+[<matplotlib.lines.Line2D object at 0x77c034c4b910>]
+[<matplotlib.lines.Line2D object at 0x77c0237d9f50>]
+[<matplotlib.lines.Line2D object at 0x77c0237da5d0>]
+[<matplotlib.lines.Line2D object at 0x77c0237d9810>]
+[<matplotlib.lines.Line2D object at 0x77c0237db590>]
+[<matplotlib.lines.Line2D object at 0x77bff85b65d0>]
+[<matplotlib.lines.Line2D object at 0x77bff85b7310>]
+[<matplotlib.lines.Line2D object at 0x77bff85b7910>]
+[<matplotlib.lines.Line2D object at 0x77c02c7ea5d0>]
+[<matplotlib.lines.Line2D object at 0x77c02c7e9110>]
+[<matplotlib.lines.Line2D object at 0x77c02c7ebdd0>]
+[<matplotlib.lines.Line2D object at 0x77c02c7e9c90>]
+[<matplotlib.lines.Line2D object at 0x77c01ad519d0>]
+[<matplotlib.lines.Line2D object at 0x77c01ad53e90>]
+[<matplotlib.lines.Line2D object at 0x77c01ad525d0>]
+[<matplotlib.lines.Line2D object at 0x77c01ad51e50>]
+[<matplotlib.lines.Line2D object at 0x77c0f1868510>]
+[<matplotlib.lines.Line2D object at 0x77c02c129150>]
+[<matplotlib.lines.Line2D object at 0x77c04621a510>]
+[<matplotlib.lines.Line2D object at 0x77c046219810>]
+[<matplotlib.lines.Line2D object at 0x77c04621a610>]
+[<matplotlib.lines.Line2D object at 0x77c046218090>]
+[<matplotlib.lines.Line2D object at 0x77c034ce5050>]
+[<matplotlib.lines.Line2D object at 0x77c0461e2d90>]
+[<matplotlib.lines.Line2D object at 0x77c0461e0410>]
+[<matplotlib.lines.Line2D object at 0x77c0461e3dd0>]
+[<matplotlib.lines.Line2D object at 0x77c0461e0d50>]
+[<matplotlib.lines.Line2D object at 0x77c0099028d0>]
+[<matplotlib.lines.Line2D object at 0x77c009900710>]
+[<matplotlib.lines.Line2D object at 0x77c009903710>]
+[<matplotlib.lines.Line2D object at 0x77c0123c1490>]
+[<matplotlib.lines.Line2D object at 0x77c0123c1f90>]
+[<matplotlib.lines.Line2D object at 0x77c0123c02d0>]
+[<matplotlib.lines.Line2D object at 0x77c0123c0590>]
+[<matplotlib.lines.Line2D object at 0x77c034ae13d0>]
+[<matplotlib.lines.Line2D object at 0x77c045ed9750>]
+[<matplotlib.lines.Line2D object at 0x77c045ed8d10>]
+Text(0.5, 0, 'Timepoint')
+Text(0, 0.5, 'Component Loading')
+Text(0.5, 1.0, 'Rank 75: Component Loadings Across Timepoints\n(Each line = one component, weighted by importance)')
+<matplotlib.legend.Legend object at 0x77c01ad24810>
+<matplotlib.lines.Line2D object at 0x77c04647a4d0>
+<string>:92: UserWarning: Tight layout not applied. The bottom and top margins cannot be made large enough to accommodate all Axes decorations.
+    Saved: time_component_lineplot.png
+  Creating component weight bar plot...
+Text(0.5, 0, 'Component')
+Text(0, 0.5, 'Weight')
+Text(0.5, 1.0, 'Rank 75: Component Weights\n(Top 5 highlighted in coral)')
+[<matplotlib.axis.XTick object at 0x77bff85b5a50>, <matplotlib.axis.XTick object at 0x77c01ad746d0>, <matplotlib.axis.XTick object at 0x77c01ad713d0>, <matplotlib.axis.XTick object at 0x77c00998d250>, <matplotlib.axis.XTick object at 0x77c00998c850>, <matplotlib.axis.XTick object at 0x77c045fe3c90>, <matplotlib.axis.XTick object at 0x77c02c79b050>, <matplotlib.axis.XTick object at 0x77c00998d910>, <matplotlib.axis.XTick object at 0x77c046250650>, <matplotlib.axis.XTick object at 0x77c02c3d6a10>, <matplotlib.axis.XTick object at 0x77c02c3d5610>, <matplotlib.axis.XTick object at 0x77c04612a390>, <matplotlib.axis.XTick object at 0x77c02c3d6c50>, <matplotlib.axis.XTick object at 0x77c02c4fc550>, <matplotlib.axis.XTick object at 0x77c02c4ff490>, <matplotlib.axis.XTick object at 0x77c02c4c0ad0>, <matplotlib.axis.XTick object at 0x77c02c4c1750>, <matplotlib.axis.XTick object at 0x77c046071550>, <matplotlib.axis.XTick object at 0x77c046070050>, <matplotlib.axis.XTick object at 0x77c02c33bf10>, <matplotlib.axis.XTick object at 0x77c02c33be90>, <matplotlib.axis.XTick object at 0x77c02c71b050>, <matplotlib.axis.XTick object at 0x77c000f427d0>, <matplotlib.axis.XTick object at 0x77c046071610>, <matplotlib.axis.XTick object at 0x77c009919490>, <matplotlib.axis.XTick object at 0x77c02c326d90>, <matplotlib.axis.XTick object at 0x77c02c324690>, <matplotlib.axis.XTick object at 0x77c046004610>, <matplotlib.axis.XTick object at 0x77c02c3271d0>, <matplotlib.axis.XTick object at 0x77c045ee5f50>, <matplotlib.axis.XTick object at 0x77c000f2c350>, <matplotlib.axis.XTick object at 0x77c000f2f810>, <matplotlib.axis.XTick object at 0x77c02376a9d0>, <matplotlib.axis.XTick object at 0x77c02376b110>, <matplotlib.axis.XTick object at 0x77c02c4ffad0>, <matplotlib.axis.XTick object at 0x77c00995e590>, <matplotlib.axis.XTick object at 0x77c02c9cd150>, <matplotlib.axis.XTick object at 0x77c02c9cd5d0>, <matplotlib.axis.XTick object at 0x77c02c2449d0>, <matplotlib.axis.XTick object at 0x77c012335450>, <matplotlib.axis.XTick object at 0x77c02c244290>, <matplotlib.axis.XTick object at 0x77c023782f90>, <matplotlib.axis.XTick object at 0x77c0099be5d0>, <matplotlib.axis.XTick object at 0x77c0099bd090>, <matplotlib.axis.XTick object at 0x77c009918290>, <matplotlib.axis.XTick object at 0x77c012327850>, <matplotlib.axis.XTick object at 0x77c02c83da90>, <matplotlib.axis.XTick object at 0x77c02c83d210>, <matplotlib.axis.XTick object at 0x77c01ad4ec50>, <matplotlib.axis.XTick object at 0x77c02c4f6f90>, <matplotlib.axis.XTick object at 0x77c02c4f7150>, <matplotlib.axis.XTick object at 0x77c02c883250>, <matplotlib.axis.XTick object at 0x77c02c8800d0>, <matplotlib.axis.XTick object at 0x77c0461ee790>, <matplotlib.axis.XTick object at 0x77c04634e110>, <matplotlib.axis.XTick object at 0x77c02c245150>, <matplotlib.axis.XTick object at 0x77c04634c790>, <matplotlib.axis.XTick object at 0x77c045ecae10>, <matplotlib.axis.XTick object at 0x77c04601f010>, <matplotlib.axis.XTick object at 0x77c000f73850>, <matplotlib.axis.XTick object at 0x77c01ad74090>, <matplotlib.axis.XTick object at 0x77c04620e090>, <matplotlib.axis.XTick object at 0x77c0460e5e90>, <matplotlib.axis.XTick object at 0x77c000f09590>, <matplotlib.axis.XTick object at 0x77c000f09490>, <matplotlib.axis.XTick object at 0x77c000f09f50>, <matplotlib.axis.XTick object at 0x77c01237edd0>, <matplotlib.axis.XTick object at 0x77c01237dad0>, <matplotlib.axis.XTick object at 0x77c0099d2c90>, <matplotlib.axis.XTick object at 0x77c0099d2c10>, <matplotlib.axis.XTick object at 0x77bff85d2350>, <matplotlib.axis.XTick object at 0x77c04634cdd0>, <matplotlib.axis.XTick object at 0x77bff85d0710>, <matplotlib.axis.XTick object at 0x77c045ebe690>, <matplotlib.axis.XTick object at 0x77c045ebe090>]
+[Text(0, 0, 'C1'), Text(1, 0, 'C2'), Text(2, 0, 'C3'), Text(3, 0, 'C4'), Text(4, 0, 'C5'), Text(5, 0, 'C6'), Text(6, 0, 'C7'), Text(7, 0, 'C8'), Text(8, 0, 'C9'), Text(9, 0, 'C10'), Text(10, 0, 'C11'), Text(11, 0, 'C12'), Text(12, 0, 'C13'), Text(13, 0, 'C14'), Text(14, 0, 'C15'), Text(15, 0, 'C16'), Text(16, 0, 'C17'), Text(17, 0, 'C18'), Text(18, 0, 'C19'), Text(19, 0, 'C20'), Text(20, 0, 'C21'), Text(21, 0, 'C22'), Text(22, 0, 'C23'), Text(23, 0, 'C24'), Text(24, 0, 'C25'), Text(25, 0, 'C26'), Text(26, 0, 'C27'), Text(27, 0, 'C28'), Text(28, 0, 'C29'), Text(29, 0, 'C30'), Text(30, 0, 'C31'), Text(31, 0, 'C32'), Text(32, 0, 'C33'), Text(33, 0, 'C34'), Text(34, 0, 'C35'), Text(35, 0, 'C36'), Text(36, 0, 'C37'), Text(37, 0, 'C38'), Text(38, 0, 'C39'), Text(39, 0, 'C40'), Text(40, 0, 'C41'), Text(41, 0, 'C42'), Text(42, 0, 'C43'), Text(43, 0, 'C44'), Text(44, 0, 'C45'), Text(45, 0, 'C46'), Text(46, 0, 'C47'), Text(47, 0, 'C48'), Text(48, 0, 'C49'), Text(49, 0, 'C50'), Text(50, 0, 'C51'), Text(51, 0, 'C52'), Text(52, 0, 'C53'), Text(53, 0, 'C54'), Text(54, 0, 'C55'), Text(55, 0, 'C56'), Text(56, 0, 'C57'), Text(57, 0, 'C58'), Text(58, 0, 'C59'), Text(59, 0, 'C60'), Text(60, 0, 'C61'), Text(61, 0, 'C62'), Text(62, 0, 'C63'), Text(63, 0, 'C64'), Text(64, 0, 'C65'), Text(65, 0, 'C66'), Text(66, 0, 'C67'), Text(67, 0, 'C68'), Text(68, 0, 'C69'), Text(69, 0, 'C70'), Text(70, 0, 'C71'), Text(71, 0, 'C72'), Text(72, 0, 'C73'), Text(73, 0, 'C74'), Text(74, 0, 'C75')]
+    Saved: component_weights_barplot.png
+  Creating gene importance distribution...
+(array([1.800e+01, 3.200e+01, 4.890e+02, 1.766e+03, 2.148e+03, 1.615e+03,
+       1.137e+03, 8.320e+02, 5.460e+02, 4.540e+02, 2.800e+02, 2.360e+02,
+       1.590e+02, 1.300e+02, 9.700e+01, 5.900e+01, 4.700e+01, 3.600e+01,
+       2.400e+01, 2.100e+01, 1.200e+01, 2.200e+01, 1.500e+01, 6.000e+00,
+       1.100e+01, 7.000e+00, 5.000e+00, 4.000e+00, 1.000e+00, 4.000e+00,
+       1.000e+00, 2.000e+00, 0.000e+00, 1.000e+00, 1.000e+00, 0.000e+00,
+       0.000e+00, 0.000e+00, 0.000e+00, 1.000e+00, 1.000e+00, 0.000e+00,
+       1.000e+00, 0.000e+00, 0.000e+00, 1.000e+00, 0.000e+00, 0.000e+00,
+       0.000e+00, 1.000e+00]), array([ 0.        ,  0.95793285,  1.91586569,  2.87379854,  3.83173139,
+        4.78966423,  5.74759708,  6.70552993,  7.66346277,  8.62139562,
+        9.57932847, 10.53726131, 11.49519416, 12.453127  , 13.41105985,
+       14.3689927 , 15.32692554, 16.28485839, 17.24279124, 18.20072408,
+       19.15865693, 20.11658978, 21.07452262, 22.03245547, 22.99038832,
+       23.94832116, 24.90625401, 25.86418686, 26.8221197 , 27.78005255,
+       28.7379854 , 29.69591824, 30.65385109, 31.61178394, 32.56971678,
+       33.52764963, 34.48558248, 35.44351532, 36.40144817, 37.35938101,
+       38.31731386, 39.27524671, 40.23317955, 41.1911124 , 42.14904525,
+       43.10697809, 44.06491094, 45.02284379, 45.98077663, 46.93870948,
+       47.89664233]), <BarContainer object of 50 artists>)
+<matplotlib.lines.Line2D object at 0x77c01ad84990>
+Text(0.5, 0, 'Total Importance Score')
+Text(0, 0.5, 'Number of Genes')
+Text(0.5, 1.0, 'Distribution of Gene Importance Scores')
+<matplotlib.legend.Legend object at 0x77c000f2cad0>
+[<matplotlib.lines.Line2D object at 0x77c000f38810>]
+<matplotlib.lines.Line2D object at 0x77c0099f2fd0>
+<matplotlib.lines.Line2D object at 0x77c0123ebdd0>
+Text(0.5, 0, 'Number of Top Genes')
+Text(0, 0.5, 'Cumulative Variance Explained (%)')
+Text(0.5, 1.0, 'Cumulative Importance by Gene Rank')
+<matplotlib.legend.Legend object at 0x77c0099f2dd0>
+Text(0.5, 1.02, 'Rank 75: Gene Importance Analysis')
+    Saved: gene_importance_distribution.png
+  Creating component correlation heatmap...
+<Axes: >
+Text(0.5, 1.0, 'Rank 75: Component Correlation Matrix\n(Based on gene loadings - low correlation = good separation)')
+    Saved: component_correlation_heatmap.png
+
+============================================================
+INDIVIDUAL RANK VISUALIZATIONS COMPLETE
+============================================================
+
+For each rank, the following plots were created in rank_XX/ directories:
+  1. gene_component_heatmap_top50.png - Top genes across components
+  2. time_component_lineplot.png - Component patterns over time
+  3. component_weights_barplot.png - Relative component importance
+  4. gene_importance_distribution.png - Gene importance statistics
+  5. component_correlation_heatmap.png - Component independence check
+
+============================================================
+CREATING RANK 10 VISUALIZATIONS
+============================================================
+
+--- Rank 10 ---
+  Creating gene-component heatmap...
+<Axes: >
+Text(0.5, 80.7222222222222, 'Components')
+Text(120.72222222222221, 0.5, 'Gene ID')
+Text(0.5, 1.0, 'Rank 10: Top 50 Genes Across Components\n(Ordered by Total Importance)')
+    Saved: gene_component_heatmap_top50.png
+  Creating time-component line plot...
+[<matplotlib.lines.Line2D object at 0x77c02c996590>]
+[<matplotlib.lines.Line2D object at 0x77c02c3b3ed0>]
+[<matplotlib.lines.Line2D object at 0x77c0463ab710>]
+[<matplotlib.lines.Line2D object at 0x77c0463aa650>]
+[<matplotlib.lines.Line2D object at 0x77bff85a64d0>]
+[<matplotlib.lines.Line2D object at 0x77bff85a4f50>]
+[<matplotlib.lines.Line2D object at 0x77bff85a4ad0>]
+[<matplotlib.lines.Line2D object at 0x77bff85a55d0>]
+[<matplotlib.lines.Line2D object at 0x77bff85a7450>]
+[<matplotlib.lines.Line2D object at 0x77c012306210>]
+Text(0.5, 0, 'Timepoint')
+Text(0, 0.5, 'Component Loading')
+Text(0.5, 1.0, 'Rank 10: Component Loadings Across Timepoints\n(Each line = one component, weighted by importance)')
+<matplotlib.legend.Legend object at 0x77c02c611a50>
+<matplotlib.lines.Line2D object at 0x77c0f219cd90>
+    Saved: time_component_lineplot.png
+  Creating component correlation heatmap...
+<Axes: >
+Text(0.5, 1.0, 'Rank 10: Component Correlation Matrix\n(Based on gene loadings - low correlation = good separation)')
+    Saved: component_correlation_heatmap.png
+
+============================================================
+RANK 10 VISUALIZATIONS COMPLETE
+============================================================
+
+The following plots were created in rank_10/ directory:
+  1. gene_component_heatmap_top50.png - Top genes across components
+  2. time_component_lineplot.png - Component patterns over time
+  3. component_correlation_heatmap.png - Component independence check
+
+============================================================
+CREATING RANK 10 VISUALIZATIONS
+============================================================
+
+--- Rank 10 ---
+  Creating gene-component heatmap...
+<Axes: >
+Text(0.5, 80.7222222222222, 'Components')
+Text(120.72222222222221, 0.5, 'Gene ID')
+Text(0.5, 1.0, 'Rank 10: Top 50 Genes Across Components\n(Ordered by Total Importance)')
+    Saved: gene_component_heatmap_top50.png
+  Creating time-component line plot...
+[<matplotlib.lines.Line2D object at 0x77c02c311250>]
+[<matplotlib.lines.Line2D object at 0x77c02c8fed10>]
+[<matplotlib.lines.Line2D object at 0x77c02c28f910>]
+[<matplotlib.lines.Line2D object at 0x77c02c208610>]
+[<matplotlib.lines.Line2D object at 0x77c02c2093d0>]
+[<matplotlib.lines.Line2D object at 0x77c02c20a150>]
+[<matplotlib.lines.Line2D object at 0x77c02c20ae90>]
+[<matplotlib.lines.Line2D object at 0x77c02c20bcd0>]
+[<matplotlib.lines.Line2D object at 0x77c02c284a90>]
+[<matplotlib.lines.Line2D object at 0x77c02c285810>]
+Text(0.5, 0, 'Timepoint')
+Text(0, 0.5, 'Component Loading')
+Text(0.5, 1.0, 'Rank 10: Component Loadings Across Timepoints\n(Each line = one component, weighted by importance)')
+<matplotlib.legend.Legend object at 0x77c02c939a50>
+<matplotlib.lines.Line2D object at 0x77c009931e10>
+    Saved: time_component_lineplot.png
+  Creating sample-component heatmap...
+<Axes: >
+Text(0.5, 80.7222222222222, 'Components')
+Text(120.58159722222221, 0.5, 'Sample (Species_SampleID)')
+Text(0.5, 1.0, 'Rank 10: Sample Loadings Across Components\n(All 28 samples from 3 species)')
+    Saved: sample_component_heatmap.png
+  Creating component correlation heatmap...
+<Axes: >
+Text(0.5, 1.0, 'Rank 10: Component Correlation Matrix\n(Based on gene loadings - low correlation = good separation)')
+    Saved: component_correlation_heatmap.png
+
+============================================================
+RANK 10 VISUALIZATIONS COMPLETE
+============================================================
+
+The following plots were created in rank_10/ directory:
+  1. gene_component_heatmap_top50.png - Top genes across components
+  2. time_component_lineplot.png - Component patterns over time
+  3. sample_component_heatmap.png - Individual samples across components
+  4. component_correlation_heatmap.png - Component independence check
+
+============================================================
+CREATING RANK 10 VISUALIZATIONS
+============================================================
+
+--- Rank 10 ---
+  Creating gene-component heatmap...
+<Axes: >
+Text(0.5, 80.7222222222222, 'Components')
+Text(120.72222222222221, 0.5, 'Gene ID')
+Text(0.5, 1.0, 'Rank 10: Top 50 Genes Across Components\n(Ordered by Total Importance)')
+    Saved: gene_component_heatmap_top50.png
+  Creating time-component line plot...
+[<matplotlib.lines.Line2D object at 0x77c02c401250>]
+[<matplotlib.lines.Line2D object at 0x77c046499750>]
+[<matplotlib.lines.Line2D object at 0x77c01ad3cb50>]
+[<matplotlib.lines.Line2D object at 0x77c02c4a6050>]
+[<matplotlib.lines.Line2D object at 0x77c02c4a7b50>]
+[<matplotlib.lines.Line2D object at 0x77c02c4cd9d0>]
+[<matplotlib.lines.Line2D object at 0x77c02c610e10>]
+[<matplotlib.lines.Line2D object at 0x77c02c611d90>]
+[<matplotlib.lines.Line2D object at 0x77c02c6101d0>]
+[<matplotlib.lines.Line2D object at 0x77c02c610490>]
+Text(0.5, 0, 'Timepoint')
+Text(0, 0.5, 'Component Loading')
+Text(0.5, 1.0, 'Rank 10: Component Loadings Across Timepoints\n(Each line = one component, weighted by importance)')
+<matplotlib.legend.Legend object at 0x77c045fb4810>
+<matplotlib.lines.Line2D object at 0x77c02c79c050>
+    Saved: time_component_lineplot.png
+  Creating sample-component heatmap...
+    Performing hierarchical clustering on samples...
+Text(0.5, -10.652777777777798, 'Components')
+Text(1196.0277777777778, 0.5, 'Sample (Species_SampleID)')
+Text(0.5, 0.98, 'Rank 10: Sample Loadings Across Components\n(Hierarchically clustered by component loading similarity)')
+    Saved: sample_component_heatmap.png
+  Creating component correlation heatmap...
+<Axes: >
+Text(0.5, 1.0, 'Rank 10: Component Correlation Matrix\n(Based on gene loadings - low correlation = good separation)')
+    Saved: component_correlation_heatmap.png
+
+============================================================
+RANK 10 VISUALIZATIONS COMPLETE
+============================================================
+
+The following plots were created in rank_10/ directory:
+  1. gene_component_heatmap_top50.png - Top genes across components
+  2. time_component_lineplot.png - Component patterns over time
+  3. sample_component_heatmap.png - Individual samples across components
+  4. component_correlation_heatmap.png - Component independence check
+
+============================================================
+CREATING RANK 10 VISUALIZATIONS
+============================================================
+
+--- Rank 10 ---
+  Creating gene-component heatmap...
+<Axes: >
+Text(0.5, 80.7222222222222, 'Components')
+Text(120.72222222222221, 0.5, 'Gene ID')
+Text(0.5, 1.0, 'Rank 10: Top 50 Genes Across Components\n(Ordered by Total Importance)')
+    Saved: gene_component_heatmap_top50.png
+  Creating time-component line plot...
+[<matplotlib.lines.Line2D object at 0x77c03dd5ac10>]
+[<matplotlib.lines.Line2D object at 0x77c023feb810>]
+[<matplotlib.lines.Line2D object at 0x77c023e03ed0>]
+[<matplotlib.lines.Line2D object at 0x77c023e0ca10>]
+[<matplotlib.lines.Line2D object at 0x77c023e0d6d0>]
+[<matplotlib.lines.Line2D object at 0x77c023e0e450>]
+[<matplotlib.lines.Line2D object at 0x77c023e0f090>]
+[<matplotlib.lines.Line2D object at 0x77c023e0fd50>]
+[<matplotlib.lines.Line2D object at 0x77c023e14a90>]
+[<matplotlib.lines.Line2D object at 0x77c023e15690>]
+Text(0.5, 0, 'Timepoint')
+Text(0, 0.5, 'Component Loading')
+Text(0.5, 1.0, 'Rank 10: Component Loadings Across Timepoints')
+<matplotlib.legend.Legend object at 0x77c03dd7b990>
+<matplotlib.lines.Line2D object at 0x77c01ada1c10>
+    Saved: time_component_lineplot.png
+  Creating sample-component heatmap...
+    Performing hierarchical clustering on samples...
+Text(0.5, -10.652777777777798, 'Components')
+Text(1196.0277777777778, 0.5, 'Sample (Species_SampleID)')
+Text(0.5, 0.98, 'Rank 10: Sample Loadings Across Components\n(Hierarchically clustered by component loading similarity)')
+    Saved: sample_component_heatmap.png
+  Creating component correlation heatmap...
+<Axes: >
+Text(0.5, 1.0, 'Rank 10: Component Correlation Matrix\n(Based on gene loadings - low correlation = good separation)')
+    Saved: component_correlation_heatmap.png
+
+============================================================
+RANK 10 VISUALIZATIONS COMPLETE
+============================================================
+
+The following plots were created in rank_10/ directory:
+  1. gene_component_heatmap_top50.png - Top genes across components
+  2. time_component_lineplot.png - Component patterns over time
+  3. sample_component_heatmap.png - Individual samples across components
+  4. component_correlation_heatmap.png - Component independence check
+
+============================================================
+CREATING RANK 10 VISUALIZATIONS
+============================================================
+
+--- Rank 10 ---
+  Creating gene-component heatmap...
+    Selected 19 unique genes (top 5 per component)
+<Axes: >
+Text(0.5, 80.7222222222222, 'Components')
+Text(120.72222222222221, 0.5, 'Gene ID')
+Text(0.5, 1.0, 'Rank 10: Top Genes Per Component\n(5 genes per component, 19 unique genes total)\nGenes grouped by primary component')
+    Saved: gene_component_heatmap_per_component.png
+  Creating time-component line plot...
+[<matplotlib.lines.Line2D object at 0x77c02c6e5b50>]
+[<matplotlib.lines.Line2D object at 0x77c02c21d210>]
+[<matplotlib.lines.Line2D object at 0x77c02c9ebe10>]
+[<matplotlib.lines.Line2D object at 0x77c02c9ebad0>]
+[<matplotlib.lines.Line2D object at 0x77c02c9eb510>]
+[<matplotlib.lines.Line2D object at 0x77c02c9ea110>]
+[<matplotlib.lines.Line2D object at 0x77c02c7171d0>]
+[<matplotlib.lines.Line2D object at 0x77c01239e8d0>]
+[<matplotlib.lines.Line2D object at 0x77c01239df50>]
+[<matplotlib.lines.Line2D object at 0x77c01239d590>]
+Text(0.5, 0, 'Timepoint')
+Text(0, 0.5, 'Component Loading')
+Text(0.5, 1.0, 'Rank 10: Component Loadings Across Timepoints')
+<matplotlib.legend.Legend object at 0x77c045fe9a50>
+<matplotlib.lines.Line2D object at 0x77c000f15210>
+    Saved: time_component_lineplot.png
+  Creating sample-component heatmap...
+    Performing hierarchical clustering on samples...
+Text(0.5, -10.652777777777798, 'Components')
+Text(1196.0277777777778, 0.5, 'Sample (Species_SampleID)')
+Text(0.5, 0.98, 'Rank 10: Sample Loadings Across Components\n(Hierarchically clustered by component loading similarity)')
+    Saved: sample_component_heatmap.png
+  Creating component correlation heatmap...
+<Axes: >
+Text(0.5, 1.0, 'Rank 10: Component Correlation Matrix\n(Based on gene loadings - low correlation = good separation)')
+    Saved: component_correlation_heatmap.png
+
+============================================================
+RANK 10 VISUALIZATIONS COMPLETE
+============================================================
+
+The following plots were created in rank_10/ directory:
+  1. gene_component_heatmap_top50.png - Top genes across components
+  2. time_component_lineplot.png - Component patterns over time
+  3. sample_component_heatmap.png - Individual samples across components
+  4. component_correlation_heatmap.png - Component independence check
+
+============================================================
+CREATING RANK 10 VISUALIZATIONS
+============================================================
+
+--- Rank 10 ---
+  Creating gene-component heatmap...
+    Selected 19 unique genes (top 5 per component)
+    Component breakdown:
+      Component_1: 5 genes
+      Component_2: 5 genes
+      Component_3: 5 genes
+      Component_4: 5 genes
+      Component_5: 5 genes
+      Component_6: 5 genes
+      Component_7: 5 genes
+      Component_8: 5 genes
+      Component_9: 5 genes
+      Component_10: 5 genes
+<Axes: >
+Text(10.3, 2.5, '← Component_1')
+<matplotlib.lines.Line2D object at 0x77c046268350>
+Text(10.3, 7.5, '← Component_2')
+<matplotlib.lines.Line2D object at 0x77c13fdaedd0>
+Text(10.3, 12.5, '← Component_3')
+<matplotlib.lines.Line2D object at 0x77c023d88e90>
+Text(10.3, 17.5, '← Component_4')
+<matplotlib.lines.Line2D object at 0x77c13fdd6390>
+Text(10.3, 22.5, '← Component_5')
+<matplotlib.lines.Line2D object at 0x77c13fdd7a50>
+Text(10.3, 27.5, '← Component_6')
+<matplotlib.lines.Line2D object at 0x77c02c468690>
+Text(10.3, 32.5, '← Component_7')
+<matplotlib.lines.Line2D object at 0x77c13fde27d0>
+Text(10.3, 37.5, '← Component_8')
+<matplotlib.lines.Line2D object at 0x77c023d76f90>
+Text(10.3, 42.5, '← Component_9')
+<matplotlib.lines.Line2D object at 0x77c13fdc5010>
+Text(10.3, 47.5, '← Component_10')
+<matplotlib.lines.Line2D object at 0x77c02c2754d0>
+Text(0.5, 102.72222222222219, 'Components')
+Text(120.72222222222221, 0.5, 'Gene ID')
+Text(0.5, 1.0, 'Rank 10: Top 5 Genes Per Component\n(19 unique genes total)\nGenes grouped and labeled by primary component')
+<string>:82: UserWarning: Tight layout not applied. The bottom and top margins cannot be made large enough to accommodate all Axes decorations.
+    Saved: gene_component_heatmap_per_component.png
+  Creating time-component line plot...
+[<matplotlib.lines.Line2D object at 0x77c034db4110>]
+[<matplotlib.lines.Line2D object at 0x77c13fc25550>]
+[<matplotlib.lines.Line2D object at 0x77c13fc26190>]
+[<matplotlib.lines.Line2D object at 0x77c13fc26e50>]
+[<matplotlib.lines.Line2D object at 0x77c13fc27a90>]
+[<matplotlib.lines.Line2D object at 0x77c13fc1eb90>]
+[<matplotlib.lines.Line2D object at 0x77c13fc35490>]
+[<matplotlib.lines.Line2D object at 0x77c13fc36150>]
+[<matplotlib.lines.Line2D object at 0x77c13fc36e10>]
+[<matplotlib.lines.Line2D object at 0x77c13fc37a50>]
+Text(0.5, 0, 'Timepoint')
+Text(0, 0.5, 'Component Loading')
+Text(0.5, 1.0, 'Rank 10: Component Loadings Across Timepoints')
+<matplotlib.legend.Legend object at 0x77c13fc0c810>
+<matplotlib.lines.Line2D object at 0x77c13fc34250>
+    Saved: time_component_lineplot.png
+  Creating sample-component heatmap...
+    Performing hierarchical clustering on samples...
+Text(0.5, -10.652777777777798, 'Components')
+Text(1196.0277777777778, 0.5, 'Sample (Species_SampleID)')
+Text(0.5, 0.98, 'Rank 10: Sample Loadings Across Components\n(Hierarchically clustered by component loading similarity)')
+    Saved: sample_component_heatmap.png
+  Creating component correlation heatmap...
+<Axes: >
+Text(0.5, 1.0, 'Rank 10: Component Correlation Matrix\n(Based on gene loadings - low correlation = good separation)')
+    Saved: component_correlation_heatmap.png
+
+============================================================
+RANK 10 VISUALIZATIONS COMPLETE
+============================================================
+
+The following plots were created in rank_10/ directory:
+  1. gene_component_heatmap_top50.png - Top genes across components
+  2. time_component_lineplot.png - Component patterns over time
+  3. sample_component_heatmap.png - Individual samples across components
+  4. component_correlation_heatmap.png - Component independence check
+
+============================================================
+CREATING RANK 10 VISUALIZATIONS
+============================================================
+
+--- Rank 10 ---
+  Creating gene-component heatmap (overall importance)...
+<Axes: >
+Text(0.5, 80.7222222222222, 'Components')
+Text(120.72222222222221, 0.5, 'Gene ID')
+Text(0.5, 1.0, 'Rank 10: Top 50 Genes by Overall Importance\n(Genes ranked by total absolute loading across all components)')
+    Saved: gene_component_heatmap_overall_top50.png
+  Creating gene-component heatmap (per component)...
+    Selected 19 unique genes (top 5 per component)
+    Component breakdown:
+      Component_1: 5 genes
+      Component_2: 5 genes
+      Component_3: 5 genes
+      Component_4: 5 genes
+      Component_5: 5 genes
+      Component_6: 5 genes
+      Component_7: 5 genes
+      Component_8: 5 genes
+      Component_9: 5 genes
+      Component_10: 5 genes
+<Axes: >
+Text(10.3, 2.5, '← Component_1')
+<matplotlib.lines.Line2D object at 0x77c01adb8d90>
+Text(10.3, 7.5, '← Component_2')
+<matplotlib.lines.Line2D object at 0x77c0237f9250>
+Text(10.3, 12.5, '← Component_3')
+<matplotlib.lines.Line2D object at 0x77c13fd93810>
+Text(10.3, 17.5, '← Component_4')
+<matplotlib.lines.Line2D object at 0x77c02c866490>
+Text(10.3, 22.5, '← Component_5')
+<matplotlib.lines.Line2D object at 0x77c02c9a5d50>
+Text(10.3, 27.5, '← Component_6')
+<matplotlib.lines.Line2D object at 0x77c02c715fd0>
+Text(10.3, 32.5, '← Component_7')
+<matplotlib.lines.Line2D object at 0x77c023d67bd0>
+Text(10.3, 37.5, '← Component_8')
+<matplotlib.lines.Line2D object at 0x77c01ade7690>
+Text(10.3, 42.5, '← Component_9')
+<matplotlib.lines.Line2D object at 0x77c02c9a6f50>
+Text(10.3, 47.5, '← Component_10')
+<matplotlib.lines.Line2D object at 0x77c046054750>
+Text(0.5, 102.72222222222219, 'Components')
+Text(120.72222222222221, 0.5, 'Gene ID')
+Text(0.5, 1.0, 'Rank 10: Top 5 Genes Per Component\n(19 unique genes total)\nGenes grouped and labeled by their primary component')
+<string>:117: UserWarning: Tight layout not applied. The bottom and top margins cannot be made large enough to accommodate all Axes decorations.
+    Saved: gene_component_heatmap_per_component.png
+  Creating time-component line plot...
+[<matplotlib.lines.Line2D object at 0x77c02c208090>]
+[<matplotlib.lines.Line2D object at 0x77c01235fb50>]
+[<matplotlib.lines.Line2D object at 0x77c02c874b90>]
+[<matplotlib.lines.Line2D object at 0x77c02c874ad0>]
+[<matplotlib.lines.Line2D object at 0x77c012391350>]
+[<matplotlib.lines.Line2D object at 0x77c012392cd0>]
+[<matplotlib.lines.Line2D object at 0x77c012392850>]
+[<matplotlib.lines.Line2D object at 0x77c012392090>]
+[<matplotlib.lines.Line2D object at 0x77c02c898d90>]
+[<matplotlib.lines.Line2D object at 0x77c02c8229d0>]
+Text(0.5, 0, 'Timepoint')
+Text(0, 0.5, 'Component Loading')
+Text(0.5, 1.0, 'Rank 10: Component Loadings Across Timepoints')
+<matplotlib.legend.Legend object at 0x77c023d7b990>
+<matplotlib.lines.Line2D object at 0x77c0460572d0>
+    Saved: time_component_lineplot.png
+  Creating sample-component heatmap...
+    Performing hierarchical clustering on samples...
+Text(0.5, -10.652777777777798, 'Components')
+Text(1196.0277777777778, 0.5, 'Sample (Species_SampleID)')
+Text(0.5, 0.98, 'Rank 10: Sample Loadings Across Components\n(Hierarchically clustered by component loading similarity)')
+    Saved: sample_component_heatmap.png
+  Creating component correlation heatmap...
+<Axes: >
+Text(0.5, 1.0, 'Rank 10: Component Correlation Matrix\n(Based on gene loadings - low correlation = good separation)')
+    Saved: component_correlation_heatmap.png
+
+============================================================
+RANK 10 VISUALIZATIONS COMPLETE
+============================================================
+
+The following plots were created in rank_10/ directory:
+  1. gene_component_heatmap_top50.png - Top genes across components
+  2. time_component_lineplot.png - Component patterns over time
+  3. sample_component_heatmap.png - Individual samples across components
+  4. component_correlation_heatmap.png - Component independence check
+
+============================================================
+CREATING RANK 10 VISUALIZATIONS
+============================================================
+
+--- Rank 10 ---
+  Creating gene-component heatmaps with different selection criteria...
+    1A: Sum of absolute loadings (broadly active genes)...
+<Axes: >
+Text(0.5, 80.7222222222222, 'Components')
+Text(120.72222222222221, 0.5, 'Gene ID')
+Text(0.5, 1.0, 'Rank 10: Top 50 Genes by Sum of Absolute Loadings\n(Genes that participate across multiple components)')
+      Saved: gene_heatmap_1A_sum_top50.png
+    1B: Maximum absolute loading (component-specific genes)...
+<Axes: >
+Text(0.5, 80.7222222222222, 'Components')
+Text(120.72222222222221, 0.5, 'Gene ID')
+Text(0.5, 1.0, 'Rank 10: Top 50 Genes by Maximum Loading\n(Genes highly specific to individual components)')
+      Saved: gene_heatmap_1B_max_top50.png
+    1C: Mean absolute loading (consistently active genes)...
+<Axes: >
+Text(0.5, 80.7222222222222, 'Components')
+Text(120.72222222222221, 0.5, 'Gene ID')
+Text(0.5, 1.0, 'Rank 10: Top 50 Genes by Mean Absolute Loading\n(Genes with consistent moderate activity across components)')
+      Saved: gene_heatmap_1C_mean_top50.png
+    1D: Variance of loadings (component-specific markers)...
+<Axes: >
+Text(0.5, 80.7222222222222, 'Components')
+Text(120.72222222222221, 0.5, 'Gene ID')
+Text(0.5, 1.0, 'Rank 10: Top 50 Genes by Loading Variance\n(Genes with high specificity - strong in some components, weak in others)')
+      Saved: gene_heatmap_1D_variance_top50.png
+
+    Gene selection summary:
+      Sum method:      Favors genes active across many components
+      Max method:      Favors genes strongly specific to one component
+      Mean method:     Favors genes with consistent moderate activity
+      Variance method: Favors genes with high component specificity
+
+    Gene overlap between methods:
+      Sum & Max:      47/50 genes in common
+      Sum & Mean:     50/50 genes in common
+      Max & Variance: 45/50 genes in common
+  Creating time-component line plot...
+[<matplotlib.lines.Line2D object at 0x77c13fd04110>]
+[<matplotlib.lines.Line2D object at 0x77c02c716590>]
+[<matplotlib.lines.Line2D object at 0x77c02c716190>]
+[<matplotlib.lines.Line2D object at 0x77c02c715790>]
+[<matplotlib.lines.Line2D object at 0x77c01ad4e550>]
+[<matplotlib.lines.Line2D object at 0x77c01ad4e490>]
+[<matplotlib.lines.Line2D object at 0x77c01ad4cc10>]
+[<matplotlib.lines.Line2D object at 0x77c0237dad90>]
+[<matplotlib.lines.Line2D object at 0x77c0237db550>]
+[<matplotlib.lines.Line2D object at 0x77c0237d86d0>]
+Text(0.5, 0, 'Timepoint')
+Text(0, 0.5, 'Component Loading')
+Text(0.5, 1.0, 'Rank 10: Component Loadings Across Timepoints')
+<matplotlib.legend.Legend object at 0x77c012302410>
+<matplotlib.lines.Line2D object at 0x77c046257450>
+    Saved: time_component_lineplot.png
+  Creating sample-component heatmap...
+    Performing hierarchical clustering on samples...
+Text(0.5, -10.652777777777798, 'Components')
+Text(1196.0277777777778, 0.5, 'Sample (Species_SampleID)')
+Text(0.5, 0.98, 'Rank 10: Sample Loadings Across Components\n(Hierarchically clustered by component loading similarity)')
+    Saved: sample_component_heatmap.png
+  Creating component correlation heatmap...
+<Axes: >
+Text(0.5, 1.0, 'Rank 10: Component Correlation Matrix\n(Based on gene loadings - low correlation = good separation)')
+    Saved: component_correlation_heatmap.png
+
+============================================================
+RANK 10 VISUALIZATIONS COMPLETE
+============================================================
+
+The following plots were created in rank_10/ directory:
+  1A. gene_heatmap_1A_sum_top50.png - Broadly active genes (sum)
+  1B. gene_heatmap_1B_max_top50.png - Component-specific genes (max)
+  1C. gene_heatmap_1C_mean_top50.png - Consistently active genes (mean)
+  1D. gene_heatmap_1D_variance_top50.png - High specificity genes (variance)
+  2. time_component_lineplot.png - Component patterns over time
+  3. sample_component_heatmap.png - Individual samples across components
+  4. component_correlation_heatmap.png - Component independence check
+
+============================================================
+CREATING RANK 10 VISUALIZATIONS
+============================================================
+
+--- Rank 10 ---
+  Creating gene-component heatmaps with different selection criteria...
+    1A: Sum of absolute loadings (broadly active genes)...
+      Saved data: gene_heatmap_1A_sum_top50_data.csv
+<Axes: >
+Text(0.5, 80.7222222222222, 'Components')
+Text(120.72222222222221, 0.5, 'Gene ID')
+Text(0.5, 1.0, 'Rank 10: Top 50 Genes by Sum of Absolute Loadings\n(Genes that participate across multiple components)')
+      Saved plot: gene_heatmap_1A_sum_top50.png
+    1B: Maximum absolute loading (component-specific genes)...
+      Saved data: gene_heatmap_1B_max_top50_data.csv
+<Axes: >
+Text(0.5, 80.7222222222222, 'Components')
+Text(120.72222222222221, 0.5, 'Gene ID')
+Text(0.5, 1.0, 'Rank 10: Top 50 Genes by Maximum Loading\n(Genes highly specific to individual components)')
+      Saved plot: gene_heatmap_1B_max_top50.png
+    1C: Mean absolute loading (consistently active genes)...
+      Saved data: gene_heatmap_1C_mean_top50_data.csv
+<Axes: >
+Text(0.5, 80.7222222222222, 'Components')
+Text(120.72222222222221, 0.5, 'Gene ID')
+Text(0.5, 1.0, 'Rank 10: Top 50 Genes by Mean Absolute Loading\n(Genes with consistent moderate activity across components)')
+      Saved plot: gene_heatmap_1C_mean_top50.png
+    1D: Variance of loadings (component-specific markers)...
+      Saved data: gene_heatmap_1D_variance_top50_data.csv
+<Axes: >
+Text(0.5, 80.7222222222222, 'Components')
+Text(120.72222222222221, 0.5, 'Gene ID')
+Text(0.5, 1.0, 'Rank 10: Top 50 Genes by Loading Variance\n(Genes with high specificity - strong in some components, weak in others)')
+      Saved plot: gene_heatmap_1D_variance_top50.png
+
+    Gene selection summary:
+      Sum method:      Favors genes active across many components
+      Max method:      Favors genes strongly specific to one component
+      Mean method:     Favors genes with consistent moderate activity
+      Variance method: Favors genes with high component specificity
+
+    Gene overlap between methods:
+      Sum & Max:      47/50 genes in common
+      Sum & Mean:     50/50 genes in common
+      Max & Variance: 45/50 genes in common
+  Creating time-component line plot...
+[<matplotlib.lines.Line2D object at 0x77c13fc363d0>]
+[<matplotlib.lines.Line2D object at 0x77c01b491b90>]
+[<matplotlib.lines.Line2D object at 0x77c01b4af710>]
+[<matplotlib.lines.Line2D object at 0x77c01b4b8290>]
+[<matplotlib.lines.Line2D object at 0x77c01b4b8f10>]
+[<matplotlib.lines.Line2D object at 0x77c01b4b9cd0>]
+[<matplotlib.lines.Line2D object at 0x77c01b4ba9d0>]
+[<matplotlib.lines.Line2D object at 0x77c01b4bb710>]
+[<matplotlib.lines.Line2D object at 0x77c01b4c44d0>]
+[<matplotlib.lines.Line2D object at 0x77c01b4c50d0>]
+Text(0.5, 0, 'Timepoint')
+Text(0, 0.5, 'Component Loading')
+Text(0.5, 1.0, 'Rank 10: Component Loadings Across Timepoints')
+<matplotlib.legend.Legend object at 0x77c13fd7b990>
+<matplotlib.lines.Line2D object at 0x77c01b5b1e10>
+    Saved: time_component_lineplot.png
+  Creating sample-component heatmap...
+    Performing hierarchical clustering on samples...
+Text(0.5, -10.652777777777798, 'Components')
+Text(1196.0277777777778, 0.5, 'Sample (Species_SampleID)')
+Text(0.5, 0.98, 'Rank 10: Sample Loadings Across Components\n(Hierarchically clustered by component loading similarity)')
+    Saved: sample_component_heatmap.png
+  Creating component correlation heatmap...
+<Axes: >
+Text(0.5, 1.0, 'Rank 10: Component Correlation Matrix\n(Based on gene loadings - low correlation = good separation)')
+    Saved: component_correlation_heatmap.png
+
+============================================================
+RANK 10 VISUALIZATIONS COMPLETE
+============================================================
+
+The following plots were created in rank_10/ directory:
+  1A. gene_heatmap_1A_sum_top50.png - Broadly active genes (sum)
+  1B. gene_heatmap_1B_max_top50.png - Component-specific genes (max)
+  1C. gene_heatmap_1C_mean_top50.png - Consistently active genes (mean)
+  1D. gene_heatmap_1D_variance_top50.png - High specificity genes (variance)
+  2. time_component_lineplot.png - Component patterns over time
+  3. sample_component_heatmap.png - Individual samples across components
+  4. component_correlation_heatmap.png - Component independence check
+
+============================================================
+CREATING RANK 10 VISUALIZATIONS
+============================================================
+
+--- Rank 10 ---
+  Creating gene-component heatmaps with different selection criteria...
+    1A: Sum of absolute loadings (broadly active genes)...
+      Saved data: gene_heatmap_1A_sum_top50_data.csv
+<Axes: >
+Text(0.5, 80.7222222222222, 'Components')
+Text(120.72222222222221, 0.5, 'Gene ID')
+Text(0.5, 1.0, 'Rank 10: Top 50 Genes by Sum of Absolute Loadings\n(Genes that participate across multiple components)')
+      Saved plot: gene_heatmap_1A_sum_top50.png
+    1B: Maximum absolute loading (component-specific genes)...
+      Saved data: gene_heatmap_1B_max_top50_data.csv
+<Axes: >
+Text(0.5, 80.7222222222222, 'Components')
+Text(120.72222222222221, 0.5, 'Gene ID')
+Text(0.5, 1.0, 'Rank 10: Top 50 Genes by Maximum Loading\n(Genes highly specific to individual components)')
+      Saved plot: gene_heatmap_1B_max_top50.png
+    1C: Mean absolute loading (consistently active genes)...
+      Saved data: gene_heatmap_1C_mean_top50_data.csv
+<Axes: >
+Text(0.5, 80.7222222222222, 'Components')
+Text(120.72222222222221, 0.5, 'Gene ID')
+Text(0.5, 1.0, 'Rank 10: Top 50 Genes by Mean Absolute Loading\n(Genes with consistent moderate activity across components)')
+      Saved plot: gene_heatmap_1C_mean_top50.png
+    1D: Variance of loadings (component-specific markers)...
+      Saved data: gene_heatmap_1D_variance_top50_data.csv
+<Axes: >
+Text(0.5, 80.7222222222222, 'Components')
+Text(120.72222222222221, 0.5, 'Gene ID')
+Text(0.5, 1.0, 'Rank 10: Top 50 Genes by Loading Variance\n(Genes with high specificity - strong in some components, weak in others)')
+      Saved plot: gene_heatmap_1D_variance_top50.png
+
+    Gene selection summary:
+      Sum method:      Favors genes active across many components
+      Max method:      Favors genes strongly specific to one component
+      Mean method:     Favors genes with consistent moderate activity
+      Variance method: Favors genes with high component specificity
+
+    Gene overlap between methods:
+      Sum & Max:      47/50 genes in common
+      Sum & Mean:     50/50 genes in common
+      Max & Variance: 45/50 genes in common
+
+    Exporting top 500 genes per component...
+      Saved top 500 genes for each of 10 components
+      Files: top_500_genes_Component_X.csv
+  Creating time-component line plot...
+[<matplotlib.lines.Line2D object at 0x77c023b93e50>]
+[<matplotlib.lines.Line2D object at 0x77c0239150d0>]
+[<matplotlib.lines.Line2D object at 0x77c023917b90>]
+[<matplotlib.lines.Line2D object at 0x77c023916390>]
+[<matplotlib.lines.Line2D object at 0x77c023a4d210>]
+[<matplotlib.lines.Line2D object at 0x77c023a4e110>]
+[<matplotlib.lines.Line2D object at 0x77c023a4ccd0>]
+[<matplotlib.lines.Line2D object at 0x77c023a4f790>]
+[<matplotlib.lines.Line2D object at 0x77c023a4ec50>]
+[<matplotlib.lines.Line2D object at 0x77c023ab1c10>]
+Text(0.5, 0, 'Timepoint')
+Text(0, 0.5, 'Component Loading')
+Text(0.5, 1.0, 'Rank 10: Component Loadings Across Timepoints')
+<matplotlib.legend.Legend object at 0x77c0238cb990>
+<matplotlib.lines.Line2D object at 0x77bfefb7a3d0>
+    Saved: time_component_lineplot.png
+  Creating sample-component heatmap...
+    Performing hierarchical clustering on samples...
+Text(0.5, -10.652777777777798, 'Components')
+Text(1196.0277777777778, 0.5, 'Sample (Species_SampleID)')
+Text(0.5, 0.98, 'Rank 10: Sample Loadings Across Components\n(Hierarchically clustered by component loading similarity)')
+    Saved: sample_component_heatmap.png
+  Creating component correlation heatmap...
+<Axes: >
+Text(0.5, 1.0, 'Rank 10: Component Correlation Matrix\n(Based on gene loadings - low correlation = good separation)')
+    Saved: component_correlation_heatmap.png
+
+============================================================
+RANK 10 VISUALIZATIONS COMPLETE
+============================================================
+
+The following plots were created in rank_10/ directory:
+  1A. gene_heatmap_1A_sum_top50.png - Broadly active genes (sum)
+  1B. gene_heatmap_1B_max_top50.png - Component-specific genes (max)
+  1C. gene_heatmap_1C_mean_top50.png - Consistently active genes (mean)
+  1D. gene_heatmap_1D_variance_top50.png - High specificity genes (variance)
+  2. time_component_lineplot.png - Component patterns over time
+  3. sample_component_heatmap.png - Individual samples across components
+  4. component_correlation_heatmap.png - Component independence check
