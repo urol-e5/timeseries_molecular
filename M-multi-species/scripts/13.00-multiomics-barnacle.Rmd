@@ -2967,7 +2967,7 @@ if hasattr(sys.stdout, 'log'):
 
 # GOSLIM ANNOTATION ANALYSIS
 
-This section annotates the top 500 genes for components 5, 6, 7, and 9 with GOslim Biological Process terms from the barnacle_factors directory.
+This section annotates the top 500 genes for components 5, 6, 7, and 9 with GOslim Biological Process terms from the rank_10 directory.
 
 **Note:** Only Biological Process (BP) GOslim terms are included in this analysis. Cellular Component and Molecular Function GOslim terms are excluded.
 
@@ -2978,8 +2978,8 @@ library(tidyverse)
 library(ggplot2)
 
 # Define paths
-barnacle_factors_dir <- file.path(output_dir, "barnacle_factors")
-goslim_output_dir <- file.path(output_dir, "barnacle_factors", "goslim_analysis")
+rank_10_dir <- file.path(output_dir, "rank_10")
+goslim_output_dir <- file.path(output_dir, "rank_10", "goslim_analysis")
 dir.create(goslim_output_dir, showWarnings = FALSE, recursive = TRUE)
 
 # Path to goslim_generic.obo file
@@ -2991,7 +2991,7 @@ ortho_annot <- read.csv(ortholog_groups_file, stringsAsFactors = FALSE)
 cat(strrep("=", 60), "\n")
 cat("GOSLIM ANNOTATION SETUP\n")
 cat(strrep("=", 60), "\n\n")
-cat("Barnacle factors directory:", barnacle_factors_dir, "\n")
+cat("Rank 10 directory:", rank_10_dir, "\n")
 cat("GOslim output directory:", goslim_output_dir, "\n")
 cat("Loaded ortholog annotations:", nrow(ortho_annot), "ortholog groups\n\n")
 ```
@@ -3073,7 +3073,7 @@ cat("LOADING TOP 500 GENES\n")
 cat(strrep("=", 60), "\n\n")
 
 for (comp_num in components_to_analyze) {
-  file_path <- file.path(barnacle_factors_dir, 
+  file_path <- file.path(rank_10_dir, 
                          paste0("top_500_genes_Component_", comp_num, ".csv"))
   
   if (!file.exists(file_path)) {
@@ -3295,6 +3295,10 @@ for (comp_num in components_to_analyze) {
     head(20) %>%
     mutate(goslim_name = reorder(goslim_name, count))
   
+  # Get total number of genes for subtitle
+  top_genes <- annotated_components[[comp_col]]$top_genes
+  total_genes <- nrow(top_genes)
+  
   # Create bar chart
   p <- ggplot(top_goslim, aes(x = goslim_name, y = count)) +
     geom_bar(stat = "identity", fill = component_colors[as.character(comp_num)], 
@@ -3303,7 +3307,7 @@ for (comp_num in components_to_analyze) {
     coord_flip() +
     labs(
       title = paste0("Component ", comp_num, ": Top 20 GOslim Biological Process Terms"),
-      subtitle = paste0("From top 500 genes (ranked by absolute loading)"),
+      subtitle = paste0("Top 500 genes (genes can have multiple BP GOslim annotations)"),
       x = "GOslim Biological Process Term",
       y = "Number of Ortholog Groups"
     ) +
@@ -3327,6 +3331,90 @@ for (comp_num in components_to_analyze) {
 }
 
 cat("\nAll bar charts saved to:", goslim_output_dir, "\n\n")
+```
+
+## Create GOslim percentage bar charts
+
+```{r plot-goslim-percentage-barcharts, eval=TRUE, fig.width=10, fig.height=8}
+cat(strrep("=", 60), "\n")
+cat("CREATING GOSLIM PERCENTAGE BAR CHARTS (Biological Process only)\n")
+cat(strrep("=", 60), "\n\n")
+
+# Color palette for components
+component_colors <- c(
+  "5" = "#E64B35",
+  "6" = "#4DBBD5", 
+  "7" = "#00A087",
+  "9" = "#F39B7F"
+)
+
+for (comp_num in components_to_analyze) {
+  comp_col <- paste0("Component_", comp_num)
+  
+  if (!comp_col %in% names(annotated_components)) {
+    next
+  }
+  
+  goslim_counts <- annotated_components[[comp_col]]$goslim_counts
+  
+  if (nrow(goslim_counts) == 0) {
+    cat("Component", comp_num, ": No BP GOslim data to plot\n")
+    next
+  }
+  
+  # Calculate total genes with BP GOslim annotations
+  # Note: We're using the full top 500 genes as the denominator
+  top_genes <- annotated_components[[comp_col]]$top_genes
+  total_genes <- nrow(top_genes)
+  
+  # Calculate percentage for each GOslim term
+  # (genes can have multiple GOslim terms, so percentages may sum to >100%)
+  goslim_percentages <- goslim_counts %>%
+    mutate(percentage = (count / total_genes) * 100) %>%
+    head(20) %>%
+    mutate(goslim_name = reorder(goslim_name, percentage))
+  
+  # Create percentage bar chart
+  p <- ggplot(goslim_percentages, aes(x = goslim_name, y = percentage)) +
+    geom_bar(stat = "identity", fill = component_colors[as.character(comp_num)], 
+             alpha = 0.8) +
+    geom_text(aes(label = sprintf("%.1f%%", percentage)), hjust = -0.2, size = 3.5) +
+    coord_flip() +
+    labs(
+      title = paste0("Component ", comp_num, ": Top 20 GOslim Biological Process Terms (%)"),
+      subtitle = paste0("Percentage of 500 genes with each BP GOslim (genes can have multiple annotations)"),
+      x = "GOslim Biological Process Term",
+      y = "Percentage of Ortholog Groups (%)"
+    ) +
+    theme_bw() +
+    theme(
+      plot.title = element_text(size = 14, face = "bold"),
+      plot.subtitle = element_text(size = 11, color = "gray30"),
+      axis.text.y = element_text(size = 10),
+      axis.text.x = element_text(size = 10),
+      axis.title = element_text(size = 11, face = "bold"),
+      panel.grid.major.y = element_blank(),
+      panel.grid.minor = element_blank()
+    ) +
+    scale_y_continuous(expand = expansion(mult = c(0, 0.15)))
+  
+  # Save plot
+  plot_file <- file.path(goslim_output_dir, 
+                         paste0("component_", comp_num, "_goslim_BP_barchart_percentage.png"))
+  ggsave(plot_file, p, width = 10, height = 8, dpi = 300)
+  cat("Saved:", basename(plot_file), "\n")
+  
+  # Also save the percentage data
+  percentage_file <- file.path(goslim_output_dir, 
+                               paste0("component_", comp_num, "_goslim_BP_percentages.csv"))
+  goslim_percentages_full <- goslim_counts %>%
+    mutate(percentage = (count / total_genes) * 100) %>%
+    arrange(desc(percentage))
+  write.csv(goslim_percentages_full, percentage_file, row.names = FALSE)
+  cat("Saved:", basename(percentage_file), "\n\n")
+}
+
+cat("All percentage bar charts saved to:", goslim_output_dir, "\n\n")
 ```
 
 ## Summary statistics
@@ -3390,7 +3478,9 @@ cat(strrep("=", 60), "\n\n")
 cat("Output files created:\n")
 cat("  - component_[5,6,7,9]_top500_genes_goslim_BP_annotated.csv\n")
 cat("  - component_[5,6,7,9]_goslim_BP_counts.csv\n")
-cat("  - component_[5,6,7,9]_goslim_BP_barchart.png\n")
+cat("  - component_[5,6,7,9]_goslim_BP_percentages.csv\n")
+cat("  - component_[5,6,7,9]_goslim_BP_barchart.png (counts)\n")
+cat("  - component_[5,6,7,9]_goslim_BP_barchart_percentage.png (percentages)\n")
 cat("  - goslim_BP_annotation_summary.csv\n")
 cat("\nNote: Only Biological Process GOslim terms are included in this analysis.\n\n")
 ```
