@@ -2965,6 +2965,436 @@ if hasattr(sys.stdout, 'log'):
     sys.stdout = sys.stdout.terminal
 ```
 
+# GOSLIM ANNOTATION ANALYSIS
+
+This section annotates the top 500 genes for components 5, 6, 7, and 9 with GOslim Biological Process terms from the barnacle_factors directory.
+
+**Note:** Only Biological Process (BP) GOslim terms are included in this analysis. Cellular Component and Molecular Function GOslim terms are excluded.
+
+## Setup and load annotations
+
+```{r goslim-setup, eval=TRUE}
+library(tidyverse)
+library(ggplot2)
+
+# Define paths
+barnacle_factors_dir <- file.path(output_dir, "barnacle_factors")
+goslim_output_dir <- file.path(output_dir, "barnacle_factors", "goslim_analysis")
+dir.create(goslim_output_dir, showWarnings = FALSE, recursive = TRUE)
+
+# Path to goslim_generic.obo file
+goslim_obo_file <- "../output/12-ortho-annot/run_20250831_172744/goslim_generic.obo"
+
+# Load the ortholog groups annotation file
+ortho_annot <- read.csv(ortholog_groups_file, stringsAsFactors = FALSE)
+
+cat(strrep("=", 60), "\n")
+cat("GOSLIM ANNOTATION SETUP\n")
+cat(strrep("=", 60), "\n\n")
+cat("Barnacle factors directory:", barnacle_factors_dir, "\n")
+cat("GOslim output directory:", goslim_output_dir, "\n")
+cat("Loaded ortholog annotations:", nrow(ortho_annot), "ortholog groups\n\n")
+```
+
+## Extract Biological Process GOslim IDs
+
+```{r extract-bp-goslims, eval=TRUE}
+# Function to parse OBO file and extract Biological Process GOslim IDs
+extract_bp_goslim_ids <- function(obo_file) {
+  if (!file.exists(obo_file)) {
+    cat("WARNING: GOslim OBO file not found:", obo_file, "\n")
+    cat("Proceeding without BP filtering (all GOslims will be included)\n")
+    return(NULL)
+  }
+  
+  # Read OBO file
+  obo_lines <- readLines(obo_file)
+  
+  # Parse OBO file
+  bp_goslim_ids <- c()
+  current_term <- list(id = NULL, namespace = NULL, is_goslim = FALSE)
+  
+  for (line in obo_lines) {
+    line <- trimws(line)
+    
+    if (line == "[Term]") {
+      # Save previous term if it's a BP GOslim
+      if (!is.null(current_term$id) && 
+          current_term$namespace == "biological_process" && 
+          current_term$is_goslim) {
+        bp_goslim_ids <- c(bp_goslim_ids, current_term$id)
+      }
+      # Reset for new term
+      current_term <- list(id = NULL, namespace = NULL, is_goslim = FALSE)
+      
+    } else if (grepl("^id:", line)) {
+      current_term$id <- sub("^id:\\s*", "", line)
+      
+    } else if (grepl("^namespace:", line)) {
+      current_term$namespace <- sub("^namespace:\\s*", "", line)
+      
+    } else if (grepl("^subset:\\s*goslim_generic", line)) {
+      current_term$is_goslim <- TRUE
+    }
+  }
+  
+  # Don't forget the last term
+  if (!is.null(current_term$id) && 
+      current_term$namespace == "biological_process" && 
+      current_term$is_goslim) {
+    bp_goslim_ids <- c(bp_goslim_ids, current_term$id)
+  }
+  
+  return(unique(bp_goslim_ids))
+}
+
+# Extract BP GOslim IDs
+bp_goslim_ids <- extract_bp_goslim_ids(goslim_obo_file)
+
+if (!is.null(bp_goslim_ids)) {
+  cat("Extracted Biological Process GOslim terms:", length(bp_goslim_ids), "\n")
+  cat("First 10 BP GOslim IDs:", paste(head(bp_goslim_ids, 10), collapse = ", "), "\n\n")
+} else {
+  cat("NOTE: BP filtering disabled - all GOslim terms will be used\n\n")
+}
+```
+
+## Load top 500 genes for components 5, 6, 7, and 9
+
+```{r load-top-genes, eval=TRUE}
+# Components to analyze
+components_to_analyze <- c(5, 6, 7, 9)
+
+# Load top 500 genes for each component
+top_genes_list <- list()
+
+cat(strrep("=", 60), "\n")
+cat("LOADING TOP 500 GENES\n")
+cat(strrep("=", 60), "\n\n")
+
+for (comp_num in components_to_analyze) {
+  file_path <- file.path(barnacle_factors_dir, 
+                         paste0("top_500_genes_Component_", comp_num, ".csv"))
+  
+  if (!file.exists(file_path)) {
+    cat("WARNING: File not found:", file_path, "\n")
+    next
+  }
+  
+  # Load the top genes file
+  top_genes_df <- read.csv(file_path, stringsAsFactors = FALSE)
+  
+  # Rename gene_id column to group_id for consistency with annotation file
+  if ("gene_id" %in% colnames(top_genes_df)) {
+    top_genes_df <- top_genes_df %>%
+      rename(group_id = gene_id)
+  }
+  
+  top_genes_list[[paste0("Component_", comp_num)]] <- top_genes_df
+  
+  cat("Component", comp_num, ":\n")
+  cat("  Loaded", nrow(top_genes_df), "genes\n")
+  cat("  Loading range:", 
+      round(min(top_genes_df$absolute_loading), 4), "to", 
+      round(max(top_genes_df$absolute_loading), 4), "\n")
+  cat("  Top 3 genes:", paste(head(top_genes_df$group_id, 3), collapse = ", "), "\n\n")
+}
+
+cat("Total components loaded:", length(top_genes_list), "\n\n")
+```
+
+## Annotate with GOslim terms
+
+```{r annotate-goslim, eval=TRUE}
+# Function to parse GOslim IDs and names, filtering for BP terms only
+parse_goslim <- function(goslim_ids_str, goslim_names_str, bp_filter_ids = NULL) {
+  if (is.na(goslim_ids_str) || goslim_ids_str == "" || 
+      is.na(goslim_names_str) || goslim_names_str == "") {
+    return(NULL)
+  }
+  
+  # Split GOslim IDs and names
+  ids <- strsplit(goslim_ids_str, ";\\s*")[[1]]
+  names <- strsplit(goslim_names_str, ";\\s*")[[1]]
+  
+  # Clean up whitespace
+  ids <- trimws(ids)
+  names <- trimws(names)
+  
+  # Return data frame if lengths match
+  if (length(ids) == length(names) && length(ids) > 0) {
+    result_df <- data.frame(
+      goslim_id = ids,
+      goslim_name = names,
+      stringsAsFactors = FALSE
+    )
+    
+    # Filter for Biological Process GOslims if bp_filter_ids is provided
+    if (!is.null(bp_filter_ids)) {
+      result_df <- result_df %>%
+        filter(goslim_id %in% bp_filter_ids)
+      
+      # Return NULL if no BP terms remain after filtering
+      if (nrow(result_df) == 0) {
+        return(NULL)
+      }
+    }
+    
+    return(result_df)
+  }
+  
+  return(NULL)
+}
+
+# Annotate each component's top genes
+annotated_components <- list()
+
+cat(strrep("=", 60), "\n")
+cat("ANNOTATING WITH GOSLIM TERMS (Biological Process only)\n")
+cat(strrep("=", 60), "\n\n")
+
+for (comp_num in components_to_analyze) {
+  comp_col <- paste0("Component_", comp_num)
+  
+  if (!comp_col %in% names(top_genes_list)) {
+    cat("Component", comp_num, ": Skipping (not loaded)\n\n")
+    next
+  }
+  
+  top_genes_df <- top_genes_list[[comp_col]]
+  
+  cat("Component", comp_num, ":\n")
+  
+  # Merge with annotation data
+  annotated_df <- top_genes_df %>%
+    left_join(ortho_annot %>% 
+                select(group_id, goslim_ids, goslim_names),
+              by = "group_id")
+  
+  # Expand GOslim terms (one row per GOslim term)
+  # Filter for Biological Process terms only
+  goslim_expanded <- list()
+  
+  for (i in seq_len(nrow(annotated_df))) {
+    row <- annotated_df[i, ]
+    # Pass bp_goslim_ids to filter for BP terms only
+    goslim_data <- parse_goslim(row$goslim_ids, row$goslim_names, bp_goslim_ids)
+    
+    if (!is.null(goslim_data)) {
+      goslim_data$group_id <- row$group_id
+      goslim_data$loading <- row$absolute_loading
+      goslim_expanded[[i]] <- goslim_data
+    }
+  }
+  
+  # Combine all GOslim annotations
+  if (length(goslim_expanded) > 0) {
+    goslim_all <- bind_rows(goslim_expanded)
+    
+    # Count occurrences of each GOslim term
+    goslim_counts <- goslim_all %>%
+      group_by(goslim_id, goslim_name) %>%
+      summarize(
+        count = n(),
+        mean_loading = mean(loading),
+        .groups = "drop"
+      ) %>%
+      arrange(desc(count))
+    
+    annotated_components[[comp_col]] <- list(
+      top_genes = annotated_df,
+      goslim_counts = goslim_counts
+    )
+    
+    cat("  Genes with BP GOslim:", 
+        length(unique(goslim_all$group_id)), "/", nrow(top_genes_df), "\n")
+    cat("  Unique BP GOslim terms:", nrow(goslim_counts), "\n")
+    cat("  Top 5 BP GOslim terms:\n")
+    top5 <- head(goslim_counts, 5)
+    for (j in seq_len(nrow(top5))) {
+      cat("    ", j, ". ", top5$goslim_name[j], " (", top5$goslim_id[j], ", n=", top5$count[j], ")\n", sep = "")
+    }
+  } else {
+    cat("  WARNING: No BP GOslim annotations found!\n")
+    annotated_components[[comp_col]] <- list(
+      top_genes = annotated_df,
+      goslim_counts = data.frame()
+    )
+  }
+  cat("\n")
+}
+```
+
+## Save GOslim annotation tables
+
+```{r save-goslim-tables, eval=TRUE}
+cat(strrep("=", 60), "\n")
+cat("SAVING GOSLIM TABLES (Biological Process only)\n")
+cat(strrep("=", 60), "\n\n")
+
+for (comp_num in components_to_analyze) {
+  comp_col <- paste0("Component_", comp_num)
+  
+  if (!comp_col %in% names(annotated_components)) {
+    next
+  }
+  
+  # Save top genes with annotations
+  top_genes_file <- file.path(goslim_output_dir, 
+                               paste0("component_", comp_num, "_top500_genes_goslim_BP_annotated.csv"))
+  write.csv(annotated_components[[comp_col]]$top_genes, 
+            top_genes_file, 
+            row.names = FALSE)
+  cat("Saved:", basename(top_genes_file), "\n")
+  
+  # Save GOslim counts
+  if (nrow(annotated_components[[comp_col]]$goslim_counts) > 0) {
+    goslim_counts_file <- file.path(goslim_output_dir, 
+                                    paste0("component_", comp_num, "_goslim_BP_counts.csv"))
+    write.csv(annotated_components[[comp_col]]$goslim_counts, 
+              goslim_counts_file, 
+              row.names = FALSE)
+    cat("Saved:", basename(goslim_counts_file), "\n")
+  }
+}
+
+cat("\nAll tables saved to:", goslim_output_dir, "\n\n")
+```
+
+## Create GOslim bar charts
+
+```{r plot-goslim-barcharts, eval=TRUE, fig.width=10, fig.height=8}
+cat(strrep("=", 60), "\n")
+cat("CREATING GOSLIM BAR CHARTS (Biological Process only)\n")
+cat(strrep("=", 60), "\n\n")
+
+# Color palette for components
+component_colors <- c(
+  "5" = "#E64B35",
+  "6" = "#4DBBD5", 
+  "7" = "#00A087",
+  "9" = "#F39B7F"
+)
+
+for (comp_num in components_to_analyze) {
+  comp_col <- paste0("Component_", comp_num)
+  
+  if (!comp_col %in% names(annotated_components)) {
+    next
+  }
+  
+  goslim_counts <- annotated_components[[comp_col]]$goslim_counts
+  
+  if (nrow(goslim_counts) == 0) {
+    cat("Component", comp_num, ": No BP GOslim data to plot\n")
+    next
+  }
+  
+  # Take top 20 GOslim terms for visualization
+  top_goslim <- goslim_counts %>%
+    head(20) %>%
+    mutate(goslim_name = reorder(goslim_name, count))
+  
+  # Create bar chart
+  p <- ggplot(top_goslim, aes(x = goslim_name, y = count)) +
+    geom_bar(stat = "identity", fill = component_colors[as.character(comp_num)], 
+             alpha = 0.8) +
+    geom_text(aes(label = count), hjust = -0.2, size = 3.5) +
+    coord_flip() +
+    labs(
+      title = paste0("Component ", comp_num, ": Top 20 GOslim Biological Process Terms"),
+      subtitle = paste0("From top 500 genes (ranked by absolute loading)"),
+      x = "GOslim Biological Process Term",
+      y = "Number of Ortholog Groups"
+    ) +
+    theme_bw() +
+    theme(
+      plot.title = element_text(size = 14, face = "bold"),
+      plot.subtitle = element_text(size = 11, color = "gray30"),
+      axis.text.y = element_text(size = 10),
+      axis.text.x = element_text(size = 10),
+      axis.title = element_text(size = 11, face = "bold"),
+      panel.grid.major.y = element_blank(),
+      panel.grid.minor = element_blank()
+    ) +
+    scale_y_continuous(expand = expansion(mult = c(0, 0.15)))
+  
+  # Save plot
+  plot_file <- file.path(goslim_output_dir, 
+                         paste0("component_", comp_num, "_goslim_BP_barchart.png"))
+  ggsave(plot_file, p, width = 10, height = 8, dpi = 300)
+  cat("Saved:", basename(plot_file), "\n")
+}
+
+cat("\nAll bar charts saved to:", goslim_output_dir, "\n\n")
+```
+
+## Summary statistics
+
+```{r goslim-summary, eval=TRUE}
+cat(strrep("=", 60), "\n")
+cat("GOSLIM ANNOTATION SUMMARY (Biological Process only)\n")
+cat(strrep("=", 60), "\n\n")
+
+summary_data <- list()
+
+for (comp_num in components_to_analyze) {
+  comp_col <- paste0("Component_", comp_num)
+  
+  if (!comp_col %in% names(annotated_components)) {
+    next
+  }
+  
+  top_genes <- annotated_components[[comp_col]]$top_genes
+  goslim_counts <- annotated_components[[comp_col]]$goslim_counts
+  
+  genes_with_goslim <- sum(!is.na(top_genes$goslim_ids) & top_genes$goslim_ids != "")
+  
+  if (nrow(goslim_counts) > 0) {
+    top_term <- goslim_counts$goslim_name[1]
+    top_term_id <- goslim_counts$goslim_id[1]
+    top_count <- goslim_counts$count[1]
+  } else {
+    top_term <- NA
+    top_term_id <- NA
+    top_count <- NA
+  }
+  
+  summary_data[[comp_col]] <- data.frame(
+    Component = comp_num,
+    Total_Genes = nrow(top_genes),
+    Genes_With_BP_GOslim = length(unique(top_genes$group_id[!is.na(top_genes$goslim_ids) & top_genes$goslim_ids != ""])),
+    Percent_Annotated = round(genes_with_goslim / nrow(top_genes) * 100, 1),
+    Unique_BP_GOslim_Terms = nrow(goslim_counts),
+    Top_BP_GOslim_Term = top_term,
+    Top_BP_GOslim_ID = top_term_id,
+    Top_BP_GOslim_Count = top_count,
+    stringsAsFactors = FALSE
+  )
+}
+
+summary_df <- bind_rows(summary_data)
+
+print(summary_df)
+
+# Save summary table
+summary_file <- file.path(goslim_output_dir, "goslim_BP_annotation_summary.csv")
+write.csv(summary_df, summary_file, row.names = FALSE)
+cat("\nSaved summary table:", basename(summary_file), "\n")
+
+cat("\n", strrep("=", 60), "\n")
+cat("GOSLIM ANNOTATION ANALYSIS COMPLETE\n")
+cat("Output directory:", goslim_output_dir, "\n")
+cat(strrep("=", 60), "\n\n")
+
+cat("Output files created:\n")
+cat("  - component_[5,6,7,9]_top500_genes_goslim_BP_annotated.csv\n")
+cat("  - component_[5,6,7,9]_goslim_BP_counts.csv\n")
+cat("  - component_[5,6,7,9]_goslim_BP_barchart.png\n")
+cat("  - goslim_BP_annotation_summary.csv\n")
+cat("\nNote: Only Biological Process GOslim terms are included in this analysis.\n\n")
+```
+
 # SYSTEM INFO
 
 ```{r system-info, eval=TRUE}
