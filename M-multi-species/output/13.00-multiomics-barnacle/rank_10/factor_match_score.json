@@ -1,26 +1,61 @@
 {
   "rank": 10,
-  "fms_result": {
+  "tlviz_fms": {
+    "fms": 1.0000000000000002,
+    "permutation": [
+      "0",
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9"
+    ],
+    "success": true,
+    "method": "tlviz_self_consistency",
+    "warning": "Self-comparison: FMS \u2248 1.0 expected (not useful for rank selection)"
+  },
+  "reconstruction_fms": {
     "fms": 0.822531822429506,
     "correlation": 0.6450636448590118,
-    "mse": 0.8768762163031306,
-    "rmse": 0.9364166894620848,
-    "mae": 0.6506615767378843,
-    "r_squared": 0.4160730201228682,
     "success": true,
     "method": "reconstruction_correlation",
     "valid_elements": 1144976
   },
+  "synthetic_fms": {
+    "fms": 0.9071244042137863,
+    "permutation": [
+      "5",
+      "2",
+      "0",
+      "8",
+      "6",
+      "3",
+      "1",
+      "4",
+      "7",
+      "9"
+    ],
+    "success": true,
+    "method": "synthetic_validation",
+    "noise_level": 0.1,
+    "recovery_quality": "excellent"
+  },
   "summary": {
     "rank": 10,
-    "fms": 0.822531822429506,
-    "correlation": 0.6450636448590118,
-    "mse": 0.8768762163031306,
-    "rmse": 0.9364166894620848,
-    "mae": 0.6506615767378843,
-    "r_squared": 0.4160730201228682,
-    "success": true,
-    "method": "reconstruction_correlation",
+    "fms_tlviz": 1.0000000000000002,
+    "fms_reconstruction": 0.822531822429506,
+    "fms_synthetic": 0.9071244042137863,
+    "reconstruction_correlation": 0.6450636448590118,
+    "tlviz_success": true,
+    "reconstruction_success": true,
+    "synthetic_success": true,
+    "tlviz_method": "tlviz_self_consistency",
+    "reconstruction_method": "reconstruction_correlation",
+    "synthetic_method": "synthetic_validation",
     "valid_elements": 1144976
   }
 }

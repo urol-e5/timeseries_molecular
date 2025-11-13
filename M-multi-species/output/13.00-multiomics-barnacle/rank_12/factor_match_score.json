@@ -1,26 +1,65 @@
 {
   "rank": 12,
-  "fms_result": {
+  "tlviz_fms": {
+    "fms": 1.0,
+    "permutation": [
+      "0",
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11"
+    ],
+    "success": true,
+    "method": "tlviz_self_consistency",
+    "warning": "Self-comparison: FMS \u2248 1.0 expected (not useful for rank selection)"
+  },
+  "reconstruction_fms": {
     "fms": 0.8398497627527737,
     "correlation": 0.6796995255055475,
-    "mse": 0.8079974324222097,
-    "rmse": 0.8988867739722337,
-    "mae": 0.62400772589011,
-    "r_squared": 0.4619405890013607,
     "success": true,
     "method": "reconstruction_correlation",
     "valid_elements": 1144976
   },
+  "synthetic_fms": {
+    "fms": 0.5074334236423934,
+    "permutation": [
+      "4",
+      "6",
+      "8",
+      "2",
+      "3",
+      "10",
+      "11",
+      "0",
+      "9",
+      "7",
+      "1",
+      "5"
+    ],
+    "success": true,
+    "method": "synthetic_validation",
+    "noise_level": 0.1,
+    "recovery_quality": "fair"
+  },
   "summary": {
     "rank": 12,
-    "fms": 0.8398497627527737,
-    "correlation": 0.6796995255055475,
-    "mse": 0.8079974324222097,
-    "rmse": 0.8988867739722337,
-    "mae": 0.62400772589011,
-    "r_squared": 0.4619405890013607,
-    "success": true,
-    "method": "reconstruction_correlation",
+    "fms_tlviz": 1.0,
+    "fms_reconstruction": 0.8398497627527737,
+    "fms_synthetic": 0.5074334236423934,
+    "reconstruction_correlation": 0.6796995255055475,
+    "tlviz_success": true,
+    "reconstruction_success": true,
+    "synthetic_success": true,
+    "tlviz_method": "tlviz_self_consistency",
+    "reconstruction_method": "reconstruction_correlation",
+    "synthetic_method": "synthetic_validation",
     "valid_elements": 1144976
   }
 }
