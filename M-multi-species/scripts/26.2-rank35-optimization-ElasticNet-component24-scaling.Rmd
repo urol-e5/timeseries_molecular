@@ -1,0 +1,2378 @@
+---
+title: "26.2-rank35-optimization-ElasticNet-component24-scaling"
+author: "Kathleen Durkin"
+date: "2025-11-12"
+output: 
+  github_document:
+    toc: true
+    number_sections: true
+  html_document:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+  bookdown::html_document2:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+bibliography: references.bib
+---
+
+Steven has run some optimization tests to settle on a rank of 35 for the Barnacle tensor decomposition tool (`26-rank35-optimization`). I'm taking the gene set from component 24 of this run and applying our Elastic Net model to predict expression of this gene set from multiomic epigenetic predictors (miRNA + lncRNA + CpG site methylation), for all 3 species.
+
+UPDATES:
+I'm making 1 major change from the previous iteration (26.1): Scale standardization. Regression techniques require inputs to be on similar scales. That is not the case for our inputs, for two reasons. First, RNA counts are unbounded (could have thousands of transcripts for single RNA), but CpG site methylation is bounded on a 0-100 % scale. I'm transforming methylation from beta values (0% - 100%) to M values (log2 transformation of ratio of unmethyl/methyl). M values are unbounded (like expression counts), and also more appropriate for regression analyses because they remove heterodescasticity without need to run methylation values through a DESeq vst transformation, which may not be appropriate for use on data other than gene counts. Second, to get all predictor blocks (miRNA, lncRNA, and WGBS Mvalues on the same scale, ill be scaling each before combining into the full predictor set.)
+
+
+Inputs:
+
+-   RNA counts matrix (for gene set, raw):
+
+    - `https://github.com/urol-e5/timeseries_molecular/raw/refs/heads/main/M-multi-species/output/26-rank35-optimization/lambda_gene_0.2/top_genes_per_component/Component_24_apul_count_matrix.csv`
+    
+    - `https://github.com/urol-e5/timeseries_molecular/raw/refs/heads/main/M-multi-species/output/26-rank35-optimization/lambda_gene_0.2/top_genes_per_component/Component_24_peve_count_matrix.csv`
+    
+    - `https://github.com/urol-e5/timeseries_molecular/raw/refs/heads/main/M-multi-species/output/26-rank35-optimization/lambda_gene_0.2/top_genes_per_component/Component_24_ptua_count_matrix.csv`
+
+-   miRNA counts matrix (raw):  
+
+    - `https://github.com/urol-e5/timeseries_molecular/raw/refs/heads/main/M-multi-species/output/10.1-format-miRNA-counts-updated/Apul_miRNA_counts_formatted_updated.txt`
+    
+    - `https://github.com/urol-e5/timeseries_molecular/raw/refs/heads/main/M-multi-species/output/10.1-format-miRNA-counts-updated/Peve_miRNA_counts_formatted_updated.txt`
+    
+    - `https://github.com/urol-e5/timeseries_molecular/raw/refs/heads/main/M-multi-species/output/10.1-format-miRNA-counts-updated/Ptuh_miRNA_counts_formatted_updated.txt`
+
+-   lncRNA counts matrix (raw):
+
+    - `https://gannet.fish.washington.edu/v1_web/owlshell/bu-github/timeseries_molecular/D-Apul/output/31.5-Apul-lncRNA-discovery/lncRNA_counts.clean.filtered.txt`
+    
+    - `https://gannet.fish.washington.edu/v1_web/owlshell/bu-github/timeseries_molecular/E-Peve/output/12-Peve-lncRNA-discovery/lncRNA_counts.clean.filtered.txt`
+    
+    - `https://gannet.fish.washington.edu/v1_web/owlshell/bu-github/timeseries_molecular/F-Ptua/output/06-Ptua-lncRNA-discovery/lncRNA_counts.clean.filtered.txt`
+
+-   WGBS data (processed): Shelly's generated a WGBS count tables for a bunch of different parameter combinations (alignment score and sample coverage) (see details in [the `timeseries_molecular` wiki](https://github.com/urol-e5/timeseries_molecular/wiki/02%E2%80%90Expression-Count-Matrices)). For now, let's go with the most conservative parameter combination available for all 3 species, which is an alignment score of -0.8 and coverage in all samples (n=39 in Apul, n=37 in Peve, and n=32 in Ptuh):
+  
+    - `https://gannet.fish.washington.edu/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/22.5-Apul-multiomic-SR/Apul-filtered-WGBS-CpG-counts.csv`
+    
+    - `https://gannet.fish.washington.edu/metacarcinus/E5/Pevermanni/20250821_meth_Peve/merged-WGBS-CpG-counts_filtered.csv`
+    
+    - `https://gannet.fish.washington.edu/metacarcinus/E5/Ptuahiniensis/20250821_meth_Ptua/merged-WGBS-CpG-counts_filtered.csv`
+
+-   sample metadata:  `../../M-multi-species/data/rna_metadata.csv`
+
+
+# Set up 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, cache=TRUE)
+```
+
+# Load libraries 
+```{r, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(DESeq2)
+library(igraph)
+library(psych)
+library(tidygraph)
+library(ggraph)
+library(WGCNA)
+library(edgeR)
+library(reshape2)
+library(ggcorrplot)
+library(corrplot)
+library(rvest)
+library(purrr)
+library(pheatmap)
+library(glmnet)
+library(caret)
+library(factoextra)
+library(vegan)
+library(ggfortify)
+library(genefilter)
+library(scales)
+library(purrr)
+```
+
+The model includes random processes, so set a seed for reproducability
+```{r}
+set.seed(703)
+```
+
+# Define model functions
+
+```{r}
+train_models <- function(response_features, predictor_features) {
+  models <- list()
+  
+  for (feature in colnames(response_features)) {
+    y <- response_features[[feature]]  # Gene expression
+    X <- as.matrix(predictor_features)  # miRNA/lncRNA/methylation as predictors
+    
+    # Train elastic net model (alpha = 0.5 for mix of LASSO & Ridge)
+    # Reducing nfolds from 10 (default) to 5, since I'm using smaller sample sizes of just 10 samples per timepoint
+    model <- cv.glmnet(X, y, alpha = 0.5, nfolds = 3)
+    
+    models[[feature]] <- model
+  }
+  
+  return(models)
+}
+
+get_feature_importance <- function(models) {
+  importance_list <- lapply(models, function(model) {
+    coefs <- as.matrix(coef(model, s = "lambda.min"))[-1, , drop = FALSE]  # Convert to regular matrix & remove intercept
+    
+    # Convert to data frame
+    coefs_df <- data.frame(Feature = rownames(coefs), Importance = as.numeric(coefs))
+    
+    return(coefs_df)
+  })
+  
+  # Combine feature importance across all predicted genes
+  importance_df <- bind_rows(importance_list) %>%
+    group_by(Feature) %>%
+    summarize(MeanImportance = mean(abs(Importance)), .groups = "drop") %>%
+    arrange(desc(MeanImportance))
+  
+  return(importance_df)
+}
+
+evaluate_model_performance <- function(models, response_features, predictor_features) {
+  results <- data.frame(Feature = colnames(response_features), R2 = NA)
+
+  for (feature in colnames(response_features)) {
+    y <- response_features[[feature]]
+    X <- as.matrix(predictor_features)
+
+    model <- models[[feature]]
+    preds <- predict(model, X, s = "lambda.min")
+
+    R2 <- cor(y, preds)^2  # R-squared metric
+    results[results$Feature == feature, "R2"] <- R2
+  }
+
+  return(results)
+}
+```
+
+
+# Define training and testing function
+
+```{r}
+train_models_split <- function(response_features, predictor_features, train_frac = 0.8, alpha = 0.5, nfolds = 10) {
+  
+  # Set up storage
+  models <- list()
+  performance <- data.frame(Feature = colnames(response_features), R2 = NA)
+
+  # Select fraction of data
+  sample_idx <- sample(seq_len(nrow(predictor_features)), size = floor(train_frac * nrow(predictor_features)))
+
+  # Split predictor data
+  X_train <- predictor_features[sample_idx, ]
+  X_test  <- predictor_features[-sample_idx, ]
+
+  for (feature in colnames(response_features)) {
+    # Split response data
+    y_train <- response_features[sample_idx, feature]
+    y_test  <- response_features[-sample_idx, feature]
+
+    
+    # Check if y_train is constant
+    if (length(unique(y_train)) == 1) {
+      warning(sprintf("Skipping feature '%s': y_train is constant", feature))
+      next
+    }
+    
+    # Run model on training data
+    model <- cv.glmnet(as.matrix(X_train), y_train, alpha = alpha, nfolds = nfolds)
+    models[[feature]] <- model
+
+    # Now apply the trained model to test data
+    preds <- predict(model, newx = as.matrix(X_test), s = "lambda.min")
+    R2 <- cor(y_test, preds)^2
+    performance[performance$Feature == feature, "R2"] <- R2
+  }
+
+  return(list(models = models, performance = performance))
+}
+
+```
+
+# A. pulchra
+## Load and format data 
+
+```{r}
+### mRNA ###
+# raw gene counts data (will filter and variance stabilize)
+Apul_genes <- as.data.frame(read_csv("https://github.com/urol-e5/timeseries_molecular/raw/refs/heads/main/M-multi-species/output/26-rank35-optimization/lambda_gene_0.2/top_genes_per_component/Component_24_apul_count_matrix.csv"))
+
+# format gene IDs as rownames (instead of a column)
+rownames(Apul_genes) <- Apul_genes$gene_id
+Apul_genes <- Apul_genes%>%select(!gene_id)
+
+### miRNA ###
+# raw miRNA counts (will filter and variance stabilize)
+Apul_miRNA <- read.table(file = "https://github.com/urol-e5/timeseries_molecular/raw/refs/heads/main/M-multi-species/output/10.1-format-miRNA-counts-updated/Apul_miRNA_counts_formatted_updated.txt", header = TRUE, sep = "\t", check.names = FALSE)
+
+# format miRNA IDs as rownames (instead of a column)
+rownames(Apul_miRNA) <- Apul_miRNA$Name
+Apul_miRNA <- Apul_miRNA%>%select(!Name)
+
+### lncRNA ###
+# raw lncRNA counts (will filter and variance stabilize)
+Apul_lncRNA_full <- read.table("https://gannet.fish.washington.edu/v1_web/owlshell/bu-github/timeseries_molecular/D-Apul/output/31.5-Apul-lncRNA-discovery/lncRNA_counts.clean.filtered.txt", header = TRUE, sep = "\t")
+
+# Remove info on genomic location, set lncRNA IDs as rownames
+rownames(Apul_lncRNA_full) <- Apul_lncRNA_full$Geneid
+Apul_lncRNA <- Apul_lncRNA_full %>% select(-Geneid, -Chr, -Start, -End, -Strand, -Length)
+
+# Format sample names to match standard (SPEC-Sample#-TP#)
+colnames(Apul_lncRNA) <- gsub("\\.", "-", colnames(Apul_lncRNA))
+
+
+### WGBS data ###
+Apul_WGBS <- read.csv("https://gannet.fish.washington.edu/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/22.5-Apul-multiomic-SR/Apul-filtered-WGBS-CpG-counts.csv")
+
+# Format sample names to match standard (SPEC-Sample#-TP#)
+colnames(Apul_WGBS) <- gsub("\\.", "-", colnames(Apul_WGBS))
+
+
+### load and format metadata ###
+metadata <- read_csv("../../M-multi-species/data/rna_metadata.csv")%>%select(AzentaSampleName, ColonyID, Timepoint) %>%
+  filter(grepl("ACR", ColonyID))
+metadata$Sample <- paste0(metadata$ColonyID, "-", metadata$Timepoint)
+rownames(metadata) <- metadata$Sample
+
+colonies <- unique(metadata$ColonyID)
+```
+
+### Filter data sets 
+
+#### WGBS
+
+Only keep CpGs that have a non-zero value in all samples. 
+
+```{r}
+Apul_WGBS_filt <- Apul_WGBS %>% filter(if_all(-X, ~ .x > 0))
+
+# Ensure it's formatted as a data frame
+Apul_WGBS_filt <- as.data.frame(Apul_WGBS_filt)
+# Set CpG IDs to rownames
+rownames(Apul_WGBS_filt) <- Apul_WGBS_filt$X
+Apul_WGBS_filt <- Apul_WGBS_filt %>% select(-X)
+
+nrow(Apul_WGBS)
+nrow(Apul_WGBS_filt)
+```
+
+We had 96,785 CpGs before filtering and have 14,872 after filtering. 
+
+#### RNA
+
+Remove the sample with poor WGBS data quality (`ACR-225-TP1`), which was already excluded from the WGBS counts
+
+```{r}
+Apul_genes <- Apul_genes %>% select(-"ACR-225-TP1")
+Apul_miRNA <- Apul_miRNA %>% select(-"ACR-225-TP1")
+Apul_lncRNA <- Apul_lncRNA %>% select(-"ACR-225-TP1")
+```
+
+Ensure we only have genes, miRNA, and lncRNA that are present in at least one sample
+```{r}
+# genes
+Apul_genes_red <- Apul_genes[rowSums(Apul_genes) != 0, ]
+# miRNA
+Apul_miRNA_red <- Apul_miRNA[rowSums(Apul_miRNA) != 0, ]
+# lncRNA
+Apul_lncRNA_red <- Apul_lncRNA[rowSums(Apul_lncRNA) != 0, ]
+
+cat("Retained ", nrow(Apul_genes_red), " of ", nrow(Apul_genes), "genes; ",
+       nrow(Apul_miRNA_red), " of ", nrow(Apul_miRNA), " miRNA; and ", 
+       nrow(Apul_lncRNA_red), " of ", nrow(Apul_lncRNA), " lncRNA")
+```
+
+*pOverA*: 
+Specifying the minimum count for a proportion of samples for each gene. Setting 3/40 = 0.08. This would retain genes that are only expressed in a single season in a couple of the colonies. Additionally, setting the minimum count so that the minimum number of samples must have a gene count above a certain threshold. 
+
+genes:
+```{r}
+filt <- filterfun(pOverA(0.08, 5))
+
+#create filter for the counts data
+gfilt <- genefilter(Apul_genes_red, filt)
+
+#identify genes to keep by count filter
+gkeep <- Apul_genes_red[gfilt,]
+
+#identify gene lists
+gn.keep <- rownames(gkeep)
+
+#gene count data filtered in PoverA, P percent of the samples have counts over A
+Apul_genes_filt <- as.data.frame(Apul_genes_red[which(rownames(Apul_genes_red) %in% gn.keep),])
+
+#How many rows do we have before and after filtering?
+cat("Pre-filtering:", nrow(Apul_genes_red), "; Post-filtering:", nrow(Apul_genes_filt))
+```
+
+miRNA:
+```{r}
+mifilt <- filterfun(pOverA(0.08, 5))
+
+#create filter for the counts data
+mifilt <- genefilter(Apul_miRNA_red, mifilt)
+
+#identify miRNA to keep by count filter
+mikeep <- Apul_miRNA_red[mifilt,]
+
+#identify miRNA to keep by count filter
+mikeep <- Apul_miRNA_red[mifilt,]
+
+#identify miRNA lists
+mi.keep <- rownames(mikeep)
+
+#miRNA count data filtered in PoverA, P percent of the samples have counts over A
+Apul_miRNA_filt <- as.data.frame(Apul_miRNA_red[which(rownames(Apul_miRNA_red) %in% mi.keep),])
+
+#How many rows do we have before and after filtering?
+cat("Pre-filtering:", nrow(Apul_miRNA_red), "; Post-filtering:", nrow(Apul_miRNA_filt))
+```
+
+Of the 51 miRNA, 47 were retained. Which were removed?
+```{r}
+setdiff(rownames(Apul_miRNA_red), rownames(Apul_miRNA_filt))
+```
+
+lncRNA:
+```{r}
+lncfilt <- filterfun(pOverA(0.08, 5))
+
+#create filter for the counts data
+lncfilt <- genefilter(Apul_lncRNA_red, lncfilt)
+
+#identify lncRNA to keep by count filter
+lnckeep <- Apul_lncRNA_red[lncfilt,]
+
+#identify lncRNA to keep by count filter
+lnckeep <- Apul_lncRNA_red[lncfilt,]
+
+#identify lncRNA lists
+lnc.keep <- rownames(lnckeep)
+
+#lncRNA count data filtered in PoverA, P percent of the samples have counts over A
+Apul_lncRNA_filt <- as.data.frame(Apul_lncRNA_red[which(rownames(Apul_lncRNA_red) %in% lnc.keep),])
+
+#How many rows do we have before and after filtering?
+cat("Pre-filtering:", nrow(Apul_lncRNA_red), "; Post-filtering:", nrow(Apul_lncRNA_filt))
+```
+
+### Transform data 
+
+Remove Sample `ACR-225-TP1` from metadata table
+```{r}
+metadata <-  metadata[!(rownames(metadata) == "ACR-225-TP1"), ]
+rownames(metadata) <- metadata$Sample
+```
+
+Set the order of genes, miRNA, lncRNA, wgbs, and metadata to all be the same. 
+```{r}
+# Ensure rownames of metadata are used as the desired column order
+desired_order <- rownames(metadata)
+
+# Reorder data frame columns
+Apul_genes_filt <- Apul_genes_filt[, desired_order]
+Apul_miRNA_filt <- Apul_miRNA_filt[, desired_order]
+Apul_lncRNA_filt <- Apul_lncRNA_filt[, desired_order]
+Apul_WGBS_filt <- Apul_WGBS_filt[, desired_order]
+
+# Check they all match
+identical(rownames(metadata), colnames(Apul_genes_filt))
+identical(rownames(metadata), colnames(Apul_miRNA_filt))
+identical(rownames(metadata), colnames(Apul_lncRNA_filt))
+identical(rownames(metadata), colnames(Apul_WGBS_filt))
+```
+
+Use a variance stabilized transformation for all the RNA data sets. Variance stabilization essentially tries to make variance independent of the mean, and we'll implement via the differential expression analysis package `DESeq2`
+
+(Is this the most appropriate design to use?)
+
+```{r}
+### genes ###
+dds_Apul <- DESeqDataSetFromMatrix(countData = Apul_genes_filt, 
+                              colData = metadata, 
+                              design = ~Timepoint+ColonyID)
+
+# Variance Stabilizing Transformation
+vsd_Apul_genes <- varianceStabilizingTransformation(dds_Apul, blind = TRUE)  # Must use varianceStabilizingTransformation() instead of vst() due to few input genes
+vsd_Apul_genes <- assay(vsd_Apul_genes)
+
+
+### miRNA ###
+dds_miRNA <- DESeqDataSetFromMatrix(countData = Apul_miRNA_filt, 
+                              colData = metadata, 
+                              design = ~Timepoint+ColonyID)
+
+# Variance Stabilizing Transformation
+vsd_Apul_miRNA <- varianceStabilizingTransformation(dds_miRNA, blind=TRUE) # Must use varianceStabilizingTransformation() instead of vst() due to few input genes
+vsd_Apul_miRNA <- assay(vsd_Apul_miRNA)
+
+
+### lncRNA ###
+# All values must be integers
+Apul_lncRNA_filt <- Apul_lncRNA_filt %>% mutate(across(where(is.numeric), round))
+
+dds_lncRNA <- DESeqDataSetFromMatrix(countData = Apul_lncRNA_filt, 
+                              colData = metadata, 
+                              design = ~Timepoint+ColonyID)
+
+# Variance Stabilizing Transformation
+vsd_Apul_lncRNA <- assay(vst(dds_lncRNA, blind = TRUE))
+```
+
+For the methylation, we'll convert from beta values to M-values. This will both (a) convert to an unbounded scale (instead of being limited to 0-100) and (b) reduce heterodescasticity, like a vst transformation
+```{r}
+### WGBS ###
+# Convert beta values to M-values: M = log2(beta / (1 - beta))
+
+# Convert percent to proportion (0-100 -> 0-1)
+Apul_WGBS_prop <- Apul_WGBS_filt/100
+
+# Protect against zeros or ones by bounding beta values (as 0s and 1s have disproportionate impact)
+Apul_WGBS_prop[Apul_WGBS_prop == 0] <- 1e-6
+Apul_WGBS_prop[Apul_WGBS_prop == 1] <- 1 - 1e-6
+
+# Again, this is not a vst transformation, I'm just retaining the vsd name prefix for consistency
+vsd_Apul_WGBS <- log2(Apul_WGBS_prop / (1 - Apul_WGBS_prop))
+```
+
+### Scale standardization
+
+Elastic Net, like many regression models, requires inputs to be on the same scale
+
+```{r}
+# Scale each predictor block (miRNA, lncRNA, WGBS)
+vsd_Apul_miRNA_scaled <- scale(vsd_Apul_miRNA)
+vsd_Apul_lncRNA_scaled <- scale(vsd_Apul_lncRNA)
+vsd_Apul_WGBS_scaled <- scale(vsd_Apul_WGBS)
+
+# Scale response (genes)
+vsd_Apul_genes_scaled <- scale(vsd_Apul_genes)
+```
+
+
+### Merge predictor features
+
+Create a merged dataset that contains the variance stabilized counts for all miRNA, lncRNA, and CpGs.
+
+```{r}
+# Triple check that all three data frames have sample names in the same order
+identical(colnames(vsd_Apul_lncRNA_scaled), colnames(vsd_Apul_miRNA_scaled))
+identical(colnames(vsd_Apul_lncRNA_scaled), colnames(vsd_Apul_WGBS_scaled))
+
+# Bind (stack dataframes vertically, so that they match by column/sample)
+Apul_pred_counts <- rbind(vsd_Apul_lncRNA_scaled, vsd_Apul_miRNA_scaled, vsd_Apul_WGBS_scaled)
+
+# Transform so that samples are on rows and features are in columns
+Apul_pred_counts <- t(Apul_pred_counts)
+
+dim(Apul_pred_counts)
+```
+
+### Format
+
+```{r}
+# Transform the counts matrices so that samples are on the rows and gene IDs on the columns
+vsd_Apul_genes_t <- t(vsd_Apul_genes_scaled)
+
+# Ensure both are formatted as data frames
+Apul_pred_counts <- as.data.frame(Apul_pred_counts)
+vsd_Apul_genes_t <- as.data.frame(vsd_Apul_genes_t)
+
+# Ensure sample matching between gene and epigenetic dfs
+common_samples <- intersect(rownames(vsd_Apul_genes_t), rownames(Apul_pred_counts))
+
+Apul_pred_counts <- Apul_pred_counts[common_samples, ]
+vsd_Apul_genes_t <- vsd_Apul_genes_t[common_samples,]
+```
+
+
+## Split training and test
+## Bootstrapping
+
+```{r, cache=TRUE}
+n_replicates <- 1  # number of replicates
+r2_threshold <- 0.5 # threshold for "good" prediction
+Apul_TM_list <- list()
+Apul_MP_list <- list()
+Apul_FI_list <- list()
+
+# Perform bootstrapping
+for (i in 1:n_replicates) {
+  cat("Beginning replicate", i)
+  cat("\n")
+  Apul_result <- train_models_split(vsd_Apul_genes_t, Apul_pred_counts)
+  
+  cat("Extracting results for replicate", i)
+  cat("\n")
+  Apul_trained_models <- Apul_result$models
+  Apul_model_performance <- Apul_result$performance
+  Apul_feature_importance <- get_feature_importance(Apul_trained_models)
+  
+  Apul_TM_list[[i]] <- Apul_trained_models
+  Apul_TM_list[[i]]$Replicate <- i
+  
+  Apul_MP_list[[i]] <- Apul_model_performance
+  Apul_MP_list[[i]]$Replicate <- i
+  
+  Apul_FI_list[[i]] <- Apul_feature_importance
+  Apul_FI_list[[i]]$Replicate <- i
+}
+
+# Combine all results
+Apul_all_TM <- do.call(rbind, Apul_TM_list)
+Apul_all_MP <- do.call(rbind, Apul_MP_list)
+Apul_all_FI <- do.call(rbind, Apul_FI_list)
+```
+
+```{r}
+# Count how often each feature exceeds the R² threshold
+
+Apul_MP_summary <- Apul_all_MP %>%
+  group_by(Feature) %>%
+  summarize(
+    Mean_R2 = mean(R2, na.rm = TRUE),
+    SD_R2 = sd(R2, na.rm = TRUE),
+    SE_R2 = SD_R2/sqrt(n()),
+    High_Perf_Count = sum(R2 >= r2_threshold),
+    .groups = 'drop'
+  ) %>%
+  arrange(desc(High_Perf_Count))
+
+# View top consistently high-performing features
+print(Apul_MP_summary)
+
+# How many genes are consistently well-predicted?
+sum(!is.na(Apul_MP_summary$Feature) & Apul_MP_summary$Mean_R2 > 0.5, na.rm = TRUE)
+
+```
+
+Sort genes by average R^2 across all replicates, then plot R^2 for all replicates
+```{r}
+# Merge mean R2 info into full replicate-level data
+Apul_all_MP <- merge(Apul_all_MP, Apul_MP_summary[, c("Feature", "Mean_R2", "SD_R2")], by = "Feature")
+
+# Reorder Feature factor by Mean_R2
+Apul_all_MP$Feature <- factor(Apul_all_MP$Feature,
+                                          levels = Apul_MP_summary$Feature[order(Apul_MP_summary$Mean_R2)])
+```
+
+```{r}
+# Plot mean R² with error bars
+# Choose SD to describe variability in model performance
+ggplot(Apul_all_MP, aes(x = Feature, y = Mean_R2)) +
+  geom_errorbar(aes(ymin = Mean_R2 - SD_R2, ymax = Mean_R2 + SD_R2), width = 0.4, color = "gray40", linewidth = 0.25) +
+  geom_point(size = 2, color = "black") +
+  geom_hline(yintercept = 0.5,
+             linetype = "dashed", color = "blue") +
+  theme_minimal() +
+  labs(title = "Apul: Mean R² with Error Bars Across Gene Features",
+       x = "Gene Expression Feature (Ordered by Mean R²)",
+       y = "Mean R² ± SD") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size=5)) +
+  ylim(-0.2, 1.2) +
+  scale_y_continuous(breaks = c(0, 0.25, 0.5, 0.75, 1))
+
+```
+
+```{r}
+# Plot with features sorted by mean R²
+ggplot(Apul_all_MP, aes(x = Feature, y = R2)) +
+  geom_point(aes(color = as.factor(Replicate)), size = 1) +
+  geom_point(aes(y = Mean_R2), color = "black", shape = 18, size = 3) + 
+  geom_hline(yintercept = mean(Apul_all_MP$R2, na.rm = TRUE),
+             linetype = "dashed", color = "blue") +
+  theme_minimal() +
+  labs(title = "Apul: Model Performance Across Gene Expression",
+       x = "Gene Expression Feature (Ordered by Mean R²)",
+       y = "R² (Variance Explained)",
+       color = "Replicate") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  ylim(0, 1)
+
+```
+
+Average importance of all predictive features and plot those with highest average importance across all replicates
+```{r}
+# Average importance across replicates
+Apul_mean_importance_df <- Apul_all_FI %>%
+  group_by(Feature) %>%
+  summarise(MeanImportance = mean(MeanImportance, na.rm = TRUE)) %>%
+  arrange(desc(MeanImportance))
+
+# Select top 50 features
+Apul_top_features <- Apul_mean_importance_df %>% top_n(50, MeanImportance)
+
+# Plot
+ggplot(Apul_top_features, aes(x = reorder(Feature, MeanImportance), y = MeanImportance)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  coord_flip() +  # Flip for readability
+  theme_minimal() +
+  labs(title = "Apul: Top Predictive Features by Mean Importance",
+       x = "Feature",
+       y = "Mean Importance")
+
+```
+
+## Boostrapping on predictable genes
+
+Now I only want to model genes that are well-predicted over many replicates
+
+Isolate well-predicted genes
+```{r}
+Apul_well_predicted <- Apul_MP_summary[Apul_MP_summary$Mean_R2 > 0.5,]
+
+vsd_Apul_high_perf_t <- vsd_Apul_genes_t[,colnames(vsd_Apul_genes_t) %in% Apul_well_predicted$Feature]
+dim(vsd_Apul_high_perf_t)
+```
+
+Of the original 99 genes annotated for energetic state GO terms, 33 are consistently well-predicted by our model (mean R^2 > 0.5, over 25 replicates).
+
+
+Run bootstrapping on isolated genes
+```{r, cache=TRUE}
+n_replicates <- 1  # number of replicates
+r2_threshold <- 0.5 # threshold for "good" prediction
+Apul_TM_list <- list()
+Apul_MP_list <- list()
+Apul_FI_list <- list()
+
+# Perform bootstrapping
+for (i in 1:n_replicates) {
+  cat("Beginning replicate", i)
+  cat("\n")
+  Apul_result <- train_models_split(vsd_Apul_high_perf_t, Apul_pred_counts)
+  
+  cat("Extracting results for replicate", i)
+  cat("\n")
+  Apul_trained_models <-Apul_result$models
+  Apul_model_performance <- Apul_result$performance
+  Apul_feature_importance <- get_feature_importance(Apul_trained_models)
+  
+  Apul_TM_list[[i]] <- Apul_trained_models
+  Apul_TM_list[[i]]$Replicate <- i
+  
+  Apul_MP_list[[i]] <- Apul_model_performance
+  Apul_MP_list[[i]]$Replicate <- i
+  
+  Apul_FI_list[[i]] <- Apul_feature_importance
+  Apul_FI_list[[i]]$Replicate <- i
+}
+
+# Combine all results
+Apul_all_TM_highperf <- do.call(rbind, Apul_TM_list)
+Apul_all_MP_highperf <- do.call(rbind, Apul_MP_list)
+Apul_all_FI_highperf <- do.call(rbind, Apul_FI_list)
+```
+
+```{r}
+# Count how often each feature exceeds the R² threshold
+
+Apul_MP_summary_highperf <- Apul_all_MP_highperf %>%
+  group_by(Feature) %>%
+  summarize(
+    Mean_R2 = mean(R2, na.rm = TRUE),
+    SD_R2 = sd(R2, na.rm = TRUE),
+    SE_R2 = SD_R2 / sqrt(n()),
+    High_Perf_Count = sum(R2 >= r2_threshold),
+    .groups = 'drop'
+  ) %>%
+  arrange(desc(High_Perf_Count))
+
+# View top consistently high-performing features
+print(Apul_MP_summary_highperf)
+
+# How many genes are consistently well-predicted?
+nrow(Apul_MP_summary_highperf[Apul_MP_summary_highperf$Mean_R2 > 0.5,])
+```
+
+When I train the model on only these 33 well-predicted genes, 28 of them are again well-predicted. That's a much higher success rate! This suggests that epigenetic mechanisms may indeed be able to predict expression of these genes
+
+
+Sort genes by average R^2 across all replicates, then plot R^2 for all replicates
+```{r}
+# Merge mean R2 info into full replicate-level data
+Apul_all_MP_highperf <- merge(Apul_all_MP_highperf, Apul_MP_summary_highperf[, c("Feature", "Mean_R2", "SD_R2")], by = "Feature")
+
+# Reorder Feature factor by Mean_R2
+Apul_all_MP_highperf$Feature <- factor(Apul_all_MP_highperf$Feature,
+                                          levels = Apul_MP_summary_highperf$Feature[order(Apul_MP_summary_highperf$Mean_R2)])
+```
+
+
+```{r}
+# Plot mean R² with error bars
+# Choose SD to describe variability in model performance
+ggplot(Apul_all_MP_highperf, aes(x = Feature, y = Mean_R2)) +
+  geom_errorbar(aes(ymin = Mean_R2 - SD_R2, ymax = Mean_R2 + SD_R2), width = 0.3, color = "gray40") +
+  geom_point(size = 2, color = "black") +
+  geom_hline(yintercept = 0.5,
+             linetype = "dashed", color = "blue") +
+  theme_minimal() +
+  labs(title = "Apul: Mean R² with Error Bars Across Gene Features",
+       x = "Gene Expression Feature (Ordered by Mean R²)",
+       y = "Mean R² ± SD") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  ylim(-0.2, 1.2) +
+  scale_y_continuous(breaks = c(0, 0.25, 0.5, 0.75, 1))
+
+```
+
+```{r}
+# Plot all replicate R2s, with features sorted by mean R²
+ggplot(Apul_all_MP_highperf, aes(x = Feature, y = R2)) +
+  geom_point(aes(color = as.factor(Replicate)), size = 1.5) +
+  geom_point(aes(y = Mean_R2), color = "black", shape = 18, size = 3) + 
+  geom_hline(yintercept = mean(Apul_all_MP_highperf$R2, na.rm = TRUE),
+             linetype = "dashed", color = "blue") +
+  theme_minimal() +
+  labs(title = "Apul: Model Performance Across Gene Expression",
+       x = "Gene Expression Feature (Ordered by Mean R²)",
+       y = "R² (Variance Explained)",
+       color = "Replicate") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  ylim(0, 1)
+
+```
+
+```{r}
+# Average importance across replicates
+Apul_mean_importance_df_highperf <- Apul_all_FI_highperf %>%
+  group_by(Feature) %>%
+  summarise(MeanImportance = mean(MeanImportance, na.rm = TRUE)) %>%
+  arrange(desc(MeanImportance))
+
+# Select top 50 features
+Apul_top_features_highperf <- Apul_mean_importance_df_highperf %>% top_n(50, MeanImportance)
+
+# Plot
+ggplot(Apul_top_features_highperf, aes(x = reorder(Feature, MeanImportance), y = MeanImportance)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  coord_flip() +  # Flip for readability
+  theme_minimal() +
+  labs(title = "Apul: Top Predictive Features by Mean Importance",
+       x = "Feature",
+       y = "Mean Importance")
+
+```
+
+Look at most predictive epigenetic features for these well-predicted genes
+```{r}
+# Define color assignments for predictor types
+color_palette <- c(miRNA = "#E69F00", lncRNA = "#0072B2", CpG = "#009E73")
+
+#  Define well-predicted features
+Apul_all_features_highR2 <- Apul_all_MP_highperf %>%
+  filter(Mean_R2 > 0.5) %>%
+  pull(Feature) %>%
+  unique()
+
+# Function to extract importance from a single model
+get_feature_importance_for_feature <- function(model) {
+  coefs <- as.matrix(coef(model, s = "lambda.min"))[-1, , drop = FALSE]  # remove intercept
+  data.frame(Predictor = rownames(coefs), Importance = abs(as.numeric(coefs)))
+}
+
+# Function to assign predictor type
+get_predictor_type <- function(predictor_name) {
+  if (startsWith(predictor_name, "Cluster")) return("miRNA")
+  if (startsWith(predictor_name, "lncRNA")) return("lncRNA")
+  if (startsWith(predictor_name, "CpG")) return("CpG")
+  return("Other")
+}
+
+# Initialize list to save top predictors
+Apul_top_predictors <- list()
+
+# Loop over features, aggregate importance across replicates, and plot
+for (target_feature in Apul_all_features_highR2) {
+  
+  # Extract and combine importance scores across all replicates
+  importance_all_reps <- lapply(Apul_TM_list, function(rep_entry) {
+    model <- rep_entry[[target_feature]]
+    if (!is.null(model)) {
+      get_feature_importance_for_feature(model)
+    } else {
+      NULL
+    }
+  }) %>% bind_rows()
+
+  # If no importance data was found, skip
+  if (nrow(importance_all_reps) == 0) next
+
+  # Compute average importance across replicates
+  mean_importance <- importance_all_reps %>%
+    group_by(Predictor) %>%
+    summarise(MeanImportance = mean(Importance, na.rm = TRUE), .groups = "drop") %>%
+    arrange(desc(MeanImportance)) %>%
+    slice_head(n = 20) %>%
+    mutate(Type = sapply(Predictor, get_predictor_type))
+
+
+  # Plot once per target feature
+  plot <- ggplot(mean_importance, aes(x = reorder(Predictor, MeanImportance), y = MeanImportance, fill=Type)) +
+    geom_bar(stat = "identity") +
+    scale_fill_manual(values = color_palette) +
+    coord_flip() +
+    theme_minimal() +
+    labs(title = paste("Top Predictors for", target_feature),
+         x = "Predictor",
+         y = "Mean Importance (across replicates)")
+
+  # Save top 20 most important predictors for later use
+  top20 <- mean_importance %>% 
+    mutate(Feature = target_feature)
+  
+  Apul_top_predictors[[target_feature]] <- top20
+  
+  print(plot)
+}
+```
+
+
+## Plot expression of genes and their predictors
+
+```{r, error=FALSE, warning=FALSE}
+# Put predictor expression in format with samples in columns
+Apul_pred_counts_t <- t(Apul_pred_counts)
+
+# Loop over each feature in the list
+for (feature in names(Apul_top_predictors)) {
+  
+  # Get top 5 predictors for this feature
+  top_df <- Apul_top_predictors[[feature]] %>%
+    slice_head(n = 5)
+  predictors <- top_df$Predictor
+  
+  # Combine feature and predictors
+  all_genes <- c(feature, predictors)
+  
+  # Check which genes are actually present
+  present_genes <- all_genes[all_genes %in% rownames(Apul_pred_counts_t) | all_genes %in% rownames(vsd_Apul_genes_scaled)]
+  
+  if (!(feature %in% rownames(vsd_Apul_genes_scaled))) {
+    warning(paste("Feature", feature, "not found in vsd_Apul_genes_scaled Skipping..."))
+    next
+  }
+
+  # Extract predictor expression (only those present)
+  predictor_expr <- Apul_pred_counts_t[intersect(predictors, rownames(Apul_pred_counts_t)), , drop = FALSE] %>% as.data.frame()
+
+  # Add the feature expression
+  feature_expr <- vsd_Apul_genes_scaled[feature, , drop = FALSE] %>% as.data.frame()
+  
+  # Combine into one data frame
+  combined_expr <- rbind(predictor_expr, feature_expr)
+  combined_expr$Gene <- rownames(combined_expr)
+  
+  # Convert to long format
+  expr_long <- combined_expr %>%
+    pivot_longer(-Gene, names_to = "Sample", values_to = "Expression")
+  
+  # Join with sample metadata
+  expr_long <- expr_long %>%
+    left_join(metadata, by = "Sample")
+  
+  # Plot, with colonies aggregated by timepoint
+  # p <- ggplot(expr_long, aes(x = interaction(Timepoint), y = Expression, color = Gene, group = Gene)) +
+  #   geom_point(alpha = 0.7) +
+  #   geom_smooth(se = FALSE, method = "loess") +
+  #   labs(title = paste("Expression of", feature, "and Top 5 Predictors"),
+  #        x = "Colony-Timepoint",
+  #        y = "Expression") +
+  #   theme_minimal() +
+  #   theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  
+  # Plot, faceted by colony
+  p <- ggplot(expr_long, aes(x = Timepoint, y = Expression, color = Gene, group = Gene)) +
+  geom_point(alpha = 0.7) +
+  geom_smooth(se = FALSE, method = "loess", linewidth = 0.5) +
+  facet_wrap(~ColonyID) +
+  labs(title = paste("Expression of", feature, "and Top 5 Predictors by Colony"),
+       x = "Timepoint",
+       y = "Expression") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+  
+  print(p)
+}
+```
+
+
+Save top predictors and metrics of each well-predicted gene
+```{r}
+# Combine all sub-tibbles into a single data frame with the parent list name as an ID
+Apul_top_predictors_df <- imap_dfr(Apul_top_predictors, ~ {
+  .x
+})
+
+# View the resulting data frame
+print(Apul_top_predictors_df)
+
+# Optional: save to CSV
+write.csv(Apul_top_predictors_df, "../output/26.2-rank35-optimization-ElasticNet-component24-scaling/Apul_top_predictors.csv", row.names = FALSE)
+
+```
+
+
+# P. evermanni
+## Load and format data 
+
+```{r}
+### mRNA ###
+# raw gene counts data (will filter and variance stabilize)
+Peve_genes <- as.data.frame(read_csv("https://github.com/urol-e5/timeseries_molecular/raw/refs/heads/main/M-multi-species/output/26-rank35-optimization/lambda_gene_0.2/top_genes_per_component/Component_24_peve_count_matrix.csv"))
+
+# format gene IDs as rownames (instead of a column)
+rownames(Peve_genes) <- Peve_genes$gene_id
+Peve_genes <- Peve_genes%>%select(!gene_id)
+
+### miRNA ###
+# raw miRNA counts (will filter and variance stabilize)
+Peve_miRNA <- read.table(file = "https://github.com/urol-e5/timeseries_molecular/raw/refs/heads/main/M-multi-species/output/10.1-format-miRNA-counts-updated/Peve_miRNA_counts_formatted_updated.txt", header = TRUE, sep = "\t", check.names = FALSE)
+
+# format miRNA IDs as rownames (instead of a column)
+rownames(Peve_miRNA) <- Peve_miRNA$Name
+Peve_miRNA <- Peve_miRNA%>%select(!Name)
+
+### lncRNA ###
+# raw lncRNA counts (will filter and variance stabilize)
+Peve_lncRNA_full <- read.table("https://gannet.fish.washington.edu/v1_web/owlshell/bu-github/timeseries_molecular/E-Peve/output/12-Peve-lncRNA-discovery/lncRNA_counts.clean.filtered.txt", header = TRUE, sep = "\t")
+
+# Remove info on genomic location, set lncRNA IDs as rownames
+rownames(Peve_lncRNA_full) <- Peve_lncRNA_full$Geneid
+Peve_lncRNA <- Peve_lncRNA_full %>% select(-Geneid, -Chr, -Start, -End, -Strand, -Length)
+
+# Format sample names to match standard (SPEC-Sample#-TP#)
+colnames(Peve_lncRNA) <- gsub("\\.", "-", colnames(Peve_lncRNA))
+
+
+### WGBS data ###
+Peve_WGBS <- read.csv("https://gannet.fish.washington.edu/metacarcinus/E5/Pevermanni/20250821_meth_Peve/merged-WGBS-CpG-counts_filtered.csv")
+
+# Format sample names to match standard (SPEC-Sample#-TP#)
+colnames(Peve_WGBS) <- gsub("\\.", "-", colnames(Peve_WGBS))
+
+
+### load and format metadata ###
+metadata <- read_csv("../../M-multi-species/data/rna_metadata.csv")%>%select(AzentaSampleName, ColonyID, Timepoint) %>%
+  filter(grepl("POR", ColonyID))
+metadata$Sample <- paste0(metadata$ColonyID, "-", metadata$Timepoint)
+rownames(metadata) <- metadata$Sample
+
+colonies <- unique(metadata$ColonyID)
+```
+
+### Filter data sets 
+
+#### WGBS
+
+Only keep CpGs that have a non-zero value in all samples. 
+
+```{r}
+Peve_WGBS_filt <- Peve_WGBS %>% filter(if_all(-CpG, ~ .x > 0))
+
+# Ensure it's formatted as a data frame
+Peve_WGBS_filt <- as.data.frame(Peve_WGBS_filt)
+# Set CpG IDs to rownames
+rownames(Peve_WGBS_filt) <- Peve_WGBS_filt$CpG
+Peve_WGBS_filt <- Peve_WGBS_filt %>% select(-CpG)
+
+nrow(Peve_WGBS)
+nrow(Peve_WGBS_filt)
+```
+
+We had 242,100 CpGs before filtering and have 29,465 after filtering. 
+
+#### RNA
+
+Remove samples which were excluded from sRNA (`POR-69-TP3`) and WGBS counts (`POR-73-TP2`). Also exclude `POR-236-TP2`, which has 0 counts for all miRNA. This makes it both biologically uninformative and creates NA values during scaling. I'm also going to exclude the following samples, which have almost entirely 0 counts for miRNA, suggesting a sample processing/sequencing issue: `POR-74-TP4`, `POR-262-TP4`, `POR-262-TP3`, and `POR-69-TP2 `
+
+```{r}
+Peve_genes <- Peve_genes %>% select(-"POR-69-TP3", -"POR-73-TP2", -"POR-236-TP2", -"POR-74-TP4", -"POR-262-TP4", -"POR-262-TP3", -"POR-69-TP2")
+Peve_miRNA <- Peve_miRNA %>% select(-"POR-73-TP2", -"POR-236-TP2", -"POR-74-TP4", -"POR-262-TP4", -"POR-262-TP3", -"POR-69-TP2")
+Peve_lncRNA <- Peve_lncRNA %>% select(-"POR-69-TP3", -"POR-73-TP2", -"POR-236-TP2", -"POR-74-TP4", -"POR-262-TP4", -"POR-262-TP3", -"POR-69-TP2")
+Peve_WGBS <- Peve_WGBS %>% select(-"POR-69-TP3", -"POR-236-TP2", -"POR-74-TP4", -"POR-262-TP4", -"POR-262-TP3", -"POR-69-TP2")
+```
+
+Ensure we only have genes, miRNA, and lncRNA that are present in at least one sample
+```{r}
+# genes
+Peve_genes_red <- Peve_genes[rowSums(Peve_genes) != 0, ]
+# miRNA
+Peve_miRNA_red <- Peve_miRNA[rowSums(Peve_miRNA) != 0, ]
+# lncRNA
+Peve_lncRNA_red <- Peve_lncRNA[rowSums(Peve_lncRNA) != 0, ]
+
+cat("Retained ", nrow(Peve_genes_red), " of ", nrow(Peve_genes), "genes; ",
+       nrow(Peve_miRNA_red), " of ", nrow(Peve_miRNA), " miRNA; and ", 
+       nrow(Peve_lncRNA_red), " of ", nrow(Peve_lncRNA), " lncRNA")
+```
+
+*pOverA*: 
+Specifying the minimum count for a proportion of samples for each gene. Setting 3/40 = 0.08. This would retain genes that are only expressed in a single season in a couple of the colonies. Additionally, setting the minimum count so that the minimum number of samples must have a gene count above a certain threshold. 
+
+genes:
+```{r}
+filt <- filterfun(pOverA(0.08, 5))
+
+#create filter for the counts data
+gfilt <- genefilter(Peve_genes_red, filt)
+
+#identify genes to keep by count filter
+gkeep <- Peve_genes_red[gfilt,]
+
+#identify gene lists
+gn.keep <- rownames(gkeep)
+
+#gene count data filtered in PoverA, P percent of the samples have counts over A
+Peve_genes_filt <- as.data.frame(Peve_genes_red[which(rownames(Peve_genes_red) %in% gn.keep),])
+
+#How many rows do we have before and after filtering?
+cat("Pre-filtering:", nrow(Peve_genes_red), "; Post-filtering:", nrow(Peve_genes_filt))
+```
+
+miRNA:
+```{r}
+mifilt <- filterfun(pOverA(0.08, 5))
+
+#create filter for the counts data
+mifilt <- genefilter(Peve_miRNA_red, mifilt)
+
+#identify miRNA to keep by count filter
+mikeep <- Peve_miRNA_red[mifilt,]
+
+#identify miRNA to keep by count filter
+mikeep <- Peve_miRNA_red[mifilt,]
+
+#identify miRNA lists
+mi.keep <- rownames(mikeep)
+
+#miRNA count data filtered in PoverA, P percent of the samples have counts over A
+Peve_miRNA_filt <- as.data.frame(Peve_miRNA_red[which(rownames(Peve_miRNA_red) %in% mi.keep),])
+
+#How many rows do we have before and after filtering?
+cat("Pre-filtering:", nrow(Peve_miRNA_red), "; Post-filtering:", nrow(Peve_miRNA_filt))
+```
+
+lncRNA:
+```{r}
+lncfilt <- filterfun(pOverA(0.08, 5))
+
+#create filter for the counts data
+lncfilt <- genefilter(Peve_lncRNA_red, lncfilt)
+
+#identify lncRNA to keep by count filter
+lnckeep <- Peve_lncRNA_red[lncfilt,]
+
+#identify lncRNA to keep by count filter
+lnckeep <- Peve_lncRNA_red[lncfilt,]
+
+#identify lncRNA lists
+lnc.keep <- rownames(lnckeep)
+
+#lncRNA count data filtered in PoverA, P percent of the samples have counts over A
+Peve_lncRNA_filt <- as.data.frame(Peve_lncRNA_red[which(rownames(Peve_lncRNA_red) %in% lnc.keep),])
+
+#How many rows do we have before and after filtering?
+cat("Pre-filtering:", nrow(Peve_lncRNA_red), "; Post-filtering:", nrow(Peve_lncRNA_filt))
+```
+
+### Transform data 
+
+Remove excluded samples from metadata table
+```{r}
+metadata <- metadata[!(rownames(metadata) %in% c("POR-69-TP3", "POR-73-TP2", "POR-236-TP2", "POR-74-TP4", "POR-262-TP4", "POR-262-TP3", "POR-69-TP2")), ]
+rownames(metadata) <- metadata$Sample
+```
+
+Set the order of genes, miRNA, lncRNA, wgbs, and metadata to all be the same. 
+```{r}
+# Ensure rownames of metadata are used as the desired column order
+desired_order <- rownames(metadata)
+
+# Reorder data frame columns
+Peve_genes_filt <- Peve_genes_filt[, desired_order]
+Peve_miRNA_filt <- Peve_miRNA_filt[, desired_order]
+Peve_lncRNA_filt <- Peve_lncRNA_filt[, desired_order]
+Peve_WGBS_filt <- Peve_WGBS_filt[, desired_order]
+
+# Check they all match
+identical(rownames(metadata), colnames(Peve_genes_filt))
+identical(rownames(metadata), colnames(Peve_miRNA_filt))
+identical(rownames(metadata), colnames(Peve_lncRNA_filt))
+identical(rownames(metadata), colnames(Peve_WGBS_filt))
+```
+
+Use a variance stabilized transformation for all the RNA data sets. Variance stabilization essentially tries to make variance independent of the mean, and we'll implement via the differential expression analysis package `DESeq2`
+
+(Is this the most appropriate design to use?)
+
+```{r}
+### genes ###
+dds_Peve <- DESeqDataSetFromMatrix(countData = Peve_genes_filt, 
+                              colData = metadata, 
+                              design = ~Timepoint+ColonyID)
+
+# Variance Stabilizing Transformation
+vsd_Peve_genes <- varianceStabilizingTransformation(dds_Peve, blind = TRUE)  # Must use varianceStabilizingTransformation() instead of vst() due to few input genes
+vsd_Peve_genes <- assay(vsd_Peve_genes)
+
+
+### miRNA ###
+# This is throwing an error: "Error in estimateSizeFactorsForMatrix(counts(object), locfunc = locfunc, :every gene contains at least one zero, cannot compute log geometric means"
+#To avoid having excessive 0 values that interfere with geometric mean calculations, I'm going to add a pseudo-count of 1 to all counts. This is a simple workaround, but I should revisit later to determine whether its appropriate or I need to do a more in-depth fix.
+
+dds_miRNA <- DESeqDataSetFromMatrix(countData = Peve_miRNA_filt + 1, 
+                              colData = metadata, 
+                              design = ~Timepoint+ColonyID)
+
+# Variance Stabilizing Transformation
+vsd_Peve_miRNA <- varianceStabilizingTransformation(dds_miRNA, blind=TRUE) # Must use varianceStabilizingTransformation() instead of vst() due to few input genes
+vsd_Peve_miRNA <- assay(vsd_Peve_miRNA)
+
+
+### lncRNA ###
+# All values must be integers
+Peve_lncRNA_filt <- Peve_lncRNA_filt %>% mutate(across(where(is.numeric), round))
+
+dds_lncRNA <- DESeqDataSetFromMatrix(countData = Peve_lncRNA_filt, 
+                              colData = metadata, 
+                              design = ~Timepoint+ColonyID)
+
+# Variance Stabilizing Transformation
+vsd_Peve_lncRNA <- assay(vst(dds_lncRNA, blind = TRUE))
+```
+
+For the methylation, we'll convert from beta values to M-values. This will both (a) convert to an unbounded scale (instead of being limited to 0-100) and (b) reduce heterodescasticity, like a vst transformation
+```{r}
+### WGBS ###
+# Convert beta values to M-values: M = log2(beta / (1 - beta))
+
+# Convert percent to proportion (0-100 -> 0-1)
+Peve_WGBS_prop <- Peve_WGBS_filt/100
+
+# Protect against zeros or ones by bounding beta values (as 0s and 1s have disproportionate impact)
+Peve_WGBS_prop[Peve_WGBS_prop == 0] <- 1e-6
+Peve_WGBS_prop[Peve_WGBS_prop == 1] <- 1 - 1e-6
+
+# Again, this is not a vst transformation, I'm just retaining the vsd name prefix for consistency
+vsd_Peve_WGBS <- log2(Peve_WGBS_prop / (1 - Peve_WGBS_prop))
+```
+
+### Scale standardization
+
+Elastic Net, like many regression models, requires inputs to be on the same scale
+
+```{r}
+# Scale each predictor block (miRNA, lncRNA, WGBS)
+vsd_Peve_miRNA_scaled <- scale(vsd_Peve_miRNA)
+vsd_Peve_lncRNA_scaled <- scale(vsd_Peve_lncRNA)
+vsd_Peve_WGBS_scaled <- scale(vsd_Peve_WGBS)
+
+# Scale response (genes)
+vsd_Peve_genes_scaled <- scale(vsd_Peve_genes)
+```
+
+
+### Merge predictor features
+
+Create a merged dataset that contains the variance stabilized counts for all miRNA, lncRNA, and CpGs.
+
+```{r}
+# Triple check that all three data frames have sample names in the same order
+identical(colnames(vsd_Peve_lncRNA_scaled), colnames(vsd_Peve_miRNA_scaled))
+identical(colnames(vsd_Peve_lncRNA_scaled), colnames(vsd_Peve_WGBS_scaled))
+
+# Bind (stack dataframes vertically, so that they match by column/sample)
+Peve_pred_counts <- rbind(vsd_Peve_lncRNA_scaled, vsd_Peve_miRNA_scaled, vsd_Peve_WGBS_scaled)
+
+# Transform so that samples are on rows and features are in columns
+Peve_pred_counts <- t(Peve_pred_counts)
+
+dim(Peve_pred_counts)
+```
+
+### Format
+
+```{r}
+# Transform the counts matrices so that samples are on the rows and gene IDs on the columns
+vsd_Peve_genes_t <- t(vsd_Peve_genes_scaled)
+
+# Ensure both are formatted as data frames
+Peve_pred_counts <- as.data.frame(Peve_pred_counts)
+vsd_Peve_genes_t <- as.data.frame(vsd_Peve_genes_t)
+
+# Ensure sample matching between gene and epigenetic dfs
+common_samples <- intersect(rownames(vsd_Peve_genes_t), rownames(Peve_pred_counts))
+
+Peve_pred_counts <- Peve_pred_counts[common_samples, ]
+vsd_Peve_genes_t <- vsd_Peve_genes_t[common_samples,]
+```
+
+## Split training and test
+## Bootstrapping
+
+```{r, cache=TRUE}
+n_replicates <- 10  # number of replicates
+r2_threshold <- 0.5 # threshold for "good" prediction
+Peve_TM_list <- list()
+Peve_MP_list <- list()
+Peve_FI_list <- list()
+
+# Perform bootstrapping
+for (i in 1:n_replicates) {
+  cat("Beginning replicate", i)
+  cat("\n")
+  Peve_result <- train_models_split(vsd_Peve_genes_t, Peve_pred_counts)
+  
+  cat("Extracting results for replicate", i)
+  cat("\n")
+  Peve_trained_models <- Peve_result$models
+  Peve_model_performance <- Peve_result$performance
+  Peve_feature_importance <- get_feature_importance(Peve_trained_models)
+  
+  Peve_TM_list[[i]] <- Peve_trained_models
+  Peve_TM_list[[i]]$Replicate <- i
+  
+  Peve_MP_list[[i]] <- Peve_model_performance
+  Peve_MP_list[[i]]$Replicate <- i
+  
+  Peve_FI_list[[i]] <- Peve_feature_importance
+  Peve_FI_list[[i]]$Replicate <- i
+}
+
+# Combine all results
+Peve_all_TM <- do.call(rbind, Peve_TM_list)
+Peve_all_MP <- do.call(rbind, Peve_MP_list)
+Peve_all_FI <- do.call(rbind, Peve_FI_list)
+```
+
+```{r}
+# Count how often each feature exceeds the R² threshold
+
+Peve_MP_summary <- Peve_all_MP %>%
+  group_by(Feature) %>%
+  summarize(
+    Mean_R2 = mean(R2, na.rm = TRUE),
+    SD_R2 = sd(R2, na.rm = TRUE),
+    SE_R2 = SD_R2/sqrt(n()),
+    High_Perf_Count = sum(R2 >= r2_threshold),
+    .groups = 'drop'
+  ) %>%
+  arrange(desc(High_Perf_Count))
+
+# View top consistently high-performing features
+print(Peve_MP_summary)
+
+# How many genes are consistently well-predicted?
+sum(!is.na(Peve_MP_summary$Feature) & Peve_MP_summary$Mean_R2 > 0.5, na.rm = TRUE)
+
+```
+
+Sort genes by average R^2 across all replicates, then plot R^2 for all replicates
+```{r}
+# Merge mean R2 info into full replicate-level data
+Peve_all_MP <- merge(Peve_all_MP, Peve_MP_summary[, c("Feature", "Mean_R2", "SD_R2")], by = "Feature")
+
+# Reorder Feature factor by Mean_R2
+Peve_all_MP$Feature <- factor(Peve_all_MP$Feature,
+                                          levels = Peve_MP_summary$Feature[order(Peve_MP_summary$Mean_R2)])
+```
+
+```{r}
+# Plot mean R² with error bars
+# Choose SD to describe variability in model performance
+ggplot(Peve_all_MP, aes(x = Feature, y = Mean_R2)) +
+  geom_errorbar(aes(ymin = Mean_R2 - SD_R2, ymax = Mean_R2 + SD_R2), width = 0.4, color = "gray40", linewidth = 0.25) +
+  geom_point(size = 2, color = "black") +
+  geom_hline(yintercept = 0.5,
+             linetype = "dashed", color = "blue") +
+  theme_minimal() +
+  labs(title = "Peve: Mean R² with Error Bars Across Gene Features",
+       x = "Gene Expression Feature (Ordered by Mean R²)",
+       y = "Mean R² ± SD") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size=5)) +
+  ylim(-0.2, 1.2) +
+  scale_y_continuous(breaks = c(0, 0.25, 0.5, 0.75, 1))
+
+```
+
+```{r}
+# Plot with features sorted by mean R²
+ggplot(Peve_all_MP, aes(x = Feature, y = R2)) +
+  geom_point(aes(color = as.factor(Replicate)), size = 1) +
+  geom_point(aes(y = Mean_R2), color = "black", shape = 18, size = 3) + 
+  geom_hline(yintercept = mean(Peve_all_MP$R2, na.rm = TRUE),
+             linetype = "dashed", color = "blue") +
+  theme_minimal() +
+  labs(title = "Peve: Model Performance Across Gene Expression",
+       x = "Gene Expression Feature (Ordered by Mean R²)",
+       y = "R² (Variance Explained)",
+       color = "Replicate") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  ylim(0, 1)
+
+```
+
+Average importance of all predictive features and plot those with highest average importance accross all replicates
+```{r}
+# Average importance across replicates
+Peve_mean_importance_df <- Peve_all_FI %>%
+  group_by(Feature) %>%
+  summarise(MeanImportance = mean(MeanImportance, na.rm = TRUE)) %>%
+  arrange(desc(MeanImportance))
+
+# Select top 50 features
+Peve_top_features <- Peve_mean_importance_df %>% top_n(50, MeanImportance)
+
+# Plot
+ggplot(Peve_top_features, aes(x = reorder(Feature, MeanImportance), y = MeanImportance)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  coord_flip() +  # Flip for readability
+  theme_minimal() +
+  labs(title = "Peve: Top Predictive Features by Mean Importance",
+       x = "Feature",
+       y = "Mean Importance")
+
+```
+
+## Boostrapping on predictable genes
+
+Now I only want to model genes that are well-predicted over many replicates
+
+Isolate well-predicted genes
+```{r}
+Peve_well_predicted <- Peve_MP_summary[Peve_MP_summary$Mean_R2 > 0.5,]
+
+vsd_Peve_high_perf_t <- vsd_Peve_genes_t[,colnames(vsd_Peve_genes_t) %in% Peve_well_predicted$Feature]
+dim(vsd_Peve_high_perf_t)
+```
+
+Of the original 99 genes annotated for energetic state GO terms, 33 are consistently well-predicted by our model (mean R^2 > 0.5, over 25 replicates).
+
+
+Run bootstrapping on isolated genes
+```{r, cache=TRUE}
+n_replicates <- 25  # number of replicates
+r2_threshold <- 0.5 # threshold for "good" prediction
+Peve_TM_list <- list()
+Peve_MP_list <- list()
+Peve_FI_list <- list()
+
+# Perform bootstrapping
+for (i in 1:n_replicates) {
+  cat("Beginning replicate", i)
+  cat("\n")
+  Peve_result <- train_models_split(vsd_Peve_high_perf_t, Peve_pred_counts)
+  
+  cat("Extracting results for replicate", i)
+  cat("\n")
+  Peve_trained_models <-Peve_result$models
+  Peve_model_performance <- Peve_result$performance
+  Peve_feature_importance <- get_feature_importance(Peve_trained_models)
+  
+  Peve_TM_list[[i]] <- Peve_trained_models
+  Peve_TM_list[[i]]$Replicate <- i
+  
+  Peve_MP_list[[i]] <- Peve_model_performance
+  Peve_MP_list[[i]]$Replicate <- i
+  
+  Peve_FI_list[[i]] <- Peve_feature_importance
+  Peve_FI_list[[i]]$Replicate <- i
+}
+
+# Combine all results
+Peve_all_TM_highperf <- do.call(rbind, Peve_TM_list)
+Peve_all_MP_highperf <- do.call(rbind, Peve_MP_list)
+Peve_all_FI_highperf <- do.call(rbind, Peve_FI_list)
+```
+
+```{r}
+# Count how often each feature exceeds the R² threshold
+
+Peve_MP_summary_highperf <- Peve_all_MP_highperf %>%
+  group_by(Feature) %>%
+  summarize(
+    Mean_R2 = mean(R2, na.rm = TRUE),
+    SD_R2 = sd(R2, na.rm = TRUE),
+    SE_R2 = SD_R2 / sqrt(n()),
+    High_Perf_Count = sum(R2 >= r2_threshold),
+    .groups = 'drop'
+  ) %>%
+  arrange(desc(High_Perf_Count))
+
+# View top consistently high-performing features
+print(Peve_MP_summary_highperf)
+
+# How many genes are consistently well-predicted?
+nrow(Peve_MP_summary_highperf[Peve_MP_summary_highperf$Mean_R2 > 0.5,])
+```
+
+When I train the model on only these 33 well-predicted genes, 28 of them are again well-predicted. That's a much higher success rate! This suggests that epigenetic mechanisms may indeed be able to predict expression of these genes
+
+
+Sort genes by average R^2 across all replicates, then plot R^2 for all replicates
+```{r}
+# Merge mean R2 info into full replicate-level data
+Peve_all_MP_highperf <- merge(Peve_all_MP_highperf, Peve_MP_summary_highperf[, c("Feature", "Mean_R2", "SD_R2")], by = "Feature")
+
+# Reorder Feature factor by Mean_R2
+Peve_all_MP_highperf$Feature <- factor(Peve_all_MP_highperf$Feature,
+                                          levels = Peve_MP_summary_highperf$Feature[order(Peve_MP_summary_highperf$Mean_R2)])
+```
+
+
+```{r}
+
+# Plot mean R² with error bars
+# Choose SD to describe variability in model performance
+ggplot(Peve_all_MP_highperf, aes(x = Feature, y = Mean_R2)) +
+  geom_errorbar(aes(ymin = Mean_R2 - SD_R2, ymax = Mean_R2 + SD_R2), width = 0.3, color = "gray40") +
+  geom_point(size = 2, color = "black") +
+  geom_hline(yintercept = 0.5,
+             linetype = "dashed", color = "blue") +
+  theme_minimal() +
+  labs(title = "Peve: Mean R² with Error Bars Across Gene Features",
+       x = "Gene Expression Feature (Ordered by Mean R²)",
+       y = "Mean R² ± SD") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  ylim(-0.2, 1.2) +
+  scale_y_continuous(breaks = c(0, 0.25, 0.5, 0.75, 1))
+
+```
+
+```{r}
+# Plot all replicate R2s, with features sorted by mean R²
+ggplot(Peve_all_MP_highperf, aes(x = Feature, y = R2)) +
+  geom_point(aes(color = as.factor(Replicate)), size = 1.5) +
+  geom_point(aes(y = Mean_R2), color = "black", shape = 18, size = 3) + 
+  geom_hline(yintercept = mean(Peve_all_MP_highperf$R2, na.rm = TRUE),
+             linetype = "dashed", color = "blue") +
+  theme_minimal() +
+  labs(title = "Peve: Model Performance Across Gene Expression",
+       x = "Gene Expression Feature (Ordered by Mean R²)",
+       y = "R² (Variance Explained)",
+       color = "Replicate") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  ylim(0, 1)
+
+```
+
+```{r}
+# Average importance across replicates
+Peve_mean_importance_df_highperf <- Peve_all_FI_highperf %>%
+  group_by(Feature) %>%
+  summarise(MeanImportance = mean(MeanImportance, na.rm = TRUE)) %>%
+  arrange(desc(MeanImportance))
+
+# Select top 50 features
+Peve_top_features_highperf <- Peve_mean_importance_df_highperf %>% top_n(50, MeanImportance)
+
+# Plot
+ggplot(Peve_top_features_highperf, aes(x = reorder(Feature, MeanImportance), y = MeanImportance)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  coord_flip() +  # Flip for readability
+  theme_minimal() +
+  labs(title = "Peve: Top Predictive Features by Mean Importance",
+       x = "Feature",
+       y = "Mean Importance")
+
+```
+
+Look at most predictive epigenetic features for these well-predicted genes
+```{r}
+# Define color assignments for predictor types
+color_palette <- c(miRNA = "#E69F00", lncRNA = "#0072B2", CpG = "#009E73")
+
+#  Define well-predicted features
+Peve_all_features_highR2 <- Peve_all_MP_highperf %>%
+  filter(Mean_R2 > 0.5) %>%
+  pull(Feature) %>%
+  unique()
+
+# Function to extract importance from a single model
+get_feature_importance_for_feature <- function(model) {
+  coefs <- as.matrix(coef(model, s = "lambda.min"))[-1, , drop = FALSE]  # remove intercept
+  data.frame(Predictor = rownames(coefs), Importance = abs(as.numeric(coefs)))
+}
+
+# Function to assign predictor type
+get_predictor_type <- function(predictor_name) {
+  if (startsWith(predictor_name, "Cluster")) return("miRNA")
+  if (startsWith(predictor_name, "lncRNA")) return("lncRNA")
+  if (startsWith(predictor_name, "CpG")) return("CpG")
+  return("Other")
+}
+
+# Initialize list to save top predictors
+Peve_top_predictors <- list()
+
+# Loop over features, aggregate importance across replicates, and plot
+for (target_feature in Peve_all_features_highR2) {
+  
+  # Extract and combine importance scores across all replicates
+  importance_all_reps <- lapply(Peve_TM_list, function(rep_entry) {
+    model <- rep_entry[[target_feature]]
+    if (!is.null(model)) {
+      get_feature_importance_for_feature(model)
+    } else {
+      NULL
+    }
+  }) %>% bind_rows()
+
+  # If no importance data was found, skip
+  if (nrow(importance_all_reps) == 0) next
+
+  # Compute average importance across replicates
+  mean_importance <- importance_all_reps %>%
+    group_by(Predictor) %>%
+    summarise(MeanImportance = mean(Importance, na.rm = TRUE), .groups = "drop") %>%
+    arrange(desc(MeanImportance)) %>%
+    slice_head(n = 20) %>%
+    mutate(Type = sapply(Predictor, get_predictor_type))
+
+
+  # Plot once per target feature
+  plot <- ggplot(mean_importance, aes(x = reorder(Predictor, MeanImportance), y = MeanImportance, fill=Type)) +
+    geom_bar(stat = "identity") +
+    scale_fill_manual(values = color_palette) +
+    coord_flip() +
+    theme_minimal() +
+    labs(title = paste("Top Predictors for", target_feature),
+         x = "Predictor",
+         y = "Mean Importance (across replicates)")
+
+  # Save top 20 most important predictors for later use
+  top20 <- mean_importance %>% 
+    mutate(Feature = target_feature)
+  
+  Peve_top_predictors[[target_feature]] <- top20
+  
+  print(plot)
+}
+```
+
+
+## Plot expression of genes and their predictors
+
+```{r, error=FALSE, warning=FALSE}
+# Put predictor expression in format with samples in columns
+Peve_pred_counts_t <- t(Peve_pred_counts)
+
+# Loop over each feature in the list
+for (feature in names(Peve_top_predictors)) {
+  
+  # Get top 5 predictors for this feature
+  top_df <- Peve_top_predictors[[feature]] %>%
+    slice_head(n = 5)
+  predictors <- top_df$Predictor
+  
+  # Combine feature and predictors
+  all_genes <- c(feature, predictors)
+  
+  # Check which genes are actually present
+  present_genes <- all_genes[all_genes %in% rownames(Peve_pred_counts_t) | all_genes %in% rownames(vsd_Peve_genes_scaled)]
+  
+  if (!(feature %in% rownames(vsd_Peve_genes_scaled))) {
+    warning(paste("Feature", feature, "not found in vsd_Peve_genes_scaled Skipping..."))
+    next
+  }
+
+  # Extract predictor expression (only those present)
+  predictor_expr <- Peve_pred_counts_t[intersect(predictors, rownames(Peve_pred_counts_t)), , drop = FALSE] %>% as.data.frame()
+
+  # Add the feature expression
+  feature_expr <- vsd_Peve_genes_scaled[feature, , drop = FALSE] %>% as.data.frame()
+  
+  # Combine into one data frame
+  combined_expr <- rbind(predictor_expr, feature_expr)
+  combined_expr$Gene <- rownames(combined_expr)
+  
+  # Convert to long format
+  expr_long <- combined_expr %>%
+    pivot_longer(-Gene, names_to = "Sample", values_to = "Expression")
+  
+  # Join with sample metadata
+  expr_long <- expr_long %>%
+    left_join(metadata, by = "Sample")
+  
+  # Plot, with colonies aggregated by timepoint
+  # p <- ggplot(expr_long, aes(x = interaction(Timepoint), y = Expression, color = Gene, group = Gene)) +
+  #   geom_point(alpha = 0.7) +
+  #   geom_smooth(se = FALSE, method = "loess") +
+  #   labs(title = paste("Expression of", feature, "and Top 5 Predictors"),
+  #        x = "Colony-Timepoint",
+  #        y = "Expression") +
+  #   theme_minimal() +
+  #   theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  
+  # Plot, faceted by colony
+  p <- ggplot(expr_long, aes(x = Timepoint, y = Expression, color = Gene, group = Gene)) +
+  geom_point(alpha = 0.7) +
+  geom_smooth(se = FALSE, method = "loess", linewidth = 0.5) +
+  facet_wrap(~ColonyID) +
+  labs(title = paste("Expression of", feature, "and Top 5 Predictors by Colony"),
+       x = "Timepoint",
+       y = "Expression") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+  
+  print(p)
+}
+```
+
+
+Save top predictors and metrics of each well-predicted gene
+```{r}
+# Combine all sub-tibbles into a single data frame with the parent list name as an ID
+Peve_top_predictors_df <- imap_dfr(Peve_top_predictors, ~ {
+  .x
+})
+
+# View the resulting data frame
+print(Peve_top_predictors_df)
+
+# Optional: save to CSV
+write.csv(Peve_top_predictors_df, "../output/26.2-rank35-optimization-ElasticNet-component24-scaling/Peve_top_predictors.csv", row.names = FALSE)
+
+```
+
+
+# P. tuahiniensis
+## Load and format data 
+
+```{r}
+### mRNA ###
+# raw gene counts data (will filter and variance stabilize)
+Ptuh_genes <- as.data.frame(read_csv("https://github.com/urol-e5/timeseries_molecular/raw/refs/heads/main/M-multi-species/output/26-rank35-optimization/lambda_gene_0.2/top_genes_per_component/Component_24_ptua_count_matrix.csv"))
+
+# format gene IDs as rownames (instead of a column)
+rownames(Ptuh_genes) <- Ptuh_genes$gene_id
+Ptuh_genes <- Ptuh_genes%>%select(!gene_id)
+
+### miRNA ###
+# raw miRNA counts (will filter and variance stabilize)
+Ptuh_miRNA <- read.table(file = "https://github.com/urol-e5/timeseries_molecular/raw/refs/heads/main/M-multi-species/output/10.1-format-miRNA-counts-updated/Ptuh_miRNA_counts_formatted_updated.txt", header = TRUE, sep = "\t", check.names = FALSE)
+
+# format miRNA IDs as rownames (instead of a column)
+rownames(Ptuh_miRNA) <- Ptuh_miRNA$Name
+Ptuh_miRNA <- Ptuh_miRNA%>%select(!Name)
+
+### lncRNA ###
+# raw lncRNA counts (will filter and variance stabilize)
+Ptuh_lncRNA_full <- read.table("https://gannet.fish.washington.edu/v1_web/owlshell/bu-github/timeseries_molecular/F-Ptua/output/06-Ptua-lncRNA-discovery/lncRNA_counts.clean.filtered.txt", header = TRUE, sep = "\t")
+
+# Remove info on genomic location, set lncRNA IDs as rownames
+rownames(Ptuh_lncRNA_full) <- Ptuh_lncRNA_full$Geneid
+Ptuh_lncRNA <- Ptuh_lncRNA_full %>% select(-Geneid, -Chr, -Start, -End, -Strand, -Length)
+
+# Format sample names to match standard (SPEC-Sample#-TP#)
+colnames(Ptuh_lncRNA) <- gsub("\\.", "-", colnames(Ptuh_lncRNA))
+
+
+### WGBS data ###
+Ptuh_WGBS <- read.csv(url("https://gannet.fish.washington.edu/metacarcinus/E5/Ptuahiniensis/20250821_meth_Ptua/merged-WGBS-CpG-counts_filtered.csv"))
+
+# Format sample names to match standard (SPEC-Sample#-TP#)
+colnames(Ptuh_WGBS) <- gsub("\\.", "-", colnames(Ptuh_WGBS))
+
+
+### load and format metadata ###
+metadata <- read_csv("../../M-multi-species/data/rna_metadata.csv")%>%select(AzentaSampleName, ColonyID, Timepoint) %>%
+  filter(grepl("POC", ColonyID))
+metadata$Sample <- paste0(metadata$ColonyID, "-", metadata$Timepoint)
+rownames(metadata) <- metadata$Sample
+
+colonies <- unique(metadata$ColonyID)
+```
+
+### Filter data sets 
+
+#### WGBS
+
+Only keep CpGs that have a non-zero value in all samples. 
+
+```{r}
+Ptuh_WGBS_filt <- Ptuh_WGBS %>% filter(if_all(-CpG, ~ .x > 0))
+
+# Ensure it's formatted as a data frame
+Ptuh_WGBS_filt <- as.data.frame(Ptuh_WGBS_filt)
+# Set CpG IDs to rownames
+rownames(Ptuh_WGBS_filt) <- Ptuh_WGBS_filt$CpG
+Ptuh_WGBS_filt <- Ptuh_WGBS_filt %>% select(-CpG)
+
+nrow(Ptuh_WGBS)
+nrow(Ptuh_WGBS_filt)
+```
+
+We had 1,991,606 CpGs before filtering and have 58,872 after filtering. 
+
+#### RNA
+
+Remove the samples with poor WGBS data quality (`POC-201-TP3` `POC-222-TP2` `POC-255-TP4` `POC-259-TP3` `POC-259-TP4` `POC-42-TP1` `POC-42-TP3`), which was already excluded from the WGBS counts
+
+```{r}
+Ptuh_genes <- Ptuh_genes %>% select(-"POC-201-TP3", -"POC-222-TP2", -"POC-255-TP4", -"POC-259-TP3", -"POC-259-TP4", -"POC-42-TP1",  -"POC-42-TP3")
+Ptuh_miRNA <- Ptuh_miRNA %>% select(-"POC-201-TP3", -"POC-222-TP2", -"POC-255-TP4", -"POC-259-TP3", -"POC-259-TP4", -"POC-42-TP1",  -"POC-42-TP3")
+Ptuh_lncRNA <- Ptuh_lncRNA %>% select(-"POC-201-TP3", -"POC-222-TP2", -"POC-255-TP4", -"POC-259-TP3", -"POC-259-TP4", -"POC-42-TP1",  -"POC-42-TP3")
+```
+
+Ensure we only have genes, miRNA, and lncRNA that are present in at least one sample
+```{r}
+# genes
+Ptuh_genes_red <- Ptuh_genes[rowSums(Ptuh_genes) != 0, ]
+# miRNA
+Ptuh_miRNA_red <- Ptuh_miRNA[rowSums(Ptuh_miRNA) != 0, ]
+# lncRNA
+Ptuh_lncRNA_red <- Ptuh_lncRNA[rowSums(Ptuh_lncRNA) != 0, ]
+
+cat("Retained ", nrow(Ptuh_genes_red), " of ", nrow(Ptuh_genes), "genes; ",
+       nrow(Ptuh_miRNA_red), " of ", nrow(Ptuh_miRNA), " miRNA; and ", 
+       nrow(Ptuh_lncRNA_red), " of ", nrow(Ptuh_lncRNA), " lncRNA")
+```
+
+*pOverA*: 
+Specifying the minimum count for a proportion of samples for each gene. Setting 3/40 = 0.08. This would retain genes that are only expressed in a single season in a couple of the colonies. Additionally, setting the minimum count so that the minimum number of samples must have a gene count above a certain threshold. 
+
+genes:
+```{r}
+filt <- filterfun(pOverA(0.08, 5))
+
+#create filter for the counts data
+gfilt <- genefilter(Ptuh_genes_red, filt)
+
+#identify genes to keep by count filter
+gkeep <- Ptuh_genes_red[gfilt,]
+
+#identify gene lists
+gn.keep <- rownames(gkeep)
+
+#gene count data filtered in PoverA, P percent of the samples have counts over A
+Ptuh_genes_filt <- as.data.frame(Ptuh_genes_red[which(rownames(Ptuh_genes_red) %in% gn.keep),])
+
+#How many rows do we have before and after filtering?
+cat("Pre-filtering:", nrow(Ptuh_genes_red), "; Post-filtering:", nrow(Ptuh_genes_filt))
+```
+
+miRNA:
+```{r}
+mifilt <- filterfun(pOverA(0.08, 5))
+
+#create filter for the counts data
+mifilt <- genefilter(Ptuh_miRNA_red, mifilt)
+
+#identify miRNA to keep by count filter
+mikeep <- Ptuh_miRNA_red[mifilt,]
+
+#identify miRNA to keep by count filter
+mikeep <- Ptuh_miRNA_red[mifilt,]
+
+#identify miRNA lists
+mi.keep <- rownames(mikeep)
+
+#miRNA count data filtered in PoverA, P percent of the samples have counts over A
+Ptuh_miRNA_filt <- as.data.frame(Ptuh_miRNA_red[which(rownames(Ptuh_miRNA_red) %in% mi.keep),])
+
+#How many rows do we have before and after filtering?
+cat("Pre-filtering:", nrow(Ptuh_miRNA_red), "; Post-filtering:", nrow(Ptuh_miRNA_filt))
+```
+
+lncRNA:
+```{r}
+lncfilt <- filterfun(pOverA(0.08, 5))
+
+#create filter for the counts data
+lncfilt <- genefilter(Ptuh_lncRNA_red, lncfilt)
+
+#identify lncRNA to keep by count filter
+lnckeep <- Ptuh_lncRNA_red[lncfilt,]
+
+#identify lncRNA to keep by count filter
+lnckeep <- Ptuh_lncRNA_red[lncfilt,]
+
+#identify lncRNA lists
+lnc.keep <- rownames(lnckeep)
+
+#lncRNA count data filtered in PoverA, P percent of the samples have counts over A
+Ptuh_lncRNA_filt <- as.data.frame(Ptuh_lncRNA_red[which(rownames(Ptuh_lncRNA_red) %in% lnc.keep),])
+
+#How many rows do we have before and after filtering?
+cat("Pre-filtering:", nrow(Ptuh_lncRNA_red), "; Post-filtering:", nrow(Ptuh_lncRNA_filt))
+```
+
+### Transform data 
+
+Remove samples from metadata table
+```{r}
+metadata <- metadata[!(rownames(metadata) %in% c("POC-201-TP3", "POC-222-TP2", "POC-255-TP4", "POC-259-TP3", "POC-259-TP4", "POC-42-TP1", "POC-42-TP3")), ]
+rownames(metadata) <- metadata$Sample
+```
+
+Set the order of genes, miRNA, lncRNA, wgbs, and metadata to all be the same. 
+```{r}
+# Ensure rownames of metadata are used as the desired column order
+desired_order <- rownames(metadata)
+
+# Reorder data frame columns
+Ptuh_genes_filt <- Ptuh_genes_filt[, desired_order]
+Ptuh_miRNA_filt <- Ptuh_miRNA_filt[, desired_order]
+Ptuh_lncRNA_filt <- Ptuh_lncRNA_filt[, desired_order]
+Ptuh_WGBS_filt <- Ptuh_WGBS_filt[, desired_order]
+
+# Check they all match
+identical(rownames(metadata), colnames(Ptuh_genes_filt))
+identical(rownames(metadata), colnames(Ptuh_miRNA_filt))
+identical(rownames(metadata), colnames(Ptuh_lncRNA_filt))
+identical(rownames(metadata), colnames(Ptuh_WGBS_filt))
+```
+
+Use a variance stabilized transformation for all the RNA data sets. Variance stabilization essentially tries to make variance independent of the mean, and we'll implement via the differential expression analysis package `DESeq2`
+
+(Is this the most appropriate design to use?)
+
+```{r}
+### genes ###
+dds_Ptuh <- DESeqDataSetFromMatrix(countData = Ptuh_genes_filt, 
+                              colData = metadata, 
+                              design = ~Timepoint+ColonyID)
+
+# Variance Stabilizing Transformation
+vsd_Ptuh_genes <- varianceStabilizingTransformation(dds_Ptuh, blind = TRUE)  # Must use varianceStabilizingTransformation() instead of vst() due to few input genes
+vsd_Ptuh_genes <- assay(vsd_Ptuh_genes)
+
+
+### miRNA ###
+dds_miRNA <- DESeqDataSetFromMatrix(countData = Ptuh_miRNA_filt, 
+                              colData = metadata, 
+                              design = ~Timepoint+ColonyID)
+
+# Variance Stabilizing Transformation
+vsd_Ptuh_miRNA <- varianceStabilizingTransformation(dds_miRNA, blind=TRUE) # Must use varianceStabilizingTransformation() instead of vst() due to few input genes
+vsd_Ptuh_miRNA <- assay(vsd_Ptuh_miRNA)
+
+
+### lncRNA ###
+# All values must be integers
+Ptuh_lncRNA_filt <- Ptuh_lncRNA_filt %>% mutate(across(where(is.numeric), round))
+
+dds_lncRNA <- DESeqDataSetFromMatrix(countData = Ptuh_lncRNA_filt, 
+                              colData = metadata, 
+                              design = ~Timepoint+ColonyID)
+
+# Variance Stabilizing Transformation
+vsd_Ptuh_lncRNA <- assay(vst(dds_lncRNA, blind = TRUE))
+```
+
+For the methylation, we'll convert from beta values to M-values. This will both (a) convert to an unbounded scale (instead of being limited to 0-100) and (b) reduce heterodescasticity, like a vst transformation
+```{r}
+### WGBS ###
+# Convert beta values to M-values: M = log2(beta / (1 - beta))
+
+# Convert percent to proportion (0-100 -> 0-1)
+Ptuh_WGBS_prop <- Ptuh_WGBS_filt/100
+
+# Protect against zeros or ones by bounding beta values (as 0s and 1s have disproportionate impact)
+Ptuh_WGBS_prop[Ptuh_WGBS_prop == 0] <- 1e-6
+Ptuh_WGBS_prop[Ptuh_WGBS_prop == 1] <- 1 - 1e-6
+
+# Again, this is not a vst transformation, I'm just retaining the vsd name prefix for consistency
+vsd_Ptuh_WGBS <- log2(Ptuh_WGBS_prop / (1 - Ptuh_WGBS_prop))
+```
+
+### Scale standardization
+
+Elastic Net, like many regression models, requires inputs to be on the same scale
+
+```{r}
+# Scale each predictor block (miRNA, lncRNA, WGBS)
+vsd_Ptuh_miRNA_scaled <- scale(vsd_Ptuh_miRNA)
+vsd_Ptuh_lncRNA_scaled <- scale(vsd_Ptuh_lncRNA)
+vsd_Ptuh_WGBS_scaled <- scale(vsd_Ptuh_WGBS)
+
+# Scale response (genes)
+vsd_Ptuh_genes_scaled <- scale(vsd_Ptuh_genes)
+```
+
+
+### Merge predictor features
+
+Create a merged dataset that contains the variance stabilized counts for all miRNA, lncRNA, and CpGs.
+
+```{r}
+# Triple check that all three data frames have sample names in the same order
+identical(colnames(vsd_Ptuh_lncRNA_scaled), colnames(vsd_Ptuh_miRNA_scaled))
+identical(colnames(vsd_Ptuh_lncRNA_scaled), colnames(vsd_Ptuh_WGBS_scaled))
+
+# Bind (stack dataframes vertically, so that they match by column/sample)
+Ptuh_pred_counts <- rbind(vsd_Ptuh_lncRNA_scaled, vsd_Ptuh_miRNA_scaled, vsd_Ptuh_WGBS_scaled)
+
+# Transform so that samples are on rows and features are in columns
+Ptuh_pred_counts <- t(Ptuh_pred_counts)
+
+dim(Ptuh_pred_counts)
+```
+
+### Format
+
+```{r}
+# Transform the counts matrices so that samples are on the rows and gene IDs on the columns
+vsd_Ptuh_genes_t <- t(vsd_Ptuh_genes_scaled)
+
+# Ensure both are formatted as data frames
+Ptuh_pred_counts <- as.data.frame(Ptuh_pred_counts)
+vsd_Ptuh_genes_t <- as.data.frame(vsd_Ptuh_genes_t)
+
+# Ensure sample matching between gene and epigenetic dfs
+common_samples <- intersect(rownames(vsd_Ptuh_genes_t), rownames(Ptuh_pred_counts))
+
+Ptuh_pred_counts <- Ptuh_pred_counts[common_samples, ]
+vsd_Ptuh_genes_t <- vsd_Ptuh_genes_t[common_samples,]
+```
+
+
+## Split training and test
+## Bootstrapping
+
+```{r, cache=TRUE}
+n_replicates <- 10  # number of replicates
+r2_threshold <- 0.5 # threshold for "good" prediction
+Ptuh_TM_list <- list()
+Ptuh_MP_list <- list()
+Ptuh_FI_list <- list()
+
+# Perform bootstrapping
+for (i in 1:n_replicates) {
+  cat("Beginning replicate", i)
+  cat("\n")
+  Ptuh_result <- train_models_split(vsd_Ptuh_genes_t, Ptuh_pred_counts)
+  
+  cat("Extracting results for replicate", i)
+  cat("\n")
+  Ptuh_trained_models <- Ptuh_result$models
+  Ptuh_model_performance <- Ptuh_result$performance
+  Ptuh_feature_importance <- get_feature_importance(Ptuh_trained_models)
+  
+  Ptuh_TM_list[[i]] <- Ptuh_trained_models
+  Ptuh_TM_list[[i]]$Replicate <- i
+  
+  Ptuh_MP_list[[i]] <- Ptuh_model_performance
+  Ptuh_MP_list[[i]]$Replicate <- i
+  
+  Ptuh_FI_list[[i]] <- Ptuh_feature_importance
+  Ptuh_FI_list[[i]]$Replicate <- i
+}
+
+# Combine all results
+Ptuh_all_TM <- do.call(rbind, Ptuh_TM_list)
+Ptuh_all_MP <- do.call(rbind, Ptuh_MP_list)
+Ptuh_all_FI <- do.call(rbind, Ptuh_FI_list)
+```
+
+```{r}
+# Count how often each feature exceeds the R² threshold
+
+Ptuh_MP_summary <- Ptuh_all_MP %>%
+  group_by(Feature) %>%
+  summarize(
+    Mean_R2 = mean(R2, na.rm = TRUE),
+    SD_R2 = sd(R2, na.rm = TRUE),
+    SE_R2 = SD_R2/sqrt(n()),
+    High_Perf_Count = sum(R2 >= r2_threshold),
+    .groups = 'drop'
+  ) %>%
+  arrange(desc(High_Perf_Count))
+
+# View top consistently high-performing features
+print(Ptuh_MP_summary)
+
+# How many genes are consistently well-predicted?
+sum(!is.na(Ptuh_MP_summary$Feature) & Ptuh_MP_summary$Mean_R2 > 0.5, na.rm = TRUE)
+
+```
+
+Sort genes by average R^2 across all replicates, then plot R^2 for all replicates
+```{r}
+# Merge mean R2 info into full replicate-level data
+Ptuh_all_MP <- merge(Ptuh_all_MP, Ptuh_MP_summary[, c("Feature", "Mean_R2", "SD_R2")], by = "Feature")
+
+# Reorder Feature factor by Mean_R2
+Ptuh_all_MP$Feature <- factor(Ptuh_all_MP$Feature,
+                                          levels = Ptuh_MP_summary$Feature[order(Ptuh_MP_summary$Mean_R2)])
+```
+
+```{r}
+# Plot mean R² with error bars
+# Choose SD to describe variability in model performance
+ggplot(Ptuh_all_MP, aes(x = Feature, y = Mean_R2)) +
+  geom_errorbar(aes(ymin = Mean_R2 - SD_R2, ymax = Mean_R2 + SD_R2), width = 0.4, color = "gray40", linewidth = 0.25) +
+  geom_point(size = 2, color = "black") +
+  geom_hline(yintercept = 0.5,
+             linetype = "dashed", color = "blue") +
+  theme_minimal() +
+  labs(title = "Ptuh: Mean R² with Error Bars Across Gene Features",
+       x = "Gene Expression Feature (Ordered by Mean R²)",
+       y = "Mean R² ± SD") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size=5)) +
+  ylim(-0.2, 1.2) +
+  scale_y_continuous(breaks = c(0, 0.25, 0.5, 0.75, 1))
+
+```
+
+```{r}
+# Plot with features sorted by mean R²
+ggplot(Ptuh_all_MP, aes(x = Feature, y = R2)) +
+  geom_point(aes(color = as.factor(Replicate)), size = 1) +
+  geom_point(aes(y = Mean_R2), color = "black", shape = 18, size = 3) + 
+  geom_hline(yintercept = mean(Ptuh_all_MP$R2, na.rm = TRUE),
+             linetype = "dashed", color = "blue") +
+  theme_minimal() +
+  labs(title = "Ptuh: Model Performance Across Gene Expression",
+       x = "Gene Expression Feature (Ordered by Mean R²)",
+       y = "R² (Variance Explained)",
+       color = "Replicate") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  ylim(0, 1)
+
+```
+
+Average importance of all predictive features and plot those with highest average importance accross all replicates
+```{r}
+# Average importance across replicates
+Ptuh_mean_importance_df <- Ptuh_all_FI %>%
+  group_by(Feature) %>%
+  summarise(MeanImportance = mean(MeanImportance, na.rm = TRUE)) %>%
+  arrange(desc(MeanImportance))
+
+# Select top 50 features
+Ptuh_top_features <- Ptuh_mean_importance_df %>% top_n(50, MeanImportance)
+
+# Plot
+ggplot(Ptuh_top_features, aes(x = reorder(Feature, MeanImportance), y = MeanImportance)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  coord_flip() +  # Flip for readability
+  theme_minimal() +
+  labs(title = "Ptuh: Top Predictive Features by Mean Importance",
+       x = "Feature",
+       y = "Mean Importance")
+
+```
+
+## Boostrapping on predictable genes
+
+Now I only want to model genes that are well-predicted over many replicates
+
+Isolate well-predicted genes
+```{r}
+Ptuh_well_predicted <- Ptuh_MP_summary[Ptuh_MP_summary$Mean_R2 > 0.5,]
+
+vsd_Ptuh_high_perf_t <- vsd_Ptuh_genes_t[,colnames(vsd_Ptuh_genes_t) %in% Ptuh_well_predicted$Feature]
+dim(vsd_Ptuh_high_perf_t)
+```
+
+Of the original 99 genes annotated for energetic state GO terms, 33 are consistently well-predicted by our model (mean R^2 > 0.5, over 25 replicates).
+
+
+Run bootstrapping on isolated genes
+```{r, cache=TRUE}
+n_replicates <- 25  # number of replicates
+r2_threshold <- 0.5 # threshold for "good" prediction
+Ptuh_TM_list <- list()
+Ptuh_MP_list <- list()
+Ptuh_FI_list <- list()
+
+# Perform bootstrapping
+for (i in 1:n_replicates) {
+  cat("Beginning replicate", i)
+  cat("\n")
+  Ptuh_result <- train_models_split(vsd_Ptuh_high_perf_t, Ptuh_pred_counts)
+  
+  cat("Extracting results for replicate", i)
+  cat("\n")
+  Ptuh_trained_models <-Ptuh_result$models
+  Ptuh_model_performance <- Ptuh_result$performance
+  Ptuh_feature_importance <- get_feature_importance(Ptuh_trained_models)
+  
+  Ptuh_TM_list[[i]] <- Ptuh_trained_models
+  Ptuh_TM_list[[i]]$Replicate <- i
+  
+  Ptuh_MP_list[[i]] <- Ptuh_model_performance
+  Ptuh_MP_list[[i]]$Replicate <- i
+  
+  Ptuh_FI_list[[i]] <- Ptuh_feature_importance
+  Ptuh_FI_list[[i]]$Replicate <- i
+}
+
+# Combine all results
+Ptuh_all_TM_highperf <- do.call(rbind, Ptuh_TM_list)
+Ptuh_all_MP_highperf <- do.call(rbind, Ptuh_MP_list)
+Ptuh_all_FI_highperf <- do.call(rbind, Ptuh_FI_list)
+```
+
+```{r}
+# Count how often each feature exceeds the R² threshold
+
+Ptuh_MP_summary_highperf <- Ptuh_all_MP_highperf %>%
+  group_by(Feature) %>%
+  summarize(
+    Mean_R2 = mean(R2, na.rm = TRUE),
+    SD_R2 = sd(R2, na.rm = TRUE),
+    SE_R2 = SD_R2 / sqrt(n()),
+    High_Perf_Count = sum(R2 >= r2_threshold),
+    .groups = 'drop'
+  ) %>%
+  arrange(desc(High_Perf_Count))
+
+# View top consistently high-performing features
+print(Ptuh_MP_summary_highperf)
+
+# How many genes are consistently well-predicted?
+nrow(Ptuh_MP_summary_highperf[Ptuh_MP_summary_highperf$Mean_R2 > 0.5,])
+```
+
+When I train the model on only these 33 well-predicted genes, 28 of them are again well-predicted. That's a much higher success rate! This suggests that epigenetic mechanisms may indeed be able to predict expression of these genes
+
+
+Sort genes by average R^2 across all replicates, then plot R^2 for all replicates
+```{r}
+# Merge mean R2 info into full replicate-level data
+Ptuh_all_MP_highperf <- merge(Ptuh_all_MP_highperf, Ptuh_MP_summary_highperf[, c("Feature", "Mean_R2", "SD_R2")], by = "Feature")
+
+# Reorder Feature factor by Mean_R2
+Ptuh_all_MP_highperf$Feature <- factor(Ptuh_all_MP_highperf$Feature,
+                                          levels = Ptuh_MP_summary_highperf$Feature[order(Ptuh_MP_summary_highperf$Mean_R2)])
+```
+
+
+```{r}
+
+# Plot mean R² with error bars
+# Choose SD to describe variability in model performance
+ggplot(Ptuh_all_MP_highperf, aes(x = Feature, y = Mean_R2)) +
+  geom_errorbar(aes(ymin = Mean_R2 - SD_R2, ymax = Mean_R2 + SD_R2), width = 0.3, color = "gray40") +
+  geom_point(size = 2, color = "black") +
+  geom_hline(yintercept = 0.5,
+             linetype = "dashed", color = "blue") +
+  theme_minimal() +
+  labs(title = "Ptuh: Mean R² with Error Bars Across Gene Features",
+       x = "Gene Expression Feature (Ordered by Mean R²)",
+       y = "Mean R² ± SD") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  ylim(-0.2, 1.2) +
+  scale_y_continuous(breaks = c(0, 0.25, 0.5, 0.75, 1))
+
+```
+
+```{r}
+# Plot all replicate R2s, with features sorted by mean R²
+ggplot(Ptuh_all_MP_highperf, aes(x = Feature, y = R2)) +
+  geom_point(aes(color = as.factor(Replicate)), size = 1.5) +
+  geom_point(aes(y = Mean_R2), color = "black", shape = 18, size = 3) + 
+  geom_hline(yintercept = mean(Ptuh_all_MP_highperf$R2, na.rm = TRUE),
+             linetype = "dashed", color = "blue") +
+  theme_minimal() +
+  labs(title = "Ptuh: Model Performance Across Gene Expression",
+       x = "Gene Expression Feature (Ordered by Mean R²)",
+       y = "R² (Variance Explained)",
+       color = "Replicate") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  ylim(0, 1)
+
+```
+
+```{r}
+# Average importance across replicates
+Ptuh_mean_importance_df_highperf <- Ptuh_all_FI_highperf %>%
+  group_by(Feature) %>%
+  summarise(MeanImportance = mean(MeanImportance, na.rm = TRUE)) %>%
+  arrange(desc(MeanImportance))
+
+# Select top 50 features
+Ptuh_top_features_highperf <- Ptuh_mean_importance_df_highperf %>% top_n(50, MeanImportance)
+
+# Plot
+ggplot(Ptuh_top_features_highperf, aes(x = reorder(Feature, MeanImportance), y = MeanImportance)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  coord_flip() +  # Flip for readability
+  theme_minimal() +
+  labs(title = "Ptuh: Top Predictive Features by Mean Importance",
+       x = "Feature",
+       y = "Mean Importance")
+
+```
+
+Look at most predictive epigenetic features for these well-predicted genes
+```{r}
+# Define color assignments for predictor types
+color_palette <- c(miRNA = "#E69F00", lncRNA = "#0072B2", CpG = "#009E73")
+
+#  Define well-predicted features
+Ptuh_all_features_highR2 <- Ptuh_all_MP_highperf %>%
+  filter(Mean_R2 > 0.5) %>%
+  pull(Feature) %>%
+  unique()
+
+# Function to extract importance from a single model
+get_feature_importance_for_feature <- function(model) {
+  coefs <- as.matrix(coef(model, s = "lambda.min"))[-1, , drop = FALSE]  # remove intercept
+  data.frame(Predictor = rownames(coefs), Importance = abs(as.numeric(coefs)))
+}
+
+# Function to assign predictor type
+get_predictor_type <- function(predictor_name) {
+  if (startsWith(predictor_name, "Cluster")) return("miRNA")
+  if (startsWith(predictor_name, "lncRNA")) return("lncRNA")
+  if (startsWith(predictor_name, "CpG")) return("CpG")
+  return("Other")
+}
+
+# Initialize list to save top predictors
+Ptuh_top_predictors <- list()
+
+# Loop over features, aggregate importance across replicates, and plot
+for (target_feature in Ptuh_all_features_highR2) {
+  
+  # Extract and combine importance scores across all replicates
+  importance_all_reps <- lapply(Ptuh_TM_list, function(rep_entry) {
+    model <- rep_entry[[target_feature]]
+    if (!is.null(model)) {
+      get_feature_importance_for_feature(model)
+    } else {
+      NULL
+    }
+  }) %>% bind_rows()
+
+  # If no importance data was found, skip
+  if (nrow(importance_all_reps) == 0) next
+
+  # Compute average importance across replicates
+  mean_importance <- importance_all_reps %>%
+    group_by(Predictor) %>%
+    summarise(MeanImportance = mean(Importance, na.rm = TRUE), .groups = "drop") %>%
+    arrange(desc(MeanImportance)) %>%
+    slice_head(n = 20) %>%
+    mutate(Type = sapply(Predictor, get_predictor_type))
+
+
+  # Plot once per target feature
+  plot <- ggplot(mean_importance, aes(x = reorder(Predictor, MeanImportance), y = MeanImportance, fill=Type)) +
+    geom_bar(stat = "identity") +
+    scale_fill_manual(values = color_palette) +
+    coord_flip() +
+    theme_minimal() +
+    labs(title = paste("Top Predictors for", target_feature),
+         x = "Predictor",
+         y = "Mean Importance (across replicates)")
+
+  # Save top 20 most important predictors for later use
+  top20 <- mean_importance %>% 
+    mutate(Feature = target_feature)
+  
+  Ptuh_top_predictors[[target_feature]] <- top20
+  
+  print(plot)
+}
+```
+
+
+## Plot expression of genes and their predictors
+
+```{r, error=FALSE, warning=FALSE}
+# Put predictor expression in format with samples in columns
+Ptuh_pred_counts_t <- t(Ptuh_pred_counts)
+
+# Loop over each feature in the list
+for (feature in names(Ptuh_top_predictors)) {
+  
+  # Get top 5 predictors for this feature
+  top_df <- Ptuh_top_predictors[[feature]] %>%
+    slice_head(n = 5)
+  predictors <- top_df$Predictor
+  
+  # Combine feature and predictors
+  all_genes <- c(feature, predictors)
+  
+  # Check which genes are actually present
+  present_genes <- all_genes[all_genes %in% rownames(Ptuh_pred_counts_t) | all_genes %in% rownames(vsd_Ptuh_genes_scaled)]
+  
+  if (!(feature %in% rownames(vsd_Ptuh_genes_scaled))) {
+    warning(paste("Feature", feature, "not found in vsd_Ptuh_genes_scaled Skipping..."))
+    next
+  }
+
+  # Extract predictor expression (only those present)
+  predictor_expr <- Ptuh_pred_counts_t[intersect(predictors, rownames(Ptuh_pred_counts_t)), , drop = FALSE] %>% as.data.frame()
+
+  # Add the feature expression
+  feature_expr <- vsd_Ptuh_genes_scaled[feature, , drop = FALSE] %>% as.data.frame()
+  
+  # Combine into one data frame
+  combined_expr <- rbind(predictor_expr, feature_expr)
+  combined_expr$Gene <- rownames(combined_expr)
+  
+  # Convert to long format
+  expr_long <- combined_expr %>%
+    pivot_longer(-Gene, names_to = "Sample", values_to = "Expression")
+  
+  # Join with sample metadata
+  expr_long <- expr_long %>%
+    left_join(metadata, by = "Sample")
+  
+  # Plot, with colonies aggregated by timepoint
+  # p <- ggplot(expr_long, aes(x = interaction(Timepoint), y = Expression, color = Gene, group = Gene)) +
+  #   geom_point(alpha = 0.7) +
+  #   geom_smooth(se = FALSE, method = "loess") +
+  #   labs(title = paste("Expression of", feature, "and Top 5 Predictors"),
+  #        x = "Colony-Timepoint",
+  #        y = "Expression") +
+  #   theme_minimal() +
+  #   theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  
+  # Plot, faceted by colony
+  p <- ggplot(expr_long, aes(x = Timepoint, y = Expression, color = Gene, group = Gene)) +
+  geom_point(alpha = 0.7) +
+  geom_smooth(se = FALSE, method = "loess", linewidth = 0.5) +
+  facet_wrap(~ColonyID) +
+  labs(title = paste("Expression of", feature, "and Top 5 Predictors by Colony"),
+       x = "Timepoint",
+       y = "Expression") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+  
+  print(p)
+}
+```
+
+
+Save top predictors and metrics of each well-predicted gene
+```{r}
+# Combine all sub-tibbles into a single data frame with the parent list name as an ID
+Ptuh_top_predictors_df <- imap_dfr(Ptuh_top_predictors, ~ {
+  .x
+})
+
+# View the resulting data frame
+print(Ptuh_top_predictors_df)
+
+# Optional: save to CSV
+write.csv(Ptuh_top_predictors_df, "../output/26.2-rank35-optimization-ElasticNet-component24-scaling/Ptuh_top_predictors.csv", row.names = FALSE)
+
+```
