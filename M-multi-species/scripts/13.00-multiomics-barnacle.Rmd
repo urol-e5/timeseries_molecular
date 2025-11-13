@@ -1450,6 +1450,205 @@ print(f"\nLog file saved to: {log_file}")
 print("This log can be used by subsequent chunks to avoid re-running decompositions")
 ```
 
+### Run barnacle with zero regularization (lambda = 0.0)
+
+This chunk runs barnacle decomposition with all lambdas set to 0.0 (no regularization) to test how the model performs without sparsity constraints. Results are saved to a separate subdirectory for comparison.
+
+```{python barnacle-zero-lambda, eval=TRUE}
+# ===========================================
+# CONFIGURE RANKS TO TEST - ZERO LAMBDA
+# ===========================================
+# This chunk tests decomposition with NO regularization
+# All lambda values are set to 0.0
+# ===========================================
+ranks_to_test_zero_lambda = [10, 20, 35, 40]  # Specific ranks to test
+# ===========================================
+
+import os
+import json
+import datetime
+
+# Create separate output directory for zero-lambda results
+zero_lambda_output_dir = os.path.join(output_dir, 'zero_lambda_results')
+os.makedirs(zero_lambda_output_dir, exist_ok=True)
+
+print("="*60)
+print("BARNACLE DECOMPOSITION - ZERO REGULARIZATION")
+print("="*60)
+print(f"Ranks to test: {ranks_to_test_zero_lambda}")
+print(f"Lambda values: [0.0, 0.0, 0.0] (no regularization)")
+print(f"Output directory: {zero_lambda_output_dir}")
+print(f"This will run {len(ranks_to_test_zero_lambda)} decompositions")
+print(f"Estimated time: {len(ranks_to_test_zero_lambda) * 2}-{len(ranks_to_test_zero_lambda) * 5} minutes")
+print("="*60)
+
+# Run decompositions for each rank with zero lambda
+all_rank_results_zero_lambda = []
+
+for test_rank in sorted(ranks_to_test_zero_lambda):
+    result = run_single_rank_decomposition(
+        tensor=tensor_3d,
+        rank=test_rank,
+        lambdas=[0.0, 0.0, 0.0],  # All lambdas set to 0.0
+        n_iter_max=10000,
+        random_state=41
+    )
+    all_rank_results_zero_lambda.append(result)
+    
+    # Save individual results
+    if result['success']:
+        save_rank_results(
+            result,
+            zero_lambda_output_dir,
+            common_genes_list,
+            sample_labels,
+            [f'TP{tp}' for tp in common_timepoints],
+            species_sample_map
+        )
+
+print(f"\n{'='*60}")
+print(f"ZERO LAMBDA RANKS COMPLETE")
+print(f"{'='*60}")
+print(f"Successful: {sum(1 for r in all_rank_results_zero_lambda if r['success'])}/{len(all_rank_results_zero_lambda)}")
+
+# ===========================================
+# SAVE COMPREHENSIVE LOG FILE FOR ZERO LAMBDA
+# ===========================================
+import json
+import datetime
+
+log_file_zero_lambda = os.path.join(zero_lambda_output_dir, 'rank_comparison_log_zero_lambda.json')
+
+log_data_zero_lambda = {
+    'timestamp': datetime.datetime.now().isoformat(),
+    'lambda_values': [0.0, 0.0, 0.0],
+    'ranks_tested': ranks_to_test_zero_lambda,
+    'total_runs': len(all_rank_results_zero_lambda),
+    'successful_runs': sum(1 for r in all_rank_results_zero_lambda if r['success']),
+    'failed_runs': sum(1 for r in all_rank_results_zero_lambda if not r['success']),
+    'results': []
+}
+
+for result in all_rank_results_zero_lambda:
+    rank_info = {
+        'rank': result['rank'],
+        'success': result['success']
+    }
+    
+    if result['success']:
+        rank_info['metrics'] = {
+            k: float(v) if isinstance(v, (int, float, np.number)) else bool(v) if isinstance(v, (bool, np.bool_)) else v
+            for k, v in result['metrics'].items()
+        }
+        rank_info['output_dir'] = os.path.join(zero_lambda_output_dir, f'rank_{result["rank"]:02d}')
+        rank_info['has_loss_history'] = hasattr(result['model'], 'loss_') and result['model'].loss_ is not None
+    else:
+        rank_info['error'] = result.get('error', 'Unknown error')
+    
+    log_data_zero_lambda['results'].append(rank_info)
+
+with open(log_file_zero_lambda, 'w') as f:
+    json.dump(log_data_zero_lambda, f, indent=2)
+
+print(f"\nLog file saved to: {log_file_zero_lambda}")
+print(f"Results directory: {zero_lambda_output_dir}")
+print("This log can be used to compare zero-lambda results with regularized decompositions")
+```
+
+### Plot Ranks vs Variance Explained (Zero Lambda Results)
+
+This chunk creates a visualization showing the relationship between rank and variance explained for the zero-lambda decompositions, helping to identify the optimal rank based on the variance explained metric.
+
+```{python plot-ranks-vs-variance-zero-lambda, eval=TRUE}
+# ===========================================
+# PLOT RANKS VS VARIANCE EXPLAINED - ZERO LAMBDA
+# ===========================================
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+print(f"\n{'='*60}")
+print("PLOTTING RANKS VS VARIANCE EXPLAINED (ZERO LAMBDA)")
+print(f"{'='*60}")
+
+# Extract data from zero-lambda results
+ranks_zero_lambda = []
+variance_explained_zero_lambda = []
+successful_results = []
+
+for result in all_rank_results_zero_lambda:
+    if result['success'] and 'metrics' in result:
+        ranks_zero_lambda.append(result['rank'])
+        variance_explained_zero_lambda.append(result['metrics']['variance_explained'])
+        successful_results.append(result)
+
+if len(successful_results) == 0:
+    print("WARNING: No successful decompositions found for zero-lambda results!")
+    print("Cannot create variance plot.")
+else:
+    # Sort by rank for plotting
+    sorted_data = sorted(zip(ranks_zero_lambda, variance_explained_zero_lambda))
+    ranks_zero_lambda, variance_explained_zero_lambda = zip(*sorted_data)
+    
+    # Create the plot
+    plt.figure(figsize=(10, 6))
+    plt.plot(ranks_zero_lambda, [v*100 for v in variance_explained_zero_lambda], 
+             'o-', linewidth=2.5, markersize=8, color='steelblue', markerfacecolor='lightblue', markeredgecolor='steelblue', markeredgewidth=2)
+    
+    # Customize the plot
+    plt.xlabel('Rank', fontsize=12, fontweight='bold')
+    plt.ylabel('Variance Explained (%)', fontsize=12, fontweight='bold')
+    plt.title('Variance Explained vs Rank', fontsize=14, fontweight='bold')
+    plt.grid(True, alpha=0.3)
+    plt.xticks(ranks_zero_lambda)
+    
+    # Add value labels on points
+    for rank, var_exp in zip(ranks_zero_lambda, variance_explained_zero_lambda):
+        plt.annotate(f'{var_exp*100:.1f}%', 
+                    (rank, var_exp*100), 
+                    textcoords="offset points", 
+                    xytext=(0,10), 
+                    ha='center',
+                    fontsize=10,
+                    fontweight='bold')
+    
+    # Formatting
+    plt.ylim(bottom=0)
+    plt.tight_layout()
+    
+    # Save the plot
+    plot_file = os.path.join(zero_lambda_output_dir, 'ranks_vs_variance_explained_zero_lambda.png')
+    plt.savefig(plot_file, dpi=300, bbox_inches='tight')
+    print(f"Plot saved to: {plot_file}")
+    
+    plt.show()
+    
+    # Print summary statistics
+    print(f"\nSUMMARY - Zero Lambda Results:")
+    print(f"{'='*50}")
+    print(f"Number of successful decompositions: {len(successful_results)}")
+    print(f"Ranks tested: {sorted(ranks_zero_lambda)}")
+    print(f"Variance explained range: {min(variance_explained_zero_lambda)*100:.1f}% - {max(variance_explained_zero_lambda)*100:.1f}%")
+    
+    # Find best rank
+    best_idx = np.argmax(variance_explained_zero_lambda)
+    best_rank = ranks_zero_lambda[best_idx]
+    best_variance = variance_explained_zero_lambda[best_idx]
+    
+    print(f"Best performing rank: {best_rank} (variance explained: {best_variance*100:.1f}%)")
+    
+    # Create a DataFrame for easy inspection
+    results_df = pd.DataFrame({
+        'Rank': ranks_zero_lambda,
+        'Variance_Explained_Percent': [v*100 for v in variance_explained_zero_lambda]
+    })
+    
+    print(f"\nDetailed Results:")
+    print(results_df.to_string(index=False))
+
+print(f"{'='*60}")
+```
+
 ### Factor Match Score evaluation
 
 This section evaluates each rank's decomposition quality using multiple Factor Match Score (FMS) metrics:
@@ -3415,6 +3614,138 @@ for (comp_num in components_to_analyze) {
 }
 
 cat("All percentage bar charts saved to:", goslim_output_dir, "\n\n")
+```
+
+## Create comprehensive GOslim percentage bar charts (all 72 BP terms)
+
+```{r plot-goslim-all-percentage-barcharts, eval=TRUE, fig.width=12, fig.height=22}
+cat(strrep("=", 60), "\n")
+cat("CREATING COMPREHENSIVE GOSLIM PERCENTAGE BAR CHARTS (All 72 BP GOslim terms)\n")
+cat(strrep("=", 60), "\n\n")
+
+# Color palette for components
+component_colors <- c(
+  "5" = "#E64B35",
+  "6" = "#4DBBD5", 
+  "7" = "#00A087",
+  "9" = "#F39B7F"
+)
+
+# Create a reference dataframe with ALL 72 BP GOslim terms
+# Use the bp_goslim_ids that were already extracted, and get names from OBO file
+extract_bp_goslim_names <- function(obo_file, bp_ids) {
+  if (!file.exists(obo_file)) {
+    return(data.frame(goslim_id = bp_ids, goslim_name = bp_ids, stringsAsFactors = FALSE))
+  }
+  
+  obo_lines <- readLines(obo_file)
+  id_to_name <- list()
+  current_id <- NULL
+  current_name <- NULL
+  
+  for (line in obo_lines) {
+    line <- trimws(line)
+    
+    if (line == "[Term]") {
+      # Save previous term
+      if (!is.null(current_id) && !is.null(current_name)) {
+        id_to_name[[current_id]] <- current_name
+      }
+      current_id <- NULL
+      current_name <- NULL
+      
+    } else if (grepl("^id:", line)) {
+      current_id <- sub("^id:\\s*", "", line)
+      
+    } else if (grepl("^name:", line)) {
+      current_name <- sub("^name:\\s*", "", line)
+    }
+  }
+  
+  # Don't forget the last term
+  if (!is.null(current_id) && !is.null(current_name)) {
+    id_to_name[[current_id]] <- current_name
+  }
+  
+  # Create dataframe with all BP GOslim IDs and their names
+  data.frame(
+    goslim_id = bp_ids,
+    goslim_name = sapply(bp_ids, function(id) {
+      if (id %in% names(id_to_name)) {
+        id_to_name[[id]]
+      } else {
+        id  # Use ID as name if name not found
+      }
+    }, USE.NAMES = FALSE),
+    stringsAsFactors = FALSE
+  )
+}
+
+# Get names for all 72 BP GOslim IDs
+all_bp_goslim_ref <- extract_bp_goslim_names(goslim_obo_file, bp_goslim_ids)
+
+cat("BP GOslim reference table created with", nrow(all_bp_goslim_ref), "terms\n\n")
+
+for (comp_num in components_to_analyze) {
+  comp_col <- paste0("Component_", comp_num)
+  
+  if (!comp_col %in% names(annotated_components)) {
+    next
+  }
+  
+  goslim_counts <- annotated_components[[comp_col]]$goslim_counts
+  
+  # Get total number of genes
+  top_genes <- annotated_components[[comp_col]]$top_genes
+  total_genes <- nrow(top_genes)
+  
+  # Create complete dataframe with ALL 72 BP GOslim terms
+  # Join with actual counts, filling missing terms with 0
+  goslim_all_percentages <- all_bp_goslim_ref %>%
+    left_join(goslim_counts, by = c("goslim_id", "goslim_name")) %>%
+    mutate(
+      count = replace_na(count, 0),
+      percentage = (count / total_genes) * 100
+    ) %>%
+    arrange(desc(percentage)) %>%
+    mutate(goslim_name = reorder(goslim_name, percentage))
+  
+  # Count how many terms have representation
+  terms_with_data <- sum(goslim_all_percentages$count > 0)
+  
+  # Create comprehensive percentage bar chart with all 72 terms
+  p <- ggplot(goslim_all_percentages, aes(x = goslim_name, y = percentage)) +
+    geom_bar(stat = "identity", fill = component_colors[as.character(comp_num)], 
+             alpha = 0.8) +
+    geom_text(data = subset(goslim_all_percentages, percentage > 0),
+              aes(label = sprintf("%.1f%%", percentage)), hjust = -0.2, size = 2.5) +
+    coord_flip() +
+    labs(
+      title = paste0("Component ", comp_num, ": All 72 GOslim Biological Process Terms (%)"),
+      subtitle = paste0(terms_with_data, " of 72 BP GOslim terms found in top 500 genes (genes can have multiple annotations)"),
+      x = "GOslim Biological Process Term",
+      y = "Percentage of Ortholog Groups (%)"
+    ) +
+    theme_bw() +
+    theme(
+      plot.title = element_text(size = 14, face = "bold"),
+      plot.subtitle = element_text(size = 11, color = "gray30"),
+      axis.text.y = element_text(size = 8),
+      axis.text.x = element_text(size = 10),
+      axis.title = element_text(size = 11, face = "bold"),
+      panel.grid.major.y = element_blank(),
+      panel.grid.minor = element_blank()
+    ) +
+    scale_y_continuous(expand = expansion(mult = c(0, 0.15)))
+  
+  # Save plot with fixed height for 72 terms
+  plot_file <- file.path(goslim_output_dir, 
+                         paste0("component_", comp_num, "_goslim_BP_barchart_all_percentage.png"))
+  ggsave(plot_file, p, width = 12, height = 22, dpi = 300)
+  cat("Saved:", basename(plot_file), "(", terms_with_data, "of 72 BP GOslim terms represented)\n")
+}
+
+cat("\nAll comprehensive percentage bar charts saved to:", goslim_output_dir, "\n\n")
 ```
 
 ## Summary statistics
