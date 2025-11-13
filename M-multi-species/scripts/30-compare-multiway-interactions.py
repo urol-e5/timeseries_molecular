@@ -51,22 +51,39 @@ def count_feature_occurrences(df):
     Returns:
         DataFrame with original data plus count columns
     """
-    # Initialize count columns
-    df['CpG_count'] = 0
-    df['lncRNA_count'] = 0
-    df['miRNA_count'] = 0
+    # Get original column names (exclude count columns if they exist)
+    original_columns = [col for col in df.columns 
+                       if not col.endswith('_count')]
     
-    # Count occurrences in each row across all columns
-    for idx, row in df.iterrows():
-        # Convert row to string and count case-insensitive matches
-        row_str = ' '.join([str(val) for val in row.values if pd.notna(val)])
-        row_str_lower = row_str.lower()
+    # Use vectorized operations for better performance
+    def count_features_in_row(row):
+        """Count features in a single row."""
+        cpg_count = 0
+        lncrna_count = 0
+        mirna_count = 0
         
-        df.at[idx, 'CpG_count'] = row_str_lower.count('cpg')
-        df.at[idx, 'lncRNA_count'] = row_str_lower.count('lncrna')
-        df.at[idx, 'miRNA_count'] = row_str_lower.count('mirna')
+        # Search in each cell individually to avoid false positives
+        for val in row[original_columns]:
+            if pd.notna(val):
+                val_str = str(val).lower()
+                # Use word boundaries or exact matching to avoid false positives
+                cpg_count += val_str.count('cpg')
+                lncrna_count += val_str.count('lncrna')
+                mirna_count += val_str.count('mirna')
+        
+        return pd.Series({
+            'CpG_count': cpg_count,
+            'lncRNA_count': lncrna_count,
+            'miRNA_count': mirna_count
+        })
     
-    return df
+    # Apply the counting function to each row
+    count_df = df.apply(count_features_in_row, axis=1)
+    
+    # Combine with original dataframe
+    result_df = pd.concat([df, count_df], axis=1)
+    
+    return result_df
 
 
 def generate_summary_stats(df, species_name):
