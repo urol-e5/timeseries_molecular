@@ -624,7 +624,7 @@ vsd_Apul_high_perf_t <- vsd_Apul_genes_t[,colnames(vsd_Apul_genes_t) %in% Apul_w
 dim(vsd_Apul_high_perf_t)
 ```
 
-Of the original 99 genes annotated for energetic state GO terms, 33 are consistently well-predicted by our model (mean R^2 > 0.5, over 25 replicates).
+Of the original 100 genes selected from component 24, 75 are consistently well-predicted by our model (mean R^2 > 0.5, over 10 replicates).
 
 
 Run bootstrapping on isolated genes
@@ -684,7 +684,7 @@ print(Apul_MP_summary_highperf)
 nrow(Apul_MP_summary_highperf[Apul_MP_summary_highperf$Mean_R2 > 0.5,])
 ```
 
-When I train the model on only these 33 well-predicted genes, 28 of them are again well-predicted. That's a much higher success rate! This suggests that epigenetic mechanisms may indeed be able to predict expression of these genes
+When I train the model on only these 75 well-predicted genes, 68 of them are again well-predicted. That's a much higher success rate! This suggests that epigenetic mechanisms may indeed be able to predict expression of these genes
 
 
 Sort genes by average R^2 across all replicates, then plot R^2 for all replicates
@@ -1125,7 +1125,7 @@ miRNA:
 This is throwing an error: "Error in estimateSizeFactorsForMatrix(counts(object), locfunc = locfunc, :
 every gene contains at least one zero, cannot compute log geometric means"
 
-To avoid having excessive 0values that interfere with geometric mean calculations, I'm going to add a pseudo-count of 1 to all counts. This is a simple workaround, but I should revisit later to determine whether its appropriate or I need to do a more in-depth fix.
+To avoid having excessive 0 values that interfere with geometric mean calculations, I'm going to add a pseudo-count of 1 to all counts. This is a simple workaround, but I should revisit later to determine whether its appropriate or I need to do a more in-depth fix.
 ```{r}
 dds_miRNA <- DESeqDataSetFromMatrix(countData = Peve_miRNA_filt + 1, 
                               colData = metadata, 
@@ -1338,7 +1338,7 @@ vsd_Peve_high_perf_t <- vsd_Peve_genes_t[,colnames(vsd_Peve_genes_t) %in% Peve_w
 dim(vsd_Peve_high_perf_t)
 ```
 
-Of the original 99 genes annotated for energetic state GO terms, 33 are consistently well-predicted by our model (mean R^2 > 0.5, over 25 replicates).
+Of the original 100 genes selected from component 24, 29 are consistently well-predicted by our model (mean R^2 > 0.5, over 10 replicates).
 
 
 Run bootstrapping on isolated genes
@@ -1398,7 +1398,7 @@ print(Peve_MP_summary_highperf)
 nrow(Peve_MP_summary_highperf[Peve_MP_summary_highperf$Mean_R2 > 0.5,])
 ```
 
-When I train the model on only these 33 well-predicted genes, 28 of them are again well-predicted. That's a much higher success rate! This suggests that epigenetic mechanisms may indeed be able to predict expression of these genes
+When I train the model on only these 29 well-predicted genes, 25 of them are again well-predicted. That's a much higher success rate! This suggests that epigenetic mechanisms may indeed be able to predict expression of these genes
 
 
 Sort genes by average R^2 across all replicates, then plot R^2 for all replicates
@@ -1909,8 +1909,9 @@ vsd_Ptuh_genes_t <- vsd_Ptuh_genes_t[common_samples,]
 ## Split training and test
 ## Bootstrapping
 
+Hitting a caching issue when running initial bootstrapping n=10, so decreasing to n=5 for now
 ```{r, cache=TRUE}
-n_replicates <- 10  # number of replicates
+n_replicates <- 5  # number of replicates
 r2_threshold <- 0.5 # threshold for "good" prediction
 Ptuh_TM_list <- list()
 Ptuh_MP_list <- list()
@@ -2045,12 +2046,12 @@ vsd_Ptuh_high_perf_t <- vsd_Ptuh_genes_t[,colnames(vsd_Ptuh_genes_t) %in% Ptuh_w
 dim(vsd_Ptuh_high_perf_t)
 ```
 
-Of the original 99 genes annotated for energetic state GO terms, 33 are consistently well-predicted by our model (mean R^2 > 0.5, over 25 replicates).
+Of the original 100 genes selected from component 24, 30 are consistently well-predicted by our model (mean R^2 > 0.5, over 5 replicates).
 
 
 Run bootstrapping on isolated genes
 ```{r, cache=TRUE}
-n_replicates <- 25  # number of replicates
+n_replicates <- 10  # number of replicates
 r2_threshold <- 0.5 # threshold for "good" prediction
 Ptuh_TM_list <- list()
 Ptuh_MP_list <- list()
@@ -2105,7 +2106,7 @@ print(Ptuh_MP_summary_highperf)
 nrow(Ptuh_MP_summary_highperf[Ptuh_MP_summary_highperf$Mean_R2 > 0.5,])
 ```
 
-When I train the model on only these 33 well-predicted genes, 28 of them are again well-predicted. That's a much higher success rate! This suggests that epigenetic mechanisms may indeed be able to predict expression of these genes
+When I train the model on only these 20 well-predicted genes, 25 of them are again well-predicted. That's a much higher success rate! This suggests that epigenetic mechanisms may indeed be able to predict expression of these genes
 
 
 Sort genes by average R^2 across all replicates, then plot R^2 for all replicates
@@ -2331,7 +2332,7 @@ Ptuh_top_predictors_df <- imap_dfr(Ptuh_top_predictors, ~ {
 print(Ptuh_top_predictors_df)
 
 # Optional: save to CSV
-write.csv(Ptuh_top_predictors_df, "../output/26.1-rank35-optemization-ElasticNet-component24/Peve_top_predictors.csv", row.names = FALSE)
+write.csv(Ptuh_top_predictors_df, "../output/26.1-rank35-optemization-ElasticNet-component24/Ptuh_top_predictors.csv", row.names = FALSE)
 
 ```
 
