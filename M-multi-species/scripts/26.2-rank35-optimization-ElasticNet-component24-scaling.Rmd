@@ -1229,6 +1229,18 @@ vsd_Peve_genes_t <- vsd_Peve_genes_t[common_samples,]
 ## Split training and test
 ## Bootstrapping
 
+Try to remove low-variance predictors that might be messing with model:
+```{r}
+var_threshold <- 0.01  # adjust as appropriate
+pred_var_scores <- apply(Peve_pred_counts, 2, var)
+Peve_pred_counts <- as.matrix(Peve_pred_counts)[, pred_var_scores > var_threshold]
+
+genes_var_scores <- apply(vsd_Peve_genes_t, 2, var)
+vsd_Peve_genes_t <- as.matrix(vsd_Peve_genes_t)[, genes_var_scores > var_threshold]
+
+```
+
+
 ```{r, cache=TRUE}
 n_replicates <- 10  # number of replicates
 r2_threshold <- 0.5 # threshold for "good" prediction
