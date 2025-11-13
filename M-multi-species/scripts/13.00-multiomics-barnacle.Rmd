@@ -1450,6 +1450,205 @@ print(f"\nLog file saved to: {log_file}")
 print("This log can be used by subsequent chunks to avoid re-running decompositions")
 ```
 
+### Run barnacle with zero regularization (lambda = 0.0)
+
+This chunk runs barnacle decomposition with all lambdas set to 0.0 (no regularization) to test how the model performs without sparsity constraints. Results are saved to a separate subdirectory for comparison.
+
+```{python barnacle-zero-lambda, eval=TRUE}
+# ===========================================
+# CONFIGURE RANKS TO TEST - ZERO LAMBDA
+# ===========================================
+# This chunk tests decomposition with NO regularization
+# All lambda values are set to 0.0
+# ===========================================
+ranks_to_test_zero_lambda = [10, 20, 35, 40]  # Specific ranks to test
+# ===========================================
+
+import os
+import json
+import datetime
+
+# Create separate output directory for zero-lambda results
+zero_lambda_output_dir = os.path.join(output_dir, 'zero_lambda_results')
+os.makedirs(zero_lambda_output_dir, exist_ok=True)
+
+print("="*60)
+print("BARNACLE DECOMPOSITION - ZERO REGULARIZATION")
+print("="*60)
+print(f"Ranks to test: {ranks_to_test_zero_lambda}")
+print(f"Lambda values: [0.0, 0.0, 0.0] (no regularization)")
+print(f"Output directory: {zero_lambda_output_dir}")
+print(f"This will run {len(ranks_to_test_zero_lambda)} decompositions")
+print(f"Estimated time: {len(ranks_to_test_zero_lambda) * 2}-{len(ranks_to_test_zero_lambda) * 5} minutes")
+print("="*60)
+
+# Run decompositions for each rank with zero lambda
+all_rank_results_zero_lambda = []
+
+for test_rank in sorted(ranks_to_test_zero_lambda):
+    result = run_single_rank_decomposition(
+        tensor=tensor_3d,
+        rank=test_rank,
+        lambdas=[0.0, 0.0, 0.0],  # All lambdas set to 0.0
+        n_iter_max=10000,
+        random_state=41
+    )
+    all_rank_results_zero_lambda.append(result)
+    
+    # Save individual results
+    if result['success']:
+        save_rank_results(
+            result,
+            zero_lambda_output_dir,
+            common_genes_list,
+            sample_labels,
+            [f'TP{tp}' for tp in common_timepoints],
+            species_sample_map
+        )
+
+print(f"\n{'='*60}")
+print(f"ZERO LAMBDA RANKS COMPLETE")
+print(f"{'='*60}")
+print(f"Successful: {sum(1 for r in all_rank_results_zero_lambda if r['success'])}/{len(all_rank_results_zero_lambda)}")
+
+# ===========================================
+# SAVE COMPREHENSIVE LOG FILE FOR ZERO LAMBDA
+# ===========================================
+import json
+import datetime
+
+log_file_zero_lambda = os.path.join(zero_lambda_output_dir, 'rank_comparison_log_zero_lambda.json')
+
+log_data_zero_lambda = {
+    'timestamp': datetime.datetime.now().isoformat(),
+    'lambda_values': [0.0, 0.0, 0.0],
+    'ranks_tested': ranks_to_test_zero_lambda,
+    'total_runs': len(all_rank_results_zero_lambda),
+    'successful_runs': sum(1 for r in all_rank_results_zero_lambda if r['success']),
+    'failed_runs': sum(1 for r in all_rank_results_zero_lambda if not r['success']),
+    'results': []
+}
+
+for result in all_rank_results_zero_lambda:
+    rank_info = {
+        'rank': result['rank'],
+        'success': result['success']
+    }
+    
+    if result['success']:
+        rank_info['metrics'] = {
+            k: float(v) if isinstance(v, (int, float, np.number)) else bool(v) if isinstance(v, (bool, np.bool_)) else v
+            for k, v in result['metrics'].items()
+        }
+        rank_info['output_dir'] = os.path.join(zero_lambda_output_dir, f'rank_{result["rank"]:02d}')
+        rank_info['has_loss_history'] = hasattr(result['model'], 'loss_') and result['model'].loss_ is not None
+    else:
+        rank_info['error'] = result.get('error', 'Unknown error')
+    
+    log_data_zero_lambda['results'].append(rank_info)
+
+with open(log_file_zero_lambda, 'w') as f:
+    json.dump(log_data_zero_lambda, f, indent=2)
+
+print(f"\nLog file saved to: {log_file_zero_lambda}")
+print(f"Results directory: {zero_lambda_output_dir}")
+print("This log can be used to compare zero-lambda results with regularized decompositions")
+```
+
+### Plot Ranks vs Variance Explained (Zero Lambda Results)
+
+This chunk creates a visualization showing the relationship between rank and variance explained for the zero-lambda decompositions, helping to identify the optimal rank based on the variance explained metric.
+
+```{python plot-ranks-vs-variance-zero-lambda, eval=TRUE}
+# ===========================================
+# PLOT RANKS VS VARIANCE EXPLAINED - ZERO LAMBDA
+# ===========================================
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+print(f"\n{'='*60}")
+print("PLOTTING RANKS VS VARIANCE EXPLAINED (ZERO LAMBDA)")
+print(f"{'='*60}")
+
+# Extract data from zero-lambda results
+ranks_zero_lambda = []
+variance_explained_zero_lambda = []
+successful_results = []
+
+for result in all_rank_results_zero_lambda:
+    if result['success'] and 'metrics' in result:
+        ranks_zero_lambda.append(result['rank'])
+        variance_explained_zero_lambda.append(result['metrics']['variance_explained'])
+        successful_results.append(result)
+
+if len(successful_results) == 0:
+    print("WARNING: No successful decompositions found for zero-lambda results!")
+    print("Cannot create variance plot.")
+else:
+    # Sort by rank for plotting
+    sorted_data = sorted(zip(ranks_zero_lambda, variance_explained_zero_lambda))
+    ranks_zero_lambda, variance_explained_zero_lambda = zip(*sorted_data)
+    
+    # Create the plot
+    plt.figure(figsize=(10, 6))
+    plt.plot(ranks_zero_lambda, [v*100 for v in variance_explained_zero_lambda], 
+             'o-', linewidth=2.5, markersize=8, color='steelblue', markerfacecolor='lightblue', markeredgecolor='steelblue', markeredgewidth=2)
+    
+    # Customize the plot
+    plt.xlabel('Rank', fontsize=12, fontweight='bold')
+    plt.ylabel('Variance Explained (%)', fontsize=12, fontweight='bold')
+    plt.title('Variance Explained vs Rank', fontsize=14, fontweight='bold')
+    plt.grid(True, alpha=0.3)
+    plt.xticks(ranks_zero_lambda)
+    
+    # Add value labels on points
+    for rank, var_exp in zip(ranks_zero_lambda, variance_explained_zero_lambda):
+        plt.annotate(f'{var_exp*100:.1f}%', 
+                    (rank, var_exp*100), 
+                    textcoords="offset points", 
+                    xytext=(0,10), 
+                    ha='center',
+                    fontsize=10,
+                    fontweight='bold')
+    
+    # Formatting
+    plt.ylim(bottom=0)
+    plt.tight_layout()
+    
+    # Save the plot
+    plot_file = os.path.join(zero_lambda_output_dir, 'ranks_vs_variance_explained_zero_lambda.png')
+    plt.savefig(plot_file, dpi=300, bbox_inches='tight')
+    print(f"Plot saved to: {plot_file}")
+    
+    plt.show()
+    
+    # Print summary statistics
+    print(f"\nSUMMARY - Zero Lambda Results:")
+    print(f"{'='*50}")
+    print(f"Number of successful decompositions: {len(successful_results)}")
+    print(f"Ranks tested: {sorted(ranks_zero_lambda)}")
+    print(f"Variance explained range: {min(variance_explained_zero_lambda)*100:.1f}% - {max(variance_explained_zero_lambda)*100:.1f}%")
+    
+    # Find best rank
+    best_idx = np.argmax(variance_explained_zero_lambda)
+    best_rank = ranks_zero_lambda[best_idx]
+    best_variance = variance_explained_zero_lambda[best_idx]
+    
+    print(f"Best performing rank: {best_rank} (variance explained: {best_variance*100:.1f}%)")
+    
+    # Create a DataFrame for easy inspection
+    results_df = pd.DataFrame({
+        'Rank': ranks_zero_lambda,
+        'Variance_Explained_Percent': [v*100 for v in variance_explained_zero_lambda]
+    })
+    
+    print(f"\nDetailed Results:")
+    print(results_df.to_string(index=False))
+
+print(f"{'='*60}")
+```
+
 ### Factor Match Score evaluation
 
 This section evaluates each rank's decomposition quality using multiple Factor Match Score (FMS) metrics:
