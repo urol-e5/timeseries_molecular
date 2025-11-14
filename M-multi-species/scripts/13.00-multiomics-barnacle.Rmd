@@ -1649,6 +1649,178 @@ else:
 print(f"{'='*60}")
 ```
 
+### Run barnacle across multiple random states
+
+This chunk runs barnacle decompositions for multiple random states to enable stability analysis of optimal rank selection. Each random state gets its own subdirectory with full decomposition results.
+
+**Purpose**: Generate decompositions needed for multi-random-state FMS evaluation.
+
+```{python barnacle-multiple-random-states, eval=TRUE}
+# ===========================================
+# RUN DECOMPOSITIONS ACROSS MULTIPLE RANDOM STATES
+# ===========================================
+# This chunk runs the same ranks across different random states
+# to test stability of optimal rank selection via Synthetic FMS
+# ===========================================
+
+import os
+import json
+import datetime
+
+print("="*60)
+print("BARNACLE DECOMPOSITION - MULTIPLE RANDOM STATES")
+print("="*60)
+
+# ===========================================
+# CONFIGURATION
+# ===========================================
+RANDOM_STATES_TO_TEST = [41, 42, 43, 44, 45]  # 5 different random states
+# Use the same ranks that were tested in the main decomposition
+ranks_to_test = [5, 8, 10, 12, 15, 20, 25, 35, 45, 55, 65, 75]
+# ===========================================
+
+print(f"Random states to test: {RANDOM_STATES_TO_TEST}")
+print(f"Ranks to test: {ranks_to_test}")
+print(f"Total decompositions: {len(RANDOM_STATES_TO_TEST)} states × {len(ranks_to_test)} ranks = {len(RANDOM_STATES_TO_TEST) * len(ranks_to_test)}")
+print(f"Estimated time: {len(RANDOM_STATES_TO_TEST) * len(ranks_to_test) * 2}-{len(RANDOM_STATES_TO_TEST) * len(ranks_to_test) * 5} minutes")
+print("="*60)
+
+# Track results for all random states
+all_random_state_results = {}
+
+for random_state in RANDOM_STATES_TO_TEST:
+    print(f"\n{'='*60}")
+    print(f"RANDOM STATE: {random_state}")
+    print(f"{'='*60}")
+    
+    # Create subdirectory for this random state
+    state_output_dir = os.path.join(output_dir, f'random_state_{random_state}')
+    os.makedirs(state_output_dir, exist_ok=True)
+    
+    print(f"Output directory: {state_output_dir}")
+    
+    # Run decompositions for each rank
+    state_rank_results = []
+    
+    for test_rank in sorted(ranks_to_test):
+        result = run_single_rank_decomposition(
+            tensor=tensor_3d,
+            rank=test_rank,
+            lambdas=[0.1, 0.0, 0.1],
+            n_iter_max=10000,
+            random_state=random_state
+        )
+        state_rank_results.append(result)
+        
+        # Save individual results
+        if result['success']:
+            save_rank_results(
+                result,
+                state_output_dir,
+                common_genes_list,
+                sample_labels,
+                [f'TP{tp}' for tp in common_timepoints],
+                species_sample_map
+            )
+    
+    # Store results for this random state
+    all_random_state_results[random_state] = state_rank_results
+    
+    # Print summary for this random state
+    successful = sum(1 for r in state_rank_results if r['success'])
+    print(f"\nRandom State {random_state} Complete:")
+    print(f"  Successful: {successful}/{len(state_rank_results)}")
+    print(f"  Failed: {len(state_rank_results) - successful}/{len(state_rank_results)}")
+    
+    # Save log file for this random state
+    log_file_state = os.path.join(state_output_dir, f'rank_comparison_log_rs{random_state}.json')
+    
+    log_data_state = {
+        'timestamp': datetime.datetime.now().isoformat(),
+        'random_state': random_state,
+        'ranks_tested': ranks_to_test,
+        'total_runs': len(state_rank_results),
+        'successful_runs': successful,
+        'failed_runs': len(state_rank_results) - successful,
+        'results': []
+    }
+    
+    for result in state_rank_results:
+        rank_info = {
+            'rank': result['rank'],
+            'success': result['success']
+        }
+        
+        if result['success']:
+            rank_info['metrics'] = {
+                k: float(v) if isinstance(v, (int, float, np.number)) else bool(v) if isinstance(v, (bool, np.bool_)) else v
+                for k, v in result['metrics'].items()
+            }
+            rank_info['output_dir'] = os.path.join(state_output_dir, f'rank_{result["rank"]:02d}')
+            rank_info['has_loss_history'] = hasattr(result['model'], 'loss_') and result['model'].loss_ is not None
+        else:
+            rank_info['error'] = result.get('error', 'Unknown error')
+        
+        log_data_state['results'].append(rank_info)
+    
+    with open(log_file_state, 'w') as f:
+        json.dump(log_data_state, f, indent=2)
+    
+    print(f"  Log file saved to: {log_file_state}")
+
+# ===========================================
+# SAVE COMPREHENSIVE SUMMARY FOR ALL RANDOM STATES
+# ===========================================
+print(f"\n{'='*60}")
+print("ALL RANDOM STATES COMPLETE")
+print(f"{'='*60}")
+
+# Calculate overall statistics
+total_decompositions = sum(len(results) for results in all_random_state_results.values())
+total_successful = sum(sum(1 for r in results if r['success']) for results in all_random_state_results.values())
+total_failed = total_decompositions - total_successful
+
+print(f"Total decompositions: {total_decompositions}")
+print(f"Successful: {total_successful}/{total_decompositions} ({total_successful/total_decompositions*100:.1f}%)")
+print(f"Failed: {total_failed}/{total_decompositions} ({total_failed/total_decompositions*100:.1f}%)")
+
+print(f"\nResults by Random State:")
+for random_state in sorted(all_random_state_results.keys()):
+    results = all_random_state_results[random_state]
+    successful = sum(1 for r in results if r['success'])
+    print(f"  Random State {random_state}: {successful}/{len(results)} successful")
+
+# Save master summary file
+master_summary_file = os.path.join(output_dir, 'multi_random_state_summary.json')
+
+master_summary = {
+    'timestamp': datetime.datetime.now().isoformat(),
+    'random_states_tested': RANDOM_STATES_TO_TEST,
+    'ranks_tested': ranks_to_test,
+    'total_decompositions': total_decompositions,
+    'successful_decompositions': total_successful,
+    'failed_decompositions': total_failed,
+    'by_random_state': {}
+}
+
+for random_state, results in all_random_state_results.items():
+    successful = sum(1 for r in results if r['success'])
+    master_summary['by_random_state'][str(random_state)] = {
+        'total': len(results),
+        'successful': successful,
+        'failed': len(results) - successful,
+        'output_dir': os.path.join(output_dir, f'random_state_{random_state}')
+    }
+
+with open(master_summary_file, 'w') as f:
+    json.dump(master_summary, f, indent=2)
+
+print(f"\nMaster summary saved to: {master_summary_file}")
+print(f"\n{'='*60}")
+print("Ready for Factor Match Score evaluation across random states!")
+print(f"{'='*60}")
+```
+
 ### Factor Match Score evaluation (Multiple Random States)
 
 This section evaluates decomposition quality using Synthetic FMS across multiple random states to assess stability of optimal rank selection.
