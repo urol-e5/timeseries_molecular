@@ -1,0 +1,65 @@
+---
+title: "40-Apul-Gene-Methylation"
+output: html_document
+---
+
+# Gene Methylation Analysis in A. pulchra
+
+## gene file
+
+```{bash}
+head ../data/Apulchra-genome.gff
+
+```
+```{bash}
+cut -f3 ../data/Apulchra-genome.gff | \
+grep -v "^#" | \
+sort | uniq -c | sort -nr
+```
+
+```{bash}
+gawk '$3=="gene" {
+    split($9, a, ";");
+    for(i in a){
+        if(a[i] ~ /^ID=/){
+            sub("ID=", "", a[i]);
+            gene_id = a[i];
+        }
+    }
+    print $1 "\t" $4-1 "\t" $5 "\t" gene_id;
+}' ../data/Apulchra-genome.gff > ../data/Apluchra-genes.bed
+```
+
+```{bash}
+head ../data/Apluchra-genes.bed
+```
+
+
+```
+cd ../data/10xbedgraph
+wget -r -l1 --no-parent -nd -A '*10x.bedgraph' \
+     'https://gannet.fish.washington.edu/v1_web/owlshell/bu-github/timeseries_molecular/D-Apul/output/15.5-Apul-bismark/'
+```
+
+```{bash}
+head ../data/10xbedgraph/ACR-229-TP1_10x.bedgraph
+```
+
+```{bash}
+for f in ../data/10xbedgraph/*_10x.bedgraph; do
+    sort -k1,1 -k2,2n "$f" > ${f%.bedgraph}.sorted.bedgraph
+done
+```
+
+```{bash}
+for f in ../data/10xbedgraph/*_10x.sorted.bedgraph; do
+    sample=$(basename "$f" _10x.sorted.bedgraph)
+
+    bedtools map \
+        -a ../data/Apluchra-genes.bed \
+        -b "$f" \
+        -c 4 \
+        -o mean,count \
+        > ../output/40-Apul-Gene-Methylation/gene_methylation_${sample}.tsv
+done
+```
