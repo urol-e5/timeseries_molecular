@@ -321,3 +321,46 @@ if (nrow(summary_stats) > 0) {
   cat("    * 3 per-species feature occurrence plots\n")
 }
 ```
+
+
+
+# counts per row
+
+```{r}
+library(dplyr)
+library(stringr)
+library(purrr)
+library(readr)
+
+urls <- c(
+  species_1 = "https://gannet.fish.washington.edu/v1_web/owlshell/bu-github/ConTra/output/context_dependent_analysis_20251108_151255/tables/multi_way_interactions.csv",
+  species_2 = "https://gannet.fish.washington.edu/v1_web/owlshell/bu-github/ConTra/output/context_dependent_analysis_20251108_144034/tables/multi_way_interactions.csv",
+  species_3 = "https://gannet.fish.washington.edu/v1_web/owlshell/bu-github/ConTra/output/context_dependent_analysis_20251108_140602/tables/multi_way_interactions.csv"
+)
+
+# --- Function to process a single file ---
+process_file <- function(url, species_name) {
+  
+  df <- read_csv(url, show_col_types = FALSE)
+
+  df %>%
+    mutate(
+      # list-column of extracted regulators
+      regs = str_extract_all(regulator_types, "'([^']*)'") %>%
+             map(~ str_replace_all(.x, "'", "")),
+      
+      n_lncRNA = map_int(regs, ~ sum(str_detect(.x, "lncrna"))),
+      n_miRNA  = map_int(regs, ~ sum(str_detect(.x, "mirna"))),
+      n_CpG    = map_int(regs, ~ sum(str_detect(.x, "CpG"))),
+      
+      species = species_name
+    ) %>%
+    select(-regs)
+}
+
+# --- Process all files and combine ---
+combined_results <- imap_dfr(urls, process_file)
+
+combined_results
+```
+
