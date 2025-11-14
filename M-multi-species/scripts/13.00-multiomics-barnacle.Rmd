@@ -1649,97 +1649,37 @@ else:
 print(f"{'='*60}")
 ```
 
-### Factor Match Score evaluation
+### Factor Match Score evaluation (Multiple Random States)
 
-This section evaluates each rank's decomposition quality using multiple Factor Match Score (FMS) metrics:
+This section evaluates decomposition quality using Synthetic FMS across multiple random states to assess stability of optimal rank selection.
 
-1. **TLViz FMS** (self-comparison): Sanity check only, not useful for rank selection
-2. **Reconstruction FMS** (fast): Quick approximation based on tensor reconstruction correlation
-3. **Synthetic FMS** (RECOMMENDED): Most rigorous - tests factor recovery from noisy data
+**Key Question**: Does the synthetic FMS elbow plot consistently identify the same optimal rank, or does it vary with random initialization?
 
-The Synthetic FMS is the most reliable metric for determining optimal rank as it validates robustness.
+**Approach**:
+- Run decompositions for each rank with 5 different random states
+- Calculate Synthetic FMS for each (random_state, rank) combination
+- Plot FMS curves for all random states to visualize consistency
+- Identify optimal rank for each random state
 
 ```{python factor-match-score-evaluation, eval=TRUE}
 # ===========================================
-# FACTOR MATCH SCORE EVALUATION
+# FACTOR MATCH SCORE EVALUATION - MULTIPLE RANDOM STATES
 # ===========================================
 import numpy as np
 import pandas as pd
 import os
 
 print(f"\n{'='*60}")
-print("FACTOR MATCH SCORE (FMS) EVALUATION")
+print("FACTOR MATCH SCORE (FMS) EVALUATION - MULTIPLE RANDOM STATES")
 print(f"{'='*60}")
-print("This analysis evaluates decomposition quality using multiple FMS metrics:")
-print("  1. TLViz FMS: Self-comparison (sanity check only)")
-print("  2. Reconstruction FMS: Fast approximation (correlation-based)")
-print("  3. Synthetic FMS: RECOMMENDED (tests factor recovery robustness)")
+print("This analysis evaluates decomposition quality across random initializations:")
+print("  • Synthetic FMS: Tests factor recovery from noisy data")
+print("  • Multiple random states: Tests stability of optimal rank selection")
+print("  • Goal: Determine if FMS elbow is consistent or random_state dependent")
 print(f"{'='*60}")
 
-def calculate_factor_match_score(tensor, decomposition, rank):
-    """
-    Calculate Factor Match Score using tlviz library.
-    
-    WARNING: This implementation compares the decomposition against itself,
-    which will always yield FMS ≈ 1.0. This is only useful as a sanity check
-    to verify the decomposition is internally consistent.
-    
-    For actual rank selection, use calculate_reconstruction_fms() instead,
-    which compares the reconstruction against the original tensor.
-    
-    NOTE: May fail with scipy >= 1.14 due to _lazywhere removal.
-    """
-    try:
-        # Import required libraries
-        import tensorly as tl
-        import tlviz.factor_tools
-        
-        # IMPORTANT: This creates a "reference" from the decomposition itself
-        # This means we're comparing the decomposition to itself, which will
-        # always give a perfect or near-perfect score (~1.0).
-        # This is NOT a meaningful metric for rank selection!
-        # It only validates that the decomposition object is internally consistent.
-        reference_cp = tl.cp_tensor.CPTensor((decomposition.weights, decomposition.factors))
-        
-        # Calculate factor match score between decomposition and itself
-        # Expected result: FMS ≈ 1.0 for all ranks (self-comparison)
-        fms, perm = tlviz.factor_tools.factor_match_score(
-            reference_cp,
-            decomposition,
-            return_permutation=True,
-            allow_smaller_rank=True
-        )
-        
-        return {
-            'fms': float(fms),
-            'permutation': perm,
-            'success': True,
-            'method': 'tlviz_self_consistency',
-            'warning': 'Self-comparison: FMS ≈ 1.0 expected (not useful for rank selection)'
-        }
-        
-    except ImportError as e:
-        # Skip silently - this is expected with newer scipy versions
-        error_msg = "SciPy/TLViz compatibility issue (expected with scipy >= 1.14)"
-        if '_lazywhere' in str(e):
-            error_msg = "SciPy version incompatibility (_lazywhere removed in scipy >= 1.14)"
-        return {
-            'fms': np.nan,
-            'permutation': None,
-            'success': False,
-            'error': error_msg,
-            'method': 'scipy_incompatibility'
-        }
-    except Exception as e:
-        return {
-            'fms': np.nan,
-            'permutation': None,
-            'success': False,
-            'error': str(e),
-            'method': 'failed'
-        }
 
-def calculate_proper_factor_match_score(tensor, decomposition, rank, noise_level=0.1, random_state=42):
+def calculate_synthetic_fms(tensor, decomposition, rank, noise_level=0.1, random_state=42):
     """
     RECOMMENDED METRIC: Synthetic validation approach for FMS.
     
@@ -1756,7 +1696,6 @@ def calculate_proper_factor_match_score(tensor, decomposition, rank, noise_level
     - Better rank selection
     
     NOTE: Computationally expensive (requires additional decomposition per rank).
-          
     """
     try:
         import tensorly as tl
@@ -1851,93 +1790,31 @@ def calculate_proper_factor_match_score(tensor, decomposition, rank, noise_level
             'method': 'failed'
         }
 
-def calculate_reconstruction_fms(tensor, decomposition, rank):
-    """
-    Calculate FMS based on reconstruction quality.
-    
-    This compares the original tensor to its reconstruction from the decomposition,
-    providing a measure of how well the decomposition captures the data.
-    
-    Higher scores indicate better reconstruction:
-    - 1.0 = perfect reconstruction
-    - 0.5 = no correlation
-    - 0.0 = perfect negative correlation
-    
-    Note: This is a fast approximation. For more rigorous validation, use
-    synthetic validation FMS (calculate_proper_factor_match_score).
-    """
-    try:
-        # Create reconstructed tensor
-        gene_factors = decomposition.factors[0]
-        sample_factors = decomposition.factors[1] 
-        time_factors = decomposition.factors[2]
-        weights = decomposition.weights
-        
-        # Reconstruct tensor
-        reconstructed = np.zeros_like(tensor)
-        for r in range(len(weights)):
-            outer_prod = np.outer(gene_factors[:, r], sample_factors[:, r])
-            outer_prod = np.outer(outer_prod.flatten(), time_factors[:, r])
-            outer_prod = outer_prod.reshape(tensor.shape)
-            reconstructed += weights[r] * outer_prod
-        
-        # Calculate correlation-based FMS
-        # Flatten tensors and calculate correlation
-        orig_flat = tensor.flatten()
-        recon_flat = reconstructed.flatten()
-        
-        # Remove NaN values for correlation calculation
-        valid_mask = np.isfinite(orig_flat) & np.isfinite(recon_flat)
-        orig_valid = orig_flat[valid_mask]
-        recon_valid = recon_flat[valid_mask]
-        
-        if len(orig_valid) > 0:
-            correlation = np.corrcoef(orig_valid, recon_valid)[0, 1]
-            # Convert correlation to FMS-like score (0-1 scale)
-            fms_score = (correlation + 1) / 2  # Map [-1,1] to [0,1]
-        else:
-            fms_score = 0.0
-        
-        return {
-            'fms': float(fms_score),
-            'correlation': float(correlation) if len(orig_valid) > 0 else np.nan,
-            'success': True,
-            'method': 'reconstruction_correlation',
-            'valid_elements': len(orig_valid)
-        }
-        
-    except Exception as e:
-        print(f"  Error calculating reconstruction FMS for rank {rank}: {e}")
-        return {
-            'fms': np.nan,
-            'success': False,
-            'error': str(e),
-            'method': 'failed'
-        }
 
-def evaluate_fms_for_rank(rank, output_dir, tensor, use_synthetic_validation=False):
+def evaluate_fms_for_rank_and_state(rank, random_state, output_dir, tensor):
     """
-    Evaluate Factor Match Score for a specific rank.
+    Evaluate Synthetic FMS for a specific rank and random state combination.
     
     Parameters:
     -----------
     rank : int
         Rank to evaluate
+    random_state : int
+        Random state used for decomposition
     output_dir : str
-        Directory containing rank results
+        Base directory containing results
     tensor : np.ndarray
         Original tensor
-    use_synthetic_validation : bool, default=False
-        If True, calculate synthetic validation FMS (RECOMMENDED but computationally expensive).
-        If False, only calculate reconstruction FMS (fast approximation).
     """
-    print(f"\n--- Evaluating FMS for Rank {rank} ---")
+    print(f"\n  --- Evaluating Rank {rank}, Random State {random_state} ---")
     
-    rank_dir = os.path.join(output_dir, f'rank_{rank:02d}')
+    # Construct path to this random_state's results
+    state_dir = os.path.join(output_dir, f'random_state_{random_state}')
+    rank_dir = os.path.join(state_dir, f'rank_{rank:02d}')
     
     # Check if rank directory exists
     if not os.path.exists(rank_dir):
-        print(f"  Rank directory not found: {rank_dir}")
+        print(f"    Rank directory not found: {rank_dir}")
         return None
     
     # Load factor matrices
@@ -1951,112 +1828,71 @@ def evaluate_fms_for_rank(rank, output_dir, tensor, use_synthetic_validation=Fal
         factor_cols = [col for col in sample_factors.columns if col.startswith('Component_')]
         sample_factor_values = sample_factors[factor_cols]
         
-        print(f"  Loaded factor matrices - Genes: {gene_factors.shape}, Samples: {sample_factor_values.shape}, Time: {time_factors.shape}")
+        print(f"    Loaded factors - Genes: {gene_factors.shape}, Samples: {sample_factor_values.shape}, Time: {time_factors.shape}")
         
     except Exception as e:
-        print(f"  Error loading factor matrices: {e}")
+        print(f"    Error loading factor matrices: {e}")
         return None
     
-    # Create mock decomposition object that mimics tensorly CPTensor structure
-    # TensorLy expects a tuple-like object: (weights, factors)
-    # We'll create a simple class that supports both attribute and subscript access
+    # Create mock decomposition object
     class MockDecomposition:
         def __init__(self, weights, factors):
             self.weights = weights
             self.factors = factors
-            # Make it subscriptable for tensorly compatibility
             self._tuple = (weights, factors)
         
         def __getitem__(self, index):
-            """Support subscript access like a tuple"""
             return self._tuple[index]
         
         def __len__(self):
-            """Support len() for tuple-like behavior"""
             return 2
     
     weights = weights_df['Weight'].values
     factors = [gene_factors.values, sample_factor_values.values, time_factors.values]
     mock_decomposition = MockDecomposition(weights, factors)
     
-    # Calculate FMS metrics
-    # 1. TLViz FMS (self-comparison - sanity check only, not useful for rank selection)
-    fms_result1 = calculate_factor_match_score(tensor, mock_decomposition, rank)
-    
-    # 2. Reconstruction FMS (fast approximation - useful for quick comparison)
-    fms_result2 = calculate_reconstruction_fms(tensor, mock_decomposition, rank)
-    
-    # 3. Synthetic validation FMS (RECOMMENDED - most rigorous but computationally expensive)
-    if use_synthetic_validation:
-        print(f"  Running synthetic validation (this will take a long time)...")
-        fms_result3 = calculate_proper_factor_match_score(tensor, mock_decomposition, rank)
-    else:
-        fms_result3 = {'success': False, 'method': 'skipped', 'fms': np.nan}
+    # Calculate Synthetic FMS
+    print(f"    Running synthetic validation...")
+    fms_result = calculate_synthetic_fms(tensor, mock_decomposition, rank, random_state=random_state*100)
     
     # Combine results
     result = {
         'rank': rank,
-        'fms_tlviz': fms_result1['fms'] if fms_result1['success'] else np.nan,
-        'fms_reconstruction': fms_result2['fms'] if fms_result2['success'] else np.nan,
-        'fms_synthetic': fms_result3['fms'] if fms_result3['success'] else np.nan,
-        'reconstruction_correlation': fms_result2.get('correlation', np.nan),
-        'tlviz_success': fms_result1['success'],
-        'reconstruction_success': fms_result2['success'],
-        'synthetic_success': fms_result3['success'],
-        'tlviz_method': fms_result1.get('method', 'unknown'),
-        'reconstruction_method': fms_result2.get('method', 'unknown'),
-        'synthetic_method': fms_result3.get('method', 'unknown'),
-        'valid_elements': fms_result2.get('valid_elements', 0)
+        'random_state': random_state,
+        'fms_synthetic': fms_result['fms'] if fms_result['success'] else np.nan,
+        'synthetic_success': fms_result['success'],
+        'synthetic_method': fms_result.get('method', 'unknown'),
+        'recovery_quality': fms_result.get('recovery_quality', 'unknown') if fms_result['success'] else 'failed'
     }
     
     # Print results
-    # TLViz FMS note: This compares decomposition to itself (always ~1.0)
-    if fms_result1['success']:
-        warning_note = fms_result1.get('warning', '')
-        if warning_note:
-            print(f"  TLViz FMS: {fms_result1['fms']:.4f} ⚠️  (self-consistency check only)")
-        else:
-            print(f"  TLViz FMS: {fms_result1['fms']:.4f} ✅")
-    elif 'scipy_incompatibility' not in fms_result1.get('method', ''):
-        # Only print if it's a real error (not the expected scipy issue)
-        print(f"  TLViz FMS: Failed - {fms_result1.get('error', 'unknown')} (method: {fms_result1.get('method', 'unknown')})")
-    
-    # Reconstruction FMS (fast approximation)
-    if fms_result2['success']:
-        print(f"  📊 RECONSTRUCTION FMS: {fms_result2['fms']:.4f} (correlation: {fms_result2.get('correlation', 'N/A'):.4f})")
-        print(f"     ↳ Fast approximation for quick comparison")
-        print(f"     ↳ Valid elements used: {fms_result2.get('valid_elements', 0):,}")
+    if fms_result['success']:
+        recovery = fms_result.get('recovery_quality', 'unknown')
+        noise = fms_result.get('noise_level', 0.1)
+        print(f"    ⭐ SYNTHETIC FMS: {fms_result['fms']:.4f} ({recovery} recovery with {noise*100:.0f}% noise)")
     else:
-        print(f"  Reconstruction FMS: Failed ({fms_result2.get('error', 'unknown error')})")
-    
-    # Synthetic validation FMS (RECOMMENDED for rank selection)
-    if use_synthetic_validation and fms_result3['success']:
-        recovery = fms_result3.get('recovery_quality', 'unknown')
-        noise = fms_result3.get('noise_level', 0.1)
-        print(f"  ⭐ SYNTHETIC FMS: {fms_result3['fms']:.4f} ({recovery} recovery with {noise*100:.0f}% noise) ⭐")
-        print(f"     ↳ RECOMMENDED metric for rank selection")
-        print(f"     ↳ Tests factor recovery robustness with noise")
-    elif use_synthetic_validation and not fms_result3['success']:
-        print(f"  Synthetic FMS: Failed ({fms_result3.get('error', 'unknown error')})")
+        print(f"    Synthetic FMS: Failed ({fms_result.get('error', 'unknown error')})")
     
     # Save individual rank FMS results
-    fms_file = os.path.join(rank_dir, 'factor_match_score.json')
+    fms_file = os.path.join(rank_dir, 'synthetic_fms.json')
     import json
     with open(fms_file, 'w') as f:
         json.dump({
             'rank': rank,
-            'tlviz_fms': fms_result1,
-            'reconstruction_fms': fms_result2,
-            'synthetic_fms': fms_result3,
+            'random_state': random_state,
+            'synthetic_fms': fms_result,
             'summary': result
         }, f, indent=2, default=str)
     
-    print(f"  Saved FMS results to: factor_match_score.json")
+    print(f"    Saved FMS results to: synthetic_fms.json")
     
     return result
 
+
 # ===========================================
-# EVALUATE FMS FOR ALL RANKS
+# CONFIGURATION: Random States and Ranks
+# ===========================================
+RANDOM_STATES_TO_TEST = [41, 42, 43, 44, 45]  # 5 different random states
 # ===========================================
 
 # Get output directory if not available
@@ -2070,7 +1906,8 @@ if 'tensor_3d' not in globals():
     tensor_3d = None
 
 if tensor_3d is not None:
-    # Load log file to get successful ranks
+    # Get successful ranks from the base decomposition
+    # (assuming they've been run with the default random_state=41)
     log_file = os.path.join(output_dir, 'rank_comparison_log.json')
     
     if os.path.exists(log_file):
@@ -2094,226 +1931,137 @@ if tensor_3d is not None:
                 pass
         print(f"Found {len(successful_ranks)} rank directories: {successful_ranks}")
     
-    # ===========================================
-    # CONFIGURATION: Synthetic Validation FMS
-    # ===========================================
-    # Set to True to enable the RECOMMENDED synthetic validation FMS metric.
-    # This is the most rigorous method for rank selection as it tests factor
-    # recovery from noisy data, providing the best indication of optimal rank.
-    # 
-    # COMPUTATION TIME: Adds ~1-2 minutes per rank
-    # For 12 ranks, expect ~15-30 minutes additional runtime
-    # 
-    # If False, only reconstruction FMS will be calculated (faster but less rigorous)
-    # ===========================================
-    USE_SYNTHETIC_VALIDATION = True  # Change to False for faster (but less rigorous) analysis
-    # ===========================================
-    
-    if USE_SYNTHETIC_VALIDATION:
-        print("\n" + "="*60)
-        print("⭐ SYNTHETIC VALIDATION ENABLED (RECOMMENDED)")
-        print("="*60)
-        print("This will test factor recovery robustness by:")
-        print("  1. Creating synthetic tensor from each decomposition")
-        print("  2. Adding noise to test robustness")
-        print("  3. Re-decomposing to see if factors are recovered")
-        print("  4. Comparing recovered factors to originals")
-        print(f"\nExpected additional time: {len(successful_ranks) * 1.5:.0f}-{len(successful_ranks) * 2:.0f} minutes")
-        print("This provides the most reliable metric for rank selection.")
-        print("="*60 + "\n")
-    
-    # Evaluate FMS for each rank
-    all_fms_results = []
-    
-    for rank in sorted(successful_ranks):
-        fms_result = evaluate_fms_for_rank(rank, output_dir, tensor_3d, 
-                                          use_synthetic_validation=USE_SYNTHETIC_VALIDATION)
-        if fms_result is not None:
-            all_fms_results.append(fms_result)
-    
-    # ===========================================
-    # CREATE FMS COMPARISON TABLE AND PLOTS
-    # ===========================================
-    if len(all_fms_results) > 0:
-        print(f"\n{'='*60}")
-        print("FMS RESULTS SUMMARY")
-        print(f"{'='*60}")
-        
-        # Create comparison dataframe
-        fms_df = pd.DataFrame(all_fms_results)
-        
-        # Save comprehensive FMS results
-        comparison_dir = os.path.join(output_dir, 'rank_comparison')
-        os.makedirs(comparison_dir, exist_ok=True)
-        
-        fms_output_file = os.path.join(comparison_dir, 'factor_match_scores.csv')
-        fms_df.to_csv(fms_output_file, index=False)
-        print(f"Saved FMS comparison table to: {fms_output_file}")
-        
-        # Display results
-        # Determine which columns to display based on what was calculated
-        display_cols = ['rank', 'fms_tlviz', 'fms_reconstruction', 'reconstruction_correlation']
-        if 'fms_synthetic' in fms_df.columns and fms_df['synthetic_success'].any():
-            display_cols.append('fms_synthetic')
-        
-        print("\n" + "="*60)
-        print("FACTOR MATCH SCORE RESULTS")
-        print("="*60)
-        print("⚠️  TLViz FMS: Self-comparison only (always ~1.0, not useful)")
-        print("📊 Reconstruction FMS: Fast approximation (useful for quick comparison)")
-        if 'fms_synthetic' in display_cols:
-            print("⭐ SYNTHETIC FMS: RECOMMENDED for rank selection (tests robustness)")
-        print("="*60)
-        print(fms_df[display_cols].to_string(index=False, float_format='%.4f'))
-        
-        # Check if TLViz worked for any ranks
-        tlviz_working = fms_df['tlviz_success'].any()
-        if not tlviz_working:
-            print("\n" + "="*60)
-            print("NOTE: TLViz FMS unavailable (scipy version incompatibility)")
-            print("="*60)
-            print("This is expected with scipy >= 1.14.")
-            print("Use Reconstruction FMS (fast) or Synthetic FMS (recommended).")
-            print("="*60)
-        elif tlviz_working and fms_df.loc[fms_df['tlviz_success'], 'fms_tlviz'].min() > 0.95:
-            print("\n" + "="*60)
-            print("⚠️  WARNING: TLViz FMS shows all values near 1.0")
-            print("="*60)
-            print("This indicates self-comparison (not useful for rank selection).")
-            print("→ Use Synthetic FMS (recommended) or Reconstruction FMS (fast)")
-            print("="*60)
-        
-        # Create visualization
-        import matplotlib.pyplot as plt
-        
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
-        
-        # Plot 1: Both FMS measures (but emphasize reconstruction if TLViz failed)
-        valid_tlviz = fms_df['tlviz_success']
-        valid_recon = fms_df['reconstruction_success']
-        
-        if valid_tlviz.any():
-            ax1.plot(fms_df.loc[valid_tlviz, 'rank'], 
-                    fms_df.loc[valid_tlviz, 'fms_tlviz'], 
-                    'o-', linewidth=2, markersize=8, label='TLViz FMS', color='steelblue')
-        
-        if valid_recon.any():
-            ax1.plot(fms_df.loc[valid_recon, 'rank'], 
-                    fms_df.loc[valid_recon, 'fms_reconstruction'], 
-                    's-', linewidth=2, markersize=8, label='Reconstruction FMS', color='coral')
-        
-        # Adjust title based on whether TLViz worked
-        if not tlviz_working:
-            title = 'Factor Match Score vs Rank\n(Reconstruction FMS: Fast Approximation)'
-        else:
-            title = 'Factor Match Score vs Rank\n(Higher = Better Factor Recovery)'
-        
-        ax1.set_xlabel('Rank (Number of Components)', fontsize=11)
-        ax1.set_ylabel('Factor Match Score', fontsize=11)
-        ax1.set_title(title, fontweight='bold')
-        ax1.grid(True, alpha=0.3)
-        ax1.legend()
-        ax1.set_ylim([0, 1.05])
-        
-        # Plot 2: Reconstruction correlation
-        if valid_recon.any():
-            ax2.plot(fms_df.loc[valid_recon, 'rank'], 
-                    fms_df.loc[valid_recon, 'reconstruction_correlation'], 
-                    'o-', linewidth=2, markersize=8, color='green')
-            ax2.axhline(y=0.8, color='orange', linestyle='--', alpha=0.5, label='80% correlation')
-            ax2.axhline(y=0.9, color='red', linestyle='--', alpha=0.5, label='90% correlation')
-        
-        ax2.set_xlabel('Rank (Number of Components)', fontsize=11)
-        ax2.set_ylabel('Reconstruction Correlation', fontsize=11)
-        ax2.set_title('Tensor Reconstruction Quality vs Rank\n(Correlation between original and reconstructed)', fontweight='bold')
-        ax2.grid(True, alpha=0.3)
-        ax2.legend()
-        ax2.set_ylim([-1.05, 1.05])
-        
-        plt.tight_layout()
-        fms_plot_file = os.path.join(comparison_dir, 'factor_match_scores_plot.png')
-        plt.savefig(fms_plot_file, dpi=150, bbox_inches='tight')
-        print(f"Saved FMS plot to: {fms_plot_file}")
-        plt.close()
-        
-        # ===========================================
-        # FMS-BASED RANK RECOMMENDATION
-        # ===========================================
-        print(f"\n{'='*60}")
-        print("FMS-BASED RANK RECOMMENDATION")
-        print(f"{'='*60}")
-        
-        # Find best ranks based on different criteria
-        valid_df = fms_df[fms_df['reconstruction_success']]
-        
-        if len(valid_df) > 0:
-            # Check for synthetic FMS results (RECOMMENDED metric)
-            synthetic_valid = fms_df[fms_df['synthetic_success']]
-            
-            if len(synthetic_valid) > 0:
-                # Synthetic FMS is available - use it as PRIMARY recommendation
-                best_synthetic_idx = synthetic_valid['fms_synthetic'].idxmax()
-                best_synthetic_rank = synthetic_valid.iloc[best_synthetic_idx]['rank']
-                best_synthetic_score = synthetic_valid.iloc[best_synthetic_idx]['fms_synthetic']
-                
-                print(f"⭐ RECOMMENDED: Rank {int(best_synthetic_rank)} (Synthetic FMS: {best_synthetic_score:.4f})")
-                print(f"   ↳ Based on factor recovery robustness with noise")
-                
-                # Show top 3 ranks by synthetic FMS
-                top_synthetic = synthetic_valid.nlargest(3, 'fms_synthetic')[['rank', 'fms_synthetic']]
-                print(f"\nTop 3 ranks by Synthetic FMS:")
-                for idx, row in top_synthetic.iterrows():
-                    print(f"  Rank {int(row['rank'])}: {row['fms_synthetic']:.4f}")
-            else:
-                print(f"⚠️  Synthetic FMS not calculated (set USE_SYNTHETIC_VALIDATION=True)")
-                print(f"   ↳ Using Reconstruction FMS for recommendation (less rigorous)")
-                
-                # Fall back to reconstruction FMS
-                best_recon_idx = valid_df['fms_reconstruction'].idxmax()
-                best_recon_rank = valid_df.iloc[best_recon_idx]['rank']
-                best_recon_score = valid_df.iloc[best_recon_idx]['fms_reconstruction']
-                
-                print(f"\n📊 Rank {int(best_recon_rank)} (Reconstruction FMS: {best_recon_score:.4f})")
-                print(f"   ↳ Based on reconstruction correlation (fast approximation)")
-            
-            # Additional metrics for context
-            print(f"\n--- Additional Metrics ---")
-            
-            # Best reconstruction correlation
-            best_corr_idx = valid_df['reconstruction_correlation'].idxmax()
-            best_corr_rank = valid_df.iloc[best_corr_idx]['rank']
-            best_corr_score = valid_df.iloc[best_corr_idx]['reconstruction_correlation']
-            print(f"Best Reconstruction Correlation: Rank {int(best_corr_rank)} ({best_corr_score:.4f})")
-            
-            # Check for TLViz results (informational only)
-            tlviz_valid = fms_df[fms_df['tlviz_success']]
-            if len(tlviz_valid) > 0:
-                best_tlviz_idx = tlviz_valid['fms_tlviz'].idxmax()
-                best_tlviz_rank = tlviz_valid.iloc[best_tlviz_idx]['rank']
-                best_tlviz_score = tlviz_valid.iloc[best_tlviz_idx]['fms_tlviz']
-                print(f"TLViz FMS (informational): Rank {int(best_tlviz_rank)} ({best_tlviz_score:.4f})")
-            
-            # Provide interpretation
-            print(f"\n--- FMS Metrics Explained ---")
-            if len(synthetic_valid) > 0:
-                print(f"⭐ Synthetic FMS (RECOMMENDED):")
-                print(f"   • Tests factor recovery from noisy data")
-                print(f"   • Most rigorous validation of decomposition quality")
-                print(f"   • Best metric for determining optimal rank")
-                print(f"   • Values > 0.9 = excellent, > 0.7 = good, > 0.5 = fair")
-            print(f"📊 Reconstruction FMS (fast approximation):")
-            print(f"   • Based on correlation with original tensor")
-            print(f"   • Useful for quick comparison")
-            print(f"   • Less rigorous than synthetic validation")
-            print(f"⚠️  TLViz FMS (self-comparison only):")
-            print(f"   • Not useful for rank selection (always ~1.0)")
-            print(f"   • Only validates internal consistency")
-            
-        else:
-            print("No valid FMS results available for recommendation.")
-    
+    if len(successful_ranks) == 0:
+        print("\nERROR: No successful ranks found!")
+        print("Please run the barnacle decomposition chunk first.")
     else:
-        print("No FMS results to analyze.")
+        print("\n" + "="*60)
+        print("⭐ SYNTHETIC FMS EVALUATION ACROSS RANDOM STATES")
+        print("="*60)
+        print(f"Random states to test: {RANDOM_STATES_TO_TEST}")
+        print(f"Ranks to evaluate: {successful_ranks}")
+        print(f"Total evaluations: {len(RANDOM_STATES_TO_TEST)} states × {len(successful_ranks)} ranks = {len(RANDOM_STATES_TO_TEST) * len(successful_ranks)}")
+        print(f"\nNote: If decompositions haven't been run for all random states,")
+        print(f"      you'll need to run the decomposition chunk for each random state first.")
+        print("="*60 + "\n")
+        
+        # Evaluate FMS for each random state and rank combination
+        all_fms_results = []
+        
+        for random_state in RANDOM_STATES_TO_TEST:
+            print(f"\n{'='*60}")
+            print(f"EVALUATING RANDOM STATE: {random_state}")
+            print(f"{'='*60}")
+            
+            # Check if this random_state has been run
+            state_dir = os.path.join(output_dir, f'random_state_{random_state}')
+            if not os.path.exists(state_dir):
+                print(f"\nWARNING: Directory not found: {state_dir}")
+                print(f"Decompositions for random_state={random_state} may not have been run yet.")
+                print(f"Skipping this random state...")
+                continue
+            
+            for rank in sorted(successful_ranks):
+                fms_result = evaluate_fms_for_rank_and_state(rank, random_state, output_dir, tensor_3d)
+                if fms_result is not None:
+                    all_fms_results.append(fms_result)
+        
+        # ===========================================
+        # CREATE FMS COMPARISON ACROSS RANDOM STATES
+        # ===========================================
+        if len(all_fms_results) > 0:
+            print(f"\n{'='*60}")
+            print("FMS RESULTS SUMMARY - ALL RANDOM STATES")
+            print(f"{'='*60}")
+            
+            # Create comparison dataframe
+            fms_df = pd.DataFrame(all_fms_results)
+            
+            # Save comprehensive FMS results
+            comparison_dir = os.path.join(output_dir, 'rank_comparison')
+            os.makedirs(comparison_dir, exist_ok=True)
+            
+            fms_output_file = os.path.join(comparison_dir, 'synthetic_fms_all_random_states.csv')
+            fms_df.to_csv(fms_output_file, index=False)
+            print(f"Saved FMS comparison table to: {fms_output_file}")
+            
+            # Display results
+            print("\n" + "="*60)
+            print("SYNTHETIC FMS RESULTS ACROSS RANDOM STATES")
+            print("="*60)
+            
+            # Pivot table for easier viewing
+            pivot_table = fms_df.pivot(index='rank', columns='random_state', values='fms_synthetic')
+            print("\nSynthetic FMS by Rank and Random State:")
+            print(pivot_table.to_string(float_format='%.4f'))
+            
+            # Calculate statistics across random states for each rank
+            print("\n" + "="*60)
+            print("STATISTICS ACROSS RANDOM STATES (by Rank)")
+            print("="*60)
+            
+            stats_df = fms_df.groupby('rank')['fms_synthetic'].agg([
+                ('Mean', 'mean'),
+                ('Std', 'std'),
+                ('Min', 'min'),
+                ('Max', 'max'),
+                ('CV', lambda x: x.std() / x.mean() if x.mean() > 0 else np.nan)
+            ])
+            print(stats_df.to_string(float_format='%.4f'))
+            
+            # Find optimal rank for each random state
+            print("\n" + "="*60)
+            print("OPTIMAL RANK BY RANDOM STATE")
+            print("="*60)
+            
+            optimal_ranks = []
+            for random_state in RANDOM_STATES_TO_TEST:
+                state_data = fms_df[fms_df['random_state'] == random_state]
+                if len(state_data) > 0 and state_data['synthetic_success'].any():
+                    valid_data = state_data[state_data['synthetic_success']]
+                    if len(valid_data) > 0:
+                        best_idx = valid_data['fms_synthetic'].idxmax()
+                        best_rank = valid_data.loc[best_idx, 'rank']
+                        best_score = valid_data.loc[best_idx, 'fms_synthetic']
+                        optimal_ranks.append({
+                            'random_state': random_state,
+                            'optimal_rank': int(best_rank),
+                            'fms_score': best_score
+                        })
+                        print(f"Random State {random_state}: Rank {int(best_rank)} (FMS = {best_score:.4f})")
+            
+            # Check consistency of optimal rank selection
+            if len(optimal_ranks) > 0:
+                optimal_ranks_df = pd.DataFrame(optimal_ranks)
+                unique_optimal_ranks = optimal_ranks_df['optimal_rank'].unique()
+                
+                print("\n" + "="*60)
+                print("CONSISTENCY ANALYSIS")
+                print("="*60)
+                print(f"Number of random states evaluated: {len(optimal_ranks)}")
+                print(f"Unique optimal ranks identified: {sorted(unique_optimal_ranks)}")
+                
+                if len(unique_optimal_ranks) == 1:
+                    print(f"\n✓ CONSISTENT: All random states identify rank {unique_optimal_ranks[0]} as optimal")
+                    print(f"  → This suggests the FMS elbow is REAL and stable")
+                else:
+                    print(f"\n⚠ INCONSISTENT: Different random states identify different optimal ranks")
+                    print(f"  → This suggests the FMS elbow may be sensitive to initialization")
+                    print(f"\nFrequency of each optimal rank:")
+                    rank_counts = optimal_ranks_df['optimal_rank'].value_counts().sort_index()
+                    for rank, count in rank_counts.items():
+                        pct = count / len(optimal_ranks) * 100
+                        print(f"  Rank {rank}: {count}/{len(optimal_ranks)} ({pct:.1f}%)")
+                    
+                    # Most common optimal rank
+                    most_common_rank = rank_counts.idxmax()
+                    print(f"\n→ Most frequently optimal rank: {most_common_rank}")
+            
+            print(f"\n{'='*60}")
+        
+        else:
+            print("\nNo FMS results to analyze.")
+            print("Please ensure decompositions have been run for all random states.")
 
 else:
     print("Skipping FMS evaluation - tensor not available.")
@@ -2322,14 +2070,12 @@ print(f"\n{'='*60}")
 print("FACTOR MATCH SCORE EVALUATION COMPLETE")
 print(f"{'='*60}")
 if 'all_fms_results' in locals() and len(all_fms_results) > 0:
-    working_recon = sum(1 for r in all_fms_results if r['reconstruction_success'])
-    working_tlviz = sum(1 for r in all_fms_results if r['tlviz_success'])
-    print(f"Summary: {working_recon}/{len(all_fms_results)} ranks have valid Reconstruction FMS")
-    print(f"         {working_tlviz}/{len(all_fms_results)} ranks have valid TLViz FMS")
-    if working_recon > 0:
-        print(f"→ Use Reconstruction FMS and correlation for rank selection")
-    else:
-        print(f"→ No valid FMS results - check tensor and factor matrices")
+    print(f"Summary: {len(all_fms_results)} (random_state, rank) combinations evaluated")
+    successful_evals = sum(1 for r in all_fms_results if r['synthetic_success'])
+    print(f"         {successful_evals}/{len(all_fms_results)} evaluations successful")
+else:
+    print("No evaluations performed")
+```
 ```
 
 
@@ -2339,30 +2085,27 @@ if 'all_fms_results' in locals() and len(all_fms_results) > 0:
 
 ## Plot rank comparisons
 
-### Plot Synthetic FMS Elbow (Standalone)
+### Plot Synthetic FMS Across Random States
 
-This chunk can be run independently to generate the synthetic FMS elbow plot without re-running the expensive Factor Match Score evaluation. It loads the saved FMS results from the CSV file.
+This chunk creates visualizations comparing synthetic FMS across different random states to evaluate the stability of optimal rank selection.
 
-```{python plot-synthetic-fms-elbow-standalone, eval=TRUE}
+```{python plot-synthetic-fms-random-states, eval=TRUE}
 # ===========================================
-# STANDALONE SYNTHETIC FMS ELBOW PLOT
+# PLOT SYNTHETIC FMS ACROSS RANDOM STATES
 # ===========================================
-# This chunk loads saved FMS results and creates the elbow plot
-# Can be run independently without re-running FMS evaluation
-# ===========================================
-
 import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 # Get output directory
 output_dir = r.output_dir if 'r' in dir() else '../output/13.00-multiomics-barnacle'
 comparison_dir = os.path.join(output_dir, 'rank_comparison')
-fms_csv_file = os.path.join(comparison_dir, 'factor_match_scores.csv')
+fms_csv_file = os.path.join(comparison_dir, 'synthetic_fms_all_random_states.csv')
 
 print(f"\n{'='*60}")
-print("SYNTHETIC FMS ELBOW PLOT (STANDALONE)")
+print("PLOTTING SYNTHETIC FMS ACROSS RANDOM STATES")
 print(f"{'='*60}")
 print(f"Loading FMS results from: {fms_csv_file}")
 
@@ -2371,147 +2114,215 @@ if not os.path.exists(fms_csv_file):
     print(f"\nERROR: FMS results file not found!")
     print(f"Expected location: {fms_csv_file}")
     print(f"\nPlease run the Factor Match Score evaluation chunk first.")
-    print(f"It should create: {comparison_dir}/factor_match_scores.csv")
 else:
     # Load FMS results
     fms_df = pd.read_csv(fms_csv_file)
     
-    print(f"Loaded FMS data for {len(fms_df)} ranks")
+    print(f"Loaded FMS data for {len(fms_df)} (rank, random_state) combinations")
     print(f"Columns available: {list(fms_df.columns)}")
     
     # Check if synthetic FMS data is available
     if 'fms_synthetic' not in fms_df.columns:
         print(f"\nERROR: No 'fms_synthetic' column found in FMS results!")
         print(f"Synthetic validation was not performed.")
-        print(f"\nTo generate synthetic FMS data:")
-        print(f"1. Set USE_SYNTHETIC_VALIDATION = True in the FMS evaluation chunk")
-        print(f"2. Re-run the Factor Match Score evaluation chunk")
     else:
-        # Check if any ranks have valid synthetic FMS
+        # Check if any have valid synthetic FMS
         valid_synthetic = fms_df['synthetic_success'].fillna(False)
         
         if not valid_synthetic.any():
             print(f"\nERROR: No valid synthetic FMS values found!")
-            print(f"All synthetic validation attempts failed or were skipped.")
-            print(f"\nTo generate synthetic FMS data:")
-            print(f"1. Set USE_SYNTHETIC_VALIDATION = True in the FMS evaluation chunk")
-            print(f"2. Re-run the Factor Match Score evaluation chunk")
         else:
-            print(f"Found {valid_synthetic.sum()} ranks with valid synthetic FMS")
+            print(f"Found {valid_synthetic.sum()} valid FMS values")
+            
+            # Filter to valid data
+            plot_data = fms_df[valid_synthetic].copy()
             
             # ===========================================
-            # CREATE SYNTHETIC FMS ELBOW PLOT
+            # FIGURE 1: LINE PLOT - FMS CURVES BY RANDOM STATE
             # ===========================================
+            fig, ax = plt.subplots(1, 1, figsize=(12, 7))
             
-            fig, ax = plt.subplots(1, 1, figsize=(10, 7))
+            # Color palette for different random states
+            random_states = sorted(plot_data['random_state'].unique())
+            colors = plt.cm.Set2(np.linspace(0, 1, len(random_states)))
             
-            # Get data for plotting
-            valid_tlviz = fms_df['tlviz_success'].fillna(False)
-            valid_recon = fms_df['reconstruction_success'].fillna(False)
+            # Plot FMS curve for each random state
+            optimal_ranks = {}
+            for i, rs in enumerate(random_states):
+                rs_data = plot_data[plot_data['random_state'] == rs].sort_values('rank')
+                ax.plot(rs_data['rank'], rs_data['fms_synthetic'], 
+                       'o-', linewidth=2.5, markersize=8, 
+                       label=f'Random State {rs}', 
+                       color=colors[i], alpha=0.8)
+                
+                # Mark optimal rank for this random state
+                max_idx = rs_data['fms_synthetic'].idxmax()
+                optimal_rank = rs_data.loc[max_idx, 'rank']
+                optimal_fms = rs_data.loc[max_idx, 'fms_synthetic']
+                optimal_ranks[rs] = int(optimal_rank)
+                
+                ax.plot(optimal_rank, optimal_fms, '*', 
+                       markersize=15, color=colors[i], 
+                       markeredgecolor='black', markeredgewidth=1.5, zorder=10)
             
-            # Synthetic FMS (RECOMMENDED - should show elbow)
-            synthetic_data = fms_df.loc[valid_synthetic].sort_values('rank')
-            ax.plot(synthetic_data['rank'], synthetic_data['fms_synthetic'], 
-                    'o-', linewidth=3, markersize=10, label='⭐ Synthetic Validation FMS (RECOMMENDED)', 
-                    color='#2ecc71', zorder=3)
-            
-            # Mark the peak (optimal rank)
-            max_synthetic_idx = synthetic_data['fms_synthetic'].idxmax()
-            optimal_rank = synthetic_data.loc[max_synthetic_idx, 'rank']
-            optimal_score = synthetic_data.loc[max_synthetic_idx, 'fms_synthetic']
-            ax.plot(optimal_rank, optimal_score, 'r*', markersize=20, 
-                    label=f'★ Optimal: Rank {int(optimal_rank)} (FMS={optimal_score:.4f})',
-                    zorder=4)
-            
-            # Reconstruction FMS (fast approximation - typically increases monotonically)
-            if valid_recon.any():
-                recon_data = fms_df.loc[valid_recon].sort_values('rank')
-                ax.plot(recon_data['rank'], recon_data['fms_reconstruction'], 
-                        's--', linewidth=2, markersize=8, label='📊 Reconstruction FMS (fast)', 
-                        color='#3498db', alpha=0.7, zorder=2)
-            
-            # TLViz FMS (if available - self-comparison, typically near 1.0)
-            if valid_tlviz.any():
-                tlviz_data = fms_df.loc[valid_tlviz].sort_values('rank')
-                ax.plot(tlviz_data['rank'], tlviz_data['fms_tlviz'], 
-                        '^:', linewidth=1.5, markersize=6, label='⚠️  TLViz FMS (sanity check only)', 
-                        color='#95a5a6', alpha=0.5, zorder=1)
-            
-            ax.set_xlabel('Rank (Number of Components)', fontsize=12, fontweight='bold')
-            ax.set_ylabel('Factor Match Score', fontsize=12, fontweight='bold')
-            ax.set_title('Factor Match Score Comparison: Finding Optimal Rank\n' +
-                         'Synthetic FMS (RECOMMENDED): Peaks at optimal rank, then declines with overfitting',
-                         fontsize=13, fontweight='bold')
+            # Formatting
+            ax.set_xlabel('Rank (Number of Components)', fontsize=13, fontweight='bold')
+            ax.set_ylabel('Synthetic FMS', fontsize=13, fontweight='bold')
+            ax.set_title('Synthetic Factor Match Score Across Random Initializations\n' +
+                        'Does the FMS elbow consistently identify the same optimal rank?',
+                        fontsize=14, fontweight='bold')
             ax.grid(True, alpha=0.3, linestyle='--')
-            ax.legend(loc='best', fontsize=10)
+            ax.legend(loc='best', fontsize=10, framealpha=0.9)
             ax.set_ylim([0, 1.05])
             
             # Add quality threshold lines
-            ax.axhline(y=0.9, color='green', linestyle='--', alpha=0.3, linewidth=1)
-            ax.text(ax.get_xlim()[1]*0.95, 0.91, 'Excellent (>0.9)', 
-                    ha='right', va='bottom', fontsize=9, color='green', alpha=0.7)
-            ax.axhline(y=0.7, color='orange', linestyle='--', alpha=0.3, linewidth=1)
-            ax.text(ax.get_xlim()[1]*0.95, 0.71, 'Good (>0.7)', 
-                    ha='right', va='bottom', fontsize=9, color='orange', alpha=0.7)
-            ax.axhline(y=0.5, color='red', linestyle='--', alpha=0.3, linewidth=1)
-            ax.text(ax.get_xlim()[1]*0.95, 0.51, 'Fair (>0.5)', 
-                    ha='right', va='bottom', fontsize=9, color='red', alpha=0.7)
+            ax.axhline(y=0.9, color='green', linestyle=':', alpha=0.3, linewidth=1.5)
+            ax.text(ax.get_xlim()[1]*0.98, 0.91, 'Excellent', 
+                   ha='right', va='bottom', fontsize=9, color='green', alpha=0.7, 
+                   bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.7))
+            ax.axhline(y=0.7, color='orange', linestyle=':', alpha=0.3, linewidth=1.5)
+            ax.text(ax.get_xlim()[1]*0.98, 0.71, 'Good', 
+                   ha='right', va='bottom', fontsize=9, color='orange', alpha=0.7,
+                   bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.7))
             
             plt.tight_layout()
-            synthetic_plot_file = os.path.join(comparison_dir, 'synthetic_fms_elbow_plot.png')
-            plt.savefig(synthetic_plot_file, dpi=150, bbox_inches='tight')
-            print(f"\n✓ Saved Synthetic FMS elbow plot to: {synthetic_plot_file}")
+            plot_file = os.path.join(comparison_dir, 'synthetic_fms_by_random_state.png')
+            plt.savefig(plot_file, dpi=300, bbox_inches='tight')
+            print(f"\n✓ Saved FMS comparison plot to: {plot_file}")
+            plt.show()
             plt.close()
             
-            # Print summary
+            # ===========================================
+            # FIGURE 2: HEATMAP - FMS BY RANK AND RANDOM STATE
+            # ===========================================
+            fig, ax = plt.subplots(1, 1, figsize=(12, 6))
+            
+            # Pivot data for heatmap
+            pivot_data = plot_data.pivot(index='random_state', columns='rank', values='fms_synthetic')
+            
+            # Create heatmap
+            sns.heatmap(pivot_data, annot=True, fmt='.3f', cmap='RdYlGn', 
+                       center=0.7, vmin=0, vmax=1.0,
+                       cbar_kws={'label': 'Synthetic FMS'},
+                       linewidths=0.5, linecolor='gray',
+                       ax=ax)
+            
+            ax.set_xlabel('Rank (Number of Components)', fontsize=12, fontweight='bold')
+            ax.set_ylabel('Random State', fontsize=12, fontweight='bold')
+            ax.set_title('Synthetic FMS Heatmap: Rank vs Random State\n' +
+                        'Darker green = better factor recovery',
+                        fontsize=13, fontweight='bold')
+            
+            # Mark optimal ranks with stars
+            for rs_idx, rs in enumerate(pivot_data.index):
+                if rs in optimal_ranks:
+                    opt_rank = optimal_ranks[rs]
+                    rank_idx = list(pivot_data.columns).index(opt_rank)
+                    ax.text(rank_idx + 0.5, rs_idx + 0.5, '★',
+                           ha='center', va='center', fontsize=20,
+                           color='darkblue', weight='bold')
+            
+            plt.tight_layout()
+            heatmap_file = os.path.join(comparison_dir, 'synthetic_fms_heatmap.png')
+            plt.savefig(heatmap_file, dpi=300, bbox_inches='tight')
+            print(f"✓ Saved FMS heatmap to: {heatmap_file}")
+            plt.show()
+            plt.close()
+            
+            # ===========================================
+            # FIGURE 3: BAR PLOT - OPTIMAL RANK FREQUENCY
+            # ===========================================
+            fig, ax = plt.subplots(1, 1, figsize=(10, 6))
+            
+            # Count optimal ranks
+            optimal_rank_values = list(optimal_ranks.values())
+            unique_optimal_ranks = sorted(set(optimal_rank_values))
+            rank_counts = {rank: optimal_rank_values.count(rank) for rank in unique_optimal_ranks}
+            
+            # Create bar plot
+            bars = ax.bar(rank_counts.keys(), rank_counts.values(), 
+                         color='steelblue', edgecolor='black', linewidth=1.5, alpha=0.8)
+            
+            # Add count labels on bars
+            for bar in bars:
+                height = bar.get_height()
+                ax.text(bar.get_x() + bar.get_width()/2., height,
+                       f'{int(height)}/{len(random_states)}',
+                       ha='center', va='bottom', fontsize=11, fontweight='bold')
+            
+            ax.set_xlabel('Optimal Rank', fontsize=12, fontweight='bold')
+            ax.set_ylabel('Frequency (Number of Random States)', fontsize=12, fontweight='bold')
+            ax.set_title('Optimal Rank Selection Frequency Across Random States\n' +
+                        f'Total Random States: {len(random_states)}',
+                        fontsize=13, fontweight='bold')
+            ax.grid(True, alpha=0.3, axis='y')
+            ax.set_ylim([0, len(random_states) + 0.5])
+            ax.set_xticks(unique_optimal_ranks)
+            
+            # Add consistency indicator
+            if len(unique_optimal_ranks) == 1:
+                consistency_text = f"✓ CONSISTENT: All states select rank {unique_optimal_ranks[0]}"
+                text_color = 'green'
+            else:
+                most_common = max(rank_counts, key=rank_counts.get)
+                consistency_text = f"⚠ VARIABLE: Most common is rank {most_common} ({rank_counts[most_common]}/{len(random_states)} states)"
+                text_color = 'orange'
+            
+            ax.text(0.5, 0.95, consistency_text,
+                   transform=ax.transAxes, ha='center', va='top',
+                   fontsize=12, fontweight='bold', color=text_color,
+                   bbox=dict(boxstyle='round,pad=0.5', facecolor='white', 
+                            edgecolor=text_color, linewidth=2, alpha=0.9))
+            
+            plt.tight_layout()
+            bar_plot_file = os.path.join(comparison_dir, 'optimal_rank_frequency.png')
+            plt.savefig(bar_plot_file, dpi=300, bbox_inches='tight')
+            print(f"✓ Saved optimal rank frequency plot to: {bar_plot_file}")
+            plt.show()
+            plt.close()
+            
+            # ===========================================
+            # SUMMARY STATISTICS
+            # ===========================================
             print(f"\n{'='*60}")
-            print("SYNTHETIC FMS ELBOW ANALYSIS")
+            print("SUMMARY: OPTIMAL RANK STABILITY")
             print(f"{'='*60}")
-            print(f"Optimal Rank: {int(optimal_rank)} (FMS = {optimal_score:.4f})")
             
-            # Show all ranks with their scores
-            print(f"\nComplete Synthetic FMS Results:")
-            print(f"{'Rank':<8} {'Synthetic FMS':<15} {'Quality':<12} {'Status'}")
-            print(f"{'-'*8} {'-'*15} {'-'*12} {'-'*20}")
-            for idx, row in synthetic_data.iterrows():
-                rank_val = int(row['rank'])
-                fms_val = row['fms_synthetic']
+            print(f"\nOptimal Ranks by Random State:")
+            for rs in sorted(optimal_ranks.keys()):
+                print(f"  Random State {rs}: Rank {optimal_ranks[rs]}")
+            
+            print(f"\nOptimal Rank Frequency:")
+            for rank in sorted(rank_counts.keys()):
+                count = rank_counts[rank]
+                pct = count / len(random_states) * 100
+                print(f"  Rank {rank}: {count}/{len(random_states)} ({pct:.1f}%)")
+            
+            if len(unique_optimal_ranks) == 1:
+                print(f"\n✓ CONCLUSION: Rank selection is STABLE")
+                print(f"  → All random states consistently identify rank {unique_optimal_ranks[0]} as optimal")
+                print(f"  → The FMS elbow is REAL and not dependent on random initialization")
+                print(f"  → High confidence in rank {unique_optimal_ranks[0]} as the optimal choice")
+            else:
+                most_common_rank = max(rank_counts, key=rank_counts.get)
+                most_common_count = rank_counts[most_common_rank]
+                most_common_pct = most_common_count / len(random_states) * 100
                 
-                if fms_val > 0.9:
-                    quality = "Excellent"
-                elif fms_val > 0.7:
-                    quality = "Good"
-                elif fms_val > 0.5:
-                    quality = "Fair"
+                print(f"\n⚠ CONCLUSION: Rank selection shows VARIABILITY")
+                print(f"  → Different random states identify different optimal ranks")
+                print(f"  → Most common optimal rank: {most_common_rank} ({most_common_pct:.1f}% of states)")
+                print(f"  → The FMS elbow may be influenced by random initialization")
+                
+                if most_common_pct >= 60:
+                    print(f"  → Moderate confidence: Rank {most_common_rank} is optimal in majority of cases")
+                    print(f"  → Consider examining decompositions for ranks: {sorted(unique_optimal_ranks)}")
                 else:
-                    quality = "Poor"
-                
-                status = "★ OPTIMAL" if rank_val == optimal_rank else ""
-                print(f"{rank_val:<8} {fms_val:<15.4f} {quality:<12} {status}")
-            
-            print(f"\nInterpretation:")
-            print(f"  • Synthetic FMS tests factor recovery from noisy data")
-            print(f"  • Peak at rank {int(optimal_rank)} indicates best balance:")
-            print(f"    - Sufficient complexity to capture patterns")
-            print(f"    - Robust enough to avoid overfitting noise")
-            print(f"  • Higher ranks show declining FMS (overfitting)")
-            print(f"  • Lower ranks show lower FMS (underfitting)")
-            
-            # Additional statistics
-            if len(synthetic_data) > 1:
-                decline_after_optimal = after_optimal['fms_synthetic'].mean() if len(after_optimal) > 0 else np.nan
-                improvement_to_optimal = optimal_score - before_optimal['fms_synthetic'].max() if len(before_optimal) > 0 else np.nan
-                
-                print(f"\nStatistics:")
-                if not np.isnan(improvement_to_optimal):
-                    print(f"  • Improvement to optimal: +{improvement_to_optimal:.4f}")
-                if not np.isnan(decline_after_optimal):
-                    print(f"  • Average FMS after optimal: {decline_after_optimal:.4f}")
-                    print(f"  • Decline from peak: -{(optimal_score - decline_after_optimal):.4f}")
+                    print(f"  → Low confidence: No clear consensus on optimal rank")
+                    print(f"  → Recommend examining multiple ranks: {sorted(unique_optimal_ranks)}")
             
             print(f"\n{'='*60}")
 
-print(f"\nSYNTHETIC FMS ELBOW PLOT GENERATION COMPLETE")
+print(f"\nSYNTHETIC FMS PLOTTING COMPLETE")
 print(f"{'='*60}")
 ```
 
