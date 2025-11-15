@@ -63,3 +63,71 @@ for f in ../data/10xbedgraph/*_10x.sorted.bedgraph; do
         > ../output/40-Apul-Gene-Methylation/gene_methylation_${sample}.tsv
 done
 ```
+
+
+```{bash}
+head ../output/40-Apul-Gene-Methylation/gene_methylation_ACR-229-TP*.tsv
+```
+Lets filter so all column 6 (count) is greater than 10 - meaning at least 10 CpG sites were covered in that gene.
+
+```{bash}
+for f in ../output/40-Apul-Gene-Methylation/gene_methylation*.tsv; do
+    out="../output/40-Apul-Gene-Methylation/$(basename "${f%.tsv}_gt10.tsv")"
+    awk '$6 > 10' "$f" > "$out"
+done
+```
+
+
+```{bash}
+head ../output/40-Apul-Gene-Methylation/gene_methylation_ACR-229-TP*_gt10.tsv
+```
+```{r}
+library(tidyverse)
+
+# Directory containing all filtered tsv files
+indir <- "../output/40-Apul-Gene-Methylation"
+
+# List all filtered files
+files <- list.files(indir, pattern = "gene_methylation.*_gt10.tsv", full.names = TRUE)
+
+# Read and combine
+df_list <- lapply(files, function(f) {
+  sample_name <- basename(f) |> sub("gene_methylation_", "", x = _) |> sub("_gt10.tsv", "", x = _)
+
+  read_tsv(f, col_names = FALSE) |>
+    select(X4, X6) |>          # X4 = gene_id, X6 = methylation/count
+    rename(gene_id = X4, !!sample_name := X6)
+})
+
+# Full join all files by gene_id
+merged <- reduce(df_list, full_join, by = "gene_id")
+
+# Replace NA with 0 (optional)
+merged[is.na(merged)] <- 0
+
+# Save
+write_tsv(merged, "../output/40-Apul-Gene-Methylation/Apul-gene-methylation.tsv")
+```
+
+```{bash}
+head ../output/40-Apul-Gene-Methylation/Apul-gene-methylation.tsv
+```
+
+
+```{r}
+library(pheatmap)
+library(tidyverse)
+
+df <- read_tsv("../output/40-Apul-Gene-Methylation/Apul-gene-methylation.tsv")
+
+mat <- df %>%
+  column_to_rownames("gene_id") %>%
+  as.matrix()
+
+pheatmap(mat,
+         scale = "row",            # makes genes comparable
+         clustering_method = "ward.D2",
+         show_rownames = FALSE,
+         main = "Gene-level Methylation Patterns")
+```
+
