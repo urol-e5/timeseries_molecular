@@ -1,5 +1,5 @@
 ---
-title: "40-Apul-Gene-Methylation"
+title: "15-Peve-Gene-Methylation"
 output: html_document
 ---
 
@@ -8,11 +8,13 @@ output: html_document
 ## gene file
 
 ```{bash}
-head ../data/Apulchra-genome.gff
+head ../data/Porites_evermanni_validated.gff3
 
 ```
+
+
 ```{bash}
-cut -f3 ../data/Apulchra-genome.gff | \
+cut -f3 ../data/Porites_evermanni_validated.gff3 | \
 grep -v "^#" | \
 sort | uniq -c | sort -nr
 ```
@@ -27,11 +29,11 @@ gawk '$3=="gene" {
         }
     }
     print $1 "\t" $4-1 "\t" $5 "\t" gene_id;
-}' ../data/Apulchra-genome.gff > ../data/Apluchra-genes.bed
+}' ../data/Porites_evermanni_validated.gff3 > ../data/Porites_evermanni-genes.bed
 ```
 
 ```{bash}
-head ../data/Apluchra-genes.bed
+head ../data/Porites_evermanni-genes.bed
 ```
 
 
