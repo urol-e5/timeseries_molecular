@@ -265,3 +265,108 @@ write_csv(annotated, "../output/31-biomin-pathway/OG-repseq_Stylo-biomin.csv")
 annotated
 ```
 
+# matches in barnacle 
+
+```{r}
+library(tidyverse)
+
+# 1. Load the Stylo-biomin group_id list
+stylo_file <- "../output/31-biomin-pathway/OG-repseq_Stylo-biomin.csv"
+
+stylo_groups <- read_csv(stylo_file) %>%
+  pull(group_id) %>%
+  unique()
+
+# 2. Get all *_top100.csv files
+path_top100 <- "../output/22-Visualizing-Rank-outs"
+
+top100_files <- list.files(
+  path_top100,
+  pattern = "*_top100.csv",
+  full.names = TRUE
+)
+
+# 3. For each file, find matching group IDs in column 1
+results <- map_df(top100_files, function(f) {
+
+  df <- read_csv(f, col_names = FALSE)
+
+  # assume the first column has the group_ids
+  col1_ids <- df[[1]] %>% unique()
+
+  matches <- intersect(stylo_groups, col1_ids)
+
+  tibble(
+    file = basename(f),
+    matched_group_id = matches
+  )
+})
+
+# Show results
+results
+
+# 4. Write out summary file
+write_csv(
+  results,
+  "../output/31-biomin-pathway/Stylo-biomin_matches_in_top100.csv"
+)
+```
+
+```{r}
+library(tidyverse)
+
+# Read the file: it has two columns (file, group_id)
+res <- read_csv("../output/31-biomin-pathway/Stylo-biomin_matches_in_top100.csv",
+                col_names = c("file", "group_id"))
+
+# Count occurrences of each file (column 1)
+file_counts <- res %>%
+  count(file, name = "n_occurrences") %>%
+  arrange(desc(n_occurrences))
+
+file_counts
+```
+]
+# WGCNA module enrichment
+
+~/GitHub/timeseries_molecular/M-multi-species/output/18-ortholog-wgcna/gene_module_assignments.csv
+
+
+
+```{r}
+library(tidyverse)
+
+# 1. Load biomin group IDs
+biomin_groups <- read_csv("../output/31-biomin-pathway/OG-repseq_Stylo-biomin.csv") %>%
+  pull(group_id) %>%
+  unique()
+
+n_biomin <- length(biomin_groups)  # total number of biomin groups
+
+# 2. Load module assignments (must contain group_id and module_label)
+assignments <- read_csv(
+  "~/GitHub/timeseries_molecular/M-multi-species/output/18-ortholog-wgcna/gene_module_assignments.csv"
+)
+
+# 3. Mark biomin matches
+assignments2 <- assignments %>%
+  mutate(is_biomin = group_id %in% biomin_groups)
+
+# 4. Summarize by module_label
+module_summary <- assignments2 %>%
+  group_by(module_label) %>%
+  summarise(
+    n_group_ids_in_module = n_distinct(group_id),
+    n_biomin_in_module = sum(is_biomin),
+    
+    # percent of BIOMIN groups captured by this module
+    pct_of_all_biomin = (n_biomin_in_module / n_biomin) * 100,
+    
+    # percent of module that is biomin
+    pct_of_module_that_is_biomin = (n_biomin_in_module / n_group_ids_in_module) * 100
+  ) %>%
+  arrange(desc(pct_of_all_biomin))
+
+module_summary
+```
+
