@@ -117,6 +117,20 @@ mapping <- read.csv("../output/11.3-ortholog-annotation/gene_to_ortholog_mapping
 # Join blast and ortholog dfs
 joined <- left_join(tsv_combined, mapping, by = "gene_id")  
 
+head(joined)
+str(joined)
+```
+
+```{r}
+library(readxl)
+biomin_excel <- read_excel("../data/Biomineralization_Toolkit_FScucchia.xlsx")
+
+# Join the joined df with the biomin excel annotations
+joined <- left_join(joined, biomin_excel, by = c("biomin_hit" = "accessionnumber/geneID"))
+head(joined)
+str(joined)
+
 # Write out csv
 write_csv(joined, "../output/31.1-biomin-blast/biomin-blast-orthologs.csv")
 ```
+
