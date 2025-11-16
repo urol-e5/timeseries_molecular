@@ -7,8 +7,14 @@ output: html_document
 
 # Biomineralization protein BLAST 
 
-Blast the Styplophora pistillata against the proteins of our species. This was done on Unity (URI server). `nano biomin_blast.sh`
+Upload biomin fasta sequences to Unity (URI server) and check number of sequences.
+```{bash}
+grep -c ">" Biomineralization_Toolkit_FScucchia.fasta
+```
 
+172 biomineralization proteins sequences in the fasta. 
+
+Blast the Styplophora pistillata against the proteins of our species. This was done on Unity (URI server). `nano biomin_blast.sh`
 ```{bash}
 #!/usr/bin/env bash
 #SBATCH --export=NONE
@@ -83,4 +89,34 @@ echo "Peve BLAST complete" $(date)
 
 Submitted batch job 48960546
 
+```{r}
+library(readr)
+library(dplyr)
+library(stringr)
 
+# List the TSV files
+tsv_files <- list.files("../output/31.1-biomin-blast", pattern = "\\.tsv$", full.names = TRUE)
+
+# Specify col names 
+my_colnames <- c("biomin_hit", "gene_id", "evalue", "score")
+
+# Function to read in TSVs and add species id as a column
+read_and_tag <- function(file) {
+  species_id <- str_sub(basename(file), 1, 4)
+  df <- read_tsv(file, col_names = my_colnames)
+  df$species_id <- species_id
+  return(df)
+}
+
+# Join blast results as one df
+tsv_combined <- tsv_files %>% lapply(read_and_tag) %>% bind_rows()
+
+# Read in ortholog csv 
+mapping <- read.csv("../output/11.3-ortholog-annotation/gene_to_ortholog_mapping.csv")
+
+# Join blast and ortholog dfs
+joined <- left_join(tsv_combined, mapping, by = "gene_id")  
+
+# Write out csv
+write_csv(joined, "../output/31.1-biomin-blast/biomin-blast-orthologs.csv")
+```
