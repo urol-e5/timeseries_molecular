@@ -1,0 +1,136 @@
+---
+title: "Biomin blast"
+author: "Jill Ashey"
+date: "2025-11-14"
+output: html_document
+---
+
+# Biomineralization protein BLAST 
+
+Upload biomin fasta sequences to Unity (URI server) and check number of sequences.
+```{bash}
+grep -c ">" Biomineralization_Toolkit_FScucchia.fasta
+```
+
+172 biomineralization proteins sequences in the fasta. 
+
+Blast the Styplophora pistillata against the proteins of our species. This was done on Unity (URI server). `nano biomin_blast.sh`
+```{bash}
+#!/usr/bin/env bash
+#SBATCH --export=NONE
+#SBATCH --nodes=1 --ntasks-per-node=1
+#SBATCH --partition=uri-cpu
+#SBATCH --no-requeue
+#SBATCH --mem=100GB
+#SBATCH -t 72:00:00
+#SBATCH --mail-type=BEGIN,END,FAIL #email you when job starts, stops and/or fails
+#SBATCH -o slurm-%j.out
+#SBATCH -e slurm-%j.error
+#SBATCH -D /work/pi_hputnam_uri_edu/jillashey/e5/biomin_blast
+
+module load uri/main
+module load BLAST+/2.15.0-gompi-2023a 
+
+cd /work/pi_hputnam_uri_edu/jillashey/e5/biomin_blast
+
+echo "BLAST protein seqs against biomin seqs" $(date)
+echo "Apul BLAST" $(date)
+
+makeblastdb \
+  -in Apulchra-genome.pep.faa \
+  -out Apul_prot \
+  -dbtype prot
+  
+blastp \
+  -query Biomineralization_Toolkit_FScucchia.fasta \
+  -db Apul_prot \
+  -out Apul_biomin_blast_results.tsv \
+  -outfmt "6 qseqid sseqid evalue bitscore" \
+  -evalue 1e-20 \
+  -max_target_seqs 1 \
+  -max_hsps 1
+
+echo "Apul BLAST complete" $(date)
+echo "Puta BLAST (using Pmea prot seqs)" $(date)
+
+makeblastdb \
+  -in Pocillopora_meandrina_HIv1.genes.pep.faa \
+  -out Ptua_prot \
+  -dbtype prot
+  
+blastp \
+  -query Biomineralization_Toolkit_FScucchia.fasta \
+  -db Ptua_prot \
+  -out Ptua_biomin_blast_results.tsv \
+  -outfmt "6 qseqid sseqid evalue bitscore" \
+  -evalue 1e-20 \
+  -max_target_seqs 1 \
+  -max_hsps 1
+
+echo "Ptua BLAST complete" $(date)
+echo "Peve BLAST" $(date)
+
+makeblastdb \
+  -in Porites_evermanni_v1.annot.pep.fa \
+  -out Peve_prot \
+  -dbtype prot
+  
+blastp \
+  -query Biomineralization_Toolkit_FScucchia.fasta \
+  -db Peve_prot \
+  -out Peve_biomin_blast_results.tsv \
+  -outfmt "6 qseqid sseqid evalue bitscore" \
+  -evalue 1e-20 \
+  -max_target_seqs 1 \
+  -max_hsps 1
+
+echo "Peve BLAST complete" $(date)
+```
+
+Submitted batch job 48960546
+
+```{r}
+library(readr)
+library(dplyr)
+library(stringr)
+
+# List the TSV files
+tsv_files <- list.files("../output/31.1-biomin-blast", pattern = "\\.tsv$", full.names = TRUE)
+
+# Specify col names 
+my_colnames <- c("biomin_hit", "gene_id", "evalue", "score")
+
+# Function to read in TSVs and add species id as a column
+read_and_tag <- function(file) {
+  species_id <- str_sub(basename(file), 1, 4)
+  df <- read_tsv(file, col_names = my_colnames)
+  df$species_id <- species_id
+  return(df)
+}
+
+# Join blast results as one df
+tsv_combined <- tsv_files %>% lapply(read_and_tag) %>% bind_rows()
+
+# Read in ortholog csv 
+mapping <- read.csv("../output/11.3-ortholog-annotation/gene_to_ortholog_mapping.csv")
+
+# Join blast and ortholog dfs
+joined <- left_join(tsv_combined, mapping, by = "gene_id")  
+
+head(joined)
+str(joined)
+```
+
+```{r}
+library(readxl)
+biomin_excel <- read_excel("../data/Biomineralization_Toolkit_FScucchia.xlsx")
+
+# Join the joined df with the biomin excel annotations
+joined <- left_join(joined, biomin_excel, by = c("biomin_hit" = "accessionnumber/geneID"))
+head(joined)
+str(joined)
+
+# Write out csv
+write_csv(joined, "../output/31.1-biomin-blast/biomin-blast-orthologs.csv")
+```
+
