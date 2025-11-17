@@ -149,6 +149,9 @@ joined_apul$gene_id <- sub("-.*", "", joined_apul$gene_id)
 Merge counts and biomin info 
 ```{r}
 joined_counts_apul <- left_join(joined_apul, apul_counts, by = "gene_id")
+
+# Save as csv
+write_csv(joined_counts_apul, "../output/31.1-biomin-blast/apul-biomin-blast-counts.csv")
 ```
 
 ```{r}
