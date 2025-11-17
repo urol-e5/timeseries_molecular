@@ -134,3 +134,59 @@ str(joined)
 write_csv(joined, "../output/31.1-biomin-blast/biomin-blast-orthologs.csv")
 ```
 
+Read in Apul counts
+```{r}
+apul_counts <- read.csv("../../D-Apul/output/02.20-D-Apul-RNAseq-alignment-HiSat2/apul-gene_count_matrix.csv")
+```
+
+Subset Apul and remove -TXX from gene IDs 
+```{r}
+joined_apul <- joined %>%
+  filter(species_id == "Apul")
+joined_apul$gene_id <- sub("-.*", "", joined_apul$gene_id)
+```
+
+Merge counts and biomin info 
+```{r}
+joined_counts_apul <- left_join(joined_apul, apul_counts, by = "gene_id")
+```
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(stringr)
+
+# Reshape to long format, focusing on columns with TP time points
+df_long <- joined_counts_apul %>%
+  select(gene_id, starts_with("ACR")) %>%
+  pivot_longer(
+    cols = starts_with("ACR"),
+    names_to = "sample_time",
+    values_to = "count"
+  ) %>%
+  mutate(
+    time = str_extract(sample_time, "TP[0-9]+"),
+    time_numeric = as.numeric(str_remove(time, "TP"))
+  )
+
+# Calculate mean and standard error grouped by gene_id and time
+summary_df <- df_long %>%
+  group_by(gene_id, time_numeric) %>%
+  summarise(
+    mean_count = mean(count, na.rm = TRUE),
+    se_count = sd(count, na.rm = TRUE) / sqrt(n()),
+    .groups = "drop"
+  )
+
+# Plot with mean and SE error bars, faceted by gene_id
+ggplot(summary_df, aes(x = time_numeric, y = mean_count)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_count - se_count, ymax = mean_count + se_count), width = 0.1) +
+  facet_wrap(~ gene_id, scales = "free_y") +
+  labs(x = "Time Point (TP)", y = "Mean Gene Count", title = "Gene Counts Across Time by Gene") +
+  theme_minimal()
+```
+ 
+
