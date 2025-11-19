@@ -4,7 +4,7 @@ output: html_document
 date: "2025-11-06"
 ---
 
-```{bash}
+```
 LAMBDAS_GENE="0.00 0.01 0.05 0.1 0.2 0.4 0.8"
 LAMBDA_SAMPLE=0.1
 LAMBDA_TIME=0.05
@@ -104,6 +104,8 @@ head ../output/26-rank35-optimization/lambda_gene_0.2/barnacle_factors/sample_fa
 ```{bash}
 head ../output/26-rank35-optimization/lambda_gene_0.2/barnacle_factors/time_factors.csv
 ```
+
+
 ```{r}
 # Path to your CSV file
 csv_path <- "../output/26-rank35-optimization/lambda_gene_0.2/barnacle_factors/gene_factors.csv"
@@ -178,7 +180,7 @@ cat("✅ Header updated successfully!\n")
 
 
 
-```{r}
+```{r fig.width=12, fig.height=10}
 # Load required libraries
 library(readr)
 library(pheatmap)
@@ -468,7 +470,7 @@ pheatmap(
 # User pick
 
 
-```{r}
+```{r fig.width=10}
 library(tidyverse)
 library(pheatmap)
 

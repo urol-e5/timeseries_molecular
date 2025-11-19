@@ -1,0 +1,366 @@
+---
+title: "Compare Multiway Interactions Across 3 Species"
+author: "GitHub Copilot"
+date: "2024"
+output: 
+  html_document:
+    code_folding: hide
+    toc: yes
+    toc_depth: 6
+    toc_float: yes
+editor_options: 
+  chunk_output_type: console
+---
+
+# Overview
+
+This analysis compares multi-way interaction data from three species by:
+
+1. Reading CSV files containing multi-way interactions from different species
+2. Counting occurrences of "CpG", "lncRNA", and "miRNA" in each row
+3. Generating summary statistics
+4. Creating visualizations
+
+## Data Sources
+
+- Species 1: [context_dependent_analysis_20251108_151255](https://gannet.fish.washington.edu/v1_web/owlshell/bu-github/ConTra/output/context_dependent_analysis_20251108_151255/tables/multi_way_interactions.csv)
+- Species 2: [context_dependent_analysis_20251108_144034](https://gannet.fish.washington.edu/v1_web/owlshell/bu-github/ConTra/output/context_dependent_analysis_20251108_144034/tables/multi_way_interactions.csv)
+- Species 3: [context_dependent_analysis_20251108_140602](https://gannet.fish.washington.edu/v1_web/owlshell/bu-github/ConTra/output/context_dependent_analysis_20251108_140602/tables/multi_way_interactions.csv)
+
+# Setup
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+```{r load-libraries}
+# Load required libraries
+suppressPackageStartupMessages({
+  library(dplyr)
+  library(readr)
+  library(ggplot2)
+  library(tidyr)
+  library(knitr)
+})
+```
+
+```{r create-output-dir}
+# Create output directory
+output_dir <- "M-multi-species/output/30-compare-multiway-interactions"
+dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
+```
+
+# Define URLs and Functions
+
+```{r define-urls}
+# URLs for the three CSV files
+urls <- c(
+  species_1 = "https://gannet.fish.washington.edu/v1_web/owlshell/bu-github/ConTra/output/context_dependent_analysis_20251108_151255/tables/multi_way_interactions.csv",
+  species_2 = "https://gannet.fish.washington.edu/v1_web/owlshell/bu-github/ConTra/output/context_dependent_analysis_20251108_144034/tables/multi_way_interactions.csv",
+  species_3 = "https://gannet.fish.washington.edu/v1_web/owlshell/bu-github/ConTra/output/context_dependent_analysis_20251108_140602/tables/multi_way_interactions.csv"
+)
+```
+
+```{r define-functions}
+# Function to count feature occurrences in each row
+count_features <- function(df) {
+  # Count occurrences in each row across all columns
+  df$CpG_count <- apply(df, 1, function(row) {
+    sum(grepl("cpg", tolower(as.character(row))))
+  })
+  
+  df$lncRNA_count <- apply(df, 1, function(row) {
+    sum(grepl("lncrna", tolower(as.character(row))))
+  })
+  
+  df$miRNA_count <- apply(df, 1, function(row) {
+    sum(grepl("mirna", tolower(as.character(row))))
+  })
+  
+  return(df)
+}
+```
+
+# Read and Process Data
+
+```{r read-data}
+# Read and process each file
+all_data <- list()
+summary_stats <- data.frame()
+
+for (species_name in names(urls)) {
+  url <- urls[species_name]
+  local_file <- file.path(output_dir, paste0(species_name, "_multi_way_interactions.csv"))
+  
+  cat(sprintf("\nProcessing %s...\n", species_name))
+  
+  # Try to download or read local file
+  tryCatch({
+    if (file.exists(local_file)) {
+      cat(sprintf("  Reading existing file: %s\n", local_file))
+      df <- read_csv(local_file, show_col_types = FALSE)
+    } else {
+      cat(sprintf("  Downloading from: %s\n", url))
+      df <- read_csv(url, show_col_types = FALSE)
+      write_csv(df, local_file)
+      cat(sprintf("  Saved to: %s\n", local_file))
+    }
+    
+    cat(sprintf("  Loaded %d rows with %d columns\n", nrow(df), ncol(df)))
+    
+    # Count feature occurrences
+    df <- count_features(df)
+    
+    # Save annotated data
+    annotated_file <- file.path(output_dir, paste0(species_name, "_annotated.csv"))
+    write_csv(df, annotated_file)
+    cat(sprintf("  Saved annotated data to: %s\n", annotated_file))
+    
+    all_data[[species_name]] <- df
+    
+    # Calculate summary statistics
+    stats <- data.frame(
+      species = species_name,
+      total_rows = nrow(df),
+      cpg_total = sum(df$CpG_count),
+      lncrna_total = sum(df$lncRNA_count),
+      mirna_total = sum(df$miRNA_count),
+      cpg_mean = mean(df$CpG_count),
+      lncrna_mean = mean(df$lncRNA_count),
+      mirna_mean = mean(df$miRNA_count),
+      cpg_rows_with_occurrence = sum(df$CpG_count > 0),
+      lncrna_rows_with_occurrence = sum(df$lncRNA_count > 0),
+      mirna_rows_with_occurrence = sum(df$miRNA_count > 0)
+    )
+    
+    summary_stats <- rbind(summary_stats, stats)
+    
+  }, error = function(e) {
+    cat(sprintf("  Error processing %s: %s\n\n", species_name, e$message))
+  })
+}
+```
+
+# Summary Statistics
+
+```{r summary-stats}
+if (nrow(summary_stats) == 0) {
+  cat("\nError: No data files could be loaded.\n")
+  cat("To use this script, ensure network access to gannet.fish.washington.edu\n")
+  cat("or manually download the CSV files to the output directory.\n")
+} else {
+  # Save summary statistics
+  summary_file <- file.path(output_dir, "summary_statistics.csv")
+  write_csv(summary_stats, summary_file)
+  
+  cat(sprintf("\nSummary statistics saved to: %s\n", summary_file))
+  
+  # Display summary statistics table
+  kable(summary_stats, caption = "Summary Statistics: Feature Occurrences Across Species")
+}
+```
+
+# Visualizations
+
+## Total Feature Occurrences by Species
+
+```{r plot-total-occurrences, fig.width=10, fig.height=6}
+if (nrow(summary_stats) > 0) {
+  # Prepare data for plotting
+  plot_data <- summary_stats %>%
+    select(species, cpg_total, lncrna_total, mirna_total) %>%
+    pivot_longer(cols = c(cpg_total, lncrna_total, mirna_total),
+                 names_to = "feature", values_to = "count") %>%
+    mutate(feature = recode(feature,
+                           cpg_total = "CpG",
+                           lncrna_total = "lncRNA",
+                           mirna_total = "miRNA"))
+  
+  # Create plot
+  p1 <- ggplot(plot_data, aes(x = species, y = count, fill = feature)) +
+    geom_bar(stat = "identity", position = position_dodge(width = 0.8), width = 0.7) +
+    labs(title = "Total Feature Occurrences by Species",
+         x = "Species",
+         y = "Total Occurrences",
+         fill = "Feature") +
+    theme_minimal() +
+    theme(plot.title = element_text(face = "bold", size = 14))
+  
+  print(p1)
+  
+  # Save plot
+  ggsave(file.path(output_dir, "total_occurrences_by_species.png"), 
+         p1, width = 10, height = 6, dpi = 300)
+}
+```
+
+## Mean Feature Occurrences per Row
+
+```{r plot-mean-occurrences, fig.width=10, fig.height=6}
+if (nrow(summary_stats) > 0) {
+  # Prepare data for plotting
+  mean_data <- summary_stats %>%
+    select(species, cpg_mean, lncrna_mean, mirna_mean) %>%
+    pivot_longer(cols = c(cpg_mean, lncrna_mean, mirna_mean),
+                 names_to = "feature", values_to = "mean") %>%
+    mutate(feature = recode(feature,
+                           cpg_mean = "CpG",
+                           lncrna_mean = "lncRNA",
+                           mirna_mean = "miRNA"))
+  
+  # Create plot
+  p2 <- ggplot(mean_data, aes(x = species, y = mean, fill = feature)) +
+    geom_bar(stat = "identity", position = position_dodge(width = 0.8), width = 0.7) +
+    labs(title = "Mean Feature Occurrences per Row by Species",
+         x = "Species",
+         y = "Mean Occurrences per Row",
+         fill = "Feature") +
+    theme_minimal() +
+    theme(plot.title = element_text(face = "bold", size = 14))
+  
+  print(p2)
+  
+  # Save plot
+  ggsave(file.path(output_dir, "mean_occurrences_by_species.png"), 
+         p2, width = 10, height = 6, dpi = 300)
+}
+```
+
+## Percentage of Rows with Feature Occurrence
+
+```{r plot-percentage, fig.width=10, fig.height=6}
+if (nrow(summary_stats) > 0) {
+  # Prepare data for plotting
+  pct_data <- summary_stats %>%
+    mutate(
+      cpg_pct = (cpg_rows_with_occurrence / total_rows) * 100,
+      lncrna_pct = (lncrna_rows_with_occurrence / total_rows) * 100,
+      mirna_pct = (mirna_rows_with_occurrence / total_rows) * 100
+    ) %>%
+    select(species, cpg_pct, lncrna_pct, mirna_pct) %>%
+    pivot_longer(cols = c(cpg_pct, lncrna_pct, mirna_pct),
+                 names_to = "feature", values_to = "percentage") %>%
+    mutate(feature = recode(feature,
+                           cpg_pct = "CpG",
+                           lncrna_pct = "lncRNA",
+                           mirna_pct = "miRNA"))
+  
+  # Create plot
+  p3 <- ggplot(pct_data, aes(x = species, y = percentage, fill = feature)) +
+    geom_bar(stat = "identity", position = position_dodge(width = 0.8), width = 0.7) +
+    labs(title = "Percentage of Rows with Feature Occurrence by Species",
+         x = "Species",
+         y = "Percentage of Rows (%)",
+         fill = "Feature") +
+    ylim(0, 100) +
+    theme_minimal() +
+    theme(plot.title = element_text(face = "bold", size = 14))
+  
+  print(p3)
+  
+  # Save plot
+  ggsave(file.path(output_dir, "percentage_rows_with_occurrence.png"), 
+         p3, width = 10, height = 6, dpi = 300)
+}
+```
+
+## Total Feature Occurrences - Individual Species Bar Graphs
+
+```{r plot-total-per-species, fig.width=8, fig.height=6}
+if (nrow(summary_stats) > 0) {
+  # Create a separate bar graph for each species showing total feature occurrences
+  for (i in 1:nrow(summary_stats)) {
+    species <- summary_stats$species[i]
+    
+    # Prepare data for the current species
+    species_data <- data.frame(
+      feature = c("CpG", "lncRNA", "miRNA"),
+      total_count = c(
+        summary_stats$cpg_total[i],
+        summary_stats$lncrna_total[i],
+        summary_stats$mirna_total[i]
+      )
+    )
+    
+    # Create bar plot for this species
+    p_species <- ggplot(species_data, aes(x = feature, y = total_count, fill = feature)) +
+      geom_bar(stat = "identity", width = 0.6) +
+      labs(title = paste("Total Feature Occurrences -", species),
+           x = "Feature Type",
+           y = "Total Occurrences",
+           fill = "Feature") +
+      scale_fill_manual(values = c("CpG" = "#F8766D", "lncRNA" = "#00BA38", "miRNA" = "#619CFF")) +
+      theme_minimal() +
+      theme(plot.title = element_text(face = "bold", size = 14),
+            legend.position = "none",
+            axis.text.x = element_text(size = 12))
+    
+    print(p_species)
+    
+    # Save plot
+    plot_filename <- file.path(output_dir, 
+                               paste0("total_occurrences_", species, ".png"))
+    ggsave(plot_filename, p_species, width = 8, height = 6, dpi = 300)
+    cat(sprintf("Saved plot: %s\n", plot_filename))
+  }
+}
+```
+
+# Conclusion
+
+```{r conclusion}
+if (nrow(summary_stats) > 0) {
+  cat("\n=== Analysis Complete ===\n")
+  cat(sprintf("All results saved to: %s\n", output_dir))
+  cat("\nGenerated files:\n")
+  cat("  - 3 raw CSV files (species_1/2/3_multi_way_interactions.csv)\n")
+  cat("  - 3 annotated CSV files with count columns (species_1/2/3_annotated.csv)\n")
+  cat("  - 1 summary statistics CSV (summary_statistics.csv)\n")
+  cat("  - 6 visualization PNG files:\n")
+  cat("    * 3 comparative plots (total, mean, percentage)\n")
+  cat("    * 3 per-species feature occurrence plots\n")
+}
+```
+
+
+
+# counts per row
+
+```{r}
+library(dplyr)
+library(stringr)
+library(purrr)
+library(readr)
+
+urls <- c(
+  species_1 = "https://gannet.fish.washington.edu/v1_web/owlshell/bu-github/ConTra/output/context_dependent_analysis_20251108_151255/tables/multi_way_interactions.csv",
+  species_2 = "https://gannet.fish.washington.edu/v1_web/owlshell/bu-github/ConTra/output/context_dependent_analysis_20251108_144034/tables/multi_way_interactions.csv",
+  species_3 = "https://gannet.fish.washington.edu/v1_web/owlshell/bu-github/ConTra/output/context_dependent_analysis_20251108_140602/tables/multi_way_interactions.csv"
+)
+
+# --- Function to process a single file ---
+process_file <- function(url, species_name) {
+  
+  df <- read_csv(url, show_col_types = FALSE)
+
+  df %>%
+    mutate(
+      # list-column of extracted regulators
+      regs = str_extract_all(regulator_types, "'([^']*)'") %>%
+             map(~ str_replace_all(.x, "'", "")),
+      
+      n_lncRNA = map_int(regs, ~ sum(str_detect(.x, "lncrna"))),
+      n_miRNA  = map_int(regs, ~ sum(str_detect(.x, "mirna"))),
+      n_CpG    = map_int(regs, ~ sum(str_detect(.x, "CpG"))),
+      
+      species = species_name
+    ) %>%
+    select(-regs)
+}
+
+# --- Process all files and combine ---
+combined_results <- imap_dfr(urls, process_file)
+
+combined_results
+```
+
