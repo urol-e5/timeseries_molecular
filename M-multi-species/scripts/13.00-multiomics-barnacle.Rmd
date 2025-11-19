@@ -42,15 +42,21 @@ This analysis prepares three-species ortholog expression matrices, normalizes th
 The workflow:
 1. Configure `ranks_to_test` in the comparison chunk (e.g., `[5, 8, 10, 12, 15, 20]`)
 2. Run decompositions for all specified ranks (10-30 minutes)
-3. Review comparison metrics and elbow plot
-4. Choose optimal rank based on:
+3. Evaluate synthetic factor match scores (FMS) across multiple random initializations
+4. Review comparison metrics and elbow plots:
+   - **Synthetic FMS elbow plots** - Shows how well factors can be recovered (MOST IMPORTANT)
+   - Variance explained plots - Shows reconstruction accuracy
+   - Look for the "elbow" where marginal gains diminish
+5. Choose optimal rank based on:
+   - Synthetic FMS elbow (where curve flattens)
+   - Consistency across random initializations
    - Variance explained (aim for >60%)
-   - Diminishing returns in elbow plot
    - Sparsity patterns
    - Component interpretability
-5. Use chosen rank for final biological interpretation
+6. Use chosen rank for final biological interpretation
 
 **Key metrics for comparison:**
+- **Synthetic FMS**: How well factors can be recovered from synthetic data (higher = better identifiability)
 - **Variance explained**: How much of data variation is captured
 - **Relative error**: Reconstruction accuracy
 - **Sparsity**: How many genes/samples load strongly per component
@@ -2493,19 +2499,249 @@ else:
                     print(f"  → Recommend examining multiple ranks: {sorted(unique_optimal_ranks)}")
             
             print(f"\n{'='*60}")
+            
+            # ===========================================
+            # FIGURE 4: ELBOW PLOTS - FMS BY RANK FOR EACH RANDOM SEED
+            # ===========================================
+            print(f"\n{'='*60}")
+            print("CREATING ELBOW PLOTS FOR RANK SELECTION")
+            print(f"{'='*60}\n")
+            
+            # Create subplots - one for each random state
+            n_states = len(random_states)
+            n_cols = min(3, n_states)
+            n_rows = int(np.ceil(n_states / n_cols))
+            
+            fig, axes = plt.subplots(n_rows, n_cols, figsize=(6*n_cols, 5*n_rows))
+            if n_states == 1:
+                axes = np.array([axes])
+            axes = axes.flatten() if n_states > 1 else axes
+            
+            print(f"Creating individual elbow plots for {n_states} random states...")
+            
+            for idx, rs in enumerate(random_states):
+                ax = axes[idx]
+                rs_data = plot_data[plot_data['random_state'] == rs].sort_values('rank')
+                
+                # Plot FMS vs Rank
+                ax.plot(rs_data['rank'], rs_data['fms_synthetic'], 
+                       'o-', linewidth=2.5, markersize=10, 
+                       color=colors[idx], alpha=0.8, label='Synthetic FMS')
+                
+                # Mark the optimal rank
+                max_idx = rs_data['fms_synthetic'].idxmax()
+                optimal_rank = rs_data.loc[max_idx, 'rank']
+                optimal_fms = rs_data.loc[max_idx, 'fms_synthetic']
+                
+                ax.plot(optimal_rank, optimal_fms, '*', 
+                       markersize=20, color='red', 
+                       markeredgecolor='darkred', markeredgewidth=2, 
+                       zorder=10, label=f'Optimal: Rank {int(optimal_rank)}')
+                
+                # Calculate and annotate marginal gains
+                ranks = rs_data['rank'].values
+                fms_values = rs_data['fms_synthetic'].values
+                
+                for i in range(len(ranks)-1):
+                    marginal_gain = fms_values[i+1] - fms_values[i]
+                    mid_x = (ranks[i] + ranks[i+1]) / 2
+                    mid_y = (fms_values[i] + fms_values[i+1]) / 2
+                    
+                    # Annotate with marginal gain
+                    ax.annotate(f'+{marginal_gain:.3f}', 
+                               xy=(mid_x, mid_y),
+                               xytext=(0, 10), textcoords='offset points',
+                               ha='center', fontsize=8, 
+                               color='darkblue', alpha=0.7,
+                               bbox=dict(boxstyle='round,pad=0.3', 
+                                       facecolor='lightyellow', 
+                                       alpha=0.6, edgecolor='none'))
+                
+                # Add quality threshold lines
+                ax.axhline(y=0.9, color='green', linestyle=':', alpha=0.4, linewidth=1.5)
+                ax.axhline(y=0.7, color='orange', linestyle=':', alpha=0.4, linewidth=1.5)
+                ax.axhline(y=0.5, color='red', linestyle=':', alpha=0.4, linewidth=1.5)
+                
+                # Formatting
+                ax.set_xlabel('Rank (Number of Components)', fontsize=11, fontweight='bold')
+                ax.set_ylabel('Synthetic FMS', fontsize=11, fontweight='bold')
+                ax.set_title(f'Random State {rs}\nElbow Plot for Rank Selection',
+                            fontsize=12, fontweight='bold')
+                ax.grid(True, alpha=0.3, linestyle='--')
+                ax.legend(loc='best', fontsize=9, framealpha=0.9)
+                ax.set_ylim([0, 1.05])
+                
+                # Add quality labels
+                ax.text(0.98, 0.91, 'Excellent', transform=ax.transAxes,
+                       ha='right', va='bottom', fontsize=8, color='green', alpha=0.6)
+                ax.text(0.98, 0.71, 'Good', transform=ax.transAxes,
+                       ha='right', va='bottom', fontsize=8, color='orange', alpha=0.6)
+                ax.text(0.98, 0.51, 'Fair', transform=ax.transAxes,
+                       ha='right', va='bottom', fontsize=8, color='red', alpha=0.6)
+            
+            # Hide extra subplots if any
+            for idx in range(n_states, len(axes)):
+                axes[idx].axis('off')
+            
+            plt.tight_layout()
+            elbow_individual_file = os.path.join(comparison_dir, 'elbow_plots_by_random_state.png')
+            plt.savefig(elbow_individual_file, dpi=300, bbox_inches='tight')
+            print(f"✓ Saved individual elbow plots to: {elbow_individual_file}")
+            plt.show()
+            plt.close()
+            
+            # ===========================================
+            # FIGURE 5: COMBINED ELBOW PLOT - ALL RANDOM SEEDS
+            # ===========================================
+            print(f"\nCreating combined elbow plot with all random states...")
+            
+            fig, ax = plt.subplots(1, 1, figsize=(14, 8))
+            
+            # Plot all random states together
+            for i, rs in enumerate(random_states):
+                rs_data = plot_data[plot_data['random_state'] == rs].sort_values('rank')
+                
+                # Main line
+                ax.plot(rs_data['rank'], rs_data['fms_synthetic'], 
+                       'o-', linewidth=2.5, markersize=8, 
+                       label=f'Random State {rs}', 
+                       color=colors[i], alpha=0.7)
+                
+                # Mark optimal
+                max_idx = rs_data['fms_synthetic'].idxmax()
+                optimal_rank = rs_data.loc[max_idx, 'rank']
+                optimal_fms = rs_data.loc[max_idx, 'fms_synthetic']
+                
+                ax.plot(optimal_rank, optimal_fms, '*', 
+                       markersize=15, color=colors[i], 
+                       markeredgecolor='black', markeredgewidth=1.5, zorder=10)
+            
+            # Calculate mean FMS across random states for each rank
+            mean_fms_by_rank = plot_data.groupby('rank')['fms_synthetic'].mean().reset_index()
+            mean_fms_by_rank = mean_fms_by_rank.sort_values('rank')
+            
+            # Plot mean curve with thicker line
+            ax.plot(mean_fms_by_rank['rank'], mean_fms_by_rank['fms_synthetic'],
+                   'k--', linewidth=3.5, markersize=12, marker='D',
+                   label='Mean across all states', zorder=5, alpha=0.9)
+            
+            # Find and mark mean optimal rank
+            mean_optimal_idx = mean_fms_by_rank['fms_synthetic'].idxmax()
+            mean_optimal_rank = mean_fms_by_rank.loc[mean_optimal_idx, 'rank']
+            mean_optimal_fms = mean_fms_by_rank.loc[mean_optimal_idx, 'fms_synthetic']
+            
+            ax.plot(mean_optimal_rank, mean_optimal_fms, 'D',
+                   markersize=18, color='darkred', 
+                   markeredgecolor='black', markeredgewidth=2, zorder=15,
+                   label=f'Mean Optimal: Rank {int(mean_optimal_rank)}')
+            
+            # Add marginal gains for mean curve
+            ranks = mean_fms_by_rank['rank'].values
+            fms_values = mean_fms_by_rank['fms_synthetic'].values
+            
+            for i in range(len(ranks)-1):
+                marginal_gain = fms_values[i+1] - fms_values[i]
+                mid_x = (ranks[i] + ranks[i+1]) / 2
+                mid_y = (fms_values[i] + fms_values[i+1]) / 2
+                
+                ax.annotate(f'+{marginal_gain:.3f}', 
+                           xy=(mid_x, mid_y),
+                           xytext=(0, 15), textcoords='offset points',
+                           ha='center', fontsize=9, fontweight='bold',
+                           color='darkred', alpha=0.8,
+                           bbox=dict(boxstyle='round,pad=0.4', 
+                                   facecolor='yellow', 
+                                   alpha=0.7, edgecolor='darkred', linewidth=1.5))
+            
+            # Quality thresholds
+            ax.axhline(y=0.9, color='green', linestyle=':', alpha=0.3, linewidth=2)
+            ax.text(ax.get_xlim()[1]*0.98, 0.91, 'Excellent', 
+                   ha='right', va='bottom', fontsize=10, color='green', alpha=0.7, 
+                   bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8))
+            ax.axhline(y=0.7, color='orange', linestyle=':', alpha=0.3, linewidth=2)
+            ax.text(ax.get_xlim()[1]*0.98, 0.71, 'Good', 
+                   ha='right', va='bottom', fontsize=10, color='orange', alpha=0.7,
+                   bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8))
+            ax.axhline(y=0.5, color='red', linestyle=':', alpha=0.3, linewidth=2)
+            ax.text(ax.get_xlim()[1]*0.98, 0.51, 'Fair', 
+                   ha='right', va='bottom', fontsize=10, color='red', alpha=0.7,
+                   bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8))
+            
+            # Formatting
+            ax.set_xlabel('Rank (Number of Components)', fontsize=14, fontweight='bold')
+            ax.set_ylabel('Synthetic Factor Match Score', fontsize=14, fontweight='bold')
+            ax.set_title('Combined Elbow Plot: Synthetic FMS Across All Random States\n' +
+                        'Look for the elbow where marginal gains diminish',
+                        fontsize=15, fontweight='bold', pad=20)
+            ax.grid(True, alpha=0.3, linestyle='--')
+            ax.legend(loc='best', fontsize=10, framealpha=0.95, 
+                     ncol=2 if len(random_states) > 5 else 1)
+            ax.set_ylim([0, 1.05])
+            
+            # Add consensus indicator
+            if len(unique_optimal_ranks) == 1:
+                consensus_text = f"✓ CONSENSUS: All states agree on Rank {unique_optimal_ranks[0]}"
+                text_color = 'green'
+                text_bg = 'lightgreen'
+            else:
+                most_common = max(rank_counts, key=rank_counts.get)
+                pct = rank_counts[most_common] / len(random_states) * 100
+                consensus_text = f"⚠ VARIABLE: Most common Rank {most_common} ({pct:.0f}% agreement)"
+                text_color = 'orange'
+                text_bg = 'lightyellow'
+            
+            ax.text(0.5, 0.02, consensus_text,
+                   transform=ax.transAxes, ha='center', va='bottom',
+                   fontsize=12, fontweight='bold', color=text_color,
+                   bbox=dict(boxstyle='round,pad=0.7', facecolor=text_bg, 
+                            edgecolor=text_color, linewidth=2.5, alpha=0.95))
+            
+            plt.tight_layout()
+            elbow_combined_file = os.path.join(comparison_dir, 'elbow_plot_combined_all_states.png')
+            plt.savefig(elbow_combined_file, dpi=300, bbox_inches='tight')
+            print(f"✓ Saved combined elbow plot to: {elbow_combined_file}")
+            plt.show()
+            plt.close()
+            
+            print(f"\n{'='*60}")
+            print("ELBOW PLOT GENERATION COMPLETE")
+            print(f"{'='*60}")
+            print(f"Generated plots:")
+            print(f"  1. Individual elbow plots: {elbow_individual_file}")
+            print(f"  2. Combined elbow plot: {elbow_combined_file}")
+            print(f"\nUse these plots to identify the optimal rank where:")
+            print(f"  • Marginal gains in FMS become small")
+            print(f"  • The curve flattens (diminishing returns)")
+            print(f"  • Trade-off between model complexity and performance")
+            print(f"{'='*60}\n")
 
 print(f"\nSYNTHETIC FMS PLOTTING COMPLETE")
 print(f"{'='*60}")
 ```
 
-### 1. Comparison Plots
+### 1. Synthetic FMS Plots for Rank Selection
 
 Located in `barnacle_factors/rank_comparison/`:
 
-- **`elbow_plot.png`** - Shows variance explained vs rank (MOST IMPORTANT)
-  - Look for the "elbow" where gains diminish
-  - Marginal gains are annotated on the plot
+**Elbow Plots (NEW - for rank selection):**
+- **`elbow_plot_combined_all_states.png`** - **MOST IMPORTANT FOR RANK SELECTION**
+  - Shows all random states together with mean curve
+  - Marginal gains annotated on mean curve
+  - Look for where the curve flattens (diminishing returns)
+  - Quality thresholds marked (Excellent > 0.9, Good > 0.7, Fair > 0.5)
   
+- **`elbow_plots_by_random_state.png`** - Individual elbow plots
+  - Separate subplot for each random initialization
+  - Check consistency of elbow position across random states
+  - Marginal gains annotated for each state
+
+**FMS Comparison Plots:**
+- **`synthetic_fms_by_random_state.png`** - Line plot of FMS curves
+- **`synthetic_fms_heatmap.png`** - Heatmap showing rank vs random state
+- **`optimal_rank_frequency.png`** - Bar plot of how often each rank is optimal
+
+**Legacy Variance Plots:**
+- **`elbow_plot.png`** - Shows variance explained vs rank (from original comparison)
 - **`rank_comparison_summary.png`** - 6-panel overview
 - **`loss_trajectories.png`** - Convergence speed comparison
 
@@ -2515,7 +2751,13 @@ File: `barnacle_factors/rank_comparison/rank_comparison_metrics.csv`
 
 Contains all quantitative metrics for comparison.
 
-### 3. Individual Rank Results
+### 3. FMS Results Table
+
+File: `barnacle_factors/rank_comparison/synthetic_fms_all_random_states.csv`
+
+Contains synthetic FMS scores for all (rank, random_state) combinations.
+
+### 4. Individual Rank Results
 
 Each rank gets its own directory (`rank_05/`, `rank_10/`, etc.) with full factor matrices.
 
