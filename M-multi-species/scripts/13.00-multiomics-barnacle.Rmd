@@ -1809,15 +1809,12 @@ else:
                     try:
                         # Calculate FMS between factor sets
                         # FMS compares how similar two decompositions are
-                        # factor_match_score returns (fms_score, permutation)
-                        fms_result = factor_match_score(fold_factors[i], fold_factors[j])
-                        
-                        # Handle different return types
-                        if isinstance(fms_result, tuple):
-                            fms = fms_result[0]  # First element is the score
-                        else:
-                            fms = fms_result  # Direct score
-                        
+                        # Use return_permutation=False to get only the score
+                        fms = factor_match_score(
+                            fold_factors[i], 
+                            fold_factors[j],
+                            return_permutation=False
+                        )
                         fms_scores.append(fms)
                     except Exception as e:
                         print(f"      Error calculating FMS: {e}")
@@ -2061,15 +2058,12 @@ for lambda_val in LAMBDA_VALUES:
         for i in range(len(successful_factors)):
             for j in range(i+1, len(successful_factors)):
                 try:
-                    # factor_match_score returns (fms_score, permutation)
-                    fms_result = factor_match_score(successful_factors[i], successful_factors[j])
-                    
-                    # Handle different return types
-                    if isinstance(fms_result, tuple):
-                        fms = fms_result[0]  # First element is the score
-                    else:
-                        fms = fms_result  # Direct score
-                    
+                    # Use return_permutation=False to get only the score
+                    fms = factor_match_score(
+                        successful_factors[i], 
+                        successful_factors[j],
+                        return_permutation=False
+                    )
                     fms_scores.append(fms)
                 except Exception as e:
                     print(f"    Warning: FMS calculation failed: {e}")
