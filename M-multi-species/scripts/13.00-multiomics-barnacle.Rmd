@@ -1810,11 +1810,12 @@ else:
                     try:
                         # Calculate FMS between decomposition objects
                         # FMS compares how similar two decompositions are
-                        # Use return_permutation=False to get only the score
+                        # allow_smaller_rank handles dimension mismatches from different CV folds
                         fms = factor_match_score(
                             fold_decompositions[i], 
                             fold_decompositions[j],
-                            return_permutation=False
+                            return_permutation=False,
+                            allow_smaller_rank=True
                         )
                         fms_scores.append(fms)
                     except Exception as e:
@@ -2059,11 +2060,12 @@ for lambda_val in LAMBDA_VALUES:
         for i in range(len(successful_decompositions)):
             for j in range(i+1, len(successful_decompositions)):
                 try:
-                    # Use return_permutation=False to get only the score
+                    # allow_smaller_rank handles dimension mismatches from different CV folds
                     fms = factor_match_score(
                         successful_decompositions[i], 
                         successful_decompositions[j],
-                        return_permutation=False
+                        return_permutation=False,
+                        allow_smaller_rank=True
                     )
                     fms_scores.append(fms)
                 except Exception as e:
