@@ -1626,7 +1626,7 @@ print("STARTING DISSERTATION-VALIDATED RANK SELECTION")
 print("="*80)
 
 # Configure parameters
-CV_RANK_RANGE = [5, 10, 15, 20]  # Start with quick test, expand if needed
+CV_RANK_RANGE = [5, 10, 15, 20, 25, 35]  # Start with quick test, expand if needed
 CV_LAMBDA = [0.0]  # No regularization for rank selection (per dissertation)
 CV_RANDOM_STATE = 42
 
