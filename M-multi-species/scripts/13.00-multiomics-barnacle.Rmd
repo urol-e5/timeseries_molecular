@@ -1809,13 +1809,20 @@ else:
                 for j in range(i+1, len(fold_decompositions)):
                     try:
                         # Calculate FMS between decomposition objects
-                        # FMS compares how similar two decompositions are
-                        # allow_smaller_rank handles dimension mismatches from different CV folds
+                        # NOTE: Sample factors (middle matrix) have different dimensions
+                        # across folds, so we compare only gene (0) and time (2) factors
+                        
+                        # Extract gene and time factors (skip sample factors)
+                        factors_i = [fold_decompositions[i].factors[0],  # genes
+                                    fold_decompositions[i].factors[2]]  # time
+                        factors_j = [fold_decompositions[j].factors[0],  # genes
+                                    fold_decompositions[j].factors[2]]  # time
+                        
+                        # Calculate FMS on gene+time factors only
                         fms = factor_match_score(
-                            fold_decompositions[i], 
-                            fold_decompositions[j],
-                            return_permutation=False,
-                            allow_smaller_rank=True
+                            factors_i, 
+                            factors_j,
+                            return_permutation=False
                         )
                         fms_scores.append(fms)
                     except Exception as e:
@@ -2060,12 +2067,16 @@ for lambda_val in LAMBDA_VALUES:
         for i in range(len(successful_decompositions)):
             for j in range(i+1, len(successful_decompositions)):
                 try:
-                    # allow_smaller_rank handles dimension mismatches from different CV folds
+                    # Compare only gene and time factors (skip sample factors due to dimension mismatch)
+                    factors_i = [successful_decompositions[i].factors[0],  # genes
+                                successful_decompositions[i].factors[2]]  # time
+                    factors_j = [successful_decompositions[j].factors[0],  # genes
+                                successful_decompositions[j].factors[2]]  # time
+                    
                     fms = factor_match_score(
-                        successful_decompositions[i], 
-                        successful_decompositions[j],
-                        return_permutation=False,
-                        allow_smaller_rank=True
+                        factors_i, 
+                        factors_j,
+                        return_permutation=False
                     )
                     fms_scores.append(fms)
                 except Exception as e:
