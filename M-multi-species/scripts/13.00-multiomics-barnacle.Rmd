@@ -1805,14 +1805,6 @@ else:
         if len(fold_decompositions) >= 2:
             fms_scores = []
             
-            # Debug: check structure of decomposition
-            print(f"    Debug: decomposition type = {type(fold_decompositions[0])}")
-            print(f"    Debug: factors type = {type(fold_decompositions[0].factors)}")
-            print(f"    Debug: number of factor matrices = {len(fold_decompositions[0].factors)}")
-            if hasattr(fold_decompositions[0], 'factors'):
-                for idx, factor in enumerate(fold_decompositions[0].factors):
-                    print(f"      Factor {idx} shape: {factor.shape if hasattr(factor, 'shape') else 'N/A'}")
-            
             for i in range(len(fold_decompositions)):
                 for j in range(i+1, len(fold_decompositions)):
                     try:
@@ -1826,13 +1818,33 @@ else:
                         factors_j = [fold_decompositions[j].factors[0],  # genes
                                     fold_decompositions[j].factors[2]]  # time
                         
+                        print(f"      Debug: Comparing fold {i+1} vs fold {j+1}")
+                        print(f"        Gene factors: {factors_i[0].shape} vs {factors_j[0].shape}")
+                        print(f"        Time factors: {factors_i[1].shape} vs {factors_j[1].shape}")
+                        
                         # Calculate FMS on gene+time factors only
-                        fms = factor_match_score(
+                        fms_result = factor_match_score(
                             factors_i, 
                             factors_j,
                             return_permutation=False
                         )
+                        
+                        print(f"        FMS result type: {type(fms_result)}")
+                        print(f"        FMS result value: {fms_result}")
+                        
+                        # Handle the result
+                        if isinstance(fms_result, tuple):
+                            fms = fms_result[0]
+                        else:
+                            fms = fms_result
+                        
                         fms_scores.append(fms)
+                        print(f"        ✓ FMS: {fms:.4f}")
+                        
+                    except Exception as e:
+                        import traceback
+                        print(f"      Error calculating FMS: {e}")
+                        print(f"      Traceback: {traceback.format_exc()}")
                     except Exception as e:
                         print(f"      Error calculating FMS: {e}")
                         continue
