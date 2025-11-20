@@ -1758,8 +1758,8 @@ else:
             continue
         
         # We need to refit models for each fold to get the factors
-        # Store factors from each fold
-        fold_factors = []
+        # Store decomposition objects from each fold
+        fold_decompositions = []
         fold_sse = []
         
         for fold_info in successful_folds[:5]:  # Limit to first 5 folds to save time
@@ -1793,7 +1793,8 @@ else:
                 
                 decomposition = model.fit_transform(train_tensor, verbose=0)
                 
-                fold_factors.append(decomposition.factors)
+                # Store the decomposition object (has .factors and .weights)
+                fold_decompositions.append(decomposition)
                 fold_sse.append(sse)
                 
             except Exception as e:
@@ -1801,18 +1802,18 @@ else:
                 continue
         
         # Calculate pairwise FMS between folds
-        if len(fold_factors) >= 2:
+        if len(fold_decompositions) >= 2:
             fms_scores = []
             
-            for i in range(len(fold_factors)):
-                for j in range(i+1, len(fold_factors)):
+            for i in range(len(fold_decompositions)):
+                for j in range(i+1, len(fold_decompositions)):
                     try:
-                        # Calculate FMS between factor sets
+                        # Calculate FMS between decomposition objects
                         # FMS compares how similar two decompositions are
                         # Use return_permutation=False to get only the score
                         fms = factor_match_score(
-                            fold_factors[i], 
-                            fold_factors[j],
+                            fold_decompositions[i], 
+                            fold_decompositions[j],
                             return_permutation=False
                         )
                         fms_scores.append(fms)
@@ -2011,7 +2012,7 @@ for lambda_val in LAMBDA_VALUES:
     print(f"Testing lambda = {lambda_val}")
     print(f"{'='*60}")
     
-    fold_factors = []
+    fold_decompositions = []
     fold_fms_scores = []
     
     # Perform leave-one-group-out CV
@@ -2041,27 +2042,27 @@ for lambda_val in LAMBDA_VALUES:
             )
             
             decomposition = model.fit_transform(train_tensor, verbose=0)
-            fold_factors.append(decomposition.factors)
+            fold_decompositions.append(decomposition)
             
             print(f"    ✓ Converged in {model.n_iter_} iterations")
             
         except Exception as e:
             print(f"    ✗ Error: {e}")
-            fold_factors.append(None)
+            fold_decompositions.append(None)
     
     # Calculate pairwise FMS between successful folds
-    successful_factors = [f for f in fold_factors if f is not None]
+    successful_decompositions = [d for d in fold_decompositions if d is not None]
     
-    if len(successful_factors) >= 2:
+    if len(successful_decompositions) >= 2:
         fms_scores = []
         
-        for i in range(len(successful_factors)):
-            for j in range(i+1, len(successful_factors)):
+        for i in range(len(successful_decompositions)):
+            for j in range(i+1, len(successful_decompositions)):
                 try:
                     # Use return_permutation=False to get only the score
                     fms = factor_match_score(
-                        successful_factors[i], 
-                        successful_factors[j],
+                        successful_decompositions[i], 
+                        successful_decompositions[j],
                         return_permutation=False
                     )
                     fms_scores.append(fms)
@@ -2080,15 +2081,15 @@ for lambda_val in LAMBDA_VALUES:
                 'std_fms': std_fms,
                 'se_fms': se_fms,
                 'n_comparisons': len(fms_scores),
-                'n_successful_folds': len(successful_factors)
+                'n_successful_folds': len(successful_decompositions)
             })
             
             print(f"  → Mean FMS: {mean_fms:.4f} ± {std_fms:.4f} (SE = {se_fms:.4f})")
-            print(f"     {len(fms_scores)} pairwise comparisons from {len(successful_factors)} folds")
+            print(f"     {len(fms_scores)} pairwise comparisons from {len(successful_decompositions)} folds")
         else:
             print(f"  → No FMS scores calculated")
     else:
-        print(f"  → Insufficient successful folds: {len(successful_factors)}")
+        print(f"  → Insufficient successful folds: {len(successful_decompositions)}")
 
 # Convert to DataFrame
 lambda_df = pd.DataFrame(lambda_results)
