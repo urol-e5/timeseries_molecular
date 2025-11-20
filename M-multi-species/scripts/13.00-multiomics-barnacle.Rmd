@@ -1165,24 +1165,52 @@ This is the RECOMMENDED approach when biological replicates are available.
 # IDENTIFY BIOLOGICAL REPLICATE GROUPS
 # ===========================================
 # For cross-validation, we need to group samples that are biological replicates
-# In this dataset: different colonies of the same species at the same timepoint
+# 
+# TENSOR ORGANIZATION (important!):
+# ---------------------------------
+# Biological samples: ACR-139_TP1, ACR-139_TP2, ACR-139_TP3, ACR-139_TP4, ACR-145_TP1, ...
+#                     (each is a physical sample collected at a timepoint)
+#
+# How stored in tensor:
+#   genes × colonies × timepoints
+#   
+#   tensor[:, 0, 0] = ACR-139 at TP1  ─┐
+#   tensor[:, 0, 1] = ACR-139 at TP2   │── Colony ACR-139
+#   tensor[:, 0, 2] = ACR-139 at TP3   │   (sample dimension index 0)
+#   tensor[:, 0, 3] = ACR-139 at TP4  ─┘
+#   
+#   tensor[:, 1, 0] = ACR-145 at TP1  ─┐
+#   tensor[:, 1, 1] = ACR-145 at TP2   │── Colony ACR-145
+#   tensor[:, 1, 2] = ACR-145 at TP3   │   (sample dimension index 1)
+#   tensor[:, 1, 3] = ACR-145 at TP4  ─┘
+#
+# Cross-validation approach:
+#   - Hold out colony ACR-139 (all 4 timepoints)
+#   - Train on all other colonies (all their timepoints)
+#   - Test on ACR-139 (all 4 timepoints)
 # ===========================================
 
 def identify_replicate_groups_for_cv(sample_labels, species_sample_map, n_timepoints=4):
     """
     Identify biological replicate groups for cross-validation.
     
-    IMPORTANT: For timeseries tensor data (genes × samples × timepoints):
-    - Each "sample" dimension = ONE COLONY across all its timepoints
-    - Biological replicates = different COLONIES (not different timepoints!)
-    - Cross-validation should be leave-one-COLONY-out (not leave-one-timepoint-out)
+    TENSOR STRUCTURE EXPLANATION:
+    - Biological reality: Each sample collected at a timepoint (e.g., "ACR-139 at TP1")
+    - Tensor organization: genes × colonies × timepoints
+      * Sample dimension (axis 1) = individual COLONIES (e.g., ACR-139, ACR-145, etc.)
+      * Timepoint dimension (axis 2) = measurement times (TP1, TP2, TP3, TP4)
+      * Example: tensor[:, 0, :] = all timepoints for colony #0
+      * Example: tensor[:, 0, 2] = colony #0 measured at TP3
     
-    This function creates groups where each group = ONE COLONY.
-    CV will train on all-colonies-except-one, test on the held-out colony.
+    CROSS-VALIDATION APPROACH:
+    - Each CV fold holds out ONE COLONY (all its timepoints)
+    - Training set: All other colonies (all their timepoints)
+    - Test set: Held-out colony (all its timepoints)
+    - Question: Can the model predict a NEW colony's timeseries pattern?
     
-    NOTE: This is NOT the same as biological replicates at the same timepoint.
-    In this tensor structure, we're testing if the decomposition can generalize
-    to a new colony's timeseries pattern.
+    NOTE: This is NOT testing biological replicates at the same timepoint
+    (e.g., multiple colonies measured at TP1). Instead, it tests whether
+    the temporal patterns learned from some colonies can predict other colonies.
     
     Parameters:
     -----------
@@ -1213,12 +1241,19 @@ def identify_replicate_groups_for_cv(sample_labels, species_sample_map, n_timepo
     print("="*80)
     print(f"Tensor structure: genes × samples × timepoints")
     print(f"  - Total samples: {len(sample_labels)}")
-    print(f"  - Each sample = ONE COLONY across {n_timepoints} timepoints")
-    print(f"  - CV approach: Leave-one-COLONY-out")
+    print(f"  - Timepoints per sample: {n_timepoints}")
+    print(f"\nHOW THE TENSOR IS ORGANIZED:")
+    print(f"  • Each sample dimension = one COLONY (e.g., ACR-139)")
+    print(f"  • That colony's data at each timepoint is in the 3rd dimension")
+    print(f"  • Example: tensor[:, 0, :] contains all 4 timepoints for colony #0")
+    print(f"  • Example: tensor[:, 0, 2] is colony #0 at timepoint TP3")
+    print(f"\nCV approach: Leave-one-COLONY-out")
+    print(f"  • Train on: N-1 colonies (all their timepoints)")
+    print(f"  • Test on: 1 held-out colony (all its timepoints)")
     print(f"\nIMPORTANT CLARIFICATION:")
-    print(f"  ✓ Each sample already contains timeseries for one colony")
-    print(f"  ✓ We are NOT looking for replicates at same timepoint")
-    print(f"  ✓ We are testing if decomposition generalizes to new colonies")
+    print(f"  • Biological reality: Each sample is collected at ONE timepoint")
+    print(f"  • Tensor organization: Timepoints grouped by colony")
+    print(f"  • CV tests: Can model predict a NEW colony's timeseries?")
     print(f"\nCV Groups (one per colony):")
     
     # Group by species for display
