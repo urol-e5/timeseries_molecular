@@ -1714,6 +1714,246 @@ else:
 print("="*80)
 ```
 
+### Plot Factor Match Score vs SSE (Dissertation Figure)
+
+This recreates the diagnostic plots from the dissertation showing the relationship between Factor Match Score (FMS) and reconstruction error (SSE).
+
+```{python plot-fms-vs-sse-cv, eval=FALSE}
+# ===========================================
+# FACTOR MATCH SCORE vs SSE ANALYSIS
+# Recreates dissertation diagnostic plots
+# ===========================================
+
+import matplotlib.pyplot as plt
+import numpy as np
+from barnacle.decomposition import SparseCP
+from tlviz.factor_tools import factor_match_score
+
+print("="*80)
+print("FACTOR MATCH SCORE vs SSE ANALYSIS")
+print("Dissertation-style diagnostic plots")
+print("="*80)
+
+if 'cv_rank_results' not in locals() or cv_rank_results is None:
+    print("CV results not available. Run run-cv-rank-selection first.")
+else:
+    # Initialize storage for FMS calculations
+    fms_sse_data = []
+    
+    # For each rank tested, we'll calculate FMS between CV folds
+    print(f"\nCalculating FMS between CV folds for each rank...")
+    print(f"This shows consistency of factors across different training sets")
+    
+    for _, row in cv_rank_results.iterrows():
+        rank = int(row['rank'])
+        fold_details = row['fold_details']
+        
+        print(f"\n  Rank {rank}:")
+        
+        # Get successful folds
+        successful_folds = [f for f in fold_details if f['converged']]
+        
+        if len(successful_folds) < 2:
+            print(f"    Insufficient successful folds ({len(successful_folds)}) for FMS calculation")
+            continue
+        
+        # We need to refit models for each fold to get the factors
+        # Store factors from each fold
+        fold_factors = []
+        fold_sse = []
+        
+        for fold_info in successful_folds[:5]:  # Limit to first 5 folds to save time
+            fold_idx = fold_info['fold']
+            group_name = fold_info['group']
+            sse = fold_info['sse']
+            
+            print(f"    Fold {fold_idx} ({group_name}): SSE = {sse:.2e}")
+            
+            # Get train indices for this fold
+            train_indices = []
+            for other_name, other_indices in USE_CV_GROUPS.items():
+                if other_name != group_name:
+                    train_indices.extend(other_indices)
+            
+            # Fit model on training data
+            train_tensor = np.nan_to_num(tensor_3d[:, train_indices, :], nan=0.0)
+            
+            try:
+                model = SparseCP(
+                    rank=rank,
+                    lambdas=[CV_LAMBDA[0], 0.0, CV_LAMBDA[0]],
+                    nonneg_modes=[0],
+                    norm_constraint=True,
+                    init='random',
+                    tol=1e-5,
+                    n_iter_max=10000,
+                    random_state=CV_RANDOM_STATE,
+                    n_initializations=1
+                )
+                
+                decomposition = model.fit_transform(train_tensor, verbose=0)
+                
+                fold_factors.append(decomposition.factors)
+                fold_sse.append(sse)
+                
+            except Exception as e:
+                print(f"      Error refitting: {e}")
+                continue
+        
+        # Calculate pairwise FMS between folds
+        if len(fold_factors) >= 2:
+            fms_scores = []
+            
+            for i in range(len(fold_factors)):
+                for j in range(i+1, len(fold_factors)):
+                    try:
+                        # Calculate FMS between factor sets
+                        # FMS compares how similar two decompositions are
+                        fms = factor_match_score(fold_factors[i], fold_factors[j])
+                        fms_scores.append(fms)
+                    except Exception as e:
+                        print(f"      Error calculating FMS: {e}")
+                        continue
+            
+            if len(fms_scores) > 0:
+                mean_fms = np.mean(fms_scores)
+                std_fms = np.std(fms_scores)
+                mean_sse = np.mean(fold_sse)
+                
+                fms_sse_data.append({
+                    'rank': rank,
+                    'mean_fms': mean_fms,
+                    'std_fms': std_fms,
+                    'mean_sse': mean_sse,
+                    'n_comparisons': len(fms_scores)
+                })
+                
+                print(f"    → Mean FMS: {mean_fms:.3f} ± {std_fms:.3f} ({len(fms_scores)} comparisons)")
+            else:
+                print(f"    → No FMS scores calculated")
+        else:
+            print(f"    → Insufficient factors for FMS calculation")
+    
+    # Create plots if we have data
+    if len(fms_sse_data) > 0:
+        fms_df = pd.DataFrame(fms_sse_data)
+        
+        # Create figure with two subplots
+        fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+        
+        # PLOT 1: FMS vs SSE (main dissertation plot)
+        ax1 = axes[0]
+        
+        ax1.errorbar(fms_df['mean_sse'], fms_df['mean_fms'],
+                    xerr=None,  # We don't have SSE std here
+                    yerr=fms_df['std_fms'],
+                    fmt='o', markersize=10, linewidth=2,
+                    capsize=5, capthick=2,
+                    color='steelblue', ecolor='lightblue')
+        
+        # Annotate points with rank
+        for _, row in fms_df.iterrows():
+            ax1.annotate(f"R={int(row['rank'])}", 
+                        xy=(row['mean_sse'], row['mean_fms']),
+                        xytext=(8, 8), textcoords='offset points',
+                        fontsize=9, fontweight='bold',
+                        bbox=dict(boxstyle='round,pad=0.3', 
+                                facecolor='yellow', alpha=0.5))
+        
+        ax1.set_xlabel('Cross-Validated SSE', fontsize=12, fontweight='bold')
+        ax1.set_ylabel('Mean Factor Match Score (FMS)', fontsize=12, fontweight='bold')
+        ax1.set_title('FMS vs SSE: Model Consistency vs Fit\n(Dissertation-style diagnostic)', 
+                     fontsize=13, fontweight='bold')
+        ax1.grid(True, alpha=0.3)
+        ax1.set_ylim([0, 1.05])
+        
+        # Add interpretation text
+        ax1.text(0.02, 0.02, 
+                'High FMS = Consistent factors\nLow SSE = Good fit',
+                transform=ax1.transAxes,
+                fontsize=9, 
+                verticalalignment='bottom',
+                bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+        
+        # PLOT 2: FMS and SSE vs Rank (dual y-axis)
+        ax2 = axes[1]
+        ax2_twin = ax2.twinx()
+        
+        # Sort by rank for line plot
+        fms_df_sorted = fms_df.sort_values('rank')
+        
+        # Plot FMS
+        line1 = ax2.plot(fms_df_sorted['rank'], fms_df_sorted['mean_fms'],
+                        'o-', linewidth=2.5, markersize=8,
+                        color='green', label='FMS (left axis)')
+        ax2.fill_between(fms_df_sorted['rank'],
+                        fms_df_sorted['mean_fms'] - fms_df_sorted['std_fms'],
+                        fms_df_sorted['mean_fms'] + fms_df_sorted['std_fms'],
+                        alpha=0.2, color='green')
+        
+        # Plot SSE
+        line2 = ax2_twin.plot(fms_df_sorted['rank'], fms_df_sorted['mean_sse'],
+                             's-', linewidth=2.5, markersize=8,
+                             color='red', label='SSE (right axis)')
+        
+        ax2.set_xlabel('Rank', fontsize=12, fontweight='bold')
+        ax2.set_ylabel('Factor Match Score (FMS)', fontsize=12, fontweight='bold', color='green')
+        ax2_twin.set_ylabel('Cross-Validated SSE', fontsize=12, fontweight='bold', color='red')
+        ax2.set_title('FMS and SSE vs Rank\n(Trade-off between consistency and fit)', 
+                     fontsize=13, fontweight='bold')
+        ax2.grid(True, alpha=0.3)
+        ax2.set_ylim([0, 1.05])
+        ax2.tick_params(axis='y', labelcolor='green')
+        ax2_twin.tick_params(axis='y', labelcolor='red')
+        
+        # Mark optimal rank if available
+        if 'optimal_rank_cv' in locals() and optimal_rank_cv is not None:
+            if optimal_rank_cv in fms_df_sorted['rank'].values:
+                ax2.axvline(x=optimal_rank_cv, color='purple', 
+                           linestyle='--', linewidth=2, alpha=0.7,
+                           label='Optimal Rank (CV)')
+        
+        # Combined legend
+        lines = line1 + line2
+        labels = [l.get_label() for l in lines]
+        ax2.legend(lines, labels, loc='best', fontsize=10)
+        
+        plt.tight_layout()
+        
+        # Save figure
+        fms_sse_plot_file = os.path.join(cv_results_dir, 'fms_vs_sse_diagnostic.png')
+        plt.savefig(fms_sse_plot_file, dpi=300, bbox_inches='tight')
+        print(f"\n✓ FMS vs SSE diagnostic plot saved to:")
+        print(f"  {fms_sse_plot_file}")
+        
+        plt.show()
+        plt.close()
+        
+        # Save FMS-SSE data
+        fms_df.to_csv(os.path.join(cv_results_dir, 'fms_sse_data.csv'), index=False)
+        print(f"✓ FMS-SSE data saved to fms_sse_data.csv")
+        
+        # Interpretation
+        print(f"\n{'='*80}")
+        print("INTERPRETATION:")
+        print("="*80)
+        print("From the dissertation (Blaskowski 2024):")
+        print("  • High FMS = Decomposition produces consistent factors across CV folds")
+        print("  • Low SSE = Better reconstruction of test data")
+        print("  • Ideal rank: High FMS AND Low SSE")
+        print("  • Trade-off: Sometimes lower rank has higher FMS but higher SSE")
+        print("\nLook for:")
+        print("  1. Ranks where FMS is high (> 0.7) and relatively stable")
+        print("  2. SSE is minimized (lower-left corner in FMS vs SSE plot)")
+        print("  3. Diminishing returns in both metrics at higher ranks")
+        print("="*80)
+        
+    else:
+        print("\n⚠ No FMS-SSE data available. Check if CV folds ran successfully.")
+
+print("="*80)
+```
+
 ## Rank Comparison
 
 **This workflow systematically compares multiple ranks to find the optimal number of components.**
