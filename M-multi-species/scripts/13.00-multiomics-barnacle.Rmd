@@ -1809,7 +1809,15 @@ else:
                     try:
                         # Calculate FMS between factor sets
                         # FMS compares how similar two decompositions are
-                        fms = factor_match_score(fold_factors[i], fold_factors[j])
+                        # factor_match_score returns (fms_score, permutation)
+                        fms_result = factor_match_score(fold_factors[i], fold_factors[j])
+                        
+                        # Handle different return types
+                        if isinstance(fms_result, tuple):
+                            fms = fms_result[0]  # First element is the score
+                        else:
+                            fms = fms_result  # Direct score
+                        
                         fms_scores.append(fms)
                     except Exception as e:
                         print(f"      Error calculating FMS: {e}")
@@ -1950,6 +1958,285 @@ else:
         
     else:
         print("\n⚠ No FMS-SSE data available. Check if CV folds ran successfully.")
+
+print("="*80)
+```
+
+### Lambda Selection with 1SE Rule (Step 2)
+
+After determining the optimal rank, the next step is selecting the optimal lambda (regularization parameter) using cross-validated Factor Match Score (FMS) with the **1SE rule** from the dissertation.
+
+**Dissertation Reference:** Blaskowski (2024), Section 1.2.3, page 15:
+> "We selected the λ value of best fit as the maximum λ value at which the cross-validated FMS remained within one standard error of the maximum FMS."
+
+```{python lambda-selection-1se-rule, eval=FALSE}
+# ===========================================
+# LAMBDA SELECTION WITH 1SE RULE
+# Dissertation Step 2: Find optimal regularization
+# ===========================================
+
+from barnacle.decomposition import SparseCP
+from tlviz.factor_tools import factor_match_score
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+print("="*80)
+print("LAMBDA SELECTION WITH 1SE RULE")
+print("Dissertation Method (Blaskowski 2024, Section 1.2.3)")
+print("="*80)
+
+# Check if we have an optimal rank
+if 'optimal_rank_cv' not in locals() or optimal_rank_cv is None:
+    print("ERROR: No optimal rank available. Run CV rank selection first.")
+    print("Using default rank = 10 for demonstration")
+    RANK_FOR_LAMBDA = 10
+else:
+    RANK_FOR_LAMBDA = optimal_rank_cv
+    print(f"Using optimal rank from CV: {RANK_FOR_LAMBDA}")
+
+# Define lambda values to test
+# Start broad, then can refine based on results
+LAMBDA_VALUES = [0.0, 0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0]
+
+print(f"\nTesting {len(LAMBDA_VALUES)} lambda values:")
+print(f"  {LAMBDA_VALUES}")
+print(f"\nCross-validation approach: {len(USE_CV_GROUPS)}-fold CV")
+print(f"Metric: Factor Match Score (FMS) between folds")
+print("="*80)
+
+# Storage for results
+lambda_results = []
+
+# For each lambda value, perform CV and calculate FMS
+for lambda_val in LAMBDA_VALUES:
+    print(f"\n{'='*60}")
+    print(f"Testing lambda = {lambda_val}")
+    print(f"{'='*60}")
+    
+    fold_factors = []
+    fold_fms_scores = []
+    
+    # Perform leave-one-group-out CV
+    for fold_idx, (group_name, test_indices) in enumerate(USE_CV_GROUPS.items()):
+        print(f"  Fold {fold_idx+1}/{len(USE_CV_GROUPS)}: Hold out {group_name}")
+        
+        # Create train/test split
+        train_indices = []
+        for other_name, other_indices in USE_CV_GROUPS.items():
+            if other_name != group_name:
+                train_indices.extend(other_indices)
+        
+        # Fit model on training data
+        train_tensor = np.nan_to_num(tensor_3d[:, train_indices, :], nan=0.0)
+        
+        try:
+            model = SparseCP(
+                rank=RANK_FOR_LAMBDA,
+                lambdas=[lambda_val, 0.0, lambda_val],  # Apply to gene and time factors
+                nonneg_modes=[0],
+                norm_constraint=True,
+                init='random',
+                tol=1e-5,
+                n_iter_max=10000,
+                random_state=CV_RANDOM_STATE,
+                n_initializations=1
+            )
+            
+            decomposition = model.fit_transform(train_tensor, verbose=0)
+            fold_factors.append(decomposition.factors)
+            
+            print(f"    ✓ Converged in {model.n_iter_} iterations")
+            
+        except Exception as e:
+            print(f"    ✗ Error: {e}")
+            fold_factors.append(None)
+    
+    # Calculate pairwise FMS between successful folds
+    successful_factors = [f for f in fold_factors if f is not None]
+    
+    if len(successful_factors) >= 2:
+        fms_scores = []
+        
+        for i in range(len(successful_factors)):
+            for j in range(i+1, len(successful_factors)):
+                try:
+                    # factor_match_score returns (fms_score, permutation)
+                    fms_result = factor_match_score(successful_factors[i], successful_factors[j])
+                    
+                    # Handle different return types
+                    if isinstance(fms_result, tuple):
+                        fms = fms_result[0]  # First element is the score
+                    else:
+                        fms = fms_result  # Direct score
+                    
+                    fms_scores.append(fms)
+                except Exception as e:
+                    print(f"    Warning: FMS calculation failed: {e}")
+                    continue
+        
+        if len(fms_scores) > 0:
+            mean_fms = np.mean(fms_scores)
+            std_fms = np.std(fms_scores)
+            se_fms = std_fms / np.sqrt(len(fms_scores))  # Standard error
+            
+            lambda_results.append({
+                'lambda': lambda_val,
+                'mean_fms': mean_fms,
+                'std_fms': std_fms,
+                'se_fms': se_fms,
+                'n_comparisons': len(fms_scores),
+                'n_successful_folds': len(successful_factors)
+            })
+            
+            print(f"  → Mean FMS: {mean_fms:.4f} ± {std_fms:.4f} (SE = {se_fms:.4f})")
+            print(f"     {len(fms_scores)} pairwise comparisons from {len(successful_factors)} folds")
+        else:
+            print(f"  → No FMS scores calculated")
+    else:
+        print(f"  → Insufficient successful folds: {len(successful_factors)}")
+
+# Convert to DataFrame
+lambda_df = pd.DataFrame(lambda_results)
+
+if len(lambda_df) > 0:
+    print(f"\n{'='*80}")
+    print("APPLYING 1SE RULE")
+    print("="*80)
+    
+    # Find maximum FMS
+    max_fms_idx = lambda_df['mean_fms'].idxmax()
+    max_fms = lambda_df.loc[max_fms_idx, 'mean_fms']
+    max_fms_se = lambda_df.loc[max_fms_idx, 'se_fms']
+    
+    # Calculate 1SE threshold
+    fms_1se_threshold = max_fms - max_fms_se
+    
+    print(f"Maximum FMS: {max_fms:.4f} (at lambda = {lambda_df.loc[max_fms_idx, 'lambda']})")
+    print(f"Standard Error: {max_fms_se:.4f}")
+    print(f"1SE Threshold: {fms_1se_threshold:.4f}")
+    
+    # Find maximum lambda within 1SE of maximum FMS
+    within_1se = lambda_df[lambda_df['mean_fms'] >= fms_1se_threshold]
+    
+    if len(within_1se) > 0:
+        optimal_lambda_idx = within_1se['lambda'].idxmax()
+        optimal_lambda = within_1se.loc[optimal_lambda_idx, 'lambda']
+        optimal_fms = within_1se.loc[optimal_lambda_idx, 'mean_fms']
+        
+        print(f"\n{'='*80}")
+        print("OPTIMAL LAMBDA SELECTED")
+        print("="*80)
+        print(f"✓ Optimal Lambda: {optimal_lambda}")
+        print(f"  FMS: {optimal_fms:.4f}")
+        print(f"  (Maximum lambda where FMS ≥ {fms_1se_threshold:.4f})")
+        print(f"\nInterpretation:")
+        print(f"  • Provides most regularization (sparsity)")
+        print(f"  • While maintaining factor quality within 1SE of max")
+        print(f"  • Follows dissertation's validated approach")
+        print("="*80)
+        
+        # Save results
+        lambda_dir = os.path.join(output_dir, 'lambda_selection')
+        os.makedirs(lambda_dir, exist_ok=True)
+        
+        lambda_df.to_csv(os.path.join(lambda_dir, 'lambda_cv_results.csv'), index=False)
+        
+        import json
+        with open(os.path.join(lambda_dir, 'optimal_lambda.json'), 'w') as f:
+            json.dump({
+                'method': '1se_rule',
+                'reference': 'Blaskowski 2024, Section 1.2.3, pg. 15',
+                'optimal_lambda': float(optimal_lambda),
+                'optimal_fms': float(optimal_fms),
+                'max_fms': float(max_fms),
+                'fms_1se_threshold': float(fms_1se_threshold),
+                'rank_used': int(RANK_FOR_LAMBDA),
+                'lambdas_tested': LAMBDA_VALUES,
+                'cv_method': 'leave_one_group_out',
+                'n_cv_folds': len(USE_CV_GROUPS),
+                'timestamp': pd.Timestamp.now().isoformat()
+            }, f, indent=2)
+        
+        print(f"\n✓ Results saved to: {lambda_dir}")
+        
+        # Create plot
+        fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+        
+        # Plot 1: FMS vs Lambda
+        ax1 = axes[0]
+        ax1.errorbar(lambda_df['lambda'], lambda_df['mean_fms'],
+                    yerr=lambda_df['std_fms'],
+                    marker='o', markersize=10, linewidth=2.5,
+                    capsize=5, capthick=2,
+                    color='steelblue', ecolor='lightblue')
+        
+        # Mark optimal lambda
+        ax1.axvline(x=optimal_lambda, color='red', linestyle='--', 
+                   linewidth=2, alpha=0.7, label=f'Optimal λ = {optimal_lambda}')
+        ax1.axhline(y=fms_1se_threshold, color='orange', linestyle='--',
+                   linewidth=2, alpha=0.7, label=f'1SE threshold = {fms_1se_threshold:.3f}')
+        ax1.axhline(y=max_fms, color='green', linestyle='-',
+                   linewidth=1.5, alpha=0.5, label=f'Max FMS = {max_fms:.3f}')
+        
+        ax1.plot(optimal_lambda, optimal_fms, '*', markersize=20, 
+                color='red', markeredgecolor='darkred', markeredgewidth=2, zorder=10)
+        
+        ax1.set_xlabel('Lambda (λ)', fontsize=12, fontweight='bold')
+        ax1.set_ylabel('Mean Factor Match Score (FMS)', fontsize=12, fontweight='bold')
+        ax1.set_title('Lambda Selection via 1SE Rule\n(Dissertation Method)', 
+                     fontsize=13, fontweight='bold')
+        ax1.set_xscale('log')
+        ax1.grid(True, alpha=0.3)
+        ax1.legend(fontsize=10)
+        ax1.set_ylim([0, 1.05])
+        
+        # Plot 2: Explanation
+        ax2 = axes[1]
+        ax2.axis('off')
+        
+        summary = "1SE RULE EXPLANATION\n"
+        summary += "="*40 + "\n\n"
+        summary += f"Rank: {RANK_FOR_LAMBDA}\n"
+        summary += f"Optimal Lambda: {optimal_lambda}\n"
+        summary += f"Optimal FMS: {optimal_fms:.4f}\n\n"
+        summary += "Method:\n"
+        summary += "1. Find max FMS across lambdas\n"
+        summary += "2. Calculate 1 standard error\n"
+        summary += "3. Select largest lambda where\n"
+        summary += "   FMS ≥ (max FMS - 1SE)\n\n"
+        summary += "Why this works:\n"
+        summary += "• Larger lambda = more sparsity\n"
+        summary += "• 1SE rule balances sparsity\n"
+        summary += "  with factor quality\n"
+        summary += "• Validated on 100 simulations\n"
+        summary += "  in dissertation\n\n"
+        summary += "Next step:\n"
+        summary += "Run final decomposition with:\n"
+        summary += f"  Rank = {RANK_FOR_LAMBDA}\n"
+        summary += f"  Lambda = {optimal_lambda}"
+        
+        ax2.text(0.05, 0.95, summary,
+                transform=ax2.transAxes,
+                verticalalignment='top',
+                fontsize=11,
+                family='monospace',
+                bbox=dict(boxstyle='round', facecolor='lightgreen', alpha=0.4))
+        
+        plt.tight_layout()
+        plt.savefig(os.path.join(lambda_dir, 'lambda_selection_1se_rule.png'), 
+                   dpi=300, bbox_inches='tight')
+        print(f"✓ Plot saved: lambda_selection_1se_rule.png")
+        
+        plt.show()
+        plt.close()
+        
+    else:
+        print("\n⚠ No lambda values satisfy 1SE criterion")
+        optimal_lambda = None
+else:
+    print("\n⚠ No lambda results available")
+    optimal_lambda = None
 
 print("="*80)
 ```
