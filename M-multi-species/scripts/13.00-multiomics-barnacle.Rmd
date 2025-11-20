@@ -1805,6 +1805,14 @@ else:
         if len(fold_decompositions) >= 2:
             fms_scores = []
             
+            # Debug: check structure of decomposition
+            print(f"    Debug: decomposition type = {type(fold_decompositions[0])}")
+            print(f"    Debug: factors type = {type(fold_decompositions[0].factors)}")
+            print(f"    Debug: number of factor matrices = {len(fold_decompositions[0].factors)}")
+            if hasattr(fold_decompositions[0], 'factors'):
+                for idx, factor in enumerate(fold_decompositions[0].factors):
+                    print(f"      Factor {idx} shape: {factor.shape if hasattr(factor, 'shape') else 'N/A'}")
+            
             for i in range(len(fold_decompositions)):
                 for j in range(i+1, len(fold_decompositions)):
                     try:
