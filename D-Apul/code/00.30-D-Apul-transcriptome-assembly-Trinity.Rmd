@@ -73,8 +73,10 @@ line <- "-----------------------------------------------"
 Sys.setenv(
   bam_alignment = bam_alignment,
   denovo_assembly_name = denovo_assembly_name,
+  de_novo_output_dir = de_novo_output_dir,
   genome_fasta = genome_fasta,
   genome_guided_assembly_name = genome_guided_assembly_name,
+  genome_guided_output_dir = genome_guided_output_dir,
   line = line,
   output_dir = output_dir,
   top_output_dir = top_output_dir,
