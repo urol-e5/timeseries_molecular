@@ -1,0 +1,64 @@
+---
+title: "00.30-D-Apul-transcriptome-assembly-Trinity"
+author: "Sam White"
+date: "2025-11-21"
+output: 
+  bookdown::html_document2:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+  github_document:
+    toc: true
+    number_sections: true
+  html_document:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+bibliography: references.bib
+---
+# BACKGROUND
+
+
+# SETUP
+
+## Libraries and markdown settings
+```{r setup, include=TRUE}
+library(knitr)
+knitr::opts_chunk$set(
+  echo = TRUE,         # Display code chunks
+  eval = FALSE,        # Evaluate code chunks
+  warning = FALSE,     # Hide warnings
+  message = FALSE,     # Hide messages
+  comment = ""         # Prevents appending '##' to beginning of lines in code output
+)
+```
+
+
+## Set variables
+```{r set-variables, eval=TRUE}
+# DIRECTORIES
+top_output_dir <- file.path("..", "output")
+output_dir <- file.path(top_output_dir, "00.30-D-Apul-transcriptome-assembly-Trinity")
+
+
+# THREADS
+threads <- "150"
+
+
+# FORMATTING
+line <- "-----------------------------------------------"
+
+# Export these as environment variables for bash chunks.
+Sys.setenv(
+  line = line,
+  output_dir = output_dir,
+  top_output_dir = top_output_dir,
+  threads = threads
+)
+```
