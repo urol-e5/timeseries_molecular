@@ -136,9 +136,9 @@ knitr::kable(sig_hubs_tbl,
 
 # ---- 8) Plot expression by timepoint/species/site for sig hubs of modules linked with calcification ----
 
-dir.create("M-multi-species/output/31-module_contribution_WGCNA/MM", recursive = TRUE, showWarnings = FALSE)
+dir.create("M-multi-species/output/32-module_contribution_WGCNA/MM", recursive = TRUE, showWarnings = FALSE)
 
-pdf(file = "M-multi-species/output/31-module_contribution_WGCNA/calcification_hubGenes_expression.pdf", width = 9, height = 8)
+pdf(file = "M-multi-species/output/32-module_contribution_WGCNA/calcification_hubGenes_expression.pdf", width = 9, height = 8)
 ggplot(scaled_hubs_long %>%
          filter(.data[[pval_col]] < 0.05) %>%
          mutate(gene_label = ifelse(!is.na(id), id, ortho_id)) %>%
@@ -215,8 +215,8 @@ lapply(modNames, function(mod) {
   top_kme <- df %>% filter(abs(MM) > quantile(abs(MM), 0.9, na.rm = TRUE))
 
   # Export
-  write.csv(df, file = sprintf("M-multi-species/output/31-module_contribution_WGCNA/MM/moduleMembership_%s.csv", mod), row.names = FALSE)
-  write.csv(top_kme, file = sprintf("M-multi-species/output/31-module_contribution_WGCNA/MM/moduleMembership_%s_topTenPct.csv", mod), row.names = FALSE)
+  write.csv(df, file = sprintf("M-multi-species/output/32-module_contribution_WGCNA/MM/moduleMembership_%s.csv", mod), row.names = FALSE)
+  write.csv(top_kme, file = sprintf("M-multi-species/output/32-module_contribution_WGCNA/MM/moduleMembership_%s_topTenPct.csv", mod), row.names = FALSE)
 })
 ```
 
@@ -276,7 +276,7 @@ keep_modules <- mod_stats %>% filter(keep, module != "grey") %>% pull(module)
 # Final plot
 library(ggrepel)
 
-pdf(file = "M-multi-species/output/31-module_contribution_WGCNA/calcificationSig_MM.pdf", width = 9, height = 8)
+pdf(file = "M-multi-species/output/32-module_contribution_WGCNA/calcificationSig_MM.pdf", width = 9, height = 8)
 ggplot(per_module %>% filter(module %in% keep_modules),
        aes(x = MM, y = GS, color = module)) +
   geom_point(alpha = 0.8, size = 1.5) +
