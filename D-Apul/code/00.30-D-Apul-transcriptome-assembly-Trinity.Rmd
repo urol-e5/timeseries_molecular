@@ -27,6 +27,7 @@ bibliography: references.bib
 
 # SETUP
 
+
 ## Libraries and markdown settings
 ```{r setup, include=TRUE}
 library(knitr)
@@ -44,11 +45,22 @@ knitr::opts_chunk$set(
 ```{r set-variables, eval=TRUE}
 # DIRECTORIES
 top_output_dir <- file.path("..", "output")
+
 output_dir <- file.path(top_output_dir, "00.30-D-Apul-transcriptome-assembly-Trinity")
+trimmed_reads_dir <- file.path(output_dir, "output", "01.00-D-Apul-RNAseq-trimming-fastp-FastQC-MultiQC")
 
 
-# THREADS
+# FILES
+genome_fasta <- file.path("..", "data", "Apulchra-genome.fa")
+denovo_assembly_name <- "apul-denovo-Trinity"
+genome_guided_assembly_name <- "apul-GG-Trinity"
+
+#SETTINGS
+## THREADS
 threads <- "150"
+
+## MAX RAM
+max_ram <- "100G"
 
 
 # FORMATTING
@@ -56,9 +68,53 @@ line <- "-----------------------------------------------"
 
 # Export these as environment variables for bash chunks.
 Sys.setenv(
+  denovo_assembly_name = denovo_assembly_name,
+  genome_fasta = genome_fasta,
+  genome_guided_assembly_name = genome_guided_assembly_name,
   line = line,
   output_dir = output_dir,
   top_output_dir = top_output_dir,
-  threads = threads
+  threads = threads,
+  trimmed_reads_dir = trimmed_reads_dir
 )
 ```
+
+# DE NOVO ASSEMBLY
+```{r de-novo-assembly, engine='bash'}
+## Inititalize arrays
+R1_array=()
+R2_array=()
+
+# Variables for R1/R2 lists
+R1_list=""
+R2_list=""
+
+# Create array of fastq R1 files
+R1_array=(${trimmed_reads_dir}/*_R1.fq)
+
+# Create array of fastq R2 files
+R2_array=(${trimmed_reads_dir}/*_R2.fq)
+
+# Create list of fastq files used in analysis
+## Uses parameter substitution to strip leading path from filename
+for fastq in ${reads_dir}/*.fq
+do
+  echo "${fastq##*/}" >> fastq.list.txt
+done
+
+# Create comma-separated lists of FastQ reads
+R1_list=$(echo "${R1_array[@]}" | tr " " ",")
+R2_list=$(echo "${R2_array[@]}" | tr " " ",")
+
+
+# Run Trinity using "stranded" setting (--SS_lib_type)
+${trinity_dir}/Trinity \
+--seqType fq \
+--max_memory ${max_ram} \
+--CPU ${threads} \
+--SS_lib_type RF \
+--left "${R1_list}" \
+--right "${R2_list}"
+```
+
+# GENOME-GUIDED ASSEMBLY
