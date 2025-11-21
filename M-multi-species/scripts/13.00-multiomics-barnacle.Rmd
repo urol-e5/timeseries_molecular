@@ -1148,15 +1148,37 @@ print(f"\nSample mapping:")
 print(sample_mapping.head(10))
 ```
 
-## Dissertation-Validated Rank Selection
+## Dissertation-Validated Parameter Selection
 
-**IMPORTANT**: This section implements the cross-validated rank selection methodology from Blaskowski (2024) dissertation, Section 1.2.3.
+**TWO APPROACHES AVAILABLE**:
 
-The dissertation methodology uses biological replicates to validate rank and lambda selection through:
-1. Cross-validated SSE (Sum of Squared Errors) for rank selection
-2. Cross-validated FMS (Factor Match Score) with 1SE rule for lambda selection
+### 1. Full Dissertation Grid Search (RECOMMENDED - Most Faithful)
+**Location:** See sections below starting with "Full Dissertation Grid Search"
+- Tests all rank × lambda combinations simultaneously
+- Calculates both SSE and FMS for each combination
+- Applies two-stage selection: (1) min SSE at λ=0.0 for rank, (2) 1SE rule for lambda
+- **Pros:** Complete methodology, captures rank×lambda interactions
+- **Cons:** Slower (tests every combination)
+- **Use when:** You want the most faithful implementation of Blaskowski (2024)
 
-This is the RECOMMENDED approach when biological replicates are available.
+### 2. Sequential Approach (LEGACY - Faster)
+**Location:** Marked as "LEGACY SECTIONS" below
+- Tests ranks with λ=0.0, then tests lambdas at optimal rank
+- Calculates SSE for rank, FMS for lambda (separately)
+- Same selection criteria but no joint optimization
+- **Pros:** Faster, simpler, more practical
+- **Cons:** May miss rank×lambda interactions
+- **Use when:** You need quick results or have limited compute
+
+**Dissertation Reference:** Blaskowski (2024), Section 1.2.3
+
+The dissertation methodology validates rank and lambda selection through:
+1. **Stage 1**: Select rank R at minimum cross-validated SSE (λ=0.0 models)
+2. **Stage 2**: Select lambda λ at maximum value where FMS ≥ (max_FMS - 1SE)
+
+Both approaches implement this logic, but the grid search does it with full joint testing.
+
+---
 
 ### Identify biological replicate groups
 
@@ -1357,13 +1379,26 @@ print("SUGGESTED: Start with species-level CV for initial rank selection")
 print("="*80)
 ```
 
-### Cross-validated rank selection (Dissertation Method)
+### Full Dissertation Grid Search (Rank × Lambda)
 
-```{python cv-rank-selection-functions, eval=TRUE}
+```{python dissertation-grid-search-functions, eval=TRUE}
 # ===========================================
-# DISSERTATION-VALIDATED RANK SELECTION
+# FULL DISSERTATION GRID SEARCH
 # Implementation of Blaskowski (2024) Section 1.2.3
 # ===========================================
+# "We fit a series of models to each replicate subtensor using a grid search 
+#  of different R and λ parameter values. Six cross-validated SSE scores were 
+#  calculated for each unique set of parameters by comparing each fit model 
+#  against the two held out replicate subtensors. Three cross-validated FMS 
+#  scores were calculated for each parameter set by comparing the components 
+#  between each pair of replicate models."
+# ===========================================
+
+from barnacle.decomposition import SparseCP
+from tlviz.factor_tools import factor_match_score
+import numpy as np
+import pandas as pd
+from itertools import combinations
 
 def calculate_cv_sse(tensor, decomposition, train_indices, test_indices):
     """
@@ -1423,24 +1458,29 @@ def calculate_cv_sse(tensor, decomposition, train_indices, test_indices):
     return sse
 
 
-def cross_validated_rank_selection(
+def dissertation_grid_search_cv(
     tensor,
     replicate_groups,
-    rank_range=[5, 10, 15, 20, 25, 30, 35, 40],
-    lambdas=[0.0],
+    rank_range=[5, 10, 15, 20, 25, 30],
+    lambda_values=[0.0, 0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0],
     n_iter_max=10000,
     random_state=42
 ):
     """
-    Dissertation-validated rank selection via cross-validation.
+    Full dissertation grid search: Test all rank × lambda combinations.
     
-    Implementation of Blaskowski (2024) Section 1.2.3:
-    "We selected the R value of best fit based on the minimum cross-validated SSE"
+    Implementation of Blaskowski (2024) Section 1.2.3, page 20-21:
+    "We fit a series of models to each replicate subtensor using a grid search 
+     of different R and λ parameter values."
     
-    Method:
-    1. For each rank R, perform leave-one-group-out cross-validation
-    2. Fit model on training groups, evaluate SSE on test group
-    3. Select rank with minimum mean CV-SSE
+    For each (rank, lambda) combination:
+    1. Fit model to each CV fold (leave-one-group-out)
+    2. Calculate cross-validated SSE scores (each model vs held-out data)
+    3. Calculate cross-validated FMS scores (pairwise between models)
+    
+    Two-stage selection (Dissertation method):
+    - Stage 1: Select R at minimum CV-SSE for λ=0.0 models
+    - Stage 2: Select maximum λ where CV-FMS ≥ (max_FMS - 1SE)
     
     Parameters:
     -----------
@@ -1451,8 +1491,8 @@ def cross_validated_rank_selection(
         Values: list of sample indices
     rank_range : list
         Ranks to test
-    lambdas : list
-        Lambda values (use [0.0] for rank selection per dissertation)
+    lambda_values : list
+        Lambda values to test
     n_iter_max : int
         Maximum iterations for optimization
     random_state : int
@@ -1461,193 +1501,635 @@ def cross_validated_rank_selection(
     Returns:
     --------
     optimal_rank : int
-        Rank with minimum CV-SSE
-    cv_results_df : DataFrame
-        Full cross-validation results
+        Selected rank (minimum CV-SSE at λ=0.0)
+    optimal_lambda : float
+        Selected lambda (maximum λ with FMS ≥ max_FMS - 1SE)
+    grid_results_df : DataFrame
+        Full grid search results with SSE and FMS for all combinations
     """
-    from barnacle.decomposition import SparseCP
     
     print("="*80)
-    print("CROSS-VALIDATED RANK SELECTION")
-    print("Dissertation Method (Blaskowski 2024, Section 1.2.3)")
+    print("FULL DISSERTATION GRID SEARCH")
+    print("Blaskowski (2024) Section 1.2.3")
     print("="*80)
-    print(f"Testing ranks: {rank_range}")
-    print(f"Lambda: {lambdas[0]} (no regularization for rank selection)")
+    print(f"Testing {len(rank_range)} ranks: {rank_range}")
+    print(f"Testing {len(lambda_values)} lambdas: {lambda_values}")
+    print(f"Total combinations: {len(rank_range) * len(lambda_values)}")
     print(f"Cross-validation: Leave-one-group-out ({len(replicate_groups)} folds)")
     print(f"Random state: {random_state}")
     print("="*80)
-    
-    cv_results = []
+    print("\nFor each (R, λ) combination, calculating:")
+    print(f"  • {len(replicate_groups)} × {len(replicate_groups)-1} = {len(replicate_groups) * (len(replicate_groups)-1)} SSE scores")
+    print(f"    (each model evaluated on {len(replicate_groups)-1} held-out groups)")
+    print(f"  • {len(list(combinations(range(len(replicate_groups)), 2)))} FMS scores")
+    print(f"    (pairwise comparisons between {len(replicate_groups)} models)")
+    print("="*80)
     
     # Handle missing values once
     tensor_filled = np.nan_to_num(tensor, nan=0.0)
     
-    # For each rank, do leave-one-group-out cross-validation
+    # Storage for all grid search results
+    grid_results = []
+    
+    # Grid search over all rank × lambda combinations
+    total_combinations = len(rank_range) * len(lambda_values)
+    combination_idx = 0
+    
     for R in rank_range:
-        print(f"\n{'='*60}")
-        print(f"Testing Rank {R}")
-        print(f"{'='*60}")
-        
-        fold_sse_scores = []
-        fold_details = []
-        
-        # Leave-one-group-out CV
-        for fold_idx, (group_name, test_indices) in enumerate(replicate_groups.items()):
-            print(f"  Fold {fold_idx+1}/{len(replicate_groups)}: Hold out {group_name} ({len(test_indices)} samples)")
+        for lambda_val in lambda_values:
+            combination_idx += 1
             
-            # Create train/test split
-            train_indices = []
-            for other_name, other_indices in replicate_groups.items():
-                if other_name != group_name:
-                    train_indices.extend(other_indices)
+            print(f"\n{'='*80}")
+            print(f"Combination {combination_idx}/{total_combinations}: Rank={R}, Lambda={lambda_val}")
+            print(f"{'='*80}")
             
-            print(f"    Training on {len(train_indices)} samples")
+            # Storage for this combination
+            fold_decompositions = []
+            fold_metadata = []
+            all_sse_scores = []
             
-            # Fit model on training data
-            train_tensor = tensor_filled[:, train_indices, :]
+            # Fit model to each CV fold
+            for fold_idx, (group_name, test_indices) in enumerate(replicate_groups.items()):
+                print(f"  Fold {fold_idx+1}/{len(replicate_groups)}: Training without {group_name}")
+                
+                # Create training data (all groups except current)
+                train_indices = []
+                for other_name, other_indices in replicate_groups.items():
+                    if other_name != group_name:
+                        train_indices.extend(other_indices)
+                
+                train_tensor = tensor_filled[:, train_indices, :]
+                
+                try:
+                    # Fit model
+                    model = SparseCP(
+                        rank=R,
+                        lambdas=[lambda_val, 0.0, lambda_val],  # Apply to gene and time factors
+                        nonneg_modes=[0],
+                        norm_constraint=True,
+                        init='random',
+                        tol=1e-5,
+                        n_iter_max=n_iter_max,
+                        random_state=random_state,
+                        n_initializations=1
+                    )
+                    
+                    decomposition = model.fit_transform(train_tensor, verbose=0)
+                    
+                    # Calculate SSE on THIS fold's held-out data
+                    sse_own = calculate_cv_sse(tensor_filled, decomposition, train_indices, test_indices)
+                    
+                    # Calculate SSE on ALL OTHER held-out groups
+                    sse_others = []
+                    for other_name, other_test_indices in replicate_groups.items():
+                        if other_name != group_name:
+                            sse_other = calculate_cv_sse(tensor_filled, decomposition, 
+                                                        train_indices, other_test_indices)
+                            sse_others.append(sse_other)
+                            all_sse_scores.append(sse_other)
+                    
+                    print(f"    ✓ SSE on {group_name}: {sse_own:.2e}")
+                    print(f"      SSE on others: {np.mean(sse_others):.2e} ± {np.std(sse_others):.2e}")
+                    
+                    fold_decompositions.append(decomposition)
+                    fold_metadata.append({
+                        'fold': fold_idx + 1,
+                        'group': group_name,
+                        'sse_own': sse_own,
+                        'sse_others_mean': np.mean(sse_others),
+                        'converged': True
+                    })
+                    
+                except Exception as e:
+                    print(f"    ✗ Error: {e}")
+                    fold_decompositions.append(None)
+                    fold_metadata.append({
+                        'fold': fold_idx + 1,
+                        'group': group_name,
+                        'sse_own': np.nan,
+                        'sse_others_mean': np.nan,
+                        'converged': False
+                    })
             
-            try:
-                model = SparseCP(
-                    rank=R,
-                    lambdas=[lambdas[0], 0.0, lambdas[0]],
-                    nonneg_modes=[0],
-                    norm_constraint=True,
-                    init='random',
-                    tol=1e-5,
-                    n_iter_max=n_iter_max,
-                    random_state=random_state,
-                    n_initializations=1
-                )
+            # Calculate pairwise FMS between successful folds
+            successful_decompositions = [d for d in fold_decompositions if d is not None]
+            
+            fms_scores = []
+            if len(successful_decompositions) >= 2:
+                print(f"\n  Calculating FMS between {len(successful_decompositions)} successful models...")
                 
-                decomposition = model.fit_transform(train_tensor, verbose=0)
-                
-                # Calculate SSE on test data
-                sse = calculate_cv_sse(tensor_filled, decomposition, train_indices, test_indices)
-                fold_sse_scores.append(sse)
-                
-                # Get relative error for reference
-                test_tensor = tensor_filled[:, test_indices, :]
-                test_norm = np.linalg.norm(test_tensor)
-                relative_error = np.sqrt(sse) / test_norm if test_norm > 0 else np.inf
-                
-                print(f"    SSE: {sse:.2e}, Relative Error: {relative_error:.4f}")
-                
-                fold_details.append({
-                    'fold': fold_idx + 1,
-                    'group': group_name,
-                    'sse': sse,
-                    'relative_error': relative_error,
-                    'converged': True
-                })
-                
-            except Exception as e:
-                print(f"    Error: {e}")
-                fold_sse_scores.append(np.nan)
-                fold_details.append({
-                    'fold': fold_idx + 1,
-                    'group': group_name,
-                    'sse': np.nan,
-                    'relative_error': np.nan,
-                    'converged': False
-                })
-        
-        # Calculate mean and std of CV-SSE
-        valid_scores = [s for s in fold_sse_scores if not np.isnan(s)]
-        if len(valid_scores) > 0:
-            mean_cv_sse = np.mean(valid_scores)
-            std_cv_sse = np.std(valid_scores)
-            min_cv_sse = np.min(valid_scores)
-            max_cv_sse = np.max(valid_scores)
-        else:
-            mean_cv_sse = np.inf
-            std_cv_sse = np.inf
-            min_cv_sse = np.inf
-            max_cv_sse = np.inf
-        
-        cv_results.append({
-            'rank': R,
-            'lambda': lambdas[0],
-            'mean_cv_sse': mean_cv_sse,
-            'std_cv_sse': std_cv_sse,
-            'min_cv_sse': min_cv_sse,
-            'max_cv_sse': max_cv_sse,
-            'n_successful_folds': len(valid_scores),
-            'fold_details': fold_details
-        })
-        
-        print(f"  → Mean CV-SSE: {mean_cv_sse:.2e} ± {std_cv_sse:.2e}")
-        print(f"  → Range: [{min_cv_sse:.2e}, {max_cv_sse:.2e}]")
-        print(f"  → Successful folds: {len(valid_scores)}/{len(replicate_groups)}")
+                for i, j in combinations(range(len(successful_decompositions)), 2):
+                    try:
+                        # Compare only gene and time factors
+                        # (sample factors have different dimensions across folds)
+                        cp_tensor_i = (
+                            successful_decompositions[i].weights,
+                            [successful_decompositions[i].factors[0],  # genes
+                             successful_decompositions[i].factors[2]]  # time
+                        )
+                        cp_tensor_j = (
+                            successful_decompositions[j].weights,
+                            [successful_decompositions[j].factors[0],  # genes
+                             successful_decompositions[j].factors[2]]  # time
+                        )
+                        
+                        fms = factor_match_score(
+                            cp_tensor_i, 
+                            cp_tensor_j,
+                            return_permutation=False
+                        )
+                        fms_scores.append(fms)
+                        
+                    except Exception as e:
+                        print(f"    Warning: FMS calculation failed for pair ({i},{j}): {e}")
+                        continue
+            
+            # Aggregate results for this combination
+            valid_sse = [s for s in all_sse_scores if not np.isnan(s)]
+            valid_fms = [f for f in fms_scores if not np.isnan(f)]
+            
+            if len(valid_sse) > 0:
+                mean_cv_sse = np.mean(valid_sse)
+                std_cv_sse = np.std(valid_sse)
+                se_cv_sse = std_cv_sse / np.sqrt(len(valid_sse))
+            else:
+                mean_cv_sse = np.inf
+                std_cv_sse = np.inf
+                se_cv_sse = np.inf
+            
+            if len(valid_fms) > 0:
+                mean_cv_fms = np.mean(valid_fms)
+                std_cv_fms = np.std(valid_fms)
+                se_cv_fms = std_cv_fms / np.sqrt(len(valid_fms))
+            else:
+                mean_cv_fms = np.nan
+                std_cv_fms = np.nan
+                se_cv_fms = np.nan
+            
+            grid_results.append({
+                'rank': R,
+                'lambda': lambda_val,
+                'mean_cv_sse': mean_cv_sse,
+                'std_cv_sse': std_cv_sse,
+                'se_cv_sse': se_cv_sse,
+                'n_sse_scores': len(valid_sse),
+                'mean_cv_fms': mean_cv_fms,
+                'std_cv_fms': std_cv_fms,
+                'se_cv_fms': se_cv_fms,
+                'n_fms_scores': len(valid_fms),
+                'n_successful_folds': len(successful_decompositions),
+                'fold_metadata': fold_metadata
+            })
+            
+            print(f"\n  RESULTS:")
+            print(f"    CV-SSE: {mean_cv_sse:.2e} ± {std_cv_sse:.2e} ({len(valid_sse)} scores)")
+            print(f"    CV-FMS: {mean_cv_fms:.4f} ± {std_cv_fms:.4f} ({len(valid_fms)} scores)")
     
     # Convert to DataFrame
-    cv_df = pd.DataFrame(cv_results)
+    grid_df = pd.DataFrame(grid_results)
     
-    # Select optimal rank (minimum CV-SSE)
-    if cv_df['mean_cv_sse'].isna().all():
-        print("\n" + "="*80)
-        print("ERROR: All ranks failed. Cannot select optimal rank.")
-        print("="*80)
-        return None, cv_df
+    # ===========================================
+    # STAGE 1: SELECT RANK (λ=0.0 models only)
+    # ===========================================
+    print(f"\n{'='*80}")
+    print("STAGE 1: RANK SELECTION")
+    print("Dissertation: 'Select R at minimum CV-SSE for λ=0.0 models'")
+    print("="*80)
     
-    optimal_idx = cv_df['mean_cv_sse'].idxmin()
-    optimal_rank = int(cv_df.loc[optimal_idx, 'rank'])
-    optimal_sse = cv_df.loc[optimal_idx, 'mean_cv_sse']
-    optimal_std = cv_df.loc[optimal_idx, 'std_cv_sse']
+    lambda_zero_df = grid_df[grid_df['lambda'] == 0.0].copy()
+    
+    if len(lambda_zero_df) == 0 or lambda_zero_df['mean_cv_sse'].isna().all():
+        print("ERROR: No valid λ=0.0 models. Cannot select rank.")
+        return None, None, grid_df
+    
+    optimal_rank_idx = lambda_zero_df['mean_cv_sse'].idxmin()
+    optimal_rank = int(lambda_zero_df.loc[optimal_rank_idx, 'rank'])
+    optimal_rank_sse = lambda_zero_df.loc[optimal_rank_idx, 'mean_cv_sse']
+    optimal_rank_std = lambda_zero_df.loc[optimal_rank_idx, 'std_cv_sse']
+    
+    print(f"\n✓ OPTIMAL RANK: {optimal_rank}")
+    print(f"  CV-SSE: {optimal_rank_sse:.2e} ± {optimal_rank_std:.2e}")
+    print(f"\nAll λ=0.0 results:")
+    display_df = lambda_zero_df[['rank', 'mean_cv_sse', 'std_cv_sse', 'n_successful_folds']].copy()
+    display_df = display_df.sort_values('mean_cv_sse')
+    print(display_df.to_string(index=False, float_format=lambda x: f'{x:.2e}' if x > 1 else f'{x:.4f}'))
+    
+    # ===========================================
+    # STAGE 2: SELECT LAMBDA (fixed rank)
+    # ===========================================
+    print(f"\n{'='*80}")
+    print("STAGE 2: LAMBDA SELECTION")
+    print("Dissertation: 'Select maximum λ where CV-FMS ≥ (max_FMS - 1SE)'")
+    print("="*80)
+    
+    fixed_rank_df = grid_df[grid_df['rank'] == optimal_rank].copy()
+    fixed_rank_df = fixed_rank_df[~fixed_rank_df['mean_cv_fms'].isna()]
+    
+    if len(fixed_rank_df) == 0:
+        print("ERROR: No valid FMS scores at optimal rank. Cannot select lambda.")
+        return optimal_rank, None, grid_df
+    
+    # Find maximum FMS
+    max_fms_idx = fixed_rank_df['mean_cv_fms'].idxmax()
+    max_fms = fixed_rank_df.loc[max_fms_idx, 'mean_cv_fms']
+    max_fms_se = fixed_rank_df.loc[max_fms_idx, 'se_cv_fms']
+    max_fms_lambda = fixed_rank_df.loc[max_fms_idx, 'lambda']
+    
+    # Calculate 1SE threshold
+    fms_1se_threshold = max_fms - max_fms_se
+    
+    print(f"\nMaximum FMS: {max_fms:.4f} ± {max_fms_se:.4f} (at λ={max_fms_lambda})")
+    print(f"1SE Threshold: {fms_1se_threshold:.4f}")
+    
+    # Find maximum lambda within 1SE
+    within_1se = fixed_rank_df[fixed_rank_df['mean_cv_fms'] >= fms_1se_threshold]
+    
+    if len(within_1se) > 0:
+        optimal_lambda_idx = within_1se['lambda'].idxmax()
+        optimal_lambda = float(within_1se.loc[optimal_lambda_idx, 'lambda'])
+        optimal_lambda_fms = within_1se.loc[optimal_lambda_idx, 'mean_cv_fms']
+        optimal_lambda_sse = within_1se.loc[optimal_lambda_idx, 'mean_cv_sse']
+        
+        print(f"\n✓ OPTIMAL LAMBDA: {optimal_lambda}")
+        print(f"  CV-FMS: {optimal_lambda_fms:.4f}")
+        print(f"  CV-SSE: {optimal_lambda_sse:.2e}")
+        print(f"  (Maximum λ where FMS ≥ {fms_1se_threshold:.4f})")
+        
+        print(f"\nAll results at rank={optimal_rank}:")
+        display_df = fixed_rank_df[['lambda', 'mean_cv_fms', 'se_cv_fms', 'mean_cv_sse']].copy()
+        display_df = display_df.sort_values('lambda')
+        print(display_df.to_string(index=False, float_format=lambda x: f'{x:.4f}'))
+    else:
+        optimal_lambda = 0.0
+        print(f"\nWARNING: No lambda values within 1SE of max FMS.")
+        print(f"Defaulting to λ=0.0")
     
     print(f"\n{'='*80}")
-    print("OPTIMAL RANK SELECTION RESULTS")
-    print(f"{'='*80}")
-    print(f"✓ Optimal Rank: {optimal_rank}")
-    print(f"  CV-SSE: {optimal_sse:.2e} ± {optimal_std:.2e}")
-    print(f"\nFull Results (sorted by CV-SSE):")
-    display_df = cv_df[['rank', 'mean_cv_sse', 'std_cv_sse', 'n_successful_folds']].copy()
-    display_df = display_df.sort_values('mean_cv_sse')
-    print(display_df.to_string(index=False, float_format=lambda x: f'{x:.2e}'))
-    print(f"{'='*80}")
+    print("FINAL SELECTED PARAMETERS")
+    print("="*80)
+    print(f"✓ Rank: {optimal_rank}")
+    print(f"✓ Lambda: {optimal_lambda}")
+    print("="*80)
     
-    return optimal_rank, cv_df
+    return optimal_rank, optimal_lambda, grid_df
 
 
-print("Cross-validated rank selection functions loaded")
-print("Ready to run dissertation-validated parameter selection")
+print("Full dissertation grid search functions loaded")
+print("Ready to run complete rank × lambda grid search")
 ```
 
-### Run cross-validated rank selection
+### Run full dissertation grid search
 
-```{python run-cv-rank-selection, eval=FALSE}
+```{python run-dissertation-grid-search, eval=FALSE}
 # ===========================================
-# RUN CROSS-VALIDATED RANK SELECTION
+# RUN FULL DISSERTATION GRID SEARCH
 # ===========================================
-# IMPLEMENTING BLASKOWSKI (2024) DISSERTATION METHOD
+# Tests all rank × lambda combinations
+# Calculates both SSE and FMS for each
+# Applies two-stage selection process
 # ===========================================
 
 print("="*80)
-print("STARTING DISSERTATION-VALIDATED RANK SELECTION")
+print("STARTING FULL DISSERTATION GRID SEARCH")
+print("Blaskowski (2024) Section 1.2.3")
 print("="*80)
 
-# Configure parameters
-CV_RANK_RANGE = [5, 10, 15, 20, 25, 35]  # Start with quick test, expand if needed
-CV_LAMBDA = [0.0]  # No regularization for rank selection (per dissertation)
-CV_RANDOM_STATE = 42
+# ============================================
+# CONFIGURE GRID SEARCH PARAMETERS
+# ============================================
+
+# Rank range to test
+# Dissertation tested R ∈ [1, 2, 3, ..., 12]
+# For computational efficiency, start with coarser grid
+GRID_RANK_RANGE = [5, 10, 15, 20, 25, 30]
+
+# Lambda values to test
+# Dissertation tested λ ∈ [0.0, 0.05, 0.1, 0.2, 0.4, 0.8, 1.6, 3.2, 6.4, 12.8]
+# Start with similar range
+GRID_LAMBDA_VALUES = [0.0, 0.01, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0]
+
+# Other parameters
+GRID_N_ITER_MAX = 10000
+GRID_RANDOM_STATE = 42
 
 # ============================================
-# CHOOSE CV APPROACH:
+# CHOOSE CV APPROACH
 # ============================================
-# Option 1: SPECIES-LEVEL CV (RECOMMENDED - Fast, 3 folds)
-#   Tests: Can model generalize to new species?
-#   Similar to dissertation's leave-one-dataset-out approach
-USE_CV_GROUPS = species_groups  
+# SPECIES-LEVEL CV (RECOMMENDED - Fast, 3 folds)
+GRID_CV_GROUPS = species_groups
 
-# Option 2: COLONY-LEVEL CV (Comprehensive but slow, ~30-40 folds)
-#   Tests: Can model generalize to new colony?
-#   More traditional biological replicate validation
-# USE_CV_GROUPS = replicate_groups  # Uncomment to use this instead
+# Alternatively: COLONY-LEVEL CV (Slower, ~30-40 folds)
+# GRID_CV_GROUPS = replicate_groups
 
-print(f"\nCV Configuration:")
-print(f"  Approach: {'SPECIES-LEVEL' if len(USE_CV_GROUPS) == 3 else 'COLONY-LEVEL'}")
-print(f"  Number of CV folds: {len(USE_CV_GROUPS)}")
-print(f"  Ranks to test: {CV_RANK_RANGE}")
-print(f"  Lambda: {CV_LAMBDA[0]} (no regularization)")
+print(f"\nGrid search configuration:")
+print(f"  Ranks to test ({len(GRID_RANK_RANGE)}): {GRID_RANK_RANGE}")
+print(f"  Lambdas to test ({len(GRID_LAMBDA_VALUES)}): {GRID_LAMBDA_VALUES}")
+print(f"  Total combinations: {len(GRID_RANK_RANGE)} × {len(GRID_LAMBDA_VALUES)} = {len(GRID_RANK_RANGE) * len(GRID_LAMBDA_VALUES)}")
+print(f"  CV folds: {len(GRID_CV_GROUPS)}")
+print(f"  Max iterations: {GRID_N_ITER_MAX}")
+print(f"  Random state: {GRID_RANDOM_STATE}")
+print("="*80)
+
+# Estimate runtime
+models_per_combination = len(GRID_CV_GROUPS)
+total_models = len(GRID_RANK_RANGE) * len(GRID_LAMBDA_VALUES) * models_per_combination
+print(f"\nEstimated workload:")
+print(f"  Models to fit: {total_models}")
+print(f"  ({len(GRID_RANK_RANGE)} ranks × {len(GRID_LAMBDA_VALUES)} lambdas × {models_per_combination} CV folds)")
+print(f"  Estimated time: ~{total_models * 2 / 60:.1f}-{total_models * 5 / 60:.1f} minutes")
+print(f"    (assuming 2-5 min per model)")
+print("="*80)
+
+proceed = input("\nProceed with grid search? (yes/no): ")
+if proceed.lower() != 'yes':
+    print("Grid search cancelled.")
+else:
+    print("\n" + "="*80)
+    print("STARTING GRID SEARCH...")
+    print("="*80)
+    
+    import time
+    start_time = time.time()
+    
+    # Run full grid search
+    optimal_rank_grid, optimal_lambda_grid, grid_results_df = dissertation_grid_search_cv(
+        tensor=tensor_3d,
+        replicate_groups=GRID_CV_GROUPS,
+        rank_range=GRID_RANK_RANGE,
+        lambda_values=GRID_LAMBDA_VALUES,
+        n_iter_max=GRID_N_ITER_MAX,
+        random_state=GRID_RANDOM_STATE
+    )
+    
+    elapsed_time = time.time() - start_time
+    
+    print(f"\n{'='*80}")
+    print("GRID SEARCH COMPLETE")
+    print("="*80)
+    print(f"Total time: {elapsed_time / 60:.1f} minutes")
+    print(f"Time per combination: {elapsed_time / (len(GRID_RANK_RANGE) * len(GRID_LAMBDA_VALUES)):.1f} seconds")
+    print("="*80)
+    
+    # Save results
+    grid_search_dir = os.path.join(output_dir, 'dissertation_grid_search')
+    os.makedirs(grid_search_dir, exist_ok=True)
+    
+    # Save full grid results
+    grid_results_df.to_csv(
+        os.path.join(grid_search_dir, 'full_grid_results.csv'),
+        index=False
+    )
+    print(f"\n✓ Full grid results saved to: full_grid_results.csv")
+    
+    # Save optimal parameters
+    import json
+    with open(os.path.join(grid_search_dir, 'optimal_parameters.json'), 'w') as f:
+        json.dump({
+            'method': 'dissertation_grid_search',
+            'reference': 'Blaskowski 2024, Section 1.2.3',
+            'optimal_rank': int(optimal_rank_grid) if optimal_rank_grid is not None else None,
+            'optimal_lambda': float(optimal_lambda_grid) if optimal_lambda_grid is not None else None,
+            'rank_range_tested': GRID_RANK_RANGE,
+            'lambda_values_tested': GRID_LAMBDA_VALUES,
+            'cv_method': 'leave_one_group_out',
+            'n_cv_folds': len(GRID_CV_GROUPS),
+            'cv_groups': list(GRID_CV_GROUPS.keys()),
+            'total_combinations': len(GRID_RANK_RANGE) * len(GRID_LAMBDA_VALUES),
+            'runtime_minutes': elapsed_time / 60,
+            'timestamp': pd.Timestamp.now().isoformat()
+        }, f, indent=2)
+    
+    print(f"✓ Optimal parameters saved to: optimal_parameters.json")
+    
+    print(f"\n{'='*80}")
+    print("Results saved to directory:")
+    print(f"  {grid_search_dir}")
+    print("="*80)
+```
+
+### Visualize grid search results
+
+```{python plot-grid-search-results, eval=FALSE}
+# ===========================================
+# VISUALIZE FULL GRID SEARCH RESULTS
+# ===========================================
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
+
+print("="*80)
+print("CREATING GRID SEARCH VISUALIZATIONS")
+print("="*80)
+
+# Create output directory
+grid_search_dir = os.path.join(output_dir, 'dissertation_grid_search')
+
+if 'grid_results_df' not in locals() or grid_results_df is None:
+    print("ERROR: No grid search results available. Run grid search first.")
+else:
+    # Clean data for plotting
+    plot_df = grid_results_df.copy()
+    plot_df = plot_df[~plot_df['mean_cv_sse'].isna()]
+    
+    print(f"Plotting {len(plot_df)} combinations with valid results")
+    
+    # ============================================
+    # Figure 1: SSE Heatmap (Rank × Lambda)
+    # ============================================
+    fig, ax = plt.subplots(figsize=(12, 8))
+    
+    # Pivot for heatmap
+    sse_pivot = plot_df.pivot(index='rank', columns='lambda', values='mean_cv_sse')
+    
+    # Plot heatmap
+    sns.heatmap(sse_pivot, annot=True, fmt='.2e', cmap='viridis_r',
+                cbar_kws={'label': 'Mean CV-SSE'},
+                ax=ax)
+    
+    # Mark optimal rank (from λ=0.0)
+    if optimal_rank_grid is not None:
+        lambda_zero_idx = list(sse_pivot.columns).index(0.0) if 0.0 in sse_pivot.columns else 0
+        rank_idx = list(sse_pivot.index).index(optimal_rank_grid) if optimal_rank_grid in sse_pivot.index else 0
+        ax.add_patch(plt.Rectangle((lambda_zero_idx, rank_idx), 1, 1,
+                                   fill=False, edgecolor='red', lw=3))
+    
+    # Mark optimal lambda at optimal rank
+    if optimal_rank_grid is not None and optimal_lambda_grid is not None:
+        if optimal_lambda_grid in sse_pivot.columns and optimal_rank_grid in sse_pivot.index:
+            lambda_idx = list(sse_pivot.columns).index(optimal_lambda_grid)
+            rank_idx = list(sse_pivot.index).index(optimal_rank_grid)
+            ax.add_patch(plt.Rectangle((lambda_idx, rank_idx), 1, 1,
+                                       fill=False, edgecolor='cyan', lw=3))
+    
+    ax.set_title('Cross-Validated SSE: Rank × Lambda Grid Search\n' + 
+                 f'Red box = Optimal rank (R={optimal_rank_grid}, λ=0.0)\n' +
+                 f'Cyan box = Final selection (R={optimal_rank_grid}, λ={optimal_lambda_grid})',
+                 fontsize=14, fontweight='bold')
+    ax.set_xlabel('Lambda (Regularization)', fontsize=12)
+    ax.set_ylabel('Rank', fontsize=12)
+    
+    plt.tight_layout()
+    plt.savefig(os.path.join(grid_search_dir, 'grid_search_sse_heatmap.png'),
+                dpi=300, bbox_inches='tight')
+    plt.show()
+    plt.close()
+    
+    print("✓ SSE heatmap saved")
+    
+    # ============================================
+    # Figure 2: FMS Heatmap (Rank × Lambda)
+    # ============================================
+    plot_df_fms = plot_df[~plot_df['mean_cv_fms'].isna()].copy()
+    
+    if len(plot_df_fms) > 0:
+        fig, ax = plt.subplots(figsize=(12, 8))
+        
+        # Pivot for heatmap
+        fms_pivot = plot_df_fms.pivot(index='rank', columns='lambda', values='mean_cv_fms')
+        
+        # Plot heatmap
+        sns.heatmap(fms_pivot, annot=True, fmt='.3f', cmap='RdYlGn',
+                    vmin=0, vmax=1,
+                    cbar_kws={'label': 'Mean CV-FMS'},
+                    ax=ax)
+        
+        # Mark optimal parameters
+        if optimal_rank_grid is not None and optimal_lambda_grid is not None:
+            if optimal_lambda_grid in fms_pivot.columns and optimal_rank_grid in fms_pivot.index:
+                lambda_idx = list(fms_pivot.columns).index(optimal_lambda_grid)
+                rank_idx = list(fms_pivot.index).index(optimal_rank_grid)
+                ax.add_patch(plt.Rectangle((lambda_idx, rank_idx), 1, 1,
+                                           fill=False, edgecolor='blue', lw=3))
+        
+        ax.set_title('Cross-Validated FMS: Rank × Lambda Grid Search\n' + 
+                     f'Blue box = Final selection (R={optimal_rank_grid}, λ={optimal_lambda_grid})',
+                     fontsize=14, fontweight='bold')
+        ax.set_xlabel('Lambda (Regularization)', fontsize=12)
+        ax.set_ylabel('Rank', fontsize=12)
+        
+        plt.tight_layout()
+        plt.savefig(os.path.join(grid_search_dir, 'grid_search_fms_heatmap.png'),
+                    dpi=300, bbox_inches='tight')
+        plt.show()
+        plt.close()
+        
+        print("✓ FMS heatmap saved")
+    else:
+        print("⚠ No FMS data available for plotting")
+    
+    # ============================================
+    # Figure 3: Line plots at optimal rank
+    # ============================================
+    if optimal_rank_grid is not None:
+        optimal_rank_data = plot_df[plot_df['rank'] == optimal_rank_grid].copy()
+        optimal_rank_data = optimal_rank_data.sort_values('lambda')
+        
+        fig, axes = plt.subplots(2, 1, figsize=(12, 10))
+        
+        # Plot 1: SSE vs Lambda
+        ax1 = axes[0]
+        ax1.errorbar(optimal_rank_data['lambda'], 
+                    optimal_rank_data['mean_cv_sse'],
+                    yerr=optimal_rank_data['std_cv_sse'],
+                    marker='o', markersize=10, linewidth=2.5,
+                    capsize=5, capthick=2,
+                    color='steelblue', ecolor='lightblue')
+        
+        ax1.axvline(x=optimal_lambda_grid, color='red', linestyle='--',
+                   linewidth=2, alpha=0.7, label=f'Optimal λ = {optimal_lambda_grid}')
+        
+        ax1.set_xlabel('Lambda (Regularization)', fontsize=12)
+        ax1.set_ylabel('Mean CV-SSE', fontsize=12)
+        ax1.set_title(f'SSE vs Lambda at Optimal Rank (R={optimal_rank_grid})',
+                     fontsize=13, fontweight='bold')
+        ax1.legend(fontsize=11)
+        ax1.grid(alpha=0.3)
+        
+        # Plot 2: FMS vs Lambda
+        ax2 = axes[1]
+        fms_data = optimal_rank_data[~optimal_rank_data['mean_cv_fms'].isna()]
+        
+        if len(fms_data) > 0:
+            ax2.errorbar(fms_data['lambda'],
+                        fms_data['mean_cv_fms'],
+                        yerr=fms_data['std_cv_fms'],
+                        marker='o', markersize=10, linewidth=2.5,
+                        capsize=5, capthick=2,
+                        color='forestgreen', ecolor='lightgreen')
+            
+            # Add 1SE threshold line
+            max_fms = fms_data['mean_cv_fms'].max()
+            max_fms_row = fms_data[fms_data['mean_cv_fms'] == max_fms].iloc[0]
+            fms_1se = max_fms - max_fms_row['se_cv_fms']
+            
+            ax2.axhline(y=fms_1se, color='orange', linestyle='--',
+                       linewidth=2, alpha=0.7, label=f'1SE threshold = {fms_1se:.3f}')
+            ax2.axvline(x=optimal_lambda_grid, color='red', linestyle='--',
+                       linewidth=2, alpha=0.7, label=f'Optimal λ = {optimal_lambda_grid}')
+            
+            ax2.set_xlabel('Lambda (Regularization)', fontsize=12)
+            ax2.set_ylabel('Mean CV-FMS', fontsize=12)
+            ax2.set_title(f'FMS vs Lambda at Optimal Rank (R={optimal_rank_grid})\n' + 
+                         'Selection: Maximum λ where FMS ≥ (max_FMS - 1SE)',
+                         fontsize=13, fontweight='bold')
+            ax2.legend(fontsize=11)
+            ax2.grid(alpha=0.3)
+            ax2.set_ylim(0, 1.05)
+        else:
+            ax2.text(0.5, 0.5, 'No FMS data available',
+                    ha='center', va='center', fontsize=14,
+                    transform=ax2.transAxes)
+        
+        plt.tight_layout()
+        plt.savefig(os.path.join(grid_search_dir, 'optimal_rank_lambda_selection.png'),
+                    dpi=300, bbox_inches='tight')
+        plt.show()
+        plt.close()
+        
+        print("✓ Lambda selection plot saved")
+    
+    # ============================================
+    # Figure 4: Rank selection (λ=0.0 only)
+    # ============================================
+    lambda_zero_data = plot_df[plot_df['lambda'] == 0.0].copy()
+    lambda_zero_data = lambda_zero_data.sort_values('rank')
+    
+    if len(lambda_zero_data) > 0:
+        fig, ax = plt.subplots(figsize=(12, 6))
+        
+        ax.errorbar(lambda_zero_data['rank'],
+                   lambda_zero_data['mean_cv_sse'],
+                   yerr=lambda_zero_data['std_cv_sse'],
+                   marker='o', markersize=10, linewidth=2.5,
+                   capsize=5, capthick=2,
+                   color='darkviolet', ecolor='plum')
+        
+        if optimal_rank_grid is not None:
+            ax.axvline(x=optimal_rank_grid, color='red', linestyle='--',
+                      linewidth=2, alpha=0.7, label=f'Optimal rank = {optimal_rank_grid}')
+        
+        ax.set_xlabel('Rank', fontsize=12)
+        ax.set_ylabel('Mean CV-SSE (λ=0.0)', fontsize=12)
+        ax.set_title('Rank Selection: Minimum CV-SSE at λ=0.0\n' +
+                    'Dissertation Stage 1: Select R at minimum error without regularization',
+                    fontsize=13, fontweight='bold')
+        ax.legend(fontsize=11)
+        ax.grid(alpha=0.3)
+        
+        plt.tight_layout()
+        plt.savefig(os.path.join(grid_search_dir, 'rank_selection_lambda_zero.png'),
+                    dpi=300, bbox_inches='tight')
+        plt.show()
+        plt.close()
+        
+        print("✓ Rank selection plot saved")
+    
+    print(f"\n{'='*80}")
+    print("All visualizations saved to:")
+    print(f"  {grid_search_dir}")
+    print("="*80)
+```
 print(f"  Random state: {CV_RANDOM_STATE}")
 
 if len(USE_CV_GROUPS) == 3:
@@ -1976,9 +2458,24 @@ else:
 print("="*80)
 ```
 
-### Lambda Selection with 1SE Rule (Step 2)
+---
 
-After determining the optimal rank, the next step is selecting the optimal lambda (regularization parameter) using cross-validated Factor Match Score (FMS) with the **1SE rule** from the dissertation.
+## LEGACY SECTIONS (Sequential Rank → Lambda)
+
+**NOTE:** The sections below implement a **simplified sequential approach** where rank and lambda are selected separately. This is faster but may miss rank×lambda interactions.
+
+**NEW APPROACH:** The **Full Dissertation Grid Search** (above) implements the complete methodology from Blaskowski (2024) where all rank×lambda combinations are tested simultaneously with both SSE and FMS metrics calculated for each.
+
+**Use these legacy sections** if you want a faster, more practical approach.  
+**Use the dissertation grid search** for the most faithful implementation.
+
+---
+
+### Plot FMS vs SSE for CV results (Sequential Approach - Legacy)
+
+**NOTE:** This section is part of the **legacy sequential approach** where lambda is selected separately after rank selection. See "Full Dissertation Grid Search" above for the complete joint optimization.
+
+After determining the optimal rank (from rank-only CV), this optional diagnostic recreates plots from the dissertation showing the relationship between Factor Match Score (FMS) and reconstruction error (SSE).
 
 **Dissertation Reference:** Blaskowski (2024), Section 1.2.3, page 15:
 > "We selected the λ value of best fit as the maximum λ value at which the cross-validated FMS remained within one standard error of the maximum FMS."
