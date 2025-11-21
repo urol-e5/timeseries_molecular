@@ -1840,71 +1840,69 @@ print(f"  Estimated time: ~{total_models * 2 / 60:.1f}-{total_models * 5 / 60:.1
 print(f"    (assuming 2-5 min per model)")
 print("="*80)
 
-proceed = input("\nProceed with grid search? (yes/no): ")
-if proceed.lower() != 'yes':
-    print("Grid search cancelled.")
-else:
-    print("\n" + "="*80)
-    print("STARTING GRID SEARCH...")
-    print("="*80)
-    
-    import time
-    start_time = time.time()
-    
-    # Run full grid search
-    optimal_rank_grid, optimal_lambda_grid, grid_results_df = dissertation_grid_search_cv(
-        tensor=tensor_3d,
-        replicate_groups=GRID_CV_GROUPS,
-        rank_range=GRID_RANK_RANGE,
-        lambda_values=GRID_LAMBDA_VALUES,
-        n_iter_max=GRID_N_ITER_MAX,
-        random_state=GRID_RANDOM_STATE
-    )
-    
-    elapsed_time = time.time() - start_time
-    
-    print(f"\n{'='*80}")
-    print("GRID SEARCH COMPLETE")
-    print("="*80)
-    print(f"Total time: {elapsed_time / 60:.1f} minutes")
-    print(f"Time per combination: {elapsed_time / (len(GRID_RANK_RANGE) * len(GRID_LAMBDA_VALUES)):.1f} seconds")
-    print("="*80)
-    
-    # Save results
-    grid_search_dir = os.path.join(output_dir, 'dissertation_grid_search')
-    os.makedirs(grid_search_dir, exist_ok=True)
-    
-    # Save full grid results
-    grid_results_df.to_csv(
-        os.path.join(grid_search_dir, 'full_grid_results.csv'),
-        index=False
-    )
-    print(f"\n✓ Full grid results saved to: full_grid_results.csv")
-    
-    # Save optimal parameters
-    import json
-    with open(os.path.join(grid_search_dir, 'optimal_parameters.json'), 'w') as f:
-        json.dump({
-            'method': 'dissertation_grid_search',
-            'reference': 'Blaskowski 2024, Section 1.2.3',
-            'optimal_rank': int(optimal_rank_grid) if optimal_rank_grid is not None else None,
-            'optimal_lambda': float(optimal_lambda_grid) if optimal_lambda_grid is not None else None,
-            'rank_range_tested': GRID_RANK_RANGE,
-            'lambda_values_tested': GRID_LAMBDA_VALUES,
-            'cv_method': 'leave_one_group_out',
-            'n_cv_folds': len(GRID_CV_GROUPS),
-            'cv_groups': list(GRID_CV_GROUPS.keys()),
-            'total_combinations': len(GRID_RANK_RANGE) * len(GRID_LAMBDA_VALUES),
-            'runtime_minutes': elapsed_time / 60,
-            'timestamp': pd.Timestamp.now().isoformat()
-        }, f, indent=2)
-    
-    print(f"✓ Optimal parameters saved to: optimal_parameters.json")
-    
-    print(f"\n{'='*80}")
-    print("Results saved to directory:")
-    print(f"  {grid_search_dir}")
-    print("="*80)
+# NOTE: Set eval=FALSE above to prevent accidental execution
+# When ready to run, set eval=TRUE and execute this chunk
+print("\n" + "="*80)
+print("STARTING GRID SEARCH...")
+print("="*80)
+
+import time
+start_time = time.time()
+
+# Run full grid search
+optimal_rank_grid, optimal_lambda_grid, grid_results_df = dissertation_grid_search_cv(
+    tensor=tensor_3d,
+    replicate_groups=GRID_CV_GROUPS,
+    rank_range=GRID_RANK_RANGE,
+    lambda_values=GRID_LAMBDA_VALUES,
+    n_iter_max=GRID_N_ITER_MAX,
+    random_state=GRID_RANDOM_STATE
+)
+
+elapsed_time = time.time() - start_time
+
+print(f"\n{'='*80}")
+print("GRID SEARCH COMPLETE")
+print("="*80)
+print(f"Total time: {elapsed_time / 60:.1f} minutes")
+print(f"Time per combination: {elapsed_time / (len(GRID_RANK_RANGE) * len(GRID_LAMBDA_VALUES)):.1f} seconds")
+print("="*80)
+
+# Save results
+grid_search_dir = os.path.join(output_dir, 'dissertation_grid_search')
+os.makedirs(grid_search_dir, exist_ok=True)
+
+# Save full grid results
+grid_results_df.to_csv(
+    os.path.join(grid_search_dir, 'full_grid_results.csv'),
+    index=False
+)
+print(f"\n✓ Full grid results saved to: full_grid_results.csv")
+
+# Save optimal parameters
+import json
+with open(os.path.join(grid_search_dir, 'optimal_parameters.json'), 'w') as f:
+    json.dump({
+        'method': 'dissertation_grid_search',
+        'reference': 'Blaskowski 2024, Section 1.2.3',
+        'optimal_rank': int(optimal_rank_grid) if optimal_rank_grid is not None else None,
+        'optimal_lambda': float(optimal_lambda_grid) if optimal_lambda_grid is not None else None,
+        'rank_range_tested': GRID_RANK_RANGE,
+        'lambda_values_tested': GRID_LAMBDA_VALUES,
+        'cv_method': 'leave_one_group_out',
+        'n_cv_folds': len(GRID_CV_GROUPS),
+        'cv_groups': list(GRID_CV_GROUPS.keys()),
+        'total_combinations': len(GRID_RANK_RANGE) * len(GRID_LAMBDA_VALUES),
+        'runtime_minutes': elapsed_time / 60,
+        'timestamp': pd.Timestamp.now().isoformat()
+    }, f, indent=2)
+
+print(f"✓ Optimal parameters saved to: optimal_parameters.json")
+
+print(f"\n{'='*80}")
+print("Results saved to directory:")
+print(f"  {grid_search_dir}")
+print("="*80)
 ```
 
 ### Visualize grid search results
