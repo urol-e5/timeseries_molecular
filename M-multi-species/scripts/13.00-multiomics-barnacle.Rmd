@@ -2130,6 +2130,259 @@ else:
     print(f"  {grid_search_dir}")
     print("="*80)
 ```
+
+---
+
+## LEGACY SECTIONS (Sequential Rank → Lambda)
+
+**NOTE:** The sections below implement a **simplified sequential approach** where rank and lambda are selected separately. This is faster but may miss rank×lambda interactions.
+
+**NEW APPROACH:** The **Full Dissertation Grid Search** (above) implements the complete methodology from Blaskowski (2024) where all rank×lambda combinations are tested simultaneously with both SSE and FMS metrics calculated for each.
+
+**Use these legacy sections** if you want a faster, more practical approach.  
+**Use the dissertation grid search** for the most faithful implementation.
+
+---
+
+### Sequential rank selection (Legacy method)
+
+This section is kept for backward compatibility and faster exploratory analysis.
+
+**NOTE:** For the full dissertation grid search, use `dissertation_grid_search_cv()` function above. This legacy function only tests ranks with λ=0.0.
+
+```{python sequential-rank-selection-function, eval=TRUE}
+# ===========================================
+# SEQUENTIAL RANK SELECTION FUNCTION (LEGACY)
+# ===========================================
+# Simplified version for backward compatibility
+# For full grid search, use dissertation_grid_search_cv() above
+# ===========================================
+
+def cross_validated_rank_selection(
+    tensor,
+    replicate_groups,
+    rank_range=[5, 10, 15, 20, 25, 30, 35, 40],
+    lambdas=[0.0],
+    n_iter_max=10000,
+    random_state=42
+):
+    """
+    LEGACY: Sequential rank selection via cross-validation.
+    
+    This is a simplified version that only tests ranks with λ=0.0.
+    For the full dissertation grid search, use dissertation_grid_search_cv().
+    
+    Implementation of Blaskowski (2024) Section 1.2.3:
+    "We selected the R value of best fit based on the minimum cross-validated SSE"
+    
+    Method:
+    1. For each rank R, perform leave-one-group-out cross-validation
+    2. Fit model on training groups, evaluate SSE on test group
+    3. Select rank with minimum mean CV-SSE
+    
+    Parameters:
+    -----------
+    tensor : 3D array
+        Full tensor (genes × samples × timepoints)
+    replicate_groups : dict
+        Keys: group names (e.g., species)
+        Values: list of sample indices
+    rank_range : list
+        Ranks to test
+    lambdas : list
+        Lambda values (use [0.0] for rank selection per dissertation)
+    n_iter_max : int
+        Maximum iterations for optimization
+    random_state : int
+        Random seed
+    
+    Returns:
+    --------
+    optimal_rank : int
+        Rank with minimum CV-SSE
+    cv_results_df : DataFrame
+        Full cross-validation results
+    """
+    from barnacle.decomposition import SparseCP
+    
+    print("="*80)
+    print("CROSS-VALIDATED RANK SELECTION (LEGACY SEQUENTIAL)")
+    print("Dissertation Method (Blaskowski 2024, Section 1.2.3)")
+    print("="*80)
+    print(f"Testing ranks: {rank_range}")
+    print(f"Lambda: {lambdas[0]} (no regularization for rank selection)")
+    print(f"Cross-validation: Leave-one-group-out ({len(replicate_groups)} folds)")
+    print(f"Random state: {random_state}")
+    print("="*80)
+    
+    cv_results = []
+    
+    # Handle missing values once
+    tensor_filled = np.nan_to_num(tensor, nan=0.0)
+    
+    # For each rank, do leave-one-group-out cross-validation
+    for R in rank_range:
+        print(f"\n{'='*60}")
+        print(f"Testing Rank {R}")
+        print(f"{'='*60}")
+        
+        fold_sse_scores = []
+        fold_details = []
+        
+        # Leave-one-group-out CV
+        for fold_idx, (group_name, test_indices) in enumerate(replicate_groups.items()):
+            print(f"  Fold {fold_idx+1}/{len(replicate_groups)}: Hold out {group_name} ({len(test_indices)} samples)")
+            
+            # Create train/test split
+            train_indices = []
+            for other_name, other_indices in replicate_groups.items():
+                if other_name != group_name:
+                    train_indices.extend(other_indices)
+            
+            print(f"    Training on {len(train_indices)} samples")
+            
+            # Fit model on training data
+            train_tensor = tensor_filled[:, train_indices, :]
+            
+            try:
+                model = SparseCP(
+                    rank=R,
+                    lambdas=[lambdas[0], 0.0, lambdas[0]],
+                    nonneg_modes=[0],
+                    norm_constraint=True,
+                    init='random',
+                    tol=1e-5,
+                    n_iter_max=n_iter_max,
+                    random_state=random_state,
+                    n_initializations=1
+                )
+                
+                decomposition = model.fit_transform(train_tensor, verbose=0)
+                
+                # Calculate SSE on test data
+                sse = calculate_cv_sse(tensor_filled, decomposition, train_indices, test_indices)
+                fold_sse_scores.append(sse)
+                
+                # Get relative error for reference
+                test_tensor = tensor_filled[:, test_indices, :]
+                test_norm = np.linalg.norm(test_tensor)
+                relative_error = np.sqrt(sse) / test_norm if test_norm > 0 else np.inf
+                
+                print(f"    SSE: {sse:.2e}, Relative Error: {relative_error:.4f}")
+                
+                fold_details.append({
+                    'fold': fold_idx + 1,
+                    'group': group_name,
+                    'sse': sse,
+                    'relative_error': relative_error,
+                    'converged': True
+                })
+                
+            except Exception as e:
+                print(f"    Error: {e}")
+                fold_sse_scores.append(np.nan)
+                fold_details.append({
+                    'fold': fold_idx + 1,
+                    'group': group_name,
+                    'sse': np.nan,
+                    'relative_error': np.nan,
+                    'converged': False
+                })
+        
+        # Calculate mean and std of CV-SSE
+        valid_scores = [s for s in fold_sse_scores if not np.isnan(s)]
+        if len(valid_scores) > 0:
+            mean_cv_sse = np.mean(valid_scores)
+            std_cv_sse = np.std(valid_scores)
+            min_cv_sse = np.min(valid_scores)
+            max_cv_sse = np.max(valid_scores)
+        else:
+            mean_cv_sse = np.inf
+            std_cv_sse = np.inf
+            min_cv_sse = np.inf
+            max_cv_sse = np.inf
+        
+        cv_results.append({
+            'rank': R,
+            'lambda': lambdas[0],
+            'mean_cv_sse': mean_cv_sse,
+            'std_cv_sse': std_cv_sse,
+            'min_cv_sse': min_cv_sse,
+            'max_cv_sse': max_cv_sse,
+            'n_successful_folds': len(valid_scores),
+            'fold_details': fold_details
+        })
+        
+        print(f"  → Mean CV-SSE: {mean_cv_sse:.2e} ± {std_cv_sse:.2e}")
+        print(f"  → Range: [{min_cv_sse:.2e}, {max_cv_sse:.2e}]")
+        print(f"  → Successful folds: {len(valid_scores)}/{len(replicate_groups)}")
+    
+    # Convert to DataFrame
+    cv_df = pd.DataFrame(cv_results)
+    
+    # Select optimal rank (minimum CV-SSE)
+    if cv_df['mean_cv_sse'].isna().all():
+        print("\n" + "="*80)
+        print("ERROR: All ranks failed. Cannot select optimal rank.")
+        print("="*80)
+        return None, cv_df
+    
+    optimal_idx = cv_df['mean_cv_sse'].idxmin()
+    optimal_rank = int(cv_df.loc[optimal_idx, 'rank'])
+    optimal_sse = cv_df.loc[optimal_idx, 'mean_cv_sse']
+    optimal_std = cv_df.loc[optimal_idx, 'std_cv_sse']
+    
+    print(f"\n{'='*80}")
+    print("OPTIMAL RANK SELECTION RESULTS")
+    print(f"{'='*80}")
+    print(f"✓ Optimal Rank: {optimal_rank}")
+    print(f"  CV-SSE: {optimal_sse:.2e} ± {optimal_std:.2e}")
+    print(f"\nFull Results (sorted by CV-SSE):")
+    display_df = cv_df[['rank', 'mean_cv_sse', 'std_cv_sse', 'n_successful_folds']].copy()
+    display_df = display_df.sort_values('mean_cv_sse')
+    print(display_df.to_string(index=False, float_format=lambda x: f'{x:.2e}'))
+    print(f"{'='*80}")
+    
+    return optimal_rank, cv_df
+
+
+print("Sequential rank selection function loaded (legacy compatibility)")
+```
+
+### Run sequential rank selection (Legacy)
+
+```{python run-cv-rank-selection-legacy, eval=FALSE}
+# ===========================================
+# SEQUENTIAL RANK SELECTION (LEGACY)
+# ===========================================
+# This is the LEGACY sequential approach
+# Use dissertation_grid_search_cv() above for full grid search
+# ===========================================
+
+print("="*80)
+print("SEQUENTIAL RANK SELECTION (LEGACY METHOD)")
+print("For full dissertation grid search, use chunks above")
+print("="*80)
+
+# Configure parameters
+CV_RANK_RANGE = [5, 10, 15, 20, 25, 35]  # Start with quick test, expand if needed
+CV_LAMBDA = [0.0]  # No regularization for rank selection (per dissertation)
+CV_RANDOM_STATE = 42
+
+# ============================================
+# CHOOSE CV APPROACH:
+# ============================================
+# Option 1: SPECIES-LEVEL CV (RECOMMENDED - Fast, 3 folds)
+USE_CV_GROUPS = species_groups  
+
+# Option 2: COLONY-LEVEL CV (Comprehensive but slow, ~30-40 folds)
+# USE_CV_GROUPS = replicate_groups  # Uncomment to use this instead
+
+print(f"\nCV Configuration:")
+print(f"  Approach: {'SPECIES-LEVEL' if len(USE_CV_GROUPS) == 3 else 'COLONY-LEVEL'}")
+print(f"  Number of CV folds: {len(USE_CV_GROUPS)}")
+print(f"  Ranks to test: {CV_RANK_RANGE}")
+print(f"  Lambda: {CV_LAMBDA[0]} (no regularization)")
 print(f"  Random state: {CV_RANDOM_STATE}")
 
 if len(USE_CV_GROUPS) == 3:
