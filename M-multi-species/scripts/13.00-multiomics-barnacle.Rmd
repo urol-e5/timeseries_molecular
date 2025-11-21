@@ -1461,7 +1461,7 @@ def calculate_cv_sse(tensor, decomposition, train_indices, test_indices):
 def dissertation_grid_search_cv(
     tensor,
     replicate_groups,
-    rank_range=[5, 10, 15, 20, 25, 30],
+    rank_range=[5, 10, 15, 20, 25, 30, 35],
     lambda_values=[0.0, 0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0],
     n_iter_max=10000,
     random_state=42
