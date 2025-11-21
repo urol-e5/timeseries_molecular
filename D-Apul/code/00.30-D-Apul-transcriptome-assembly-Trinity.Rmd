@@ -51,6 +51,7 @@ trimmed_reads_dir <- file.path(output_dir, "output", "01.00-D-Apul-RNAseq-trimmi
 
 
 # FILES
+bam_alignment <- file.path(top_output_dir, "02.20-D-Apul-RNAseq-alignment-HiSat2", "sorted-bams-merged.bam")
 genome_fasta <- file.path("..", "data", "Apulchra-genome.fa")
 denovo_assembly_name <- "apul-denovo-Trinity"
 genome_guided_assembly_name <- "apul-GG-Trinity"
@@ -68,6 +69,7 @@ line <- "-----------------------------------------------"
 
 # Export these as environment variables for bash chunks.
 Sys.setenv(
+  bam_alignment = bam_alignment,
   denovo_assembly_name = denovo_assembly_name,
   genome_fasta = genome_fasta,
   genome_guided_assembly_name = genome_guided_assembly_name,
@@ -117,4 +119,44 @@ ${trinity_dir}/Trinity \
 --right "${R2_list}"
 ```
 
+
+# Rename generic assembly FastA
+mv trinity_out_dir/Trinity.fasta trinity_out_dir/${fasta_name}
+
+# Assembly stats
+${trinity_dir}/util/TrinityStats.pl trinity_out_dir/${fasta_name} \
+> ${assembly_stats}
+
+# Create gene map files
+${trinity_dir}/util/support_scripts/get_Trinity_gene_to_trans_map.pl \
+trinity_out_dir/${fasta_name} \
+> trinity_out_dir/${fasta_name}.gene_trans_map
+
+# Create FastA index
+${samtools} faidx \
+trinity_out_dir/${fasta_name}
+
 # GENOME-GUIDED ASSEMBLY
+```{r genome-guided-assembly, engine='bash'}
+ Trinity --genome_guided_bam ${bam_alignment} \
+         --genome_guided_max_intron 10000 \
+         --max_memory ${max_ram} \
+         --CPU ${threads} 
+```
+
+
+# Rename generic assembly FastA
+mv trinity_out_dir/Trinity.fasta trinity_out_dir/${fasta_name}
+
+# Assembly stats
+${trinity_dir}/util/TrinityStats.pl trinity_out_dir/${fasta_name} \
+> ${assembly_stats}
+
+# Create gene map files
+${trinity_dir}/util/support_scripts/get_Trinity_gene_to_trans_map.pl \
+trinity_out_dir/${fasta_name} \
+> trinity_out_dir/${fasta_name}.gene_trans_map
+
+# Create FastA index
+${samtools} faidx \
+trinity_out_dir/${fasta_name}
