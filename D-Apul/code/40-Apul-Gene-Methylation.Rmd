@@ -1,0 +1,195 @@
+---
+title: "40-Apul-Gene-Methylation"
+output: html_document
+---
+
+# Gene Methylation Analysis in A. pulchra
+
+## gene file
+
+```{bash}
+head ../data/Apulchra-genome.gff
+
+```
+```{bash}
+cut -f3 ../data/Apulchra-genome.gff | \
+grep -v "^#" | \
+sort | uniq -c | sort -nr
+```
+
+```{bash}
+gawk '$3=="gene" {
+    split($9, a, ";");
+    for(i in a){
+        if(a[i] ~ /^ID=/){
+            sub("ID=", "", a[i]);
+            gene_id = a[i];
+        }
+    }
+    print $1 "\t" $4-1 "\t" $5 "\t" gene_id;
+}' ../data/Apulchra-genome.gff > ../data/Apluchra-genes.bed
+```
+
+```{bash}
+head ../data/Apluchra-genes.bed
+```
+
+
+```
+cd ../data/10xbedgraph
+wget -r -l1 --no-parent -nd -A '*10x.bedgraph' \
+     'https://gannet.fish.washington.edu/v1_web/owlshell/bu-github/timeseries_molecular/D-Apul/output/15.5-Apul-bismark/'
+```
+
+```{bash}
+head ../data/10xbedgraph/ACR-229-TP1_10x.bedgraph
+```
+
+```{bash}
+for f in ../data/10xbedgraph/*_10x.bedgraph; do
+    sort -k1,1 -k2,2n "$f" > ${f%.bedgraph}.sorted.bedgraph
+done
+```
+
+```{bash}
+for f in ../data/10xbedgraph/*_10x.sorted.bedgraph; do
+    sample=$(basename "$f" _10x.sorted.bedgraph)
+
+    bedtools map \
+        -a ../data/Apluchra-genes.bed \
+        -b "$f" \
+        -c 4 \
+        -o mean,count \
+        > ../output/40-Apul-Gene-Methylation/gene_methylation_${sample}.tsv
+done
+```
+
+
+```{bash}
+head ../output/40-Apul-Gene-Methylation/gene_methylation_ACR-229-TP*.tsv
+```
+Lets filter so all column 6 (count) is greater than 10 - meaning at least 10 CpG sites were covered in that gene.
+
+```{bash}
+for f in ../output/40-Apul-Gene-Methylation/gene_methylation*.tsv; do
+    out="../output/40-Apul-Gene-Methylation/$(basename "${f%.tsv}_gt10.tsv")"
+    awk '$6 > 10' "$f" > "$out"
+done
+```
+
+
+```{bash}
+head ../output/40-Apul-Gene-Methylation/gene_methylation_ACR-229-TP*_gt10.tsv
+```
+```{r}
+library(tidyverse)
+
+# Directory containing all filtered tsv files
+indir <- "../output/40-Apul-Gene-Methylation"
+
+# List all filtered files
+files <- list.files(indir, pattern = "gene_methylation.*_gt10.tsv", full.names = TRUE)
+
+# Read and combine
+df_list <- lapply(files, function(f) {
+  sample_name <- basename(f) |> sub("gene_methylation_", "", x = _) |> sub("_gt10.tsv", "", x = _)
+
+  read_tsv(f, col_names = FALSE) |>
+    select(X4, X6) |>          # X4 = gene_id, X6 = methylation/count
+    rename(gene_id = X4, !!sample_name := X6)
+})
+
+# Full join all files by gene_id
+merged <- reduce(df_list, full_join, by = "gene_id")
+
+# Replace NA with 0 (optional)
+merged[is.na(merged)] <- 0
+
+# Save
+write_tsv(merged, "../output/40-Apul-Gene-Methylation/Apul-gene-methylation.tsv")
+```
+
+```{bash}
+head ../output/40-Apul-Gene-Methylation/Apul-gene-methylation.tsv
+```
+
+
+```{r}
+library(pheatmap)
+library(tidyverse)
+
+df <- read_tsv("../output/40-Apul-Gene-Methylation/Apul-gene-methylation.tsv")
+
+mat <- df %>%
+  column_to_rownames("gene_id") %>%
+  as.matrix()
+
+pheatmap(mat,
+         scale = "row",            # makes genes comparable
+         clustering_method = "ward.D2",
+         show_rownames = FALSE,
+         main = "Gene-level Methylation Patterns")
+```
+
+```{r}
+library(tidyverse)
+library(RColorBrewer)
+
+# Load data
+
+
+# Make gene_id rownames and transpose so samples are rows
+mat <- df %>%
+  column_to_rownames("gene_id") %>%
+  t()
+
+# Extract sample group (everything before -TP)
+sample_groups <- str_extract(rownames(mat), "ACR-[0-9]+")
+
+# Number of unique groups
+ngroups <- length(unique(sample_groups))
+
+# Choose a Brewer palette and get enough colors
+# (Paired, Set3, or Dark2 work well)
+colors <- brewer.pal(max(3, ngroups), "Dark2")[1:ngroups]
+
+# Name the colors so they map to groups
+group_colors <- setNames(colors, unique(sample_groups))
+
+# Run PCA
+pca <- prcomp(mat, scale. = TRUE)
+
+# Build PCA dataframe
+pca_df <- data.frame(
+  PC1 = pca$x[,1],
+  PC2 = pca$x[,2],
+  sample = rownames(pca$x),
+  group = sample_groups
+)
+
+# Plot PCA
+ggplot(pca_df, aes(PC1, PC2, color = group, label = sample)) +
+  geom_point(size = 4) +
+  geom_text(vjust = -0.7, size = 3) +
+  scale_color_manual(values = group_colors) +
+  theme_minimal(base_size = 14) +
+  labs(
+    title = "PCA of Gene-Level Methylation",
+    color = "Sample Group"
+  )
+```
+
+```{r}
+library(pheatmap)
+
+mat <- read_tsv("../output/40-Apul-Gene-Methylation/Apul-gene-methylation.tsv") %>%
+  column_to_rownames("gene_id") %>%
+  as.matrix()
+
+cor_mat <- cor(mat, use="pairwise.complete.obs")
+
+pheatmap(cor_mat,
+         main="Sample–Sample Correlation",
+         clustering_method="average")
+```
+
