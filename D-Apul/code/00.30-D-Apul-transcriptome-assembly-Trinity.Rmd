@@ -49,7 +49,7 @@ top_output_dir <- file.path("..", "output")
 output_dir <- file.path(top_output_dir, "00.30-D-Apul-transcriptome-assembly-Trinity")
 de_novo_output_dir <- file.path(output_dir, "de_novo_assembly")
 genome_guided_output_dir <- file.path(output_dir, "genome_guided_assembly")
-trimmed_reads_dir <- file.path(output_dir, "output", "01.00-D-Apul-RNAseq-trimming-fastp-FastQC-MultiQC")
+trimmed_reads_dir <- file.path(top_output_dir, "01.00-D-Apul-RNAseq-trimming-fastp-FastQC-MultiQC")
 
 
 # FILES
@@ -78,6 +78,7 @@ Sys.setenv(
   genome_guided_assembly_name = genome_guided_assembly_name,
   genome_guided_output_dir = genome_guided_output_dir,
   line = line,
+  max_ram = max_ram,
   output_dir = output_dir,
   top_output_dir = top_output_dir,
   threads = threads,
@@ -103,19 +104,23 @@ R2_list=""
 # Create array of fastq R1 files
 R1_array=(${trimmed_reads_dir}/*R1_001.fastp-trim.fq.gz)
 
+
+
 # Create array of fastq R2 files
 R2_array=(${trimmed_reads_dir}/*R2_001.fastp-trim.fq.gz)
 
 # Create list of fastq files used in analysis
 ## Uses parameter substitution to strip leading path from filename
-for fastq in ${reads_dir}/*.fq.gz
+for fastq in ${trimmed_reads_dir}/*.fq.gz
 do
-  echo "${fastq##*/}" >> ${output_dir}/fastq.list.txt
+  echo "${fastq##*/}" >> ${de_novo_output_dir}/fastq.list.txt
 done
 
 # Create comma-separated lists of FastQ reads
 R1_list=$(echo "${R1_array[@]}" | tr " " ",")
 R2_list=$(echo "${R2_array[@]}" | tr " " ",")
+
+echo $R1_list
 
 
 # Run Trinity using "stranded" setting (--SS_lib_type)
