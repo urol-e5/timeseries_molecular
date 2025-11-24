@@ -264,6 +264,48 @@ if (nrow(summary_stats) > 0) {
 }
 ```
 
+## Total Feature Occurrences - Individual Species Bar Graphs
+
+```{r plot-total-per-species, fig.width=8, fig.height=6}
+if (nrow(summary_stats) > 0) {
+  # Create a separate bar graph for each species showing total feature occurrences
+  for (i in 1:nrow(summary_stats)) {
+    species <- summary_stats$species[i]
+    
+    # Prepare data for the current species
+    species_data <- data.frame(
+      feature = c("CpG", "lncRNA", "miRNA"),
+      total_count = c(
+        summary_stats$cpg_total[i],
+        summary_stats$lncrna_total[i],
+        summary_stats$mirna_total[i]
+      )
+    )
+    
+    # Create bar plot for this species
+    p_species <- ggplot(species_data, aes(x = feature, y = total_count, fill = feature)) +
+      geom_bar(stat = "identity", width = 0.6) +
+      labs(title = paste("Total Feature Occurrences -", species),
+           x = "Feature Type",
+           y = "Total Occurrences",
+           fill = "Feature") +
+      scale_fill_manual(values = c("CpG" = "#F8766D", "lncRNA" = "#00BA38", "miRNA" = "#619CFF")) +
+      theme_minimal() +
+      theme(plot.title = element_text(face = "bold", size = 14),
+            legend.position = "none",
+            axis.text.x = element_text(size = 12))
+    
+    print(p_species)
+    
+    # Save plot
+    plot_filename <- file.path(output_dir, 
+                               paste0("total_occurrences_", species, ".png"))
+    ggsave(plot_filename, p_species, width = 8, height = 6, dpi = 300)
+    cat(sprintf("Saved plot: %s\n", plot_filename))
+  }
+}
+```
+
 # Conclusion
 
 ```{r conclusion}
@@ -274,6 +316,51 @@ if (nrow(summary_stats) > 0) {
   cat("  - 3 raw CSV files (species_1/2/3_multi_way_interactions.csv)\n")
   cat("  - 3 annotated CSV files with count columns (species_1/2/3_annotated.csv)\n")
   cat("  - 1 summary statistics CSV (summary_statistics.csv)\n")
-  cat("  - 3 visualization PNG files\n")
+  cat("  - 6 visualization PNG files:\n")
+  cat("    * 3 comparative plots (total, mean, percentage)\n")
+  cat("    * 3 per-species feature occurrence plots\n")
 }
 ```
+
+
+
+# counts per row
+
+```{r}
+library(dplyr)
+library(stringr)
+library(purrr)
+library(readr)
+
+urls <- c(
+  species_1 = "https://gannet.fish.washington.edu/v1_web/owlshell/bu-github/ConTra/output/context_dependent_analysis_20251108_151255/tables/multi_way_interactions.csv",
+  species_2 = "https://gannet.fish.washington.edu/v1_web/owlshell/bu-github/ConTra/output/context_dependent_analysis_20251108_144034/tables/multi_way_interactions.csv",
+  species_3 = "https://gannet.fish.washington.edu/v1_web/owlshell/bu-github/ConTra/output/context_dependent_analysis_20251108_140602/tables/multi_way_interactions.csv"
+)
+
+# --- Function to process a single file ---
+process_file <- function(url, species_name) {
+  
+  df <- read_csv(url, show_col_types = FALSE)
+
+  df %>%
+    mutate(
+      # list-column of extracted regulators
+      regs = str_extract_all(regulator_types, "'([^']*)'") %>%
+             map(~ str_replace_all(.x, "'", "")),
+      
+      n_lncRNA = map_int(regs, ~ sum(str_detect(.x, "lncrna"))),
+      n_miRNA  = map_int(regs, ~ sum(str_detect(.x, "mirna"))),
+      n_CpG    = map_int(regs, ~ sum(str_detect(.x, "CpG"))),
+      
+      species = species_name
+    ) %>%
+    select(-regs)
+}
+
+# --- Process all files and combine ---
+combined_results <- imap_dfr(urls, process_file)
+
+combined_results
+```
+
