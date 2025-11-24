@@ -1,0 +1,32 @@
+---
+title: "orthofinder_E5"
+author: "HM Putnam"
+date: "2025-11-21"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+```
+
+```{r}
+og <- read_tsv("M-multi-species/data/Orthogroups.tsv")
+
+# Filter orthogroups where all species have at least one protein
+shared_ogs <- og %>%
+  filter(across(-Orthogroup, ~ !is.na(.) & . != ""))
+
+# This object now contains ONLY orthogroups present in all species
+
+```
+
+```{r}
+all_proteins <- shared_ogs %>%
+  pivot_longer(-Orthogroup, names_to = "Species", values_to = "Proteins") %>%
+  separate_rows(Proteins, sep = ", ") %>%
+  drop_na(Proteins)
+
+write_tsv(all_proteins, "M-multi-species/output/33-orthologs/shared_orthologs_all_species.tsv")
+
+
+```

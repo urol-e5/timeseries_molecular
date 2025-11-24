@@ -1,0 +1,51 @@
+{
+  "rank": 5,
+  "tlviz_fms": {
+    "fms": 1.0,
+    "permutation": [
+      "0",
+      "1",
+      "2",
+      "3",
+      "4"
+    ],
+    "success": true,
+    "method": "tlviz_self_consistency",
+    "warning": "Self-comparison: FMS \u2248 1.0 expected (not useful for rank selection)"
+  },
+  "reconstruction_fms": {
+    "fms": 0.7601247282431901,
+    "correlation": 0.5202494564863802,
+    "success": true,
+    "method": "reconstruction_correlation",
+    "valid_elements": 1144976
+  },
+  "synthetic_fms": {
+    "fms": 0.6170452579092965,
+    "permutation": [
+      "2",
+      "0",
+      "3",
+      "4",
+      "1"
+    ],
+    "success": true,
+    "method": "synthetic_validation",
+    "noise_level": 0.1,
+    "recovery_quality": "fair"
+  },
+  "summary": {
+    "rank": 5,
+    "fms_tlviz": 1.0,
+    "fms_reconstruction": 0.7601247282431901,
+    "fms_synthetic": 0.6170452579092965,
+    "reconstruction_correlation": 0.5202494564863802,
+    "tlviz_success": true,
+    "reconstruction_success": true,
+    "synthetic_success": true,
+    "tlviz_method": "tlviz_self_consistency",
+    "reconstruction_method": "reconstruction_correlation",
+    "synthetic_method": "synthetic_validation",
+    "valid_elements": 1144976
+  }
+}

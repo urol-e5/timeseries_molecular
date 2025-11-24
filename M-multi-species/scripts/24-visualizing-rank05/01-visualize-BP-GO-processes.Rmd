@@ -1,0 +1,307 @@
+---
+title: "Visualizing BP GO Processes for Rank 05 Components"
+author: "Analysis"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, 
+                      fig.width = 12, fig.height = 8)
+```
+
+## Overview
+
+This analysis visualizes the Biological Process (BP) Gene Ontology terms from the top 100 genes in each of the 5 components from the rank 05 tensor decomposition.
+
+## Load Libraries
+
+```{r load-libraries}
+library(tidyverse)
+library(ggplot2)
+library(RColorBrewer)
+library(scales)
+```
+
+## Define Paths
+
+```{r paths}
+# Input directory
+input_dir <- "/Users/sr320/Documents/GitHub/timeseries_molecular/M-multi-species/output/22-Visualizing-Rank-outs"
+
+# Output directory
+output_dir <- "/Users/sr320/Documents/GitHub/timeseries_molecular/M-multi-species/output/24-visualizing-rank05"
+
+# Create output directory if it doesn't exist
+dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
+```
+
+## Get List of Files
+
+```{r get-files}
+# Get all rank_05 top100 annotation files
+files <- list.files(input_dir, 
+                   pattern = "rank_05_comp.*_top100_annotation\\.csv$", 
+                   full.names = TRUE)
+
+# Sort files by component number
+file_df <- data.frame(
+  path = files,
+  component = str_extract(basename(files), "comp\\d+")
+) %>%
+  mutate(comp_num = as.numeric(str_extract(component, "\\d+"))) %>%
+  arrange(comp_num)
+
+cat(sprintf("Found %d files to process\n", nrow(file_df)))
+```
+
+## Function to Parse GO BP Terms
+
+```{r parse-function}
+# Function to parse GO BP column
+parse_go_bp <- function(go_bp_string) {
+  if (is.na(go_bp_string) || go_bp_string == "") {
+    return(NULL)
+  }
+  
+  # Split by semicolon and trim whitespace
+  terms <- str_split(go_bp_string, ";")[[1]] %>%
+    str_trim()
+  
+  # Extract term name (everything before [GO:...)
+  term_names <- str_replace(terms, "\\s*\\[GO:.*\\]", "")
+  
+  return(term_names)
+}
+
+# Function to process a single file
+process_file <- function(file_path, component_name) {
+  # Read the file
+  data <- read_csv(file_path, show_col_types = FALSE)
+  
+  # Extract all GO BP terms
+  all_terms <- data %>%
+    filter(!is.na(go_bp) & go_bp != "") %>%
+    pull(go_bp) %>%
+    map(parse_go_bp) %>%
+    unlist()
+  
+  if (length(all_terms) == 0) {
+    return(NULL)
+  }
+  
+  # Count term frequencies
+  term_counts <- as.data.frame(table(all_terms)) %>%
+    rename(term = all_terms, count = Freq) %>%
+    arrange(desc(count)) %>%
+    head(20)  # Top 20 terms
+  
+  term_counts$component <- component_name
+  
+  return(term_counts)
+}
+```
+
+## Process All Files and Generate Visualizations
+
+```{r process-files, results='asis', fig.width=14, fig.height=10}
+# Store all results for summary
+all_results <- list()
+
+for (i in 1:nrow(file_df)) {
+  file_path <- file_df$path[i]
+  component <- file_df$component[i]
+  comp_num <- file_df$comp_num[i]
+  
+  cat(sprintf("\n\n## Component %d\n\n", comp_num))
+  
+  # Process the file
+  term_counts <- process_file(file_path, component)
+  
+  if (is.null(term_counts) || nrow(term_counts) == 0) {
+    cat("No GO BP terms found for this component.\n\n")
+    next
+  }
+  
+  all_results[[component]] <- term_counts
+  
+  # Create visualization
+  p <- ggplot(term_counts, aes(x = reorder(term, count), y = count)) +
+    geom_bar(stat = "identity", fill = "steelblue", alpha = 0.8) +
+    coord_flip() +
+    labs(
+      title = sprintf("Top 20 Biological Process GO Terms - %s", component),
+      subtitle = sprintf("From top 100 genes in rank 05 decomposition"),
+      x = "GO Biological Process Term",
+      y = "Frequency"
+    ) +
+    theme_minimal(base_size = 12) +
+    theme(
+      plot.title = element_text(size = 16, face = "bold"),
+      plot.subtitle = element_text(size = 12, color = "gray40"),
+      axis.text.y = element_text(size = 10),
+      axis.text.x = element_text(size = 10),
+      panel.grid.major.y = element_blank(),
+      panel.grid.minor = element_blank()
+    )
+  
+  print(p)
+  
+  # Save individual plot
+  ggsave(
+    filename = file.path(output_dir, sprintf("rank05_%s_BP_GO_top20.png", component)),
+    plot = p,
+    width = 14,
+    height = 10,
+    dpi = 300
+  )
+  
+  # Print top 10 terms as table
+  cat("\n### Top 10 Terms\n\n")
+  print(knitr::kable(head(term_counts, 10), row.names = FALSE))
+  cat("\n\n")
+}
+```
+
+## Summary: Most Common GO BP Terms Across All Components
+
+```{r summary-analysis, fig.width=14, fig.height=12}
+# Combine all results
+if (length(all_results) > 0) {
+  combined_data <- bind_rows(all_results)
+  
+  # Get overall most common terms
+  overall_counts <- combined_data %>%
+    group_by(term) %>%
+    summarise(
+      total_count = sum(count),
+      n_components = n()
+    ) %>%
+    arrange(desc(total_count)) %>%
+    head(30)
+  
+  # Create overall summary plot
+  p_summary <- ggplot(overall_counts, aes(x = reorder(term, total_count), y = total_count)) +
+    geom_bar(stat = "identity", fill = "darkblue", alpha = 0.7) +
+    geom_text(aes(label = n_components), hjust = -0.3, size = 3, color = "red") +
+    coord_flip() +
+    labs(
+      title = "Top 30 Biological Process GO Terms Across All Rank 05 Components",
+      subtitle = "Red numbers indicate how many components contain each term",
+      x = "GO Biological Process Term",
+      y = "Total Frequency Across All Components"
+    ) +
+    theme_minimal(base_size = 12) +
+    theme(
+      plot.title = element_text(size = 16, face = "bold"),
+      plot.subtitle = element_text(size = 12, color = "gray40"),
+      axis.text.y = element_text(size = 10),
+      axis.text.x = element_text(size = 10),
+      panel.grid.major.y = element_blank(),
+      panel.grid.minor = element_blank()
+    )
+  
+  print(p_summary)
+  
+  # Save summary plot
+  ggsave(
+    filename = file.path(output_dir, "rank05_ALL_components_BP_GO_summary.png"),
+    plot = p_summary,
+    width = 14,
+    height = 12,
+    dpi = 300
+  )
+  
+  # Save summary table
+  write_csv(overall_counts, 
+            file.path(output_dir, "rank05_BP_GO_summary_table.csv"))
+  
+  cat("\n### Top 30 GO BP Terms Summary\n\n")
+  print(knitr::kable(overall_counts, row.names = FALSE))
+}
+```
+
+## Component Comparison Heatmap
+
+```{r heatmap, fig.width=12, fig.height=10}
+if (length(all_results) > 0) {
+  # Get top 30 overall terms
+  top_terms <- overall_counts$term[1:min(30, nrow(overall_counts))]
+  
+  # Create matrix of term counts by component
+  heatmap_data <- combined_data %>%
+    filter(term %in% top_terms) %>%
+    select(component, term, count) %>%
+    pivot_wider(names_from = component, values_from = count, values_fill = 0)
+  
+  # Convert to matrix format for better visualization
+  heatmap_matrix <- heatmap_data %>%
+    column_to_rownames("term") %>%
+    as.matrix()
+  
+  # Reorder by component number
+  comp_order <- str_sort(colnames(heatmap_matrix), numeric = TRUE)
+  heatmap_matrix <- heatmap_matrix[, comp_order]
+  
+  # Convert back for ggplot
+  heatmap_long <- heatmap_matrix %>%
+    as.data.frame() %>%
+    rownames_to_column("term") %>%
+    pivot_longer(-term, names_to = "component", values_to = "count")
+  
+  # Order terms by total frequency
+  term_order <- overall_counts$term[1:min(30, nrow(overall_counts))]
+  heatmap_long$term <- factor(heatmap_long$term, levels = rev(term_order))
+  
+  # Order components numerically
+  heatmap_long <- heatmap_long %>%
+    mutate(comp_num = as.numeric(str_extract(component, "\\d+"))) %>%
+    arrange(comp_num)
+  heatmap_long$component <- factor(heatmap_long$component, 
+                                   levels = unique(heatmap_long$component[order(heatmap_long$comp_num)]))
+  
+  # Create heatmap
+  p_heatmap <- ggplot(heatmap_long, aes(x = component, y = term, fill = count)) +
+    geom_tile(color = "white", size = 0.5) +
+    scale_fill_gradient2(low = "white", mid = "lightblue", high = "darkblue", 
+                        midpoint = max(heatmap_long$count)/2,
+                        name = "Count") +
+    labs(
+      title = "GO BP Terms Distribution Across Rank 05 Components",
+      subtitle = "Top 30 most frequent terms",
+      x = "Component",
+      y = "GO Biological Process Term"
+    ) +
+    theme_minimal(base_size = 10) +
+    theme(
+      plot.title = element_text(size = 16, face = "bold"),
+      plot.subtitle = element_text(size = 12, color = "gray40"),
+      axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 10),
+      axis.text.y = element_text(size = 9),
+      panel.grid = element_blank(),
+      legend.position = "right"
+    )
+  
+  print(p_heatmap)
+  
+  # Save heatmap
+  ggsave(
+    filename = file.path(output_dir, "rank05_BP_GO_heatmap.png"),
+    plot = p_heatmap,
+    width = 12,
+    height = 10,
+    dpi = 300
+  )
+}
+```
+
+## Session Info
+
+```{r session-info}
+sessionInfo()
+```
+

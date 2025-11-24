@@ -1,0 +1,42 @@
+---
+title: "25-hmmer"
+output: html_document
+date: "2025-11-01"
+---
+
+```{bash}
+# Download the latest Pfam-A database (uncompressed ~2 GB)
+cd ../data
+wget ftp://ftp.ebi.ac.uk/pub/databases/Pfam/current_release/Pfam-A.hmm.gz
+gunzip Pfam-A.hmm.gz
+```
+
+```{bash}
+hmmpress ../data/Pfam-A.hmm
+```
+
+
+```{bash}
+hmmscan \
+  --cpu 42 \
+  --domtblout ../output/25-hmmer/Apul_hmmscan_results.domtblout \
+  ../data/Pfam-A.hmm \
+  ../data/protein/Apulchra-genome.pep.faa > ../output/25-hmmer/Apul_hmmscan_results.txt
+```
+
+```{bash}
+hmmscan \
+  --cpu 46 \
+  --domtblout ../output/25-hmmer/Peve_hmmscan_results.domtblout \
+  ../data/Pfam-A.hmm \
+  ../data/protein/Porites_evermanni_v1.annot.pep.fa > ../output/25-hmmer/Peve_hmmscan_results.txt
+```
+
+
+```{bash}
+hmmscan \
+  --cpu 46 \
+  --domtblout ../output/25-hmmer/Ptuh_hmmscan_results.domtblout \
+  ../data/Pfam-A.hmm \
+  ../data/protein/Pocillopora_meandrina_HIv1.genes.pep.faa > ../output/25-hmmer/Ptuh_hmmscan_results.txt
+```
