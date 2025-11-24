@@ -42,15 +42,21 @@ This analysis prepares three-species ortholog expression matrices, normalizes th
 The workflow:
 1. Configure `ranks_to_test` in the comparison chunk (e.g., `[5, 8, 10, 12, 15, 20]`)
 2. Run decompositions for all specified ranks (10-30 minutes)
-3. Review comparison metrics and elbow plot
-4. Choose optimal rank based on:
+3. Evaluate synthetic factor match scores (FMS) across multiple random initializations
+4. Review comparison metrics and elbow plots:
+   - **Synthetic FMS elbow plots** - Shows how well factors can be recovered (MOST IMPORTANT)
+   - Variance explained plots - Shows reconstruction accuracy
+   - Look for the "elbow" where marginal gains diminish
+5. Choose optimal rank based on:
+   - Synthetic FMS elbow (where curve flattens)
+   - Consistency across random initializations
    - Variance explained (aim for >60%)
-   - Diminishing returns in elbow plot
    - Sparsity patterns
    - Component interpretability
-5. Use chosen rank for final biological interpretation
+6. Use chosen rank for final biological interpretation
 
 **Key metrics for comparison:**
+- **Synthetic FMS**: How well factors can be recovered from synthetic data (higher = better identifiability)
 - **Variance explained**: How much of data variation is captured
 - **Relative error**: Reconstruction accuracy
 - **Sparsity**: How many genes/samples load strongly per component
@@ -880,6 +886,7 @@ cat("Ptua:", ptua_norm_file, "\n\n")
 
 Now we'll switch to Python to create the multiomics tensor and run barnacle analysis.
 
+### Setup logging
 ```{python setup-logging, eval=TRUE}
 import sys
 import os
@@ -916,6 +923,8 @@ print("="*60)
 print()
 ```
 
+
+### Create multiomics tensor
 ```{python create-multiomics-tensor, eval=TRUE}
 import pandas as pd
 import numpy as np
@@ -1139,7 +1148,1869 @@ print(f"\nSample mapping:")
 print(sample_mapping.head(10))
 ```
 
+## Dissertation-Validated Parameter Selection
 
+**TWO APPROACHES AVAILABLE**:
+
+### 1. Full Dissertation Grid Search (RECOMMENDED - Most Faithful)
+**Location:** See sections below starting with "Full Dissertation Grid Search"
+- Tests all rank × lambda combinations simultaneously
+- Calculates both SSE and FMS for each combination
+- Applies two-stage selection: (1) min SSE at λ=0.0 for rank, (2) 1SE rule for lambda
+- **Pros:** Complete methodology, captures rank×lambda interactions
+- **Cons:** Slower (tests every combination)
+- **Use when:** You want the most faithful implementation of Blaskowski (2024)
+
+### 2. Sequential Approach (LEGACY - Faster)
+**Location:** Marked as "LEGACY SECTIONS" below
+- Tests ranks with λ=0.0, then tests lambdas at optimal rank
+- Calculates SSE for rank, FMS for lambda (separately)
+- Same selection criteria but no joint optimization
+- **Pros:** Faster, simpler, more practical
+- **Cons:** May miss rank×lambda interactions
+- **Use when:** You need quick results or have limited compute
+
+**Dissertation Reference:** Blaskowski (2024), Section 1.2.3
+
+The dissertation methodology validates rank and lambda selection through:
+1. **Stage 1**: Select rank R at minimum cross-validated SSE (λ=0.0 models)
+2. **Stage 2**: Select lambda λ at maximum value where FMS ≥ (max_FMS - 1SE)
+
+Both approaches implement this logic, but the grid search does it with full joint testing.
+
+---
+
+### Identify biological replicate groups
+
+```{python identify-replicate-groups, eval=TRUE}
+# ===========================================
+# IDENTIFY BIOLOGICAL REPLICATE GROUPS
+# ===========================================
+# For cross-validation, we need to group samples that are biological replicates
+# 
+# TENSOR ORGANIZATION (important!):
+# ---------------------------------
+# Biological samples: ACR-139_TP1, ACR-139_TP2, ACR-139_TP3, ACR-139_TP4, ACR-145_TP1, ...
+#                     (each is a physical sample collected at a timepoint)
+#
+# How stored in tensor:
+#   genes × colonies × timepoints
+#   
+#   tensor[:, 0, 0] = ACR-139 at TP1  ─┐
+#   tensor[:, 0, 1] = ACR-139 at TP2   │── Colony ACR-139
+#   tensor[:, 0, 2] = ACR-139 at TP3   │   (sample dimension index 0)
+#   tensor[:, 0, 3] = ACR-139 at TP4  ─┘
+#   
+#   tensor[:, 1, 0] = ACR-145 at TP1  ─┐
+#   tensor[:, 1, 1] = ACR-145 at TP2   │── Colony ACR-145
+#   tensor[:, 1, 2] = ACR-145 at TP3   │   (sample dimension index 1)
+#   tensor[:, 1, 3] = ACR-145 at TP4  ─┘
+#
+# Cross-validation approach:
+#   - Hold out colony ACR-139 (all 4 timepoints)
+#   - Train on all other colonies (all their timepoints)
+#   - Test on ACR-139 (all 4 timepoints)
+# ===========================================
+
+def identify_replicate_groups_for_cv(sample_labels, species_sample_map, n_timepoints=4):
+    """
+    Identify biological replicate groups for cross-validation.
+    
+    TENSOR STRUCTURE EXPLANATION:
+    - Biological reality: Each sample collected at a timepoint (e.g., "ACR-139 at TP1")
+    - Tensor organization: genes × colonies × timepoints
+      * Sample dimension (axis 1) = individual COLONIES (e.g., ACR-139, ACR-145, etc.)
+      * Timepoint dimension (axis 2) = measurement times (TP1, TP2, TP3, TP4)
+      * Example: tensor[:, 0, :] = all timepoints for colony #0
+      * Example: tensor[:, 0, 2] = colony #0 measured at TP3
+    
+    CROSS-VALIDATION APPROACH:
+    - Each CV fold holds out ONE COLONY (all its timepoints)
+    - Training set: All other colonies (all their timepoints)
+    - Test set: Held-out colony (all its timepoints)
+    - Question: Can the model predict a NEW colony's timeseries pattern?
+    
+    NOTE: This is NOT testing biological replicates at the same timepoint
+    (e.g., multiple colonies measured at TP1). Instead, it tests whether
+    the temporal patterns learned from some colonies can predict other colonies.
+    
+    Parameters:
+    -----------
+    sample_labels : list
+        Sample labels (e.g., 'apul_ACR-139', 'peve_POR-216')
+    species_sample_map : dict
+        Mapping of sample indices to species and sample_id
+    n_timepoints : int
+        Number of timepoints per sample (default: 4)
+    
+    Returns:
+    --------
+    replicate_groups : dict
+        Keys: colony identifier (e.g., 'apul_ACR-139')
+        Values: list with single sample index for that colony [idx]
+    """
+    
+    groups = {}
+    
+    for idx, label in enumerate(sample_labels):
+        species = species_sample_map[idx]['species']
+        sample_id = species_sample_map[idx]['sample_id']
+        # Each colony is its own group (since each sample = colony across timepoints)
+        groups[label] = [idx]
+    
+    print("="*80)
+    print("CROSS-VALIDATION STRUCTURE FOR TIMESERIES TENSOR")
+    print("="*80)
+    print(f"Tensor structure: genes × samples × timepoints")
+    print(f"  - Total samples: {len(sample_labels)}")
+    print(f"  - Timepoints per sample: {n_timepoints}")
+    print(f"\nHOW THE TENSOR IS ORGANIZED:")
+    print(f"  • Each sample dimension = one COLONY (e.g., ACR-139)")
+    print(f"  • That colony's data at each timepoint is in the 3rd dimension")
+    print(f"  • Example: tensor[:, 0, :] contains all 4 timepoints for colony #0")
+    print(f"  • Example: tensor[:, 0, 2] is colony #0 at timepoint TP3")
+    print(f"\nCV approach: Leave-one-COLONY-out")
+    print(f"  • Train on: N-1 colonies (all their timepoints)")
+    print(f"  • Test on: 1 held-out colony (all its timepoints)")
+    print(f"\nIMPORTANT CLARIFICATION:")
+    print(f"  • Biological reality: Each sample is collected at ONE timepoint")
+    print(f"  • Tensor organization: Timepoints grouped by colony")
+    print(f"  • CV tests: Can model predict a NEW colony's timeseries?")
+    print(f"\nCV Groups (one per colony):")
+    
+    # Group by species for display
+    species_groups = {}
+    for label, indices in groups.items():
+        idx = indices[0]
+        species = species_sample_map[idx]['species']
+        if species not in species_groups:
+            species_groups[species] = []
+        species_groups[species].append(label)
+    
+    for species, colonies in sorted(species_groups.items()):
+        print(f"  {species}: {len(colonies)} colonies")
+        print(f"    {', '.join(colonies[:5])}{'...' if len(colonies) > 5 else ''}")
+    
+    print(f"\nTotal CV folds: {len(groups)}")
+    print(f"CV method: Leave-one-colony-out (train on N-1 colonies, test on 1)")
+    print(f"\nWARNING: This is computationally expensive!")
+    print(f"  - Each rank tested will require {len(groups)} model fits")
+    print(f"  - Consider subsetting to fewer colonies or using species-level CV")
+    print("="*80)
+    
+    return groups
+
+# Identify replicate groups
+replicate_groups = identify_replicate_groups_for_cv(
+    sample_labels, 
+    species_sample_map,
+    n_timepoints=len(common_timepoints)
+)
+
+# Store for later use
+print(f"\nReplicate groups stored for cross-validation")
+print(f"Available for dissertation-validated rank selection")
+
+# ===========================================
+# ALTERNATIVE: Species-level CV groups
+# ===========================================
+# For practical reasons, you may want to use species-level CV instead:
+# - Faster: only 3 folds instead of ~30-40 folds
+# - Tests species generalization: can model learn patterns that work across species?
+# - More interpretable: "does decomposition work on new species?"
+
+def identify_species_groups_for_cv(sample_labels, species_sample_map):
+    """
+    Create species-level CV groups (alternative to colony-level).
+    
+    This groups all colonies of the same species together.
+    CV will train on 2 species, test on the 3rd species.
+    
+    Advantage: Fast (only 3 folds)
+    Disadvantage: Tests species generalization, not colony generalization
+    """
+    from collections import defaultdict
+    
+    groups = defaultdict(list)
+    
+    for idx, label in enumerate(sample_labels):
+        species = species_sample_map[idx]['species']
+        groups[species].append(idx)
+    
+    print("="*80)
+    print("SPECIES-LEVEL CV GROUPS (ALTERNATIVE APPROACH)")
+    print("="*80)
+    print(f"CV approach: Leave-one-SPECIES-out")
+    print(f"  - Train on 2 species")
+    print(f"  - Test on 1 held-out species")
+    print(f"\nThis tests: Can the decomposition generalize to a NEW SPECIES?")
+    print(f"\nSpecies groups:")
+    
+    for species, indices in sorted(groups.items()):
+        print(f"  {species}: {len(indices)} colonies")
+        colony_names = [species_sample_map[i]['sample_id'] for i in indices[:5]]
+        print(f"    Colonies: {', '.join(colony_names)}{'...' if len(indices) > 5 else ''}")
+    
+    print(f"\nTotal CV folds: {len(groups)}")
+    print(f"This is MUCH faster than colony-level CV")
+    print("="*80)
+    
+    return dict(groups)
+
+# Create species-level groups as well
+species_groups = identify_species_groups_for_cv(sample_labels, species_sample_map)
+
+print(f"\n{'='*80}")
+print("RECOMMENDATION FOR CV APPROACH:")
+print("="*80)
+print("1. SPECIES-LEVEL CV (species_groups):")
+print("   → Use this for PRACTICAL rank selection")
+print("   → Fast: only 3 folds")
+print("   → Tests: Does model work on new species?")
+print("   → Similar to dissertation's leave-one-dataset-out approach")
+print("")
+print("2. COLONY-LEVEL CV (replicate_groups):")
+print("   → Use for COMPREHENSIVE validation")
+print("   → Slow: ~30-40 folds")
+print("   → Tests: Does model work on new colony within same species?")
+print("   → More traditional biological replicate CV")
+print("")
+print("SUGGESTED: Start with species-level CV for initial rank selection")
+print("="*80)
+```
+
+### Full Dissertation Grid Search (Rank × Lambda)
+
+```{python dissertation-grid-search-functions, eval=TRUE}
+# ===========================================
+# FULL DISSERTATION GRID SEARCH
+# Implementation of Blaskowski (2024) Section 1.2.3
+# ===========================================
+# "We fit a series of models to each replicate subtensor using a grid search 
+#  of different R and λ parameter values. Six cross-validated SSE scores were 
+#  calculated for each unique set of parameters by comparing each fit model 
+#  against the two held out replicate subtensors. Three cross-validated FMS 
+#  scores were calculated for each parameter set by comparing the components 
+#  between each pair of replicate models."
+# ===========================================
+
+from barnacle.decomposition import SparseCP
+from tlviz.factor_tools import factor_match_score
+import numpy as np
+import pandas as pd
+from itertools import combinations
+
+def calculate_cv_sse(tensor, decomposition, train_indices, test_indices):
+    """
+    Calculate Sum of Squared Errors on test data.
+    
+    This reconstructs the tensor using factors learned from training data
+    and evaluates SSE on held-out test data.
+    
+    Parameters:
+    -----------
+    tensor : 3D array
+        Full tensor (genes × samples × timepoints)
+    decomposition : barnacle decomposition object
+        Fitted decomposition from training data
+    train_indices : list
+        Sample indices used for training
+    test_indices : list
+        Sample indices for test set
+    
+    Returns:
+    --------
+    sse : float
+        Sum of squared errors on test data
+    """
+    # Extract factors from training
+    gene_factors = decomposition.factors[0]  # genes × rank
+    sample_factors_train = decomposition.factors[1]  # train_samples × rank
+    time_factors = decomposition.factors[2]  # timepoints × rank
+    weights = decomposition.weights  # rank
+    
+    # Get test tensor
+    test_tensor = tensor[:, test_indices, :]
+    n_genes, n_test_samples, n_timepoints = test_tensor.shape
+    rank = len(weights)
+    
+    # For test samples, we need to fit sample factors while keeping gene and time factors fixed
+    # This is a simplified approach: use mean of training sample factors as proxy
+    # More sophisticated: solve least-squares for test sample factors
+    sample_factors_test = np.tile(
+        sample_factors_train.mean(axis=0, keepdims=True),
+        (n_test_samples, 1)
+    )
+    
+    # Reconstruct test tensor
+    reconstructed = np.zeros(test_tensor.shape)
+    for r in range(rank):
+        # Outer product: genes × test_samples × times
+        component = np.einsum('i,j,k->ijk',
+                            gene_factors[:, r],
+                            sample_factors_test[:, r],
+                            time_factors[:, r])
+        reconstructed += weights[r] * component
+    
+    # Calculate SSE
+    sse = np.sum((test_tensor - reconstructed) ** 2)
+    
+    return sse
+
+
+def dissertation_grid_search_cv(
+    tensor,
+    replicate_groups,
+    rank_range=[5, 10, 15, 20, 25, 30, 35],
+    lambda_values=[0.0, 0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0],
+    n_iter_max=10000,
+    random_state=42
+):
+    """
+    Full dissertation grid search: Test all rank × lambda combinations.
+    
+    Implementation of Blaskowski (2024) Section 1.2.3, page 20-21:
+    "We fit a series of models to each replicate subtensor using a grid search 
+     of different R and λ parameter values."
+    
+    For each (rank, lambda) combination:
+    1. Fit model to each CV fold (leave-one-group-out)
+    2. Calculate cross-validated SSE scores (each model vs held-out data)
+    3. Calculate cross-validated FMS scores (pairwise between models)
+    
+    Two-stage selection (Dissertation method):
+    - Stage 1: Select R at minimum CV-SSE for λ=0.0 models
+    - Stage 2: Select maximum λ where CV-FMS ≥ (max_FMS - 1SE)
+    
+    Parameters:
+    -----------
+    tensor : 3D array
+        Full tensor (genes × samples × timepoints)
+    replicate_groups : dict
+        Keys: group names (e.g., species)
+        Values: list of sample indices
+    rank_range : list
+        Ranks to test
+    lambda_values : list
+        Lambda values to test
+    n_iter_max : int
+        Maximum iterations for optimization
+    random_state : int
+        Random seed
+    
+    Returns:
+    --------
+    optimal_rank : int
+        Selected rank (minimum CV-SSE at λ=0.0)
+    optimal_lambda : float
+        Selected lambda (maximum λ with FMS ≥ max_FMS - 1SE)
+    grid_results_df : DataFrame
+        Full grid search results with SSE and FMS for all combinations
+    """
+    
+    print("="*80)
+    print("FULL DISSERTATION GRID SEARCH")
+    print("Blaskowski (2024) Section 1.2.3")
+    print("="*80)
+    print(f"Testing {len(rank_range)} ranks: {rank_range}")
+    print(f"Testing {len(lambda_values)} lambdas: {lambda_values}")
+    print(f"Total combinations: {len(rank_range) * len(lambda_values)}")
+    print(f"Cross-validation: Leave-one-group-out ({len(replicate_groups)} folds)")
+    print(f"Random state: {random_state}")
+    print("="*80)
+    print("\nFor each (R, λ) combination, calculating:")
+    print(f"  • {len(replicate_groups)} × {len(replicate_groups)-1} = {len(replicate_groups) * (len(replicate_groups)-1)} SSE scores")
+    print(f"    (each model evaluated on {len(replicate_groups)-1} held-out groups)")
+    print(f"  • {len(list(combinations(range(len(replicate_groups)), 2)))} FMS scores")
+    print(f"    (pairwise comparisons between {len(replicate_groups)} models)")
+    print("="*80)
+    
+    # Handle missing values once
+    tensor_filled = np.nan_to_num(tensor, nan=0.0)
+    
+    # Storage for all grid search results
+    grid_results = []
+    
+    # Grid search over all rank × lambda combinations
+    total_combinations = len(rank_range) * len(lambda_values)
+    combination_idx = 0
+    
+    for R in rank_range:
+        for lambda_val in lambda_values:
+            combination_idx += 1
+            
+            print(f"\n{'='*80}")
+            print(f"Combination {combination_idx}/{total_combinations}: Rank={R}, Lambda={lambda_val}")
+            print(f"{'='*80}")
+            
+            # Storage for this combination
+            fold_decompositions = []
+            fold_metadata = []
+            all_sse_scores = []
+            
+            # Fit model to each CV fold
+            for fold_idx, (group_name, test_indices) in enumerate(replicate_groups.items()):
+                print(f"  Fold {fold_idx+1}/{len(replicate_groups)}: Training without {group_name}")
+                
+                # Create training data (all groups except current)
+                train_indices = []
+                for other_name, other_indices in replicate_groups.items():
+                    if other_name != group_name:
+                        train_indices.extend(other_indices)
+                
+                train_tensor = tensor_filled[:, train_indices, :]
+                
+                try:
+                    # Fit model
+                    model = SparseCP(
+                        rank=R,
+                        lambdas=[lambda_val, 0.0, lambda_val],  # Apply to gene and time factors
+                        nonneg_modes=[0],
+                        norm_constraint=True,
+                        init='random',
+                        tol=1e-5,
+                        n_iter_max=n_iter_max,
+                        random_state=random_state,
+                        n_initializations=1
+                    )
+                    
+                    decomposition = model.fit_transform(train_tensor, verbose=0)
+                    
+                    # Calculate SSE on THIS fold's held-out data
+                    sse_own = calculate_cv_sse(tensor_filled, decomposition, train_indices, test_indices)
+                    
+                    # Calculate SSE on ALL OTHER held-out groups
+                    sse_others = []
+                    for other_name, other_test_indices in replicate_groups.items():
+                        if other_name != group_name:
+                            sse_other = calculate_cv_sse(tensor_filled, decomposition, 
+                                                        train_indices, other_test_indices)
+                            sse_others.append(sse_other)
+                            all_sse_scores.append(sse_other)
+                    
+                    print(f"    ✓ SSE on {group_name}: {sse_own:.2e}")
+                    print(f"      SSE on others: {np.mean(sse_others):.2e} ± {np.std(sse_others):.2e}")
+                    
+                    fold_decompositions.append(decomposition)
+                    fold_metadata.append({
+                        'fold': fold_idx + 1,
+                        'group': group_name,
+                        'sse_own': sse_own,
+                        'sse_others_mean': np.mean(sse_others),
+                        'converged': True
+                    })
+                    
+                except Exception as e:
+                    print(f"    ✗ Error: {e}")
+                    fold_decompositions.append(None)
+                    fold_metadata.append({
+                        'fold': fold_idx + 1,
+                        'group': group_name,
+                        'sse_own': np.nan,
+                        'sse_others_mean': np.nan,
+                        'converged': False
+                    })
+            
+            # Calculate pairwise FMS between successful folds
+            successful_decompositions = [d for d in fold_decompositions if d is not None]
+            
+            fms_scores = []
+            if len(successful_decompositions) >= 2:
+                print(f"\n  Calculating FMS between {len(successful_decompositions)} successful models...")
+                
+                for i, j in combinations(range(len(successful_decompositions)), 2):
+                    try:
+                        # Compare only gene and time factors
+                        # (sample factors have different dimensions across folds)
+                        cp_tensor_i = (
+                            successful_decompositions[i].weights,
+                            [successful_decompositions[i].factors[0],  # genes
+                             successful_decompositions[i].factors[2]]  # time
+                        )
+                        cp_tensor_j = (
+                            successful_decompositions[j].weights,
+                            [successful_decompositions[j].factors[0],  # genes
+                             successful_decompositions[j].factors[2]]  # time
+                        )
+                        
+                        fms = factor_match_score(
+                            cp_tensor_i, 
+                            cp_tensor_j,
+                            return_permutation=False
+                        )
+                        fms_scores.append(fms)
+                        
+                    except Exception as e:
+                        print(f"    Warning: FMS calculation failed for pair ({i},{j}): {e}")
+                        continue
+            
+            # Aggregate results for this combination
+            valid_sse = [s for s in all_sse_scores if not np.isnan(s)]
+            valid_fms = [f for f in fms_scores if not np.isnan(f)]
+            
+            if len(valid_sse) > 0:
+                mean_cv_sse = np.mean(valid_sse)
+                std_cv_sse = np.std(valid_sse)
+                se_cv_sse = std_cv_sse / np.sqrt(len(valid_sse))
+            else:
+                mean_cv_sse = np.inf
+                std_cv_sse = np.inf
+                se_cv_sse = np.inf
+            
+            if len(valid_fms) > 0:
+                mean_cv_fms = np.mean(valid_fms)
+                std_cv_fms = np.std(valid_fms)
+                se_cv_fms = std_cv_fms / np.sqrt(len(valid_fms))
+            else:
+                mean_cv_fms = np.nan
+                std_cv_fms = np.nan
+                se_cv_fms = np.nan
+            
+            grid_results.append({
+                'rank': R,
+                'lambda': lambda_val,
+                'mean_cv_sse': mean_cv_sse,
+                'std_cv_sse': std_cv_sse,
+                'se_cv_sse': se_cv_sse,
+                'n_sse_scores': len(valid_sse),
+                'mean_cv_fms': mean_cv_fms,
+                'std_cv_fms': std_cv_fms,
+                'se_cv_fms': se_cv_fms,
+                'n_fms_scores': len(valid_fms),
+                'n_successful_folds': len(successful_decompositions),
+                'fold_metadata': fold_metadata
+            })
+            
+            print(f"\n  RESULTS:")
+            print(f"    CV-SSE: {mean_cv_sse:.2e} ± {std_cv_sse:.2e} ({len(valid_sse)} scores)")
+            print(f"    CV-FMS: {mean_cv_fms:.4f} ± {std_cv_fms:.4f} ({len(valid_fms)} scores)")
+    
+    # Convert to DataFrame
+    grid_df = pd.DataFrame(grid_results)
+    
+    # ===========================================
+    # STAGE 1: SELECT RANK (λ=0.0 models only)
+    # ===========================================
+    print(f"\n{'='*80}")
+    print("STAGE 1: RANK SELECTION")
+    print("Dissertation: 'Select R at minimum CV-SSE for λ=0.0 models'")
+    print("="*80)
+    
+    lambda_zero_df = grid_df[grid_df['lambda'] == 0.0].copy()
+    
+    if len(lambda_zero_df) == 0 or lambda_zero_df['mean_cv_sse'].isna().all():
+        print("ERROR: No valid λ=0.0 models. Cannot select rank.")
+        return None, None, grid_df
+    
+    optimal_rank_idx = lambda_zero_df['mean_cv_sse'].idxmin()
+    optimal_rank = int(lambda_zero_df.loc[optimal_rank_idx, 'rank'])
+    optimal_rank_sse = lambda_zero_df.loc[optimal_rank_idx, 'mean_cv_sse']
+    optimal_rank_std = lambda_zero_df.loc[optimal_rank_idx, 'std_cv_sse']
+    
+    print(f"\n✓ OPTIMAL RANK: {optimal_rank}")
+    print(f"  CV-SSE: {optimal_rank_sse:.2e} ± {optimal_rank_std:.2e}")
+    print(f"\nAll λ=0.0 results:")
+    display_df = lambda_zero_df[['rank', 'mean_cv_sse', 'std_cv_sse', 'n_successful_folds']].copy()
+    display_df = display_df.sort_values('mean_cv_sse')
+    print(display_df.to_string(index=False, float_format=lambda x: f'{x:.2e}' if x > 1 else f'{x:.4f}'))
+    
+    # ===========================================
+    # STAGE 2: SELECT LAMBDA (fixed rank)
+    # ===========================================
+    print(f"\n{'='*80}")
+    print("STAGE 2: LAMBDA SELECTION")
+    print("Dissertation: 'Select maximum λ where CV-FMS ≥ (max_FMS - 1SE)'")
+    print("="*80)
+    
+    fixed_rank_df = grid_df[grid_df['rank'] == optimal_rank].copy()
+    fixed_rank_df = fixed_rank_df[~fixed_rank_df['mean_cv_fms'].isna()]
+    
+    if len(fixed_rank_df) == 0:
+        print("ERROR: No valid FMS scores at optimal rank. Cannot select lambda.")
+        return optimal_rank, None, grid_df
+    
+    # Find maximum FMS
+    max_fms_idx = fixed_rank_df['mean_cv_fms'].idxmax()
+    max_fms = fixed_rank_df.loc[max_fms_idx, 'mean_cv_fms']
+    max_fms_se = fixed_rank_df.loc[max_fms_idx, 'se_cv_fms']
+    max_fms_lambda = fixed_rank_df.loc[max_fms_idx, 'lambda']
+    
+    # Calculate 1SE threshold
+    fms_1se_threshold = max_fms - max_fms_se
+    
+    print(f"\nMaximum FMS: {max_fms:.4f} ± {max_fms_se:.4f} (at λ={max_fms_lambda})")
+    print(f"1SE Threshold: {fms_1se_threshold:.4f}")
+    
+    # Find maximum lambda within 1SE
+    within_1se = fixed_rank_df[fixed_rank_df['mean_cv_fms'] >= fms_1se_threshold]
+    
+    if len(within_1se) > 0:
+        optimal_lambda_idx = within_1se['lambda'].idxmax()
+        optimal_lambda = float(within_1se.loc[optimal_lambda_idx, 'lambda'])
+        optimal_lambda_fms = within_1se.loc[optimal_lambda_idx, 'mean_cv_fms']
+        optimal_lambda_sse = within_1se.loc[optimal_lambda_idx, 'mean_cv_sse']
+        
+        print(f"\n✓ OPTIMAL LAMBDA: {optimal_lambda}")
+        print(f"  CV-FMS: {optimal_lambda_fms:.4f}")
+        print(f"  CV-SSE: {optimal_lambda_sse:.2e}")
+        print(f"  (Maximum λ where FMS ≥ {fms_1se_threshold:.4f})")
+        
+        print(f"\nAll results at rank={optimal_rank}:")
+        display_df = fixed_rank_df[['lambda', 'mean_cv_fms', 'se_cv_fms', 'mean_cv_sse']].copy()
+        display_df = display_df.sort_values('lambda')
+        print(display_df.to_string(index=False, float_format=lambda x: f'{x:.4f}'))
+    else:
+        optimal_lambda = 0.0
+        print(f"\nWARNING: No lambda values within 1SE of max FMS.")
+        print(f"Defaulting to λ=0.0")
+    
+    print(f"\n{'='*80}")
+    print("FINAL SELECTED PARAMETERS")
+    print("="*80)
+    print(f"✓ Rank: {optimal_rank}")
+    print(f"✓ Lambda: {optimal_lambda}")
+    print("="*80)
+    
+    return optimal_rank, optimal_lambda, grid_df
+
+
+print("Full dissertation grid search functions loaded")
+print("Ready to run complete rank × lambda grid search")
+```
+
+### Run full dissertation grid search
+
+```{python run-dissertation-grid-search, eval=FALSE}
+# ===========================================
+# RUN FULL DISSERTATION GRID SEARCH
+# ===========================================
+# Tests all rank × lambda combinations
+# Calculates both SSE and FMS for each
+# Applies two-stage selection process
+# ===========================================
+
+print("="*80)
+print("STARTING FULL DISSERTATION GRID SEARCH")
+print("Blaskowski (2024) Section 1.2.3")
+print("="*80)
+
+# ============================================
+# CONFIGURE GRID SEARCH PARAMETERS
+# ============================================
+
+# Rank range to test
+# Dissertation tested R ∈ [1, 2, 3, ..., 12]
+# For computational efficiency, start with coarser grid
+GRID_RANK_RANGE = [5, 10, 15, 20, 25, 30, 35]
+
+# Lambda values to test
+# Dissertation tested λ ∈ [0.0, 0.05, 0.1, 0.2, 0.4, 0.8, 1.6, 3.2, 6.4, 12.8]
+# Start with similar range
+GRID_LAMBDA_VALUES = [0.0, 0.01, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0]
+
+# Other parameters
+GRID_N_ITER_MAX = 10000
+GRID_RANDOM_STATE = 42
+
+# ============================================
+# CHOOSE CV APPROACH
+# ============================================
+# SPECIES-LEVEL CV (RECOMMENDED - Fast, 3 folds)
+GRID_CV_GROUPS = species_groups
+
+# Alternatively: COLONY-LEVEL CV (Slower, ~30-40 folds)
+# GRID_CV_GROUPS = replicate_groups
+
+print(f"\nGrid search configuration:")
+print(f"  Ranks to test ({len(GRID_RANK_RANGE)}): {GRID_RANK_RANGE}")
+print(f"  Lambdas to test ({len(GRID_LAMBDA_VALUES)}): {GRID_LAMBDA_VALUES}")
+print(f"  Total combinations: {len(GRID_RANK_RANGE)} × {len(GRID_LAMBDA_VALUES)} = {len(GRID_RANK_RANGE) * len(GRID_LAMBDA_VALUES)}")
+print(f"  CV folds: {len(GRID_CV_GROUPS)}")
+print(f"  Max iterations: {GRID_N_ITER_MAX}")
+print(f"  Random state: {GRID_RANDOM_STATE}")
+print("="*80)
+
+# Estimate runtime
+models_per_combination = len(GRID_CV_GROUPS)
+total_models = len(GRID_RANK_RANGE) * len(GRID_LAMBDA_VALUES) * models_per_combination
+print(f"\nEstimated workload:")
+print(f"  Models to fit: {total_models}")
+print(f"  ({len(GRID_RANK_RANGE)} ranks × {len(GRID_LAMBDA_VALUES)} lambdas × {models_per_combination} CV folds)")
+print(f"  Estimated time: ~{total_models * 2 / 60:.1f}-{total_models * 5 / 60:.1f} minutes")
+print(f"    (assuming 2-5 min per model)")
+print("="*80)
+
+# NOTE: Set eval=FALSE above to prevent accidental execution
+# When ready to run, set eval=TRUE and execute this chunk
+print("\n" + "="*80)
+print("STARTING GRID SEARCH...")
+print("="*80)
+
+import time
+start_time = time.time()
+
+# Run full grid search
+optimal_rank_grid, optimal_lambda_grid, grid_results_df = dissertation_grid_search_cv(
+    tensor=tensor_3d,
+    replicate_groups=GRID_CV_GROUPS,
+    rank_range=GRID_RANK_RANGE,
+    lambda_values=GRID_LAMBDA_VALUES,
+    n_iter_max=GRID_N_ITER_MAX,
+    random_state=GRID_RANDOM_STATE
+)
+
+elapsed_time = time.time() - start_time
+
+print(f"\n{'='*80}")
+print("GRID SEARCH COMPLETE")
+print("="*80)
+print(f"Total time: {elapsed_time / 60:.1f} minutes")
+print(f"Time per combination: {elapsed_time / (len(GRID_RANK_RANGE) * len(GRID_LAMBDA_VALUES)):.1f} seconds")
+print("="*80)
+
+# Save results
+grid_search_dir = os.path.join(output_dir, 'dissertation_grid_search')
+os.makedirs(grid_search_dir, exist_ok=True)
+
+# Save full grid results
+grid_results_df.to_csv(
+    os.path.join(grid_search_dir, 'full_grid_results.csv'),
+    index=False
+)
+print(f"\n✓ Full grid results saved to: full_grid_results.csv")
+
+# Save optimal parameters
+import json
+with open(os.path.join(grid_search_dir, 'optimal_parameters.json'), 'w') as f:
+    json.dump({
+        'method': 'dissertation_grid_search',
+        'reference': 'Blaskowski 2024, Section 1.2.3',
+        'optimal_rank': int(optimal_rank_grid) if optimal_rank_grid is not None else None,
+        'optimal_lambda': float(optimal_lambda_grid) if optimal_lambda_grid is not None else None,
+        'rank_range_tested': GRID_RANK_RANGE,
+        'lambda_values_tested': GRID_LAMBDA_VALUES,
+        'cv_method': 'leave_one_group_out',
+        'n_cv_folds': len(GRID_CV_GROUPS),
+        'cv_groups': list(GRID_CV_GROUPS.keys()),
+        'total_combinations': len(GRID_RANK_RANGE) * len(GRID_LAMBDA_VALUES),
+        'runtime_minutes': elapsed_time / 60,
+        'timestamp': pd.Timestamp.now().isoformat()
+    }, f, indent=2)
+
+print(f"✓ Optimal parameters saved to: optimal_parameters.json")
+
+print(f"\n{'='*80}")
+print("Results saved to directory:")
+print(f"  {grid_search_dir}")
+print("="*80)
+```
+
+### Visualize grid search results
+
+```{python plot-grid-search-results, eval=FALSE}
+# ===========================================
+# VISUALIZE FULL GRID SEARCH RESULTS
+# ===========================================
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
+
+print("="*80)
+print("CREATING GRID SEARCH VISUALIZATIONS")
+print("="*80)
+
+# Create output directory
+grid_search_dir = os.path.join(output_dir, 'dissertation_grid_search')
+
+if 'grid_results_df' not in locals() or grid_results_df is None:
+    print("ERROR: No grid search results available. Run grid search first.")
+else:
+    # Clean data for plotting
+    plot_df = grid_results_df.copy()
+    plot_df = plot_df[~plot_df['mean_cv_sse'].isna()]
+    
+    print(f"Plotting {len(plot_df)} combinations with valid results")
+    
+    # ============================================
+    # Figure 1: SSE Heatmap (Rank × Lambda)
+    # ============================================
+    fig, ax = plt.subplots(figsize=(12, 8))
+    
+    # Pivot for heatmap
+    sse_pivot = plot_df.pivot(index='rank', columns='lambda', values='mean_cv_sse')
+    
+    # Plot heatmap
+    sns.heatmap(sse_pivot, annot=True, fmt='.2e', cmap='viridis_r',
+                cbar_kws={'label': 'Mean CV-SSE'},
+                ax=ax)
+    
+    # Mark optimal rank (from λ=0.0)
+    if optimal_rank_grid is not None:
+        lambda_zero_idx = list(sse_pivot.columns).index(0.0) if 0.0 in sse_pivot.columns else 0
+        rank_idx = list(sse_pivot.index).index(optimal_rank_grid) if optimal_rank_grid in sse_pivot.index else 0
+        ax.add_patch(plt.Rectangle((lambda_zero_idx, rank_idx), 1, 1,
+                                   fill=False, edgecolor='red', lw=3))
+    
+    # Mark optimal lambda at optimal rank
+    if optimal_rank_grid is not None and optimal_lambda_grid is not None:
+        if optimal_lambda_grid in sse_pivot.columns and optimal_rank_grid in sse_pivot.index:
+            lambda_idx = list(sse_pivot.columns).index(optimal_lambda_grid)
+            rank_idx = list(sse_pivot.index).index(optimal_rank_grid)
+            ax.add_patch(plt.Rectangle((lambda_idx, rank_idx), 1, 1,
+                                       fill=False, edgecolor='cyan', lw=3))
+    
+    ax.set_title('Cross-Validated SSE: Rank × Lambda Grid Search\n' + 
+                 f'Red box = Optimal rank (R={optimal_rank_grid}, λ=0.0)\n' +
+                 f'Cyan box = Final selection (R={optimal_rank_grid}, λ={optimal_lambda_grid})',
+                 fontsize=14, fontweight='bold')
+    ax.set_xlabel('Lambda (Regularization)', fontsize=12)
+    ax.set_ylabel('Rank', fontsize=12)
+    
+    plt.tight_layout()
+    plt.savefig(os.path.join(grid_search_dir, 'grid_search_sse_heatmap.png'),
+                dpi=300, bbox_inches='tight')
+    plt.show()
+    plt.close()
+    
+    print("✓ SSE heatmap saved")
+    
+    # ============================================
+    # Figure 2: FMS Heatmap (Rank × Lambda)
+    # ============================================
+    plot_df_fms = plot_df[~plot_df['mean_cv_fms'].isna()].copy()
+    
+    if len(plot_df_fms) > 0:
+        fig, ax = plt.subplots(figsize=(12, 8))
+        
+        # Pivot for heatmap
+        fms_pivot = plot_df_fms.pivot(index='rank', columns='lambda', values='mean_cv_fms')
+        
+        # Plot heatmap
+        sns.heatmap(fms_pivot, annot=True, fmt='.3f', cmap='RdYlGn',
+                    vmin=0, vmax=1,
+                    cbar_kws={'label': 'Mean CV-FMS'},
+                    ax=ax)
+        
+        # Mark optimal parameters
+        if optimal_rank_grid is not None and optimal_lambda_grid is not None:
+            if optimal_lambda_grid in fms_pivot.columns and optimal_rank_grid in fms_pivot.index:
+                lambda_idx = list(fms_pivot.columns).index(optimal_lambda_grid)
+                rank_idx = list(fms_pivot.index).index(optimal_rank_grid)
+                ax.add_patch(plt.Rectangle((lambda_idx, rank_idx), 1, 1,
+                                           fill=False, edgecolor='blue', lw=3))
+        
+        ax.set_title('Cross-Validated FMS: Rank × Lambda Grid Search\n' + 
+                     f'Blue box = Final selection (R={optimal_rank_grid}, λ={optimal_lambda_grid})',
+                     fontsize=14, fontweight='bold')
+        ax.set_xlabel('Lambda (Regularization)', fontsize=12)
+        ax.set_ylabel('Rank', fontsize=12)
+        
+        plt.tight_layout()
+        plt.savefig(os.path.join(grid_search_dir, 'grid_search_fms_heatmap.png'),
+                    dpi=300, bbox_inches='tight')
+        plt.show()
+        plt.close()
+        
+        print("✓ FMS heatmap saved")
+    else:
+        print("⚠ No FMS data available for plotting")
+    
+    # ============================================
+    # Figure 3: Line plots at optimal rank
+    # ============================================
+    if optimal_rank_grid is not None:
+        optimal_rank_data = plot_df[plot_df['rank'] == optimal_rank_grid].copy()
+        optimal_rank_data = optimal_rank_data.sort_values('lambda')
+        
+        fig, axes = plt.subplots(2, 1, figsize=(12, 10))
+        
+        # Plot 1: SSE vs Lambda
+        ax1 = axes[0]
+        ax1.errorbar(optimal_rank_data['lambda'], 
+                    optimal_rank_data['mean_cv_sse'],
+                    yerr=optimal_rank_data['std_cv_sse'],
+                    marker='o', markersize=10, linewidth=2.5,
+                    capsize=5, capthick=2,
+                    color='steelblue', ecolor='lightblue')
+        
+        ax1.axvline(x=optimal_lambda_grid, color='red', linestyle='--',
+                   linewidth=2, alpha=0.7, label=f'Optimal λ = {optimal_lambda_grid}')
+        
+        ax1.set_xlabel('Lambda (Regularization)', fontsize=12)
+        ax1.set_ylabel('Mean CV-SSE', fontsize=12)
+        ax1.set_title(f'SSE vs Lambda at Optimal Rank (R={optimal_rank_grid})',
+                     fontsize=13, fontweight='bold')
+        ax1.legend(fontsize=11)
+        ax1.grid(alpha=0.3)
+        
+        # Plot 2: FMS vs Lambda
+        ax2 = axes[1]
+        fms_data = optimal_rank_data[~optimal_rank_data['mean_cv_fms'].isna()]
+        
+        if len(fms_data) > 0:
+            ax2.errorbar(fms_data['lambda'],
+                        fms_data['mean_cv_fms'],
+                        yerr=fms_data['std_cv_fms'],
+                        marker='o', markersize=10, linewidth=2.5,
+                        capsize=5, capthick=2,
+                        color='forestgreen', ecolor='lightgreen')
+            
+            # Add 1SE threshold line
+            max_fms = fms_data['mean_cv_fms'].max()
+            max_fms_row = fms_data[fms_data['mean_cv_fms'] == max_fms].iloc[0]
+            fms_1se = max_fms - max_fms_row['se_cv_fms']
+            
+            ax2.axhline(y=fms_1se, color='orange', linestyle='--',
+                       linewidth=2, alpha=0.7, label=f'1SE threshold = {fms_1se:.3f}')
+            ax2.axvline(x=optimal_lambda_grid, color='red', linestyle='--',
+                       linewidth=2, alpha=0.7, label=f'Optimal λ = {optimal_lambda_grid}')
+            
+            ax2.set_xlabel('Lambda (Regularization)', fontsize=12)
+            ax2.set_ylabel('Mean CV-FMS', fontsize=12)
+            ax2.set_title(f'FMS vs Lambda at Optimal Rank (R={optimal_rank_grid})\n' + 
+                         'Selection: Maximum λ where FMS ≥ (max_FMS - 1SE)',
+                         fontsize=13, fontweight='bold')
+            ax2.legend(fontsize=11)
+            ax2.grid(alpha=0.3)
+            ax2.set_ylim(0, 1.05)
+        else:
+            ax2.text(0.5, 0.5, 'No FMS data available',
+                    ha='center', va='center', fontsize=14,
+                    transform=ax2.transAxes)
+        
+        plt.tight_layout()
+        plt.savefig(os.path.join(grid_search_dir, 'optimal_rank_lambda_selection.png'),
+                    dpi=300, bbox_inches='tight')
+        plt.show()
+        plt.close()
+        
+        print("✓ Lambda selection plot saved")
+    
+    # ============================================
+    # Figure 4: Rank selection (λ=0.0 only)
+    # ============================================
+    lambda_zero_data = plot_df[plot_df['lambda'] == 0.0].copy()
+    lambda_zero_data = lambda_zero_data.sort_values('rank')
+    
+    if len(lambda_zero_data) > 0:
+        fig, ax = plt.subplots(figsize=(12, 6))
+        
+        ax.errorbar(lambda_zero_data['rank'],
+                   lambda_zero_data['mean_cv_sse'],
+                   yerr=lambda_zero_data['std_cv_sse'],
+                   marker='o', markersize=10, linewidth=2.5,
+                   capsize=5, capthick=2,
+                   color='darkviolet', ecolor='plum')
+        
+        if optimal_rank_grid is not None:
+            ax.axvline(x=optimal_rank_grid, color='red', linestyle='--',
+                      linewidth=2, alpha=0.7, label=f'Optimal rank = {optimal_rank_grid}')
+        
+        ax.set_xlabel('Rank', fontsize=12)
+        ax.set_ylabel('Mean CV-SSE (λ=0.0)', fontsize=12)
+        ax.set_title('Rank Selection: Minimum CV-SSE at λ=0.0\n' +
+                    'Dissertation Stage 1: Select R at minimum error without regularization',
+                    fontsize=13, fontweight='bold')
+        ax.legend(fontsize=11)
+        ax.grid(alpha=0.3)
+        
+        plt.tight_layout()
+        plt.savefig(os.path.join(grid_search_dir, 'rank_selection_lambda_zero.png'),
+                    dpi=300, bbox_inches='tight')
+        plt.show()
+        plt.close()
+        
+        print("✓ Rank selection plot saved")
+    
+    print(f"\n{'='*80}")
+    print("All visualizations saved to:")
+    print(f"  {grid_search_dir}")
+    print("="*80)
+```
+
+---
+
+## LEGACY SECTIONS (Sequential Rank → Lambda)
+
+**NOTE:** The sections below implement a **simplified sequential approach** where rank and lambda are selected separately. This is faster but may miss rank×lambda interactions.
+
+**NEW APPROACH:** The **Full Dissertation Grid Search** (above) implements the complete methodology from Blaskowski (2024) where all rank×lambda combinations are tested simultaneously with both SSE and FMS metrics calculated for each.
+
+**Use these legacy sections** if you want a faster, more practical approach.  
+**Use the dissertation grid search** for the most faithful implementation.
+
+---
+
+### Sequential rank selection (Legacy method)
+
+This section is kept for backward compatibility and faster exploratory analysis.
+
+**NOTE:** For the full dissertation grid search, use `dissertation_grid_search_cv()` function above. This legacy function only tests ranks with λ=0.0.
+
+```{python sequential-rank-selection-function, eval=TRUE}
+# ===========================================
+# SEQUENTIAL RANK SELECTION FUNCTION (LEGACY)
+# ===========================================
+# Simplified version for backward compatibility
+# For full grid search, use dissertation_grid_search_cv() above
+# ===========================================
+
+def cross_validated_rank_selection(
+    tensor,
+    replicate_groups,
+    rank_range=[5, 10, 15, 20, 25, 30, 35, 40],
+    lambdas=[0.0],
+    n_iter_max=10000,
+    random_state=42
+):
+    """
+    LEGACY: Sequential rank selection via cross-validation.
+    
+    This is a simplified version that only tests ranks with λ=0.0.
+    For the full dissertation grid search, use dissertation_grid_search_cv().
+    
+    Implementation of Blaskowski (2024) Section 1.2.3:
+    "We selected the R value of best fit based on the minimum cross-validated SSE"
+    
+    Method:
+    1. For each rank R, perform leave-one-group-out cross-validation
+    2. Fit model on training groups, evaluate SSE on test group
+    3. Select rank with minimum mean CV-SSE
+    
+    Parameters:
+    -----------
+    tensor : 3D array
+        Full tensor (genes × samples × timepoints)
+    replicate_groups : dict
+        Keys: group names (e.g., species)
+        Values: list of sample indices
+    rank_range : list
+        Ranks to test
+    lambdas : list
+        Lambda values (use [0.0] for rank selection per dissertation)
+    n_iter_max : int
+        Maximum iterations for optimization
+    random_state : int
+        Random seed
+    
+    Returns:
+    --------
+    optimal_rank : int
+        Rank with minimum CV-SSE
+    cv_results_df : DataFrame
+        Full cross-validation results
+    """
+    from barnacle.decomposition import SparseCP
+    
+    print("="*80)
+    print("CROSS-VALIDATED RANK SELECTION (LEGACY SEQUENTIAL)")
+    print("Dissertation Method (Blaskowski 2024, Section 1.2.3)")
+    print("="*80)
+    print(f"Testing ranks: {rank_range}")
+    print(f"Lambda: {lambdas[0]} (no regularization for rank selection)")
+    print(f"Cross-validation: Leave-one-group-out ({len(replicate_groups)} folds)")
+    print(f"Random state: {random_state}")
+    print("="*80)
+    
+    cv_results = []
+    
+    # Handle missing values once
+    tensor_filled = np.nan_to_num(tensor, nan=0.0)
+    
+    # For each rank, do leave-one-group-out cross-validation
+    for R in rank_range:
+        print(f"\n{'='*60}")
+        print(f"Testing Rank {R}")
+        print(f"{'='*60}")
+        
+        fold_sse_scores = []
+        fold_details = []
+        
+        # Leave-one-group-out CV
+        for fold_idx, (group_name, test_indices) in enumerate(replicate_groups.items()):
+            print(f"  Fold {fold_idx+1}/{len(replicate_groups)}: Hold out {group_name} ({len(test_indices)} samples)")
+            
+            # Create train/test split
+            train_indices = []
+            for other_name, other_indices in replicate_groups.items():
+                if other_name != group_name:
+                    train_indices.extend(other_indices)
+            
+            print(f"    Training on {len(train_indices)} samples")
+            
+            # Fit model on training data
+            train_tensor = tensor_filled[:, train_indices, :]
+            
+            try:
+                model = SparseCP(
+                    rank=R,
+                    lambdas=[lambdas[0], 0.0, lambdas[0]],
+                    nonneg_modes=[0],
+                    norm_constraint=True,
+                    init='random',
+                    tol=1e-5,
+                    n_iter_max=n_iter_max,
+                    random_state=random_state,
+                    n_initializations=1
+                )
+                
+                decomposition = model.fit_transform(train_tensor, verbose=0)
+                
+                # Calculate SSE on test data
+                sse = calculate_cv_sse(tensor_filled, decomposition, train_indices, test_indices)
+                fold_sse_scores.append(sse)
+                
+                # Get relative error for reference
+                test_tensor = tensor_filled[:, test_indices, :]
+                test_norm = np.linalg.norm(test_tensor)
+                relative_error = np.sqrt(sse) / test_norm if test_norm > 0 else np.inf
+                
+                print(f"    SSE: {sse:.2e}, Relative Error: {relative_error:.4f}")
+                
+                fold_details.append({
+                    'fold': fold_idx + 1,
+                    'group': group_name,
+                    'sse': sse,
+                    'relative_error': relative_error,
+                    'converged': True
+                })
+                
+            except Exception as e:
+                print(f"    Error: {e}")
+                fold_sse_scores.append(np.nan)
+                fold_details.append({
+                    'fold': fold_idx + 1,
+                    'group': group_name,
+                    'sse': np.nan,
+                    'relative_error': np.nan,
+                    'converged': False
+                })
+        
+        # Calculate mean and std of CV-SSE
+        valid_scores = [s for s in fold_sse_scores if not np.isnan(s)]
+        if len(valid_scores) > 0:
+            mean_cv_sse = np.mean(valid_scores)
+            std_cv_sse = np.std(valid_scores)
+            min_cv_sse = np.min(valid_scores)
+            max_cv_sse = np.max(valid_scores)
+        else:
+            mean_cv_sse = np.inf
+            std_cv_sse = np.inf
+            min_cv_sse = np.inf
+            max_cv_sse = np.inf
+        
+        cv_results.append({
+            'rank': R,
+            'lambda': lambdas[0],
+            'mean_cv_sse': mean_cv_sse,
+            'std_cv_sse': std_cv_sse,
+            'min_cv_sse': min_cv_sse,
+            'max_cv_sse': max_cv_sse,
+            'n_successful_folds': len(valid_scores),
+            'fold_details': fold_details
+        })
+        
+        print(f"  → Mean CV-SSE: {mean_cv_sse:.2e} ± {std_cv_sse:.2e}")
+        print(f"  → Range: [{min_cv_sse:.2e}, {max_cv_sse:.2e}]")
+        print(f"  → Successful folds: {len(valid_scores)}/{len(replicate_groups)}")
+    
+    # Convert to DataFrame
+    cv_df = pd.DataFrame(cv_results)
+    
+    # Select optimal rank (minimum CV-SSE)
+    if cv_df['mean_cv_sse'].isna().all():
+        print("\n" + "="*80)
+        print("ERROR: All ranks failed. Cannot select optimal rank.")
+        print("="*80)
+        return None, cv_df
+    
+    optimal_idx = cv_df['mean_cv_sse'].idxmin()
+    optimal_rank = int(cv_df.loc[optimal_idx, 'rank'])
+    optimal_sse = cv_df.loc[optimal_idx, 'mean_cv_sse']
+    optimal_std = cv_df.loc[optimal_idx, 'std_cv_sse']
+    
+    print(f"\n{'='*80}")
+    print("OPTIMAL RANK SELECTION RESULTS")
+    print(f"{'='*80}")
+    print(f"✓ Optimal Rank: {optimal_rank}")
+    print(f"  CV-SSE: {optimal_sse:.2e} ± {optimal_std:.2e}")
+    print(f"\nFull Results (sorted by CV-SSE):")
+    display_df = cv_df[['rank', 'mean_cv_sse', 'std_cv_sse', 'n_successful_folds']].copy()
+    display_df = display_df.sort_values('mean_cv_sse')
+    print(display_df.to_string(index=False, float_format=lambda x: f'{x:.2e}'))
+    print(f"{'='*80}")
+    
+    return optimal_rank, cv_df
+
+
+print("Sequential rank selection function loaded (legacy compatibility)")
+```
+
+### Run sequential rank selection (Legacy)
+
+```{python run-cv-rank-selection-legacy, eval=FALSE}
+# ===========================================
+# SEQUENTIAL RANK SELECTION (LEGACY)
+# ===========================================
+# This is the LEGACY sequential approach
+# Use dissertation_grid_search_cv() above for full grid search
+# ===========================================
+
+print("="*80)
+print("SEQUENTIAL RANK SELECTION (LEGACY METHOD)")
+print("For full dissertation grid search, use chunks above")
+print("="*80)
+
+# Configure parameters
+CV_RANK_RANGE = [5, 10, 15, 20, 25, 35]  # Start with quick test, expand if needed
+CV_LAMBDA = [0.0]  # No regularization for rank selection (per dissertation)
+CV_RANDOM_STATE = 42
+
+# ============================================
+# CHOOSE CV APPROACH:
+# ============================================
+# Option 1: SPECIES-LEVEL CV (RECOMMENDED - Fast, 3 folds)
+USE_CV_GROUPS = species_groups  
+
+# Option 2: COLONY-LEVEL CV (Comprehensive but slow, ~30-40 folds)
+# USE_CV_GROUPS = replicate_groups  # Uncomment to use this instead
+
+print(f"\nCV Configuration:")
+print(f"  Approach: {'SPECIES-LEVEL' if len(USE_CV_GROUPS) == 3 else 'COLONY-LEVEL'}")
+print(f"  Number of CV folds: {len(USE_CV_GROUPS)}")
+print(f"  Ranks to test: {CV_RANK_RANGE}")
+print(f"  Lambda: {CV_LAMBDA[0]} (no regularization)")
+print(f"  Random state: {CV_RANDOM_STATE}")
+
+if len(USE_CV_GROUPS) == 3:
+    print(f"\n  Species-level CV: Training on 2 species, testing on 1")
+    print(f"  This tests whether decomposition generalizes across species")
+else:
+    print(f"\n  Colony-level CV: Training on N-1 colonies, testing on 1")
+    print(f"  WARNING: This will be computationally expensive!")
+    estimated_time = len(USE_CV_GROUPS) * len(CV_RANK_RANGE) * 2  # rough estimate in minutes
+    print(f"  Estimated time: ~{estimated_time} minutes")
+
+print("="*80)
+
+# Run cross-validation
+optimal_rank_cv, cv_rank_results = cross_validated_rank_selection(
+    tensor=tensor_3d,
+    replicate_groups=USE_CV_GROUPS,  # Use the chosen CV groups (species or colony level)
+    rank_range=CV_RANK_RANGE,
+    lambdas=CV_LAMBDA,
+    n_iter_max=10000,
+    random_state=CV_RANDOM_STATE
+)
+
+# Save results
+cv_results_dir = os.path.join(output_dir, 'dissertation_cv_results')
+os.makedirs(cv_results_dir, exist_ok=True)
+
+if optimal_rank_cv is not None:
+    # Save CV results
+    cv_rank_results.to_csv(
+        os.path.join(cv_results_dir, 'cv_rank_selection_results.csv'),
+        index=False
+    )
+    
+    # Save optimal parameters
+    import json
+    
+    cv_method_name = 'leave_one_species_out' if len(USE_CV_GROUPS) == 3 else 'leave_one_colony_out'
+    
+    with open(os.path.join(cv_results_dir, 'optimal_rank_cv.json'), 'w') as f:
+        json.dump({
+            'method': 'cross_validated_sse',
+            'reference': 'Blaskowski 2024, Section 1.2.3, pg. 15',
+            'optimal_rank': int(optimal_rank_cv),
+            'criterion': 'minimum_cross_validated_sse',
+            'cv_method': cv_method_name,
+            'n_cv_folds': len(USE_CV_GROUPS),
+            'cv_groups': list(USE_CV_GROUPS.keys()),
+            'ranks_tested': CV_RANK_RANGE,
+            'lambda_used': CV_LAMBDA[0],
+            'random_state': CV_RANDOM_STATE,
+            'note': 'Species-level CV tests generalization across species. Colony-level CV tests generalization to new colonies.',
+            'timestamp': pd.Timestamp.now().isoformat()
+        }, f, indent=2)
+    
+    print(f"\n✓ Results saved to: {cv_results_dir}")
+    print(f"  - cv_rank_selection_results.csv")
+    print(f"  - optimal_rank_cv.json")
+    print(f"\n✓ OPTIMAL RANK (Dissertation Method): {optimal_rank_cv}")
+    print(f"  CV approach used: {cv_method_name}")
+else:
+    print("\n✗ Cross-validation failed. Check error messages above.")
+
+print("="*80)
+```
+
+### Plot Factor Match Score vs SSE (Dissertation Figure)
+
+This recreates the diagnostic plots from the dissertation showing the relationship between Factor Match Score (FMS) and reconstruction error (SSE).
+
+```{python plot-fms-vs-sse-cv, eval=FALSE}
+# ===========================================
+# FACTOR MATCH SCORE vs SSE ANALYSIS
+# Recreates dissertation diagnostic plots
+# ===========================================
+
+import matplotlib.pyplot as plt
+import numpy as np
+from barnacle.decomposition import SparseCP
+from tlviz.factor_tools import factor_match_score
+
+print("="*80)
+print("FACTOR MATCH SCORE vs SSE ANALYSIS")
+print("Dissertation-style diagnostic plots")
+print("="*80)
+
+if 'cv_rank_results' not in locals() or cv_rank_results is None:
+    print("CV results not available. Run run-cv-rank-selection first.")
+else:
+    # Initialize storage for FMS calculations
+    fms_sse_data = []
+    
+    # For each rank tested, we'll calculate FMS between CV folds
+    print(f"\nCalculating FMS between CV folds for each rank...")
+    print(f"This shows consistency of factors across different training sets")
+    
+    for _, row in cv_rank_results.iterrows():
+        rank = int(row['rank'])
+        fold_details = row['fold_details']
+        
+        print(f"\n  Rank {rank}:")
+        
+        # Get successful folds
+        successful_folds = [f for f in fold_details if f['converged']]
+        
+        if len(successful_folds) < 2:
+            print(f"    Insufficient successful folds ({len(successful_folds)}) for FMS calculation")
+            continue
+        
+        # We need to refit models for each fold to get the factors
+        # Store decomposition objects from each fold
+        fold_decompositions = []
+        fold_sse = []
+        
+        for fold_info in successful_folds[:5]:  # Limit to first 5 folds to save time
+            fold_idx = fold_info['fold']
+            group_name = fold_info['group']
+            sse = fold_info['sse']
+            
+            print(f"    Fold {fold_idx} ({group_name}): SSE = {sse:.2e}")
+            
+            # Get train indices for this fold
+            train_indices = []
+            for other_name, other_indices in USE_CV_GROUPS.items():
+                if other_name != group_name:
+                    train_indices.extend(other_indices)
+            
+            # Fit model on training data
+            train_tensor = np.nan_to_num(tensor_3d[:, train_indices, :], nan=0.0)
+            
+            try:
+                model = SparseCP(
+                    rank=rank,
+                    lambdas=[CV_LAMBDA[0], 0.0, CV_LAMBDA[0]],
+                    nonneg_modes=[0],
+                    norm_constraint=True,
+                    init='random',
+                    tol=1e-5,
+                    n_iter_max=10000,
+                    random_state=CV_RANDOM_STATE,
+                    n_initializations=1
+                )
+                
+                decomposition = model.fit_transform(train_tensor, verbose=0)
+                
+                # Store the decomposition object (has .factors and .weights)
+                fold_decompositions.append(decomposition)
+                fold_sse.append(sse)
+                
+            except Exception as e:
+                print(f"      Error refitting: {e}")
+                continue
+        
+        # Calculate pairwise FMS between folds
+        if len(fold_decompositions) >= 2:
+            fms_scores = []
+            
+            for i in range(len(fold_decompositions)):
+                for j in range(i+1, len(fold_decompositions)):
+                    try:
+                        # Calculate FMS between decomposition objects
+                        # NOTE: Sample factors (middle matrix) have different dimensions
+                        # across folds, so we compare only gene (0) and time (2) factors
+                        
+                        # Create tuple of (weights, factors) for each decomposition
+                        # Only include gene and time factors (skip sample factors)
+                        cp_tensor_i = (
+                            fold_decompositions[i].weights,
+                            [fold_decompositions[i].factors[0],  # genes
+                             fold_decompositions[i].factors[2]]  # time
+                        )
+                        cp_tensor_j = (
+                            fold_decompositions[j].weights,
+                            [fold_decompositions[j].factors[0],  # genes
+                             fold_decompositions[j].factors[2]]  # time
+                        )
+                        
+                        # Calculate FMS on gene+time factors only
+                        fms = factor_match_score(
+                            cp_tensor_i, 
+                            cp_tensor_j,
+                            return_permutation=False
+                        )
+                        
+                        fms_scores.append(fms)
+                    except Exception as e:
+                        print(f"      Error calculating FMS: {e}")
+                        continue
+            
+            if len(fms_scores) > 0:
+                mean_fms = np.mean(fms_scores)
+                std_fms = np.std(fms_scores)
+                mean_sse = np.mean(fold_sse)
+                
+                fms_sse_data.append({
+                    'rank': rank,
+                    'mean_fms': mean_fms,
+                    'std_fms': std_fms,
+                    'mean_sse': mean_sse,
+                    'n_comparisons': len(fms_scores)
+                })
+                
+                print(f"    → Mean FMS: {mean_fms:.3f} ± {std_fms:.3f} ({len(fms_scores)} comparisons)")
+            else:
+                print(f"    → No FMS scores calculated")
+        else:
+            print(f"    → Insufficient factors for FMS calculation")
+    
+    # Create plots if we have data
+    if len(fms_sse_data) > 0:
+        fms_df = pd.DataFrame(fms_sse_data)
+        
+        # Create figure with two subplots
+        fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+        
+        # PLOT 1: FMS vs SSE (main dissertation plot)
+        ax1 = axes[0]
+        
+        ax1.errorbar(fms_df['mean_sse'], fms_df['mean_fms'],
+                    xerr=None,  # We don't have SSE std here
+                    yerr=fms_df['std_fms'],
+                    fmt='o', markersize=10, linewidth=2,
+                    capsize=5, capthick=2,
+                    color='steelblue', ecolor='lightblue')
+        
+        # Annotate points with rank
+        for _, row in fms_df.iterrows():
+            ax1.annotate(f"R={int(row['rank'])}", 
+                        xy=(row['mean_sse'], row['mean_fms']),
+                        xytext=(8, 8), textcoords='offset points',
+                        fontsize=9, fontweight='bold',
+                        bbox=dict(boxstyle='round,pad=0.3', 
+                                facecolor='yellow', alpha=0.5))
+        
+        ax1.set_xlabel('Cross-Validated SSE', fontsize=12, fontweight='bold')
+        ax1.set_ylabel('Mean Factor Match Score (FMS)', fontsize=12, fontweight='bold')
+        ax1.set_title('FMS vs SSE: Model Consistency vs Fit\n(Dissertation-style diagnostic)', 
+                     fontsize=13, fontweight='bold')
+        ax1.grid(True, alpha=0.3)
+        ax1.set_ylim([0, 1.05])
+        
+        # Add interpretation text
+        ax1.text(0.02, 0.02, 
+                'High FMS = Consistent factors\nLow SSE = Good fit',
+                transform=ax1.transAxes,
+                fontsize=9, 
+                verticalalignment='bottom',
+                bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+        
+        # PLOT 2: FMS and SSE vs Rank (dual y-axis)
+        ax2 = axes[1]
+        ax2_twin = ax2.twinx()
+        
+        # Sort by rank for line plot
+        fms_df_sorted = fms_df.sort_values('rank')
+        
+        # Plot FMS
+        line1 = ax2.plot(fms_df_sorted['rank'], fms_df_sorted['mean_fms'],
+                        'o-', linewidth=2.5, markersize=8,
+                        color='green', label='FMS (left axis)')
+        ax2.fill_between(fms_df_sorted['rank'],
+                        fms_df_sorted['mean_fms'] - fms_df_sorted['std_fms'],
+                        fms_df_sorted['mean_fms'] + fms_df_sorted['std_fms'],
+                        alpha=0.2, color='green')
+        
+        # Plot SSE
+        line2 = ax2_twin.plot(fms_df_sorted['rank'], fms_df_sorted['mean_sse'],
+                             's-', linewidth=2.5, markersize=8,
+                             color='red', label='SSE (right axis)')
+        
+        ax2.set_xlabel('Rank', fontsize=12, fontweight='bold')
+        ax2.set_ylabel('Factor Match Score (FMS)', fontsize=12, fontweight='bold', color='green')
+        ax2_twin.set_ylabel('Cross-Validated SSE', fontsize=12, fontweight='bold', color='red')
+        ax2.set_title('FMS and SSE vs Rank\n(Trade-off between consistency and fit)', 
+                     fontsize=13, fontweight='bold')
+        ax2.grid(True, alpha=0.3)
+        ax2.set_ylim([0, 1.05])
+        ax2.tick_params(axis='y', labelcolor='green')
+        ax2_twin.tick_params(axis='y', labelcolor='red')
+        
+        # Mark optimal rank if available
+        if 'optimal_rank_cv' in locals() and optimal_rank_cv is not None:
+            if optimal_rank_cv in fms_df_sorted['rank'].values:
+                ax2.axvline(x=optimal_rank_cv, color='purple', 
+                           linestyle='--', linewidth=2, alpha=0.7,
+                           label='Optimal Rank (CV)')
+        
+        # Combined legend
+        lines = line1 + line2
+        labels = [l.get_label() for l in lines]
+        ax2.legend(lines, labels, loc='best', fontsize=10)
+        
+        plt.tight_layout()
+        
+        # Save figure
+        fms_sse_plot_file = os.path.join(cv_results_dir, 'fms_vs_sse_diagnostic.png')
+        plt.savefig(fms_sse_plot_file, dpi=300, bbox_inches='tight')
+        print(f"\n✓ FMS vs SSE diagnostic plot saved to:")
+        print(f"  {fms_sse_plot_file}")
+        
+        plt.show()
+        plt.close()
+        
+        # Save FMS-SSE data
+        fms_df.to_csv(os.path.join(cv_results_dir, 'fms_sse_data.csv'), index=False)
+        print(f"✓ FMS-SSE data saved to fms_sse_data.csv")
+        
+        # Interpretation
+        print(f"\n{'='*80}")
+        print("INTERPRETATION:")
+        print("="*80)
+        print("From the dissertation (Blaskowski 2024):")
+        print("  • High FMS = Decomposition produces consistent factors across CV folds")
+        print("  • Low SSE = Better reconstruction of test data")
+        print("  • Ideal rank: High FMS AND Low SSE")
+        print("  • Trade-off: Sometimes lower rank has higher FMS but higher SSE")
+        print("\nLook for:")
+        print("  1. Ranks where FMS is high (> 0.7) and relatively stable")
+        print("  2. SSE is minimized (lower-left corner in FMS vs SSE plot)")
+        print("  3. Diminishing returns in both metrics at higher ranks")
+        print("="*80)
+        
+    else:
+        print("\n⚠ No FMS-SSE data available. Check if CV folds ran successfully.")
+
+print("="*80)
+```
+
+---
+
+## LEGACY SECTIONS (Sequential Rank → Lambda)
+
+**NOTE:** The sections below implement a **simplified sequential approach** where rank and lambda are selected separately. This is faster but may miss rank×lambda interactions.
+
+**NEW APPROACH:** The **Full Dissertation Grid Search** (above) implements the complete methodology from Blaskowski (2024) where all rank×lambda combinations are tested simultaneously with both SSE and FMS metrics calculated for each.
+
+**Use these legacy sections** if you want a faster, more practical approach.  
+**Use the dissertation grid search** for the most faithful implementation.
+
+---
+
+### Plot FMS vs SSE for CV results (Sequential Approach - Legacy)
+
+**NOTE:** This section is part of the **legacy sequential approach** where lambda is selected separately after rank selection. See "Full Dissertation Grid Search" above for the complete joint optimization.
+
+After determining the optimal rank (from rank-only CV), this optional diagnostic recreates plots from the dissertation showing the relationship between Factor Match Score (FMS) and reconstruction error (SSE).
+
+**Dissertation Reference:** Blaskowski (2024), Section 1.2.3, page 15:
+> "We selected the λ value of best fit as the maximum λ value at which the cross-validated FMS remained within one standard error of the maximum FMS."
+
+```{python lambda-selection-1se-rule, eval=FALSE}
+# ===========================================
+# LAMBDA SELECTION WITH 1SE RULE
+# Dissertation Step 2: Find optimal regularization
+# ===========================================
+
+from barnacle.decomposition import SparseCP
+from tlviz.factor_tools import factor_match_score
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+print("="*80)
+print("LAMBDA SELECTION WITH 1SE RULE")
+print("Dissertation Method (Blaskowski 2024, Section 1.2.3)")
+print("="*80)
+
+# Check if we have an optimal rank
+if 'optimal_rank_cv' not in locals() or optimal_rank_cv is None:
+    print("ERROR: No optimal rank available. Run CV rank selection first.")
+    print("Using default rank = 10 for demonstration")
+    RANK_FOR_LAMBDA = 10
+else:
+    RANK_FOR_LAMBDA = optimal_rank_cv
+    print(f"Using optimal rank from CV: {RANK_FOR_LAMBDA}")
+
+# Define lambda values to test
+# Start broad, then can refine based on results
+LAMBDA_VALUES = [0.0, 0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0]
+
+print(f"\nTesting {len(LAMBDA_VALUES)} lambda values:")
+print(f"  {LAMBDA_VALUES}")
+print(f"\nCross-validation approach: {len(USE_CV_GROUPS)}-fold CV")
+print(f"Metric: Factor Match Score (FMS) between folds")
+print("="*80)
+
+# Storage for results
+lambda_results = []
+
+# For each lambda value, perform CV and calculate FMS
+for lambda_val in LAMBDA_VALUES:
+    print(f"\n{'='*60}")
+    print(f"Testing lambda = {lambda_val}")
+    print(f"{'='*60}")
+    
+    fold_decompositions = []
+    fold_fms_scores = []
+    
+    # Perform leave-one-group-out CV
+    for fold_idx, (group_name, test_indices) in enumerate(USE_CV_GROUPS.items()):
+        print(f"  Fold {fold_idx+1}/{len(USE_CV_GROUPS)}: Hold out {group_name}")
+        
+        # Create train/test split
+        train_indices = []
+        for other_name, other_indices in USE_CV_GROUPS.items():
+            if other_name != group_name:
+                train_indices.extend(other_indices)
+        
+        # Fit model on training data
+        train_tensor = np.nan_to_num(tensor_3d[:, train_indices, :], nan=0.0)
+        
+        try:
+            model = SparseCP(
+                rank=RANK_FOR_LAMBDA,
+                lambdas=[lambda_val, 0.0, lambda_val],  # Apply to gene and time factors
+                nonneg_modes=[0],
+                norm_constraint=True,
+                init='random',
+                tol=1e-5,
+                n_iter_max=10000,
+                random_state=CV_RANDOM_STATE,
+                n_initializations=1
+            )
+            
+            decomposition = model.fit_transform(train_tensor, verbose=0)
+            fold_decompositions.append(decomposition)
+            
+            print(f"    ✓ Converged in {model.n_iter_} iterations")
+            
+        except Exception as e:
+            print(f"    ✗ Error: {e}")
+            fold_decompositions.append(None)
+    
+    # Calculate pairwise FMS between successful folds
+    successful_decompositions = [d for d in fold_decompositions if d is not None]
+    
+    if len(successful_decompositions) >= 2:
+        fms_scores = []
+        
+        for i in range(len(successful_decompositions)):
+            for j in range(i+1, len(successful_decompositions)):
+                try:
+                    # Compare only gene and time factors (skip sample factors due to dimension mismatch)
+                    # Create tuple of (weights, factors) format that factor_match_score expects
+                    cp_tensor_i = (
+                        successful_decompositions[i].weights,
+                        [successful_decompositions[i].factors[0],  # genes
+                         successful_decompositions[i].factors[2]]  # time
+                    )
+                    cp_tensor_j = (
+                        successful_decompositions[j].weights,
+                        [successful_decompositions[j].factors[0],  # genes
+                         successful_decompositions[j].factors[2]]  # time
+                    )
+                    
+                    fms = factor_match_score(
+                        cp_tensor_i, 
+                        cp_tensor_j,
+                        return_permutation=False
+                    )
+                    fms_scores.append(fms)
+                except Exception as e:
+                    print(f"    Warning: FMS calculation failed: {e}")
+                    continue
+        
+        if len(fms_scores) > 0:
+            mean_fms = np.mean(fms_scores)
+            std_fms = np.std(fms_scores)
+            se_fms = std_fms / np.sqrt(len(fms_scores))  # Standard error
+            
+            lambda_results.append({
+                'lambda': lambda_val,
+                'mean_fms': mean_fms,
+                'std_fms': std_fms,
+                'se_fms': se_fms,
+                'n_comparisons': len(fms_scores),
+                'n_successful_folds': len(successful_decompositions)
+            })
+            
+            print(f"  → Mean FMS: {mean_fms:.4f} ± {std_fms:.4f} (SE = {se_fms:.4f})")
+            print(f"     {len(fms_scores)} pairwise comparisons from {len(successful_decompositions)} folds")
+        else:
+            print(f"  → No FMS scores calculated")
+    else:
+        print(f"  → Insufficient successful folds: {len(successful_decompositions)}")
+
+# Convert to DataFrame
+lambda_df = pd.DataFrame(lambda_results)
+
+if len(lambda_df) > 0:
+    print(f"\n{'='*80}")
+    print("APPLYING 1SE RULE")
+    print("="*80)
+    
+    # Find maximum FMS
+    max_fms_idx = lambda_df['mean_fms'].idxmax()
+    max_fms = lambda_df.loc[max_fms_idx, 'mean_fms']
+    max_fms_se = lambda_df.loc[max_fms_idx, 'se_fms']
+    
+    # Calculate 1SE threshold
+    fms_1se_threshold = max_fms - max_fms_se
+    
+    print(f"Maximum FMS: {max_fms:.4f} (at lambda = {lambda_df.loc[max_fms_idx, 'lambda']})")
+    print(f"Standard Error: {max_fms_se:.4f}")
+    print(f"1SE Threshold: {fms_1se_threshold:.4f}")
+    
+    # Find maximum lambda within 1SE of maximum FMS
+    within_1se = lambda_df[lambda_df['mean_fms'] >= fms_1se_threshold]
+    
+    if len(within_1se) > 0:
+        optimal_lambda_idx = within_1se['lambda'].idxmax()
+        optimal_lambda = within_1se.loc[optimal_lambda_idx, 'lambda']
+        optimal_fms = within_1se.loc[optimal_lambda_idx, 'mean_fms']
+        
+        print(f"\n{'='*80}")
+        print("OPTIMAL LAMBDA SELECTED")
+        print("="*80)
+        print(f"✓ Optimal Lambda: {optimal_lambda}")
+        print(f"  FMS: {optimal_fms:.4f}")
+        print(f"  (Maximum lambda where FMS ≥ {fms_1se_threshold:.4f})")
+        print(f"\nInterpretation:")
+        print(f"  • Provides most regularization (sparsity)")
+        print(f"  • While maintaining factor quality within 1SE of max")
+        print(f"  • Follows dissertation's validated approach")
+        print("="*80)
+        
+        # Save results
+        lambda_dir = os.path.join(output_dir, 'lambda_selection')
+        os.makedirs(lambda_dir, exist_ok=True)
+        
+        lambda_df.to_csv(os.path.join(lambda_dir, 'lambda_cv_results.csv'), index=False)
+        
+        import json
+        with open(os.path.join(lambda_dir, 'optimal_lambda.json'), 'w') as f:
+            json.dump({
+                'method': '1se_rule',
+                'reference': 'Blaskowski 2024, Section 1.2.3, pg. 15',
+                'optimal_lambda': float(optimal_lambda),
+                'optimal_fms': float(optimal_fms),
+                'max_fms': float(max_fms),
+                'fms_1se_threshold': float(fms_1se_threshold),
+                'rank_used': int(RANK_FOR_LAMBDA),
+                'lambdas_tested': LAMBDA_VALUES,
+                'cv_method': 'leave_one_group_out',
+                'n_cv_folds': len(USE_CV_GROUPS),
+                'timestamp': pd.Timestamp.now().isoformat()
+            }, f, indent=2)
+        
+        print(f"\n✓ Results saved to: {lambda_dir}")
+        
+        # Create plot
+        fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+        
+        # Plot 1: FMS vs Lambda
+        ax1 = axes[0]
+        ax1.errorbar(lambda_df['lambda'], lambda_df['mean_fms'],
+                    yerr=lambda_df['std_fms'],
+                    marker='o', markersize=10, linewidth=2.5,
+                    capsize=5, capthick=2,
+                    color='steelblue', ecolor='lightblue')
+        
+        # Mark optimal lambda
+        ax1.axvline(x=optimal_lambda, color='red', linestyle='--', 
+                   linewidth=2, alpha=0.7, label=f'Optimal λ = {optimal_lambda}')
+        ax1.axhline(y=fms_1se_threshold, color='orange', linestyle='--',
+                   linewidth=2, alpha=0.7, label=f'1SE threshold = {fms_1se_threshold:.3f}')
+        ax1.axhline(y=max_fms, color='green', linestyle='-',
+                   linewidth=1.5, alpha=0.5, label=f'Max FMS = {max_fms:.3f}')
+        
+        ax1.plot(optimal_lambda, optimal_fms, '*', markersize=20, 
+                color='red', markeredgecolor='darkred', markeredgewidth=2, zorder=10)
+        
+        ax1.set_xlabel('Lambda (λ)', fontsize=12, fontweight='bold')
+        ax1.set_ylabel('Mean Factor Match Score (FMS)', fontsize=12, fontweight='bold')
+        ax1.set_title('Lambda Selection via 1SE Rule\n(Dissertation Method)', 
+                     fontsize=13, fontweight='bold')
+        ax1.set_xscale('log')
+        ax1.grid(True, alpha=0.3)
+        ax1.legend(fontsize=10)
+        ax1.set_ylim([0, 1.05])
+        
+        # Plot 2: Explanation
+        ax2 = axes[1]
+        ax2.axis('off')
+        
+        summary = "1SE RULE EXPLANATION\n"
+        summary += "="*40 + "\n\n"
+        summary += f"Rank: {RANK_FOR_LAMBDA}\n"
+        summary += f"Optimal Lambda: {optimal_lambda}\n"
+        summary += f"Optimal FMS: {optimal_fms:.4f}\n\n"
+        summary += "Method:\n"
+        summary += "1. Find max FMS across lambdas\n"
+        summary += "2. Calculate 1 standard error\n"
+        summary += "3. Select largest lambda where\n"
+        summary += "   FMS ≥ (max FMS - 1SE)\n\n"
+        summary += "Why this works:\n"
+        summary += "• Larger lambda = more sparsity\n"
+        summary += "• 1SE rule balances sparsity\n"
+        summary += "  with factor quality\n"
+        summary += "• Validated on 100 simulations\n"
+        summary += "  in dissertation\n\n"
+        summary += "Next step:\n"
+        summary += "Run final decomposition with:\n"
+        summary += f"  Rank = {RANK_FOR_LAMBDA}\n"
+        summary += f"  Lambda = {optimal_lambda}"
+        
+        ax2.text(0.05, 0.95, summary,
+                transform=ax2.transAxes,
+                verticalalignment='top',
+                fontsize=11,
+                family='monospace',
+                bbox=dict(boxstyle='round', facecolor='lightgreen', alpha=0.4))
+        
+        plt.tight_layout()
+        plt.savefig(os.path.join(lambda_dir, 'lambda_selection_1se_rule.png'), 
+                   dpi=300, bbox_inches='tight')
+        print(f"✓ Plot saved: lambda_selection_1se_rule.png")
+        
+        plt.show()
+        plt.close()
+        
+    else:
+        print("\n⚠ No lambda values satisfy 1SE criterion")
+        optimal_lambda = None
+else:
+    print("\n⚠ No lambda results available")
+    optimal_lambda = None
+
+print("="*80)
+```
 
 ## Rank Comparison
 
@@ -1649,97 +3520,209 @@ else:
 print(f"{'='*60}")
 ```
 
-### Factor Match Score evaluation
+### Run barnacle across multiple random states
 
-This section evaluates each rank's decomposition quality using multiple Factor Match Score (FMS) metrics:
+This chunk runs barnacle decompositions for multiple random states to enable stability analysis of optimal rank selection. Each random state gets its own subdirectory with full decomposition results.
 
-1. **TLViz FMS** (self-comparison): Sanity check only, not useful for rank selection
-2. **Reconstruction FMS** (fast): Quick approximation based on tensor reconstruction correlation
-3. **Synthetic FMS** (RECOMMENDED): Most rigorous - tests factor recovery from noisy data
+**Purpose**: Generate decompositions needed for multi-random-state FMS evaluation.
 
-The Synthetic FMS is the most reliable metric for determining optimal rank as it validates robustness.
+```{python barnacle-multiple-random-states, eval=TRUE}
+# ===========================================
+# RUN DECOMPOSITIONS ACROSS MULTIPLE RANDOM STATES
+# ===========================================
+# This chunk runs the same ranks across different random states
+# to test stability of optimal rank selection via Synthetic FMS
+# ===========================================
+
+import os
+import json
+import datetime
+
+print("="*60)
+print("BARNACLE DECOMPOSITION - MULTIPLE RANDOM STATES")
+print("="*60)
+
+# ===========================================
+# CONFIGURATION
+# ===========================================
+RANDOM_STATES_TO_TEST = [41, 42, 43, 44, 45]  # 5 different random states
+# Use the same ranks that were tested in the main decomposition
+ranks_to_test = [5, 8, 10, 12, 15, 20, 25, 35, 45, 55, 65, 75]
+# ===========================================
+
+print(f"Random states to test: {RANDOM_STATES_TO_TEST}")
+print(f"Ranks to test: {ranks_to_test}")
+print(f"Total decompositions: {len(RANDOM_STATES_TO_TEST)} states × {len(ranks_to_test)} ranks = {len(RANDOM_STATES_TO_TEST) * len(ranks_to_test)}")
+print(f"Estimated time: {len(RANDOM_STATES_TO_TEST) * len(ranks_to_test) * 2}-{len(RANDOM_STATES_TO_TEST) * len(ranks_to_test) * 5} minutes")
+print("="*60)
+
+# Track results for all random states
+all_random_state_results = {}
+
+for random_state in RANDOM_STATES_TO_TEST:
+    print(f"\n{'='*60}")
+    print(f"RANDOM STATE: {random_state}")
+    print(f"{'='*60}")
+    
+    # Create subdirectory for this random state
+    state_output_dir = os.path.join(output_dir, f'random_state_{random_state}')
+    os.makedirs(state_output_dir, exist_ok=True)
+    
+    print(f"Output directory: {state_output_dir}")
+    
+    # Run decompositions for each rank
+    state_rank_results = []
+    
+    for test_rank in sorted(ranks_to_test):
+        result = run_single_rank_decomposition(
+            tensor=tensor_3d,
+            rank=test_rank,
+            lambdas=[0.1, 0.0, 0.1],
+            n_iter_max=10000,
+            random_state=random_state
+        )
+        state_rank_results.append(result)
+        
+        # Save individual results
+        if result['success']:
+            save_rank_results(
+                result,
+                state_output_dir,
+                common_genes_list,
+                sample_labels,
+                [f'TP{tp}' for tp in common_timepoints],
+                species_sample_map
+            )
+    
+    # Store results for this random state
+    all_random_state_results[random_state] = state_rank_results
+    
+    # Print summary for this random state
+    successful = sum(1 for r in state_rank_results if r['success'])
+    print(f"\nRandom State {random_state} Complete:")
+    print(f"  Successful: {successful}/{len(state_rank_results)}")
+    print(f"  Failed: {len(state_rank_results) - successful}/{len(state_rank_results)}")
+    
+    # Save log file for this random state
+    log_file_state = os.path.join(state_output_dir, f'rank_comparison_log_rs{random_state}.json')
+    
+    log_data_state = {
+        'timestamp': datetime.datetime.now().isoformat(),
+        'random_state': random_state,
+        'ranks_tested': ranks_to_test,
+        'total_runs': len(state_rank_results),
+        'successful_runs': successful,
+        'failed_runs': len(state_rank_results) - successful,
+        'results': []
+    }
+    
+    for result in state_rank_results:
+        rank_info = {
+            'rank': result['rank'],
+            'success': result['success']
+        }
+        
+        if result['success']:
+            rank_info['metrics'] = {
+                k: float(v) if isinstance(v, (int, float, np.number)) else bool(v) if isinstance(v, (bool, np.bool_)) else v
+                for k, v in result['metrics'].items()
+            }
+            rank_info['output_dir'] = os.path.join(state_output_dir, f'rank_{result["rank"]:02d}')
+            rank_info['has_loss_history'] = hasattr(result['model'], 'loss_') and result['model'].loss_ is not None
+        else:
+            rank_info['error'] = result.get('error', 'Unknown error')
+        
+        log_data_state['results'].append(rank_info)
+    
+    with open(log_file_state, 'w') as f:
+        json.dump(log_data_state, f, indent=2)
+    
+    print(f"  Log file saved to: {log_file_state}")
+
+# ===========================================
+# SAVE COMPREHENSIVE SUMMARY FOR ALL RANDOM STATES
+# ===========================================
+print(f"\n{'='*60}")
+print("ALL RANDOM STATES COMPLETE")
+print(f"{'='*60}")
+
+# Calculate overall statistics
+total_decompositions = sum(len(results) for results in all_random_state_results.values())
+total_successful = sum(sum(1 for r in results if r['success']) for results in all_random_state_results.values())
+total_failed = total_decompositions - total_successful
+
+print(f"Total decompositions: {total_decompositions}")
+print(f"Successful: {total_successful}/{total_decompositions} ({total_successful/total_decompositions*100:.1f}%)")
+print(f"Failed: {total_failed}/{total_decompositions} ({total_failed/total_decompositions*100:.1f}%)")
+
+print(f"\nResults by Random State:")
+for random_state in sorted(all_random_state_results.keys()):
+    results = all_random_state_results[random_state]
+    successful = sum(1 for r in results if r['success'])
+    print(f"  Random State {random_state}: {successful}/{len(results)} successful")
+
+# Save master summary file
+master_summary_file = os.path.join(output_dir, 'multi_random_state_summary.json')
+
+master_summary = {
+    'timestamp': datetime.datetime.now().isoformat(),
+    'random_states_tested': RANDOM_STATES_TO_TEST,
+    'ranks_tested': ranks_to_test,
+    'total_decompositions': total_decompositions,
+    'successful_decompositions': total_successful,
+    'failed_decompositions': total_failed,
+    'by_random_state': {}
+}
+
+for random_state, results in all_random_state_results.items():
+    successful = sum(1 for r in results if r['success'])
+    master_summary['by_random_state'][str(random_state)] = {
+        'total': len(results),
+        'successful': successful,
+        'failed': len(results) - successful,
+        'output_dir': os.path.join(output_dir, f'random_state_{random_state}')
+    }
+
+with open(master_summary_file, 'w') as f:
+    json.dump(master_summary, f, indent=2)
+
+print(f"\nMaster summary saved to: {master_summary_file}")
+print(f"\n{'='*60}")
+print("Ready for Factor Match Score evaluation across random states!")
+print(f"{'='*60}")
+```
+
+### Factor Match Score evaluation (Multiple Random States)
+
+This section evaluates decomposition quality using Synthetic FMS across multiple random states to assess stability of optimal rank selection.
+
+**Key Question**: Does the synthetic FMS elbow plot consistently identify the same optimal rank, or does it vary with random initialization?
+
+**Approach**:
+- Run decompositions for each rank with 5 different random states
+- Calculate Synthetic FMS for each (random_state, rank) combination
+- Plot FMS curves for all random states to visualize consistency
+- Identify optimal rank for each random state
 
 ```{python factor-match-score-evaluation, eval=TRUE}
 # ===========================================
-# FACTOR MATCH SCORE EVALUATION
+# FACTOR MATCH SCORE EVALUATION - MULTIPLE RANDOM STATES
 # ===========================================
 import numpy as np
 import pandas as pd
 import os
 
 print(f"\n{'='*60}")
-print("FACTOR MATCH SCORE (FMS) EVALUATION")
+print("FACTOR MATCH SCORE (FMS) EVALUATION - MULTIPLE RANDOM STATES")
 print(f"{'='*60}")
-print("This analysis evaluates decomposition quality using multiple FMS metrics:")
-print("  1. TLViz FMS: Self-comparison (sanity check only)")
-print("  2. Reconstruction FMS: Fast approximation (correlation-based)")
-print("  3. Synthetic FMS: RECOMMENDED (tests factor recovery robustness)")
+print("This analysis evaluates decomposition quality across random initializations:")
+print("  • Synthetic FMS: Tests factor recovery from noisy data")
+print("  • Multiple random states: Tests stability of optimal rank selection")
+print("  • Goal: Determine if FMS elbow is consistent or random_state dependent")
 print(f"{'='*60}")
 
-def calculate_factor_match_score(tensor, decomposition, rank):
-    """
-    Calculate Factor Match Score using tlviz library.
-    
-    WARNING: This implementation compares the decomposition against itself,
-    which will always yield FMS ≈ 1.0. This is only useful as a sanity check
-    to verify the decomposition is internally consistent.
-    
-    For actual rank selection, use calculate_reconstruction_fms() instead,
-    which compares the reconstruction against the original tensor.
-    
-    NOTE: May fail with scipy >= 1.14 due to _lazywhere removal.
-    """
-    try:
-        # Import required libraries
-        import tensorly as tl
-        import tlviz.factor_tools
-        
-        # IMPORTANT: This creates a "reference" from the decomposition itself
-        # This means we're comparing the decomposition to itself, which will
-        # always give a perfect or near-perfect score (~1.0).
-        # This is NOT a meaningful metric for rank selection!
-        # It only validates that the decomposition object is internally consistent.
-        reference_cp = tl.cp_tensor.CPTensor((decomposition.weights, decomposition.factors))
-        
-        # Calculate factor match score between decomposition and itself
-        # Expected result: FMS ≈ 1.0 for all ranks (self-comparison)
-        fms, perm = tlviz.factor_tools.factor_match_score(
-            reference_cp,
-            decomposition,
-            return_permutation=True,
-            allow_smaller_rank=True
-        )
-        
-        return {
-            'fms': float(fms),
-            'permutation': perm,
-            'success': True,
-            'method': 'tlviz_self_consistency',
-            'warning': 'Self-comparison: FMS ≈ 1.0 expected (not useful for rank selection)'
-        }
-        
-    except ImportError as e:
-        # Skip silently - this is expected with newer scipy versions
-        error_msg = "SciPy/TLViz compatibility issue (expected with scipy >= 1.14)"
-        if '_lazywhere' in str(e):
-            error_msg = "SciPy version incompatibility (_lazywhere removed in scipy >= 1.14)"
-        return {
-            'fms': np.nan,
-            'permutation': None,
-            'success': False,
-            'error': error_msg,
-            'method': 'scipy_incompatibility'
-        }
-    except Exception as e:
-        return {
-            'fms': np.nan,
-            'permutation': None,
-            'success': False,
-            'error': str(e),
-            'method': 'failed'
-        }
 
-def calculate_proper_factor_match_score(tensor, decomposition, rank, noise_level=0.1, random_state=42):
+def calculate_synthetic_fms(tensor, decomposition, rank, noise_level=0.1, random_state=42):
     """
     RECOMMENDED METRIC: Synthetic validation approach for FMS.
     
@@ -1756,7 +3739,6 @@ def calculate_proper_factor_match_score(tensor, decomposition, rank, noise_level
     - Better rank selection
     
     NOTE: Computationally expensive (requires additional decomposition per rank).
-          
     """
     try:
         import tensorly as tl
@@ -1851,93 +3833,31 @@ def calculate_proper_factor_match_score(tensor, decomposition, rank, noise_level
             'method': 'failed'
         }
 
-def calculate_reconstruction_fms(tensor, decomposition, rank):
-    """
-    Calculate FMS based on reconstruction quality.
-    
-    This compares the original tensor to its reconstruction from the decomposition,
-    providing a measure of how well the decomposition captures the data.
-    
-    Higher scores indicate better reconstruction:
-    - 1.0 = perfect reconstruction
-    - 0.5 = no correlation
-    - 0.0 = perfect negative correlation
-    
-    Note: This is a fast approximation. For more rigorous validation, use
-    synthetic validation FMS (calculate_proper_factor_match_score).
-    """
-    try:
-        # Create reconstructed tensor
-        gene_factors = decomposition.factors[0]
-        sample_factors = decomposition.factors[1] 
-        time_factors = decomposition.factors[2]
-        weights = decomposition.weights
-        
-        # Reconstruct tensor
-        reconstructed = np.zeros_like(tensor)
-        for r in range(len(weights)):
-            outer_prod = np.outer(gene_factors[:, r], sample_factors[:, r])
-            outer_prod = np.outer(outer_prod.flatten(), time_factors[:, r])
-            outer_prod = outer_prod.reshape(tensor.shape)
-            reconstructed += weights[r] * outer_prod
-        
-        # Calculate correlation-based FMS
-        # Flatten tensors and calculate correlation
-        orig_flat = tensor.flatten()
-        recon_flat = reconstructed.flatten()
-        
-        # Remove NaN values for correlation calculation
-        valid_mask = np.isfinite(orig_flat) & np.isfinite(recon_flat)
-        orig_valid = orig_flat[valid_mask]
-        recon_valid = recon_flat[valid_mask]
-        
-        if len(orig_valid) > 0:
-            correlation = np.corrcoef(orig_valid, recon_valid)[0, 1]
-            # Convert correlation to FMS-like score (0-1 scale)
-            fms_score = (correlation + 1) / 2  # Map [-1,1] to [0,1]
-        else:
-            fms_score = 0.0
-        
-        return {
-            'fms': float(fms_score),
-            'correlation': float(correlation) if len(orig_valid) > 0 else np.nan,
-            'success': True,
-            'method': 'reconstruction_correlation',
-            'valid_elements': len(orig_valid)
-        }
-        
-    except Exception as e:
-        print(f"  Error calculating reconstruction FMS for rank {rank}: {e}")
-        return {
-            'fms': np.nan,
-            'success': False,
-            'error': str(e),
-            'method': 'failed'
-        }
 
-def evaluate_fms_for_rank(rank, output_dir, tensor, use_synthetic_validation=False):
+def evaluate_fms_for_rank_and_state(rank, random_state, output_dir, tensor):
     """
-    Evaluate Factor Match Score for a specific rank.
+    Evaluate Synthetic FMS for a specific rank and random state combination.
     
     Parameters:
     -----------
     rank : int
         Rank to evaluate
+    random_state : int
+        Random state used for decomposition
     output_dir : str
-        Directory containing rank results
+        Base directory containing results
     tensor : np.ndarray
         Original tensor
-    use_synthetic_validation : bool, default=False
-        If True, calculate synthetic validation FMS (RECOMMENDED but computationally expensive).
-        If False, only calculate reconstruction FMS (fast approximation).
     """
-    print(f"\n--- Evaluating FMS for Rank {rank} ---")
+    print(f"\n  --- Evaluating Rank {rank}, Random State {random_state} ---")
     
-    rank_dir = os.path.join(output_dir, f'rank_{rank:02d}')
+    # Construct path to this random_state's results
+    state_dir = os.path.join(output_dir, f'random_state_{random_state}')
+    rank_dir = os.path.join(state_dir, f'rank_{rank:02d}')
     
     # Check if rank directory exists
     if not os.path.exists(rank_dir):
-        print(f"  Rank directory not found: {rank_dir}")
+        print(f"    Rank directory not found: {rank_dir}")
         return None
     
     # Load factor matrices
@@ -1951,112 +3871,71 @@ def evaluate_fms_for_rank(rank, output_dir, tensor, use_synthetic_validation=Fal
         factor_cols = [col for col in sample_factors.columns if col.startswith('Component_')]
         sample_factor_values = sample_factors[factor_cols]
         
-        print(f"  Loaded factor matrices - Genes: {gene_factors.shape}, Samples: {sample_factor_values.shape}, Time: {time_factors.shape}")
+        print(f"    Loaded factors - Genes: {gene_factors.shape}, Samples: {sample_factor_values.shape}, Time: {time_factors.shape}")
         
     except Exception as e:
-        print(f"  Error loading factor matrices: {e}")
+        print(f"    Error loading factor matrices: {e}")
         return None
     
-    # Create mock decomposition object that mimics tensorly CPTensor structure
-    # TensorLy expects a tuple-like object: (weights, factors)
-    # We'll create a simple class that supports both attribute and subscript access
+    # Create mock decomposition object
     class MockDecomposition:
         def __init__(self, weights, factors):
             self.weights = weights
             self.factors = factors
-            # Make it subscriptable for tensorly compatibility
             self._tuple = (weights, factors)
         
         def __getitem__(self, index):
-            """Support subscript access like a tuple"""
             return self._tuple[index]
         
         def __len__(self):
-            """Support len() for tuple-like behavior"""
             return 2
     
     weights = weights_df['Weight'].values
     factors = [gene_factors.values, sample_factor_values.values, time_factors.values]
     mock_decomposition = MockDecomposition(weights, factors)
     
-    # Calculate FMS metrics
-    # 1. TLViz FMS (self-comparison - sanity check only, not useful for rank selection)
-    fms_result1 = calculate_factor_match_score(tensor, mock_decomposition, rank)
-    
-    # 2. Reconstruction FMS (fast approximation - useful for quick comparison)
-    fms_result2 = calculate_reconstruction_fms(tensor, mock_decomposition, rank)
-    
-    # 3. Synthetic validation FMS (RECOMMENDED - most rigorous but computationally expensive)
-    if use_synthetic_validation:
-        print(f"  Running synthetic validation (this will take a long time)...")
-        fms_result3 = calculate_proper_factor_match_score(tensor, mock_decomposition, rank)
-    else:
-        fms_result3 = {'success': False, 'method': 'skipped', 'fms': np.nan}
+    # Calculate Synthetic FMS
+    print(f"    Running synthetic validation...")
+    fms_result = calculate_synthetic_fms(tensor, mock_decomposition, rank, random_state=random_state*100)
     
     # Combine results
     result = {
         'rank': rank,
-        'fms_tlviz': fms_result1['fms'] if fms_result1['success'] else np.nan,
-        'fms_reconstruction': fms_result2['fms'] if fms_result2['success'] else np.nan,
-        'fms_synthetic': fms_result3['fms'] if fms_result3['success'] else np.nan,
-        'reconstruction_correlation': fms_result2.get('correlation', np.nan),
-        'tlviz_success': fms_result1['success'],
-        'reconstruction_success': fms_result2['success'],
-        'synthetic_success': fms_result3['success'],
-        'tlviz_method': fms_result1.get('method', 'unknown'),
-        'reconstruction_method': fms_result2.get('method', 'unknown'),
-        'synthetic_method': fms_result3.get('method', 'unknown'),
-        'valid_elements': fms_result2.get('valid_elements', 0)
+        'random_state': random_state,
+        'fms_synthetic': fms_result['fms'] if fms_result['success'] else np.nan,
+        'synthetic_success': fms_result['success'],
+        'synthetic_method': fms_result.get('method', 'unknown'),
+        'recovery_quality': fms_result.get('recovery_quality', 'unknown') if fms_result['success'] else 'failed'
     }
     
     # Print results
-    # TLViz FMS note: This compares decomposition to itself (always ~1.0)
-    if fms_result1['success']:
-        warning_note = fms_result1.get('warning', '')
-        if warning_note:
-            print(f"  TLViz FMS: {fms_result1['fms']:.4f} ⚠️  (self-consistency check only)")
-        else:
-            print(f"  TLViz FMS: {fms_result1['fms']:.4f} ✅")
-    elif 'scipy_incompatibility' not in fms_result1.get('method', ''):
-        # Only print if it's a real error (not the expected scipy issue)
-        print(f"  TLViz FMS: Failed - {fms_result1.get('error', 'unknown')} (method: {fms_result1.get('method', 'unknown')})")
-    
-    # Reconstruction FMS (fast approximation)
-    if fms_result2['success']:
-        print(f"  📊 RECONSTRUCTION FMS: {fms_result2['fms']:.4f} (correlation: {fms_result2.get('correlation', 'N/A'):.4f})")
-        print(f"     ↳ Fast approximation for quick comparison")
-        print(f"     ↳ Valid elements used: {fms_result2.get('valid_elements', 0):,}")
+    if fms_result['success']:
+        recovery = fms_result.get('recovery_quality', 'unknown')
+        noise = fms_result.get('noise_level', 0.1)
+        print(f"    ⭐ SYNTHETIC FMS: {fms_result['fms']:.4f} ({recovery} recovery with {noise*100:.0f}% noise)")
     else:
-        print(f"  Reconstruction FMS: Failed ({fms_result2.get('error', 'unknown error')})")
-    
-    # Synthetic validation FMS (RECOMMENDED for rank selection)
-    if use_synthetic_validation and fms_result3['success']:
-        recovery = fms_result3.get('recovery_quality', 'unknown')
-        noise = fms_result3.get('noise_level', 0.1)
-        print(f"  ⭐ SYNTHETIC FMS: {fms_result3['fms']:.4f} ({recovery} recovery with {noise*100:.0f}% noise) ⭐")
-        print(f"     ↳ RECOMMENDED metric for rank selection")
-        print(f"     ↳ Tests factor recovery robustness with noise")
-    elif use_synthetic_validation and not fms_result3['success']:
-        print(f"  Synthetic FMS: Failed ({fms_result3.get('error', 'unknown error')})")
+        print(f"    Synthetic FMS: Failed ({fms_result.get('error', 'unknown error')})")
     
     # Save individual rank FMS results
-    fms_file = os.path.join(rank_dir, 'factor_match_score.json')
+    fms_file = os.path.join(rank_dir, 'synthetic_fms.json')
     import json
     with open(fms_file, 'w') as f:
         json.dump({
             'rank': rank,
-            'tlviz_fms': fms_result1,
-            'reconstruction_fms': fms_result2,
-            'synthetic_fms': fms_result3,
+            'random_state': random_state,
+            'synthetic_fms': fms_result,
             'summary': result
         }, f, indent=2, default=str)
     
-    print(f"  Saved FMS results to: factor_match_score.json")
+    print(f"    Saved FMS results to: synthetic_fms.json")
     
     return result
 
+
 # ===========================================
-# EVALUATE FMS FOR ALL RANKS
+# CONFIGURATION: Random States and Ranks
+# ===========================================
+RANDOM_STATES_TO_TEST = [41, 42, 43, 44, 45]  # 5 different random states
 # ===========================================
 
 # Get output directory if not available
@@ -2070,7 +3949,8 @@ if 'tensor_3d' not in globals():
     tensor_3d = None
 
 if tensor_3d is not None:
-    # Load log file to get successful ranks
+    # Get successful ranks from the base decomposition
+    # (assuming they've been run with the default random_state=41)
     log_file = os.path.join(output_dir, 'rank_comparison_log.json')
     
     if os.path.exists(log_file):
@@ -2094,226 +3974,137 @@ if tensor_3d is not None:
                 pass
         print(f"Found {len(successful_ranks)} rank directories: {successful_ranks}")
     
-    # ===========================================
-    # CONFIGURATION: Synthetic Validation FMS
-    # ===========================================
-    # Set to True to enable the RECOMMENDED synthetic validation FMS metric.
-    # This is the most rigorous method for rank selection as it tests factor
-    # recovery from noisy data, providing the best indication of optimal rank.
-    # 
-    # COMPUTATION TIME: Adds ~1-2 minutes per rank
-    # For 12 ranks, expect ~15-30 minutes additional runtime
-    # 
-    # If False, only reconstruction FMS will be calculated (faster but less rigorous)
-    # ===========================================
-    USE_SYNTHETIC_VALIDATION = True  # Change to False for faster (but less rigorous) analysis
-    # ===========================================
-    
-    if USE_SYNTHETIC_VALIDATION:
-        print("\n" + "="*60)
-        print("⭐ SYNTHETIC VALIDATION ENABLED (RECOMMENDED)")
-        print("="*60)
-        print("This will test factor recovery robustness by:")
-        print("  1. Creating synthetic tensor from each decomposition")
-        print("  2. Adding noise to test robustness")
-        print("  3. Re-decomposing to see if factors are recovered")
-        print("  4. Comparing recovered factors to originals")
-        print(f"\nExpected additional time: {len(successful_ranks) * 1.5:.0f}-{len(successful_ranks) * 2:.0f} minutes")
-        print("This provides the most reliable metric for rank selection.")
-        print("="*60 + "\n")
-    
-    # Evaluate FMS for each rank
-    all_fms_results = []
-    
-    for rank in sorted(successful_ranks):
-        fms_result = evaluate_fms_for_rank(rank, output_dir, tensor_3d, 
-                                          use_synthetic_validation=USE_SYNTHETIC_VALIDATION)
-        if fms_result is not None:
-            all_fms_results.append(fms_result)
-    
-    # ===========================================
-    # CREATE FMS COMPARISON TABLE AND PLOTS
-    # ===========================================
-    if len(all_fms_results) > 0:
-        print(f"\n{'='*60}")
-        print("FMS RESULTS SUMMARY")
-        print(f"{'='*60}")
-        
-        # Create comparison dataframe
-        fms_df = pd.DataFrame(all_fms_results)
-        
-        # Save comprehensive FMS results
-        comparison_dir = os.path.join(output_dir, 'rank_comparison')
-        os.makedirs(comparison_dir, exist_ok=True)
-        
-        fms_output_file = os.path.join(comparison_dir, 'factor_match_scores.csv')
-        fms_df.to_csv(fms_output_file, index=False)
-        print(f"Saved FMS comparison table to: {fms_output_file}")
-        
-        # Display results
-        # Determine which columns to display based on what was calculated
-        display_cols = ['rank', 'fms_tlviz', 'fms_reconstruction', 'reconstruction_correlation']
-        if 'fms_synthetic' in fms_df.columns and fms_df['synthetic_success'].any():
-            display_cols.append('fms_synthetic')
-        
-        print("\n" + "="*60)
-        print("FACTOR MATCH SCORE RESULTS")
-        print("="*60)
-        print("⚠️  TLViz FMS: Self-comparison only (always ~1.0, not useful)")
-        print("📊 Reconstruction FMS: Fast approximation (useful for quick comparison)")
-        if 'fms_synthetic' in display_cols:
-            print("⭐ SYNTHETIC FMS: RECOMMENDED for rank selection (tests robustness)")
-        print("="*60)
-        print(fms_df[display_cols].to_string(index=False, float_format='%.4f'))
-        
-        # Check if TLViz worked for any ranks
-        tlviz_working = fms_df['tlviz_success'].any()
-        if not tlviz_working:
-            print("\n" + "="*60)
-            print("NOTE: TLViz FMS unavailable (scipy version incompatibility)")
-            print("="*60)
-            print("This is expected with scipy >= 1.14.")
-            print("Use Reconstruction FMS (fast) or Synthetic FMS (recommended).")
-            print("="*60)
-        elif tlviz_working and fms_df.loc[fms_df['tlviz_success'], 'fms_tlviz'].min() > 0.95:
-            print("\n" + "="*60)
-            print("⚠️  WARNING: TLViz FMS shows all values near 1.0")
-            print("="*60)
-            print("This indicates self-comparison (not useful for rank selection).")
-            print("→ Use Synthetic FMS (recommended) or Reconstruction FMS (fast)")
-            print("="*60)
-        
-        # Create visualization
-        import matplotlib.pyplot as plt
-        
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
-        
-        # Plot 1: Both FMS measures (but emphasize reconstruction if TLViz failed)
-        valid_tlviz = fms_df['tlviz_success']
-        valid_recon = fms_df['reconstruction_success']
-        
-        if valid_tlviz.any():
-            ax1.plot(fms_df.loc[valid_tlviz, 'rank'], 
-                    fms_df.loc[valid_tlviz, 'fms_tlviz'], 
-                    'o-', linewidth=2, markersize=8, label='TLViz FMS', color='steelblue')
-        
-        if valid_recon.any():
-            ax1.plot(fms_df.loc[valid_recon, 'rank'], 
-                    fms_df.loc[valid_recon, 'fms_reconstruction'], 
-                    's-', linewidth=2, markersize=8, label='Reconstruction FMS', color='coral')
-        
-        # Adjust title based on whether TLViz worked
-        if not tlviz_working:
-            title = 'Factor Match Score vs Rank\n(Reconstruction FMS: Fast Approximation)'
-        else:
-            title = 'Factor Match Score vs Rank\n(Higher = Better Factor Recovery)'
-        
-        ax1.set_xlabel('Rank (Number of Components)', fontsize=11)
-        ax1.set_ylabel('Factor Match Score', fontsize=11)
-        ax1.set_title(title, fontweight='bold')
-        ax1.grid(True, alpha=0.3)
-        ax1.legend()
-        ax1.set_ylim([0, 1.05])
-        
-        # Plot 2: Reconstruction correlation
-        if valid_recon.any():
-            ax2.plot(fms_df.loc[valid_recon, 'rank'], 
-                    fms_df.loc[valid_recon, 'reconstruction_correlation'], 
-                    'o-', linewidth=2, markersize=8, color='green')
-            ax2.axhline(y=0.8, color='orange', linestyle='--', alpha=0.5, label='80% correlation')
-            ax2.axhline(y=0.9, color='red', linestyle='--', alpha=0.5, label='90% correlation')
-        
-        ax2.set_xlabel('Rank (Number of Components)', fontsize=11)
-        ax2.set_ylabel('Reconstruction Correlation', fontsize=11)
-        ax2.set_title('Tensor Reconstruction Quality vs Rank\n(Correlation between original and reconstructed)', fontweight='bold')
-        ax2.grid(True, alpha=0.3)
-        ax2.legend()
-        ax2.set_ylim([-1.05, 1.05])
-        
-        plt.tight_layout()
-        fms_plot_file = os.path.join(comparison_dir, 'factor_match_scores_plot.png')
-        plt.savefig(fms_plot_file, dpi=150, bbox_inches='tight')
-        print(f"Saved FMS plot to: {fms_plot_file}")
-        plt.close()
-        
-        # ===========================================
-        # FMS-BASED RANK RECOMMENDATION
-        # ===========================================
-        print(f"\n{'='*60}")
-        print("FMS-BASED RANK RECOMMENDATION")
-        print(f"{'='*60}")
-        
-        # Find best ranks based on different criteria
-        valid_df = fms_df[fms_df['reconstruction_success']]
-        
-        if len(valid_df) > 0:
-            # Check for synthetic FMS results (RECOMMENDED metric)
-            synthetic_valid = fms_df[fms_df['synthetic_success']]
-            
-            if len(synthetic_valid) > 0:
-                # Synthetic FMS is available - use it as PRIMARY recommendation
-                best_synthetic_idx = synthetic_valid['fms_synthetic'].idxmax()
-                best_synthetic_rank = synthetic_valid.iloc[best_synthetic_idx]['rank']
-                best_synthetic_score = synthetic_valid.iloc[best_synthetic_idx]['fms_synthetic']
-                
-                print(f"⭐ RECOMMENDED: Rank {int(best_synthetic_rank)} (Synthetic FMS: {best_synthetic_score:.4f})")
-                print(f"   ↳ Based on factor recovery robustness with noise")
-                
-                # Show top 3 ranks by synthetic FMS
-                top_synthetic = synthetic_valid.nlargest(3, 'fms_synthetic')[['rank', 'fms_synthetic']]
-                print(f"\nTop 3 ranks by Synthetic FMS:")
-                for idx, row in top_synthetic.iterrows():
-                    print(f"  Rank {int(row['rank'])}: {row['fms_synthetic']:.4f}")
-            else:
-                print(f"⚠️  Synthetic FMS not calculated (set USE_SYNTHETIC_VALIDATION=True)")
-                print(f"   ↳ Using Reconstruction FMS for recommendation (less rigorous)")
-                
-                # Fall back to reconstruction FMS
-                best_recon_idx = valid_df['fms_reconstruction'].idxmax()
-                best_recon_rank = valid_df.iloc[best_recon_idx]['rank']
-                best_recon_score = valid_df.iloc[best_recon_idx]['fms_reconstruction']
-                
-                print(f"\n📊 Rank {int(best_recon_rank)} (Reconstruction FMS: {best_recon_score:.4f})")
-                print(f"   ↳ Based on reconstruction correlation (fast approximation)")
-            
-            # Additional metrics for context
-            print(f"\n--- Additional Metrics ---")
-            
-            # Best reconstruction correlation
-            best_corr_idx = valid_df['reconstruction_correlation'].idxmax()
-            best_corr_rank = valid_df.iloc[best_corr_idx]['rank']
-            best_corr_score = valid_df.iloc[best_corr_idx]['reconstruction_correlation']
-            print(f"Best Reconstruction Correlation: Rank {int(best_corr_rank)} ({best_corr_score:.4f})")
-            
-            # Check for TLViz results (informational only)
-            tlviz_valid = fms_df[fms_df['tlviz_success']]
-            if len(tlviz_valid) > 0:
-                best_tlviz_idx = tlviz_valid['fms_tlviz'].idxmax()
-                best_tlviz_rank = tlviz_valid.iloc[best_tlviz_idx]['rank']
-                best_tlviz_score = tlviz_valid.iloc[best_tlviz_idx]['fms_tlviz']
-                print(f"TLViz FMS (informational): Rank {int(best_tlviz_rank)} ({best_tlviz_score:.4f})")
-            
-            # Provide interpretation
-            print(f"\n--- FMS Metrics Explained ---")
-            if len(synthetic_valid) > 0:
-                print(f"⭐ Synthetic FMS (RECOMMENDED):")
-                print(f"   • Tests factor recovery from noisy data")
-                print(f"   • Most rigorous validation of decomposition quality")
-                print(f"   • Best metric for determining optimal rank")
-                print(f"   • Values > 0.9 = excellent, > 0.7 = good, > 0.5 = fair")
-            print(f"📊 Reconstruction FMS (fast approximation):")
-            print(f"   • Based on correlation with original tensor")
-            print(f"   • Useful for quick comparison")
-            print(f"   • Less rigorous than synthetic validation")
-            print(f"⚠️  TLViz FMS (self-comparison only):")
-            print(f"   • Not useful for rank selection (always ~1.0)")
-            print(f"   • Only validates internal consistency")
-            
-        else:
-            print("No valid FMS results available for recommendation.")
-    
+    if len(successful_ranks) == 0:
+        print("\nERROR: No successful ranks found!")
+        print("Please run the barnacle decomposition chunk first.")
     else:
-        print("No FMS results to analyze.")
+        print("\n" + "="*60)
+        print("⭐ SYNTHETIC FMS EVALUATION ACROSS RANDOM STATES")
+        print("="*60)
+        print(f"Random states to test: {RANDOM_STATES_TO_TEST}")
+        print(f"Ranks to evaluate: {successful_ranks}")
+        print(f"Total evaluations: {len(RANDOM_STATES_TO_TEST)} states × {len(successful_ranks)} ranks = {len(RANDOM_STATES_TO_TEST) * len(successful_ranks)}")
+        print(f"\nNote: If decompositions haven't been run for all random states,")
+        print(f"      you'll need to run the decomposition chunk for each random state first.")
+        print("="*60 + "\n")
+        
+        # Evaluate FMS for each random state and rank combination
+        all_fms_results = []
+        
+        for random_state in RANDOM_STATES_TO_TEST:
+            print(f"\n{'='*60}")
+            print(f"EVALUATING RANDOM STATE: {random_state}")
+            print(f"{'='*60}")
+            
+            # Check if this random_state has been run
+            state_dir = os.path.join(output_dir, f'random_state_{random_state}')
+            if not os.path.exists(state_dir):
+                print(f"\nWARNING: Directory not found: {state_dir}")
+                print(f"Decompositions for random_state={random_state} may not have been run yet.")
+                print(f"Skipping this random state...")
+                continue
+            
+            for rank in sorted(successful_ranks):
+                fms_result = evaluate_fms_for_rank_and_state(rank, random_state, output_dir, tensor_3d)
+                if fms_result is not None:
+                    all_fms_results.append(fms_result)
+        
+        # ===========================================
+        # CREATE FMS COMPARISON ACROSS RANDOM STATES
+        # ===========================================
+        if len(all_fms_results) > 0:
+            print(f"\n{'='*60}")
+            print("FMS RESULTS SUMMARY - ALL RANDOM STATES")
+            print(f"{'='*60}")
+            
+            # Create comparison dataframe
+            fms_df = pd.DataFrame(all_fms_results)
+            
+            # Save comprehensive FMS results
+            comparison_dir = os.path.join(output_dir, 'rank_comparison')
+            os.makedirs(comparison_dir, exist_ok=True)
+            
+            fms_output_file = os.path.join(comparison_dir, 'synthetic_fms_all_random_states.csv')
+            fms_df.to_csv(fms_output_file, index=False)
+            print(f"Saved FMS comparison table to: {fms_output_file}")
+            
+            # Display results
+            print("\n" + "="*60)
+            print("SYNTHETIC FMS RESULTS ACROSS RANDOM STATES")
+            print("="*60)
+            
+            # Pivot table for easier viewing
+            pivot_table = fms_df.pivot(index='rank', columns='random_state', values='fms_synthetic')
+            print("\nSynthetic FMS by Rank and Random State:")
+            print(pivot_table.to_string(float_format='%.4f'))
+            
+            # Calculate statistics across random states for each rank
+            print("\n" + "="*60)
+            print("STATISTICS ACROSS RANDOM STATES (by Rank)")
+            print("="*60)
+            
+            stats_df = fms_df.groupby('rank')['fms_synthetic'].agg([
+                ('Mean', 'mean'),
+                ('Std', 'std'),
+                ('Min', 'min'),
+                ('Max', 'max'),
+                ('CV', lambda x: x.std() / x.mean() if x.mean() > 0 else np.nan)
+            ])
+            print(stats_df.to_string(float_format='%.4f'))
+            
+            # Find optimal rank for each random state
+            print("\n" + "="*60)
+            print("OPTIMAL RANK BY RANDOM STATE")
+            print("="*60)
+            
+            optimal_ranks = []
+            for random_state in RANDOM_STATES_TO_TEST:
+                state_data = fms_df[fms_df['random_state'] == random_state]
+                if len(state_data) > 0 and state_data['synthetic_success'].any():
+                    valid_data = state_data[state_data['synthetic_success']]
+                    if len(valid_data) > 0:
+                        best_idx = valid_data['fms_synthetic'].idxmax()
+                        best_rank = valid_data.loc[best_idx, 'rank']
+                        best_score = valid_data.loc[best_idx, 'fms_synthetic']
+                        optimal_ranks.append({
+                            'random_state': random_state,
+                            'optimal_rank': int(best_rank),
+                            'fms_score': best_score
+                        })
+                        print(f"Random State {random_state}: Rank {int(best_rank)} (FMS = {best_score:.4f})")
+            
+            # Check consistency of optimal rank selection
+            if len(optimal_ranks) > 0:
+                optimal_ranks_df = pd.DataFrame(optimal_ranks)
+                unique_optimal_ranks = optimal_ranks_df['optimal_rank'].unique()
+                
+                print("\n" + "="*60)
+                print("CONSISTENCY ANALYSIS")
+                print("="*60)
+                print(f"Number of random states evaluated: {len(optimal_ranks)}")
+                print(f"Unique optimal ranks identified: {sorted(unique_optimal_ranks)}")
+                
+                if len(unique_optimal_ranks) == 1:
+                    print(f"\n✓ CONSISTENT: All random states identify rank {unique_optimal_ranks[0]} as optimal")
+                    print(f"  → This suggests the FMS elbow is REAL and stable")
+                else:
+                    print(f"\n⚠ INCONSISTENT: Different random states identify different optimal ranks")
+                    print(f"  → This suggests the FMS elbow may be sensitive to initialization")
+                    print(f"\nFrequency of each optimal rank:")
+                    rank_counts = optimal_ranks_df['optimal_rank'].value_counts().sort_index()
+                    for rank, count in rank_counts.items():
+                        pct = count / len(optimal_ranks) * 100
+                        print(f"  Rank {rank}: {count}/{len(optimal_ranks)} ({pct:.1f}%)")
+                    
+                    # Most common optimal rank
+                    most_common_rank = rank_counts.idxmax()
+                    print(f"\n→ Most frequently optimal rank: {most_common_rank}")
+            
+            print(f"\n{'='*60}")
+        
+        else:
+            print("\nNo FMS results to analyze.")
+            print("Please ensure decompositions have been run for all random states.")
 
 else:
     print("Skipping FMS evaluation - tensor not available.")
@@ -2322,16 +4113,226 @@ print(f"\n{'='*60}")
 print("FACTOR MATCH SCORE EVALUATION COMPLETE")
 print(f"{'='*60}")
 if 'all_fms_results' in locals() and len(all_fms_results) > 0:
-    working_recon = sum(1 for r in all_fms_results if r['reconstruction_success'])
-    working_tlviz = sum(1 for r in all_fms_results if r['tlviz_success'])
-    print(f"Summary: {working_recon}/{len(all_fms_results)} ranks have valid Reconstruction FMS")
-    print(f"         {working_tlviz}/{len(all_fms_results)} ranks have valid TLViz FMS")
-    if working_recon > 0:
-        print(f"→ Use Reconstruction FMS and correlation for rank selection")
-    else:
-        print(f"→ No valid FMS results - check tensor and factor matrices")
+    print(f"Summary: {len(all_fms_results)} (random_state, rank) combinations evaluated")
+    successful_evals = sum(1 for r in all_fms_results if r['synthetic_success'])
+    print(f"         {successful_evals}/{len(all_fms_results)} evaluations successful")
+else:
+    print("No evaluations performed")
 ```
 
+## Compare Rank Selection Methods
+
+This section compares the dissertation-validated cross-validation method with other approaches.
+
+### Compare dissertation CV-SSE with other methods
+
+```{python compare-rank-selection-methods, eval=FALSE}
+# ===========================================
+# COMPARE RANK SELECTION METHODS
+# ===========================================
+# Compares:
+# 1. Dissertation CV-SSE (validated method)
+# 2. Synthetic FMS (current approach)
+# 3. Variance explained (elbow plot)
+# 4. Manual inspection (your choice)
+# ===========================================
+
+print("="*80)
+print("COMPARISON: RANK SELECTION METHODS")
+print("="*80)
+
+comparison_results = {}
+
+# METHOD 1: Dissertation cross-validation (CV-SSE)
+if 'optimal_rank_cv' in locals() and optimal_rank_cv is not None:
+    comparison_results['Dissertation CV-SSE'] = {
+        'rank': optimal_rank_cv,
+        'method': 'Cross-validated SSE (leave-one-species-out)',
+        'reference': 'Blaskowski 2024, Section 1.2.3',
+        'validated': True,
+        'priority': 'PRIMARY'
+    }
+    print(f"\n1. Dissertation CV-SSE (VALIDATED)")
+    print(f"   Optimal Rank: {optimal_rank_cv}")
+    print(f"   Method: Leave-one-species-out cross-validation")
+    print(f"   Criterion: Minimum cross-validated SSE")
+    print(f"   Reference: Blaskowski (2024) Section 1.2.3, pg. 15")
+else:
+    print(f"\n1. Dissertation CV-SSE: NOT RUN")
+    print(f"   (Set eval=TRUE in run-cv-rank-selection chunk)")
+
+# METHOD 2: Synthetic FMS (your current approach)
+synthetic_fms_file = os.path.join(output_dir, 'rank_comparison/synthetic_fms_all_random_states.csv')
+if os.path.exists(synthetic_fms_file):
+    synthetic_df = pd.read_csv(synthetic_fms_file)
+    
+    # Find rank with highest mean synthetic FMS across random states
+    if 'fms_synthetic' in synthetic_df.columns and 'rank' in synthetic_df.columns:
+        # Filter successful runs
+        valid_synthetic = synthetic_df[synthetic_df['synthetic_success'] == True]
+        
+        if len(valid_synthetic) > 0:
+            # Calculate mean FMS by rank
+            mean_fms_by_rank = valid_synthetic.groupby('rank')['fms_synthetic'].agg(['mean', 'std', 'count'])
+            best_rank_idx = mean_fms_by_rank['mean'].idxmax()
+            synthetic_optimal_rank = int(best_rank_idx)
+            synthetic_fms_score = mean_fms_by_rank.loc[best_rank_idx, 'mean']
+            synthetic_fms_std = mean_fms_by_rank.loc[best_rank_idx, 'std']
+            
+            comparison_results['Synthetic FMS'] = {
+                'rank': synthetic_optimal_rank,
+                'method': 'Synthetic validation with noise injection',
+                'score': synthetic_fms_score,
+                'std': synthetic_fms_std,
+                'validated': False,
+                'priority': 'SUPPLEMENTARY'
+            }
+            
+            print(f"\n2. Synthetic FMS (CURRENT METHOD)")
+            print(f"   Optimal Rank: {synthetic_optimal_rank}")
+            print(f"   FMS Score: {synthetic_fms_score:.4f} ± {synthetic_fms_std:.4f}")
+            print(f"   Method: Factor recovery from synthetic noisy data")
+            print(f"   Note: Alternative validation, not in dissertation")
+        else:
+            print(f"\n2. Synthetic FMS: No valid results")
+    else:
+        print(f"\n2. Synthetic FMS: Data format issue")
+else:
+    print(f"\n2. Synthetic FMS: NOT RUN")
+
+# METHOD 3: Variance Explained (simple elbow)
+rank_comparison_log = os.path.join(output_dir, 'rank_comparison_log.json')
+if os.path.exists(rank_comparison_log):
+    import json
+    with open(rank_comparison_log, 'r') as f:
+        log_data = json.load(f)
+    
+    # Extract variance explained for each rank
+    var_explained_by_rank = {}
+    for result in log_data.get('results', []):
+        if result['success'] and 'metrics' in result:
+            rank = result['rank']
+            var_exp = result['metrics'].get('variance_explained', None)
+            if var_exp is not None:
+                var_explained_by_rank[rank] = var_exp
+    
+    if len(var_explained_by_rank) > 0:
+        # Simple heuristic: find where variance explained > 70% with minimum rank
+        var_threshold = 0.70
+        suitable_ranks = [r for r, v in var_explained_by_rank.items() if v >= var_threshold]
+        
+        if len(suitable_ranks) > 0:
+            var_optimal_rank = min(suitable_ranks)
+            var_optimal_score = var_explained_by_rank[var_optimal_rank]
+            
+            comparison_results['Variance Explained'] = {
+                'rank': var_optimal_rank,
+                'method': f'Minimum rank with >={var_threshold*100:.0f}% variance explained',
+                'score': var_optimal_score,
+                'validated': False,
+                'priority': 'SUPPLEMENTARY'
+            }
+            
+            print(f"\n3. Variance Explained (HEURISTIC)")
+            print(f"   Optimal Rank: {var_optimal_rank}")
+            print(f"   Variance Explained: {var_optimal_score*100:.1f}%")
+            print(f"   Method: Minimum rank achieving ≥{var_threshold*100:.0f}% variance")
+            print(f"   Note: Simple heuristic, not validated")
+        else:
+            print(f"\n3. Variance Explained: No rank reaches {var_threshold*100:.0f}% threshold")
+    else:
+        print(f"\n3. Variance Explained: No data available")
+else:
+    print(f"\n3. Variance Explained: NOT RUN")
+
+# COMPARISON ANALYSIS
+print(f"\n{'='*80}")
+print("RANK SELECTION COMPARISON SUMMARY")
+print(f"{'='*80}")
+
+if len(comparison_results) > 0:
+    print(f"\nMethods compared: {len(comparison_results)}")
+    print(f"\nOptimal Rank by Method:")
+    
+    for method_name, result in comparison_results.items():
+        priority = result.get('priority', 'N/A')
+        validated = '✓ VALIDATED' if result.get('validated', False) else '  Not validated'
+        print(f"  {method_name:25s}: Rank {result['rank']:2d}  [{priority:15s}] {validated}")
+    
+    # Check for agreement
+    ranks = [r['rank'] for r in comparison_results.values()]
+    unique_ranks = set(ranks)
+    
+    print(f"\n{'='*80}")
+    print("AGREEMENT ANALYSIS")
+    print(f"{'='*80}")
+    
+    if len(unique_ranks) == 1:
+        consensus_rank = ranks[0]
+        print(f"✓ PERFECT AGREEMENT")
+        print(f"  All methods identify Rank {consensus_rank} as optimal")
+        print(f"  HIGH confidence in this selection")
+        
+        if 'Dissertation CV-SSE' in comparison_results:
+            print(f"\n  → RECOMMENDATION: Use Rank {consensus_rank}")
+            print(f"    (Validated by dissertation method + confirmed by other approaches)")
+    else:
+        print(f"⚠ METHODS SHOW VARIABILITY")
+        print(f"  Unique optimal ranks identified: {sorted(unique_ranks)}")
+        
+        # Frequency analysis
+        from collections import Counter
+        rank_counts = Counter(ranks)
+        most_common_rank, most_common_count = rank_counts.most_common(1)[0]
+        
+        print(f"\n  Frequency by rank:")
+        for rank in sorted(rank_counts.keys()):
+            count = rank_counts[rank]
+            methods = [name for name, r in comparison_results.items() if r['rank'] == rank]
+            print(f"    Rank {rank:2d}: {count}/{len(comparison_results)} methods")
+            print(f"             ({', '.join(methods)})")
+        
+        # Recommendation logic
+        if 'Dissertation CV-SSE' in comparison_results:
+            cv_rank = comparison_results['Dissertation CV-SSE']['rank']
+            print(f"\n  → PRIMARY RECOMMENDATION: Use Rank {cv_rank}")
+            print(f"    (Dissertation-validated cross-validation method)")
+            
+            # Check if other methods are close
+            rank_diff = [abs(r - cv_rank) for r in unique_ranks if r != cv_rank]
+            if len(rank_diff) > 0 and max(rank_diff) <= 5:
+                print(f"    Other methods suggest ranks within ±5: {sorted(unique_ranks)}")
+                print(f"    MODERATE confidence - consider examining nearby ranks")
+            elif len(rank_diff) > 0:
+                print(f"    Other methods differ substantially: {sorted(unique_ranks)}")
+                print(f"    Recommend examining dissertation-selected rank {cv_rank}")
+        else:
+            print(f"\n  → RECOMMENDATION: Rank {most_common_rank}")
+            print(f"    (Most common across methods, but not validated)")
+            print(f"    MODERATE confidence - consider running dissertation CV method")
+
+else:
+    print("\nNo methods have been run yet.")
+    print("Run the rank selection analyses first.")
+
+# Save comparison results
+if len(comparison_results) > 0:
+    comparison_file = os.path.join(output_dir, 'rank_selection_comparison.json')
+    import json
+    with open(comparison_file, 'w') as f:
+        json.dump({
+            'timestamp': pd.Timestamp.now().isoformat(),
+            'methods': comparison_results,
+            'summary': {
+                'n_methods': len(comparison_results),
+                'unique_ranks': sorted(list(unique_ranks)),
+                'agreement': 'perfect' if len(unique_ranks) == 1 else 'variable'
+            }
+        }, f, indent=2)
+    print(f"\n✓ Comparison saved to: {comparison_file}")
+
+print(f"\n{'='*80}")
+```
 
 
 
@@ -2339,30 +4340,186 @@ if 'all_fms_results' in locals() and len(all_fms_results) > 0:
 
 ## Plot rank comparisons
 
-### Plot Synthetic FMS Elbow (Standalone)
+### Plot Cross-Validated SSE Results
 
-This chunk can be run independently to generate the synthetic FMS elbow plot without re-running the expensive Factor Match Score evaluation. It loads the saved FMS results from the CSV file.
-
-```{python plot-synthetic-fms-elbow-standalone, eval=TRUE}
+```{python plot-cv-sse-results, eval=FALSE}
 # ===========================================
-# STANDALONE SYNTHETIC FMS ELBOW PLOT
-# ===========================================
-# This chunk loads saved FMS results and creates the elbow plot
-# Can be run independently without re-running FMS evaluation
+# PLOT CROSS-VALIDATED SSE RESULTS
+# Visualize dissertation-validated rank selection
 # ===========================================
 
+import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
+import numpy as np
+
+# Check if CV results exist
+if 'cv_rank_results' not in locals() or cv_rank_results is None:
+    print("Cross-validation results not available.")
+    print("Run the run-cv-rank-selection chunk first.")
+else:
+    print("="*60)
+    print("VISUALIZING CROSS-VALIDATED RANK SELECTION")
+    print("="*60)
+    
+    # Create figure with subplots
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    fig.suptitle('Dissertation-Validated Rank Selection via Cross-Validation', 
+                 fontsize=16, fontweight='bold', y=0.995)
+    
+    # Filter to successful results
+    plot_data = cv_rank_results[cv_rank_results['n_successful_folds'] == len(replicate_groups)].copy()
+    
+    if len(plot_data) == 0:
+        print("No successful CV results to plot")
+    else:
+        # PLOT 1: CV-SSE vs Rank (main criterion)
+        ax1 = axes[0, 0]
+        ax1.errorbar(plot_data['rank'], plot_data['mean_cv_sse'], 
+                    yerr=plot_data['std_cv_sse'],
+                    marker='o', markersize=8, linewidth=2.5, 
+                    capsize=5, capthick=2,
+                    color='steelblue', ecolor='lightblue')
+        
+        # Mark optimal rank
+        if 'optimal_rank_cv' in locals() and optimal_rank_cv is not None:
+            optimal_data = plot_data[plot_data['rank'] == optimal_rank_cv]
+            if len(optimal_data) > 0:
+                ax1.plot(optimal_rank_cv, optimal_data['mean_cv_sse'].values[0], 
+                        '*', markersize=20, color='red', 
+                        markeredgecolor='darkred', markeredgewidth=2,
+                        label=f'Optimal Rank: {optimal_rank_cv}', zorder=10)
+                ax1.legend(fontsize=11, loc='best')
+        
+        ax1.set_xlabel('Rank (Number of Components)', fontsize=12, fontweight='bold')
+        ax1.set_ylabel('Cross-Validated SSE', fontsize=12, fontweight='bold')
+        ax1.set_title('A) CV-SSE vs Rank\n(Primary Selection Criterion)', 
+                     fontsize=12, fontweight='bold')
+        ax1.grid(True, alpha=0.3)
+        ax1.ticklabel_format(style='scientific', axis='y', scilimits=(0,0))
+        
+        # PLOT 2: Relative CV-SSE (normalized)
+        ax2 = axes[0, 1]
+        min_sse = plot_data['mean_cv_sse'].min()
+        plot_data['relative_cv_sse'] = plot_data['mean_cv_sse'] / min_sse
+        
+        ax2.plot(plot_data['rank'], plot_data['relative_cv_sse'], 
+                'o-', linewidth=2.5, markersize=8, color='darkgreen')
+        ax2.axhline(y=1.0, color='red', linestyle='--', alpha=0.5, linewidth=2)
+        
+        if 'optimal_rank_cv' in locals() and optimal_rank_cv is not None:
+            optimal_data = plot_data[plot_data['rank'] == optimal_rank_cv]
+            if len(optimal_data) > 0:
+                ax2.plot(optimal_rank_cv, optimal_data['relative_cv_sse'].values[0],
+                        '*', markersize=20, color='red',
+                        markeredgecolor='darkred', markeredgewidth=2, zorder=10)
+        
+        ax2.set_xlabel('Rank (Number of Components)', fontsize=12, fontweight='bold')
+        ax2.set_ylabel('Relative CV-SSE (normalized to min)', fontsize=12, fontweight='bold')
+        ax2.set_title('B) Relative CV-SSE\n(Shows relative improvement)', 
+                     fontsize=12, fontweight='bold')
+        ax2.grid(True, alpha=0.3)
+        
+        # PLOT 3: SSE Range by Rank
+        ax3 = axes[1, 0]
+        
+        # Create bar plot showing range
+        ranks = plot_data['rank'].values
+        means = plot_data['mean_cv_sse'].values
+        mins = plot_data['min_cv_sse'].values
+        maxs = plot_data['max_cv_sse'].values
+        
+        ax3.bar(ranks, means, alpha=0.6, color='steelblue', label='Mean CV-SSE')
+        
+        # Add error bars showing range
+        for i, rank in enumerate(ranks):
+            ax3.plot([rank, rank], [mins[i], maxs[i]], 
+                    'k-', linewidth=2, alpha=0.5)
+            ax3.plot([rank], [mins[i]], 'v', color='green', markersize=6)
+            ax3.plot([rank], [maxs[i]], '^', color='orange', markersize=6)
+        
+        if 'optimal_rank_cv' in locals() and optimal_rank_cv is not None:
+            ax3.axvline(x=optimal_rank_cv, color='red', linestyle='--', 
+                       linewidth=2, alpha=0.7, label=f'Optimal: {optimal_rank_cv}')
+        
+        ax3.set_xlabel('Rank (Number of Components)', fontsize=12, fontweight='bold')
+        ax3.set_ylabel('Cross-Validated SSE', fontsize=12, fontweight='bold')
+        ax3.set_title('C) CV-SSE Variability Across Folds\n(Range: min to max)', 
+                     fontsize=12, fontweight='bold')
+        ax3.legend(fontsize=10)
+        ax3.grid(True, alpha=0.3, axis='y')
+        ax3.ticklabel_format(style='scientific', axis='y', scilimits=(0,0))
+        
+        # PLOT 4: Summary text
+        ax4 = axes[1, 1]
+        ax4.axis('off')
+        
+        summary_text = "CROSS-VALIDATION SUMMARY\n"
+        summary_text += "="*40 + "\n\n"
+        summary_text += f"Method: Leave-one-species-out CV\n"
+        summary_text += f"CV Folds: {len(replicate_groups)}\n"
+        summary_text += f"Ranks Tested: {len(plot_data)}\n\n"
+        
+        if 'optimal_rank_cv' in locals() and optimal_rank_cv is not None:
+            summary_text += f"OPTIMAL RANK: {optimal_rank_cv}\n"
+            optimal_data = plot_data[plot_data['rank'] == optimal_rank_cv]
+            if len(optimal_data) > 0:
+                sse = optimal_data['mean_cv_sse'].values[0]
+                std = optimal_data['std_cv_sse'].values[0]
+                summary_text += f"CV-SSE: {sse:.2e} ± {std:.2e}\n\n"
+        
+        summary_text += "Criterion: Minimum CV-SSE\n"
+        summary_text += "Reference: Blaskowski (2024)\n"
+        summary_text += "            Section 1.2.3, pg. 15\n\n"
+        
+        summary_text += "Validated on 100 simulations:\n"
+        summary_text += "  • 86% accuracy\n"
+        summary_text += "  • Works to 10:1 noise ratio\n\n"
+        
+        summary_text += "This is the RECOMMENDED\n"
+        summary_text += "method for rank selection."
+        
+        ax4.text(0.05, 0.95, summary_text,
+                transform=ax4.transAxes,
+                verticalalignment='top',
+                fontsize=11,
+                family='monospace',
+                bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.3))
+        
+        plt.tight_layout()
+        
+        # Save figure
+        cv_plot_file = os.path.join(output_dir, 'dissertation_cv_results/cv_rank_selection_plot.png')
+        plt.savefig(cv_plot_file, dpi=300, bbox_inches='tight')
+        print(f"\n✓ Plot saved to: {cv_plot_file}")
+        
+        plt.show()
+        plt.close()
+        
+        print("="*60)
+```
+
+### Plot Synthetic FMS Across Random States
+
+This chunk creates visualizations comparing synthetic FMS across different random states to evaluate the stability of optimal rank selection.
+
+```{python plot-synthetic-fms-random-states, eval=TRUE}
+# ===========================================
+# PLOT SYNTHETIC FMS ACROSS RANDOM STATES
+# ===========================================
 import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 # Get output directory
 output_dir = r.output_dir if 'r' in dir() else '../output/13.00-multiomics-barnacle'
 comparison_dir = os.path.join(output_dir, 'rank_comparison')
-fms_csv_file = os.path.join(comparison_dir, 'factor_match_scores.csv')
+fms_csv_file = os.path.join(comparison_dir, 'synthetic_fms_all_random_states.csv')
 
 print(f"\n{'='*60}")
-print("SYNTHETIC FMS ELBOW PLOT (STANDALONE)")
+print("PLOTTING SYNTHETIC FMS ACROSS RANDOM STATES")
 print(f"{'='*60}")
 print(f"Loading FMS results from: {fms_csv_file}")
 
@@ -2371,158 +4528,456 @@ if not os.path.exists(fms_csv_file):
     print(f"\nERROR: FMS results file not found!")
     print(f"Expected location: {fms_csv_file}")
     print(f"\nPlease run the Factor Match Score evaluation chunk first.")
-    print(f"It should create: {comparison_dir}/factor_match_scores.csv")
 else:
     # Load FMS results
     fms_df = pd.read_csv(fms_csv_file)
     
-    print(f"Loaded FMS data for {len(fms_df)} ranks")
+    print(f"Loaded FMS data for {len(fms_df)} (rank, random_state) combinations")
     print(f"Columns available: {list(fms_df.columns)}")
     
     # Check if synthetic FMS data is available
     if 'fms_synthetic' not in fms_df.columns:
         print(f"\nERROR: No 'fms_synthetic' column found in FMS results!")
         print(f"Synthetic validation was not performed.")
-        print(f"\nTo generate synthetic FMS data:")
-        print(f"1. Set USE_SYNTHETIC_VALIDATION = True in the FMS evaluation chunk")
-        print(f"2. Re-run the Factor Match Score evaluation chunk")
     else:
-        # Check if any ranks have valid synthetic FMS
+        # Check if any have valid synthetic FMS
         valid_synthetic = fms_df['synthetic_success'].fillna(False)
         
         if not valid_synthetic.any():
             print(f"\nERROR: No valid synthetic FMS values found!")
-            print(f"All synthetic validation attempts failed or were skipped.")
-            print(f"\nTo generate synthetic FMS data:")
-            print(f"1. Set USE_SYNTHETIC_VALIDATION = True in the FMS evaluation chunk")
-            print(f"2. Re-run the Factor Match Score evaluation chunk")
         else:
-            print(f"Found {valid_synthetic.sum()} ranks with valid synthetic FMS")
+            print(f"Found {valid_synthetic.sum()} valid FMS values")
+            
+            # Filter to valid data
+            plot_data = fms_df[valid_synthetic].copy()
             
             # ===========================================
-            # CREATE SYNTHETIC FMS ELBOW PLOT
+            # FIGURE 1: LINE PLOT - FMS CURVES BY RANDOM STATE
             # ===========================================
+            fig, ax = plt.subplots(1, 1, figsize=(12, 7))
             
-            fig, ax = plt.subplots(1, 1, figsize=(10, 7))
+            # Color palette for different random states
+            random_states = sorted(plot_data['random_state'].unique())
+            colors = plt.cm.Set2(np.linspace(0, 1, len(random_states)))
             
-            # Get data for plotting
-            valid_tlviz = fms_df['tlviz_success'].fillna(False)
-            valid_recon = fms_df['reconstruction_success'].fillna(False)
+            # Plot FMS curve for each random state
+            optimal_ranks = {}
+            for i, rs in enumerate(random_states):
+                rs_data = plot_data[plot_data['random_state'] == rs].sort_values('rank')
+                ax.plot(rs_data['rank'], rs_data['fms_synthetic'], 
+                       'o-', linewidth=2.5, markersize=8, 
+                       label=f'Random State {rs}', 
+                       color=colors[i], alpha=0.8)
+                
+                # Mark optimal rank for this random state
+                max_idx = rs_data['fms_synthetic'].idxmax()
+                optimal_rank = rs_data.loc[max_idx, 'rank']
+                optimal_fms = rs_data.loc[max_idx, 'fms_synthetic']
+                optimal_ranks[rs] = int(optimal_rank)
+                
+                ax.plot(optimal_rank, optimal_fms, '*', 
+                       markersize=15, color=colors[i], 
+                       markeredgecolor='black', markeredgewidth=1.5, zorder=10)
             
-            # Synthetic FMS (RECOMMENDED - should show elbow)
-            synthetic_data = fms_df.loc[valid_synthetic].sort_values('rank')
-            ax.plot(synthetic_data['rank'], synthetic_data['fms_synthetic'], 
-                    'o-', linewidth=3, markersize=10, label='⭐ Synthetic Validation FMS (RECOMMENDED)', 
-                    color='#2ecc71', zorder=3)
-            
-            # Mark the peak (optimal rank)
-            max_synthetic_idx = synthetic_data['fms_synthetic'].idxmax()
-            optimal_rank = synthetic_data.loc[max_synthetic_idx, 'rank']
-            optimal_score = synthetic_data.loc[max_synthetic_idx, 'fms_synthetic']
-            ax.plot(optimal_rank, optimal_score, 'r*', markersize=20, 
-                    label=f'★ Optimal: Rank {int(optimal_rank)} (FMS={optimal_score:.4f})',
-                    zorder=4)
-            
-            # Reconstruction FMS (fast approximation - typically increases monotonically)
-            if valid_recon.any():
-                recon_data = fms_df.loc[valid_recon].sort_values('rank')
-                ax.plot(recon_data['rank'], recon_data['fms_reconstruction'], 
-                        's--', linewidth=2, markersize=8, label='📊 Reconstruction FMS (fast)', 
-                        color='#3498db', alpha=0.7, zorder=2)
-            
-            # TLViz FMS (if available - self-comparison, typically near 1.0)
-            if valid_tlviz.any():
-                tlviz_data = fms_df.loc[valid_tlviz].sort_values('rank')
-                ax.plot(tlviz_data['rank'], tlviz_data['fms_tlviz'], 
-                        '^:', linewidth=1.5, markersize=6, label='⚠️  TLViz FMS (sanity check only)', 
-                        color='#95a5a6', alpha=0.5, zorder=1)
-            
-            ax.set_xlabel('Rank (Number of Components)', fontsize=12, fontweight='bold')
-            ax.set_ylabel('Factor Match Score', fontsize=12, fontweight='bold')
-            ax.set_title('Factor Match Score Comparison: Finding Optimal Rank\n' +
-                         'Synthetic FMS (RECOMMENDED): Peaks at optimal rank, then declines with overfitting',
-                         fontsize=13, fontweight='bold')
+            # Formatting
+            ax.set_xlabel('Rank (Number of Components)', fontsize=13, fontweight='bold')
+            ax.set_ylabel('Synthetic FMS', fontsize=13, fontweight='bold')
+            ax.set_title('Synthetic Factor Match Score Across Random Initializations\n' +
+                        'Does the FMS elbow consistently identify the same optimal rank?',
+                        fontsize=14, fontweight='bold')
             ax.grid(True, alpha=0.3, linestyle='--')
-            ax.legend(loc='best', fontsize=10)
+            ax.legend(loc='best', fontsize=10, framealpha=0.9)
             ax.set_ylim([0, 1.05])
             
             # Add quality threshold lines
-            ax.axhline(y=0.9, color='green', linestyle='--', alpha=0.3, linewidth=1)
-            ax.text(ax.get_xlim()[1]*0.95, 0.91, 'Excellent (>0.9)', 
-                    ha='right', va='bottom', fontsize=9, color='green', alpha=0.7)
-            ax.axhline(y=0.7, color='orange', linestyle='--', alpha=0.3, linewidth=1)
-            ax.text(ax.get_xlim()[1]*0.95, 0.71, 'Good (>0.7)', 
-                    ha='right', va='bottom', fontsize=9, color='orange', alpha=0.7)
-            ax.axhline(y=0.5, color='red', linestyle='--', alpha=0.3, linewidth=1)
-            ax.text(ax.get_xlim()[1]*0.95, 0.51, 'Fair (>0.5)', 
-                    ha='right', va='bottom', fontsize=9, color='red', alpha=0.7)
+            ax.axhline(y=0.9, color='green', linestyle=':', alpha=0.3, linewidth=1.5)
+            ax.text(ax.get_xlim()[1]*0.98, 0.91, 'Excellent', 
+                   ha='right', va='bottom', fontsize=9, color='green', alpha=0.7, 
+                   bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.7))
+            ax.axhline(y=0.7, color='orange', linestyle=':', alpha=0.3, linewidth=1.5)
+            ax.text(ax.get_xlim()[1]*0.98, 0.71, 'Good', 
+                   ha='right', va='bottom', fontsize=9, color='orange', alpha=0.7,
+                   bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.7))
             
             plt.tight_layout()
-            synthetic_plot_file = os.path.join(comparison_dir, 'synthetic_fms_elbow_plot.png')
-            plt.savefig(synthetic_plot_file, dpi=150, bbox_inches='tight')
-            print(f"\n✓ Saved Synthetic FMS elbow plot to: {synthetic_plot_file}")
+            plot_file = os.path.join(comparison_dir, 'synthetic_fms_by_random_state.png')
+            plt.savefig(plot_file, dpi=300, bbox_inches='tight')
+            print(f"\n✓ Saved FMS comparison plot to: {plot_file}")
+            plt.show()
             plt.close()
             
-            # Print summary
+            # ===========================================
+            # FIGURE 2: HEATMAP - FMS BY RANK AND RANDOM STATE
+            # ===========================================
+            fig, ax = plt.subplots(1, 1, figsize=(12, 6))
+            
+            # Pivot data for heatmap
+            pivot_data = plot_data.pivot(index='random_state', columns='rank', values='fms_synthetic')
+            
+            # Create heatmap
+            sns.heatmap(pivot_data, annot=True, fmt='.3f', cmap='RdYlGn', 
+                       center=0.7, vmin=0, vmax=1.0,
+                       cbar_kws={'label': 'Synthetic FMS'},
+                       linewidths=0.5, linecolor='gray',
+                       ax=ax)
+            
+            ax.set_xlabel('Rank (Number of Components)', fontsize=12, fontweight='bold')
+            ax.set_ylabel('Random State', fontsize=12, fontweight='bold')
+            ax.set_title('Synthetic FMS Heatmap: Rank vs Random State\n' +
+                        'Darker green = better factor recovery',
+                        fontsize=13, fontweight='bold')
+            
+            # Mark optimal ranks with stars
+            for rs_idx, rs in enumerate(pivot_data.index):
+                if rs in optimal_ranks:
+                    opt_rank = optimal_ranks[rs]
+                    rank_idx = list(pivot_data.columns).index(opt_rank)
+                    ax.text(rank_idx + 0.5, rs_idx + 0.5, '★',
+                           ha='center', va='center', fontsize=20,
+                           color='darkblue', weight='bold')
+            
+            plt.tight_layout()
+            heatmap_file = os.path.join(comparison_dir, 'synthetic_fms_heatmap.png')
+            plt.savefig(heatmap_file, dpi=300, bbox_inches='tight')
+            print(f"✓ Saved FMS heatmap to: {heatmap_file}")
+            plt.show()
+            plt.close()
+            
+            # ===========================================
+            # FIGURE 3: BAR PLOT - OPTIMAL RANK FREQUENCY
+            # ===========================================
+            fig, ax = plt.subplots(1, 1, figsize=(10, 6))
+            
+            # Count optimal ranks
+            optimal_rank_values = list(optimal_ranks.values())
+            unique_optimal_ranks = sorted(set(optimal_rank_values))
+            rank_counts = {rank: optimal_rank_values.count(rank) for rank in unique_optimal_ranks}
+            
+            # Create bar plot
+            bars = ax.bar(rank_counts.keys(), rank_counts.values(), 
+                         color='steelblue', edgecolor='black', linewidth=1.5, alpha=0.8)
+            
+            # Add count labels on bars
+            for bar in bars:
+                height = bar.get_height()
+                ax.text(bar.get_x() + bar.get_width()/2., height,
+                       f'{int(height)}/{len(random_states)}',
+                       ha='center', va='bottom', fontsize=11, fontweight='bold')
+            
+            ax.set_xlabel('Optimal Rank', fontsize=12, fontweight='bold')
+            ax.set_ylabel('Frequency (Number of Random States)', fontsize=12, fontweight='bold')
+            ax.set_title('Optimal Rank Selection Frequency Across Random States\n' +
+                        f'Total Random States: {len(random_states)}',
+                        fontsize=13, fontweight='bold')
+            ax.grid(True, alpha=0.3, axis='y')
+            ax.set_ylim([0, len(random_states) + 0.5])
+            ax.set_xticks(unique_optimal_ranks)
+            
+            # Add consistency indicator
+            if len(unique_optimal_ranks) == 1:
+                consistency_text = f"✓ CONSISTENT: All states select rank {unique_optimal_ranks[0]}"
+                text_color = 'green'
+            else:
+                most_common = max(rank_counts, key=rank_counts.get)
+                consistency_text = f"⚠ VARIABLE: Most common is rank {most_common} ({rank_counts[most_common]}/{len(random_states)} states)"
+                text_color = 'orange'
+            
+            ax.text(0.5, 0.95, consistency_text,
+                   transform=ax.transAxes, ha='center', va='top',
+                   fontsize=12, fontweight='bold', color=text_color,
+                   bbox=dict(boxstyle='round,pad=0.5', facecolor='white', 
+                            edgecolor=text_color, linewidth=2, alpha=0.9))
+            
+            plt.tight_layout()
+            bar_plot_file = os.path.join(comparison_dir, 'optimal_rank_frequency.png')
+            plt.savefig(bar_plot_file, dpi=300, bbox_inches='tight')
+            print(f"✓ Saved optimal rank frequency plot to: {bar_plot_file}")
+            plt.show()
+            plt.close()
+            
+            # ===========================================
+            # SUMMARY STATISTICS
+            # ===========================================
             print(f"\n{'='*60}")
-            print("SYNTHETIC FMS ELBOW ANALYSIS")
+            print("SUMMARY: OPTIMAL RANK STABILITY")
             print(f"{'='*60}")
-            print(f"Optimal Rank: {int(optimal_rank)} (FMS = {optimal_score:.4f})")
             
-            # Show all ranks with their scores
-            print(f"\nComplete Synthetic FMS Results:")
-            print(f"{'Rank':<8} {'Synthetic FMS':<15} {'Quality':<12} {'Status'}")
-            print(f"{'-'*8} {'-'*15} {'-'*12} {'-'*20}")
-            for idx, row in synthetic_data.iterrows():
-                rank_val = int(row['rank'])
-                fms_val = row['fms_synthetic']
+            print(f"\nOptimal Ranks by Random State:")
+            for rs in sorted(optimal_ranks.keys()):
+                print(f"  Random State {rs}: Rank {optimal_ranks[rs]}")
+            
+            print(f"\nOptimal Rank Frequency:")
+            for rank in sorted(rank_counts.keys()):
+                count = rank_counts[rank]
+                pct = count / len(random_states) * 100
+                print(f"  Rank {rank}: {count}/{len(random_states)} ({pct:.1f}%)")
+            
+            if len(unique_optimal_ranks) == 1:
+                print(f"\n✓ CONCLUSION: Rank selection is STABLE")
+                print(f"  → All random states consistently identify rank {unique_optimal_ranks[0]} as optimal")
+                print(f"  → The FMS elbow is REAL and not dependent on random initialization")
+                print(f"  → High confidence in rank {unique_optimal_ranks[0]} as the optimal choice")
+            else:
+                most_common_rank = max(rank_counts, key=rank_counts.get)
+                most_common_count = rank_counts[most_common_rank]
+                most_common_pct = most_common_count / len(random_states) * 100
                 
-                if fms_val > 0.9:
-                    quality = "Excellent"
-                elif fms_val > 0.7:
-                    quality = "Good"
-                elif fms_val > 0.5:
-                    quality = "Fair"
+                print(f"\n⚠ CONCLUSION: Rank selection shows VARIABILITY")
+                print(f"  → Different random states identify different optimal ranks")
+                print(f"  → Most common optimal rank: {most_common_rank} ({most_common_pct:.1f}% of states)")
+                print(f"  → The FMS elbow may be influenced by random initialization")
+                
+                if most_common_pct >= 60:
+                    print(f"  → Moderate confidence: Rank {most_common_rank} is optimal in majority of cases")
+                    print(f"  → Consider examining decompositions for ranks: {sorted(unique_optimal_ranks)}")
                 else:
-                    quality = "Poor"
-                
-                status = "★ OPTIMAL" if rank_val == optimal_rank else ""
-                print(f"{rank_val:<8} {fms_val:<15.4f} {quality:<12} {status}")
-            
-            print(f"\nInterpretation:")
-            print(f"  • Synthetic FMS tests factor recovery from noisy data")
-            print(f"  • Peak at rank {int(optimal_rank)} indicates best balance:")
-            print(f"    - Sufficient complexity to capture patterns")
-            print(f"    - Robust enough to avoid overfitting noise")
-            print(f"  • Higher ranks show declining FMS (overfitting)")
-            print(f"  • Lower ranks show lower FMS (underfitting)")
-            
-            # Additional statistics
-            if len(synthetic_data) > 1:
-                decline_after_optimal = after_optimal['fms_synthetic'].mean() if len(after_optimal) > 0 else np.nan
-                improvement_to_optimal = optimal_score - before_optimal['fms_synthetic'].max() if len(before_optimal) > 0 else np.nan
-                
-                print(f"\nStatistics:")
-                if not np.isnan(improvement_to_optimal):
-                    print(f"  • Improvement to optimal: +{improvement_to_optimal:.4f}")
-                if not np.isnan(decline_after_optimal):
-                    print(f"  • Average FMS after optimal: {decline_after_optimal:.4f}")
-                    print(f"  • Decline from peak: -{(optimal_score - decline_after_optimal):.4f}")
+                    print(f"  → Low confidence: No clear consensus on optimal rank")
+                    print(f"  → Recommend examining multiple ranks: {sorted(unique_optimal_ranks)}")
             
             print(f"\n{'='*60}")
+            
+            # ===========================================
+            # FIGURE 4: ELBOW PLOTS - FMS BY RANK FOR EACH RANDOM SEED
+            # ===========================================
+            print(f"\n{'='*60}")
+            print("CREATING ELBOW PLOTS FOR RANK SELECTION")
+            print(f"{'='*60}\n")
+            
+            # Create subplots - one for each random state
+            n_states = len(random_states)
+            n_cols = min(3, n_states)
+            n_rows = int(np.ceil(n_states / n_cols))
+            
+            fig, axes = plt.subplots(n_rows, n_cols, figsize=(6*n_cols, 5*n_rows))
+            if n_states == 1:
+                axes = np.array([axes])
+            axes = axes.flatten() if n_states > 1 else axes
+            
+            print(f"Creating individual elbow plots for {n_states} random states...")
+            
+            for idx, rs in enumerate(random_states):
+                ax = axes[idx]
+                rs_data = plot_data[plot_data['random_state'] == rs].sort_values('rank')
+                
+                # Plot FMS vs Rank
+                ax.plot(rs_data['rank'], rs_data['fms_synthetic'], 
+                       'o-', linewidth=2.5, markersize=10, 
+                       color=colors[idx], alpha=0.8, label='Synthetic FMS')
+                
+                # Mark the optimal rank
+                max_idx = rs_data['fms_synthetic'].idxmax()
+                optimal_rank = rs_data.loc[max_idx, 'rank']
+                optimal_fms = rs_data.loc[max_idx, 'fms_synthetic']
+                
+                ax.plot(optimal_rank, optimal_fms, '*', 
+                       markersize=20, color='red', 
+                       markeredgecolor='darkred', markeredgewidth=2, 
+                       zorder=10, label=f'Optimal: Rank {int(optimal_rank)}')
+                
+                # Calculate and annotate marginal gains
+                ranks = rs_data['rank'].values
+                fms_values = rs_data['fms_synthetic'].values
+                
+                for i in range(len(ranks)-1):
+                    marginal_gain = fms_values[i+1] - fms_values[i]
+                    mid_x = (ranks[i] + ranks[i+1]) / 2
+                    mid_y = (fms_values[i] + fms_values[i+1]) / 2
+                    
+                    # Annotate with marginal gain
+                    ax.annotate(f'+{marginal_gain:.3f}', 
+                               xy=(mid_x, mid_y),
+                               xytext=(0, 10), textcoords='offset points',
+                               ha='center', fontsize=8, 
+                               color='darkblue', alpha=0.7,
+                               bbox=dict(boxstyle='round,pad=0.3', 
+                                       facecolor='lightyellow', 
+                                       alpha=0.6, edgecolor='none'))
+                
+                # Add quality threshold lines
+                ax.axhline(y=0.9, color='green', linestyle=':', alpha=0.4, linewidth=1.5)
+                ax.axhline(y=0.7, color='orange', linestyle=':', alpha=0.4, linewidth=1.5)
+                ax.axhline(y=0.5, color='red', linestyle=':', alpha=0.4, linewidth=1.5)
+                
+                # Formatting
+                ax.set_xlabel('Rank (Number of Components)', fontsize=11, fontweight='bold')
+                ax.set_ylabel('Synthetic FMS', fontsize=11, fontweight='bold')
+                ax.set_title(f'Random State {rs}\nElbow Plot for Rank Selection',
+                            fontsize=12, fontweight='bold')
+                ax.grid(True, alpha=0.3, linestyle='--')
+                ax.legend(loc='best', fontsize=9, framealpha=0.9)
+                ax.set_ylim([0, 1.05])
+                
+                # Add quality labels
+                ax.text(0.98, 0.91, 'Excellent', transform=ax.transAxes,
+                       ha='right', va='bottom', fontsize=8, color='green', alpha=0.6)
+                ax.text(0.98, 0.71, 'Good', transform=ax.transAxes,
+                       ha='right', va='bottom', fontsize=8, color='orange', alpha=0.6)
+                ax.text(0.98, 0.51, 'Fair', transform=ax.transAxes,
+                       ha='right', va='bottom', fontsize=8, color='red', alpha=0.6)
+            
+            # Hide extra subplots if any
+            for idx in range(n_states, len(axes)):
+                axes[idx].axis('off')
+            
+            plt.tight_layout()
+            elbow_individual_file = os.path.join(comparison_dir, 'elbow_plots_by_random_state.png')
+            plt.savefig(elbow_individual_file, dpi=300, bbox_inches='tight')
+            print(f"✓ Saved individual elbow plots to: {elbow_individual_file}")
+            plt.show()
+            plt.close()
+            
+            # ===========================================
+            # FIGURE 5: COMBINED ELBOW PLOT - ALL RANDOM SEEDS
+            # ===========================================
+            print(f"\nCreating combined elbow plot with all random states...")
+            
+            fig, ax = plt.subplots(1, 1, figsize=(14, 8))
+            
+            # Plot all random states together
+            for i, rs in enumerate(random_states):
+                rs_data = plot_data[plot_data['random_state'] == rs].sort_values('rank')
+                
+                # Main line
+                ax.plot(rs_data['rank'], rs_data['fms_synthetic'], 
+                       'o-', linewidth=2.5, markersize=8, 
+                       label=f'Random State {rs}', 
+                       color=colors[i], alpha=0.7)
+                
+                # Mark optimal
+                max_idx = rs_data['fms_synthetic'].idxmax()
+                optimal_rank = rs_data.loc[max_idx, 'rank']
+                optimal_fms = rs_data.loc[max_idx, 'fms_synthetic']
+                
+                ax.plot(optimal_rank, optimal_fms, '*', 
+                       markersize=15, color=colors[i], 
+                       markeredgecolor='black', markeredgewidth=1.5, zorder=10)
+            
+            # Calculate mean FMS across random states for each rank
+            mean_fms_by_rank = plot_data.groupby('rank')['fms_synthetic'].mean().reset_index()
+            mean_fms_by_rank = mean_fms_by_rank.sort_values('rank')
+            
+            # Plot mean curve with thicker line
+            ax.plot(mean_fms_by_rank['rank'], mean_fms_by_rank['fms_synthetic'],
+                   'k--', linewidth=3.5, markersize=12, marker='D',
+                   label='Mean across all states', zorder=5, alpha=0.9)
+            
+            # Find and mark mean optimal rank
+            mean_optimal_idx = mean_fms_by_rank['fms_synthetic'].idxmax()
+            mean_optimal_rank = mean_fms_by_rank.loc[mean_optimal_idx, 'rank']
+            mean_optimal_fms = mean_fms_by_rank.loc[mean_optimal_idx, 'fms_synthetic']
+            
+            ax.plot(mean_optimal_rank, mean_optimal_fms, 'D',
+                   markersize=18, color='darkred', 
+                   markeredgecolor='black', markeredgewidth=2, zorder=15,
+                   label=f'Mean Optimal: Rank {int(mean_optimal_rank)}')
+            
+            # Add marginal gains for mean curve
+            ranks = mean_fms_by_rank['rank'].values
+            fms_values = mean_fms_by_rank['fms_synthetic'].values
+            
+            for i in range(len(ranks)-1):
+                marginal_gain = fms_values[i+1] - fms_values[i]
+                mid_x = (ranks[i] + ranks[i+1]) / 2
+                mid_y = (fms_values[i] + fms_values[i+1]) / 2
+                
+                ax.annotate(f'+{marginal_gain:.3f}', 
+                           xy=(mid_x, mid_y),
+                           xytext=(0, 15), textcoords='offset points',
+                           ha='center', fontsize=9, fontweight='bold',
+                           color='darkred', alpha=0.8,
+                           bbox=dict(boxstyle='round,pad=0.4', 
+                                   facecolor='yellow', 
+                                   alpha=0.7, edgecolor='darkred', linewidth=1.5))
+            
+            # Quality thresholds
+            ax.axhline(y=0.9, color='green', linestyle=':', alpha=0.3, linewidth=2)
+            ax.text(ax.get_xlim()[1]*0.98, 0.91, 'Excellent', 
+                   ha='right', va='bottom', fontsize=10, color='green', alpha=0.7, 
+                   bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8))
+            ax.axhline(y=0.7, color='orange', linestyle=':', alpha=0.3, linewidth=2)
+            ax.text(ax.get_xlim()[1]*0.98, 0.71, 'Good', 
+                   ha='right', va='bottom', fontsize=10, color='orange', alpha=0.7,
+                   bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8))
+            ax.axhline(y=0.5, color='red', linestyle=':', alpha=0.3, linewidth=2)
+            ax.text(ax.get_xlim()[1]*0.98, 0.51, 'Fair', 
+                   ha='right', va='bottom', fontsize=10, color='red', alpha=0.7,
+                   bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8))
+            
+            # Formatting
+            ax.set_xlabel('Rank (Number of Components)', fontsize=14, fontweight='bold')
+            ax.set_ylabel('Synthetic Factor Match Score', fontsize=14, fontweight='bold')
+            ax.set_title('Combined Elbow Plot: Synthetic FMS Across All Random States\n' +
+                        'Look for the elbow where marginal gains diminish',
+                        fontsize=15, fontweight='bold', pad=20)
+            ax.grid(True, alpha=0.3, linestyle='--')
+            ax.legend(loc='best', fontsize=10, framealpha=0.95, 
+                     ncol=2 if len(random_states) > 5 else 1)
+            ax.set_ylim([0, 1.05])
+            
+            # Add consensus indicator
+            if len(unique_optimal_ranks) == 1:
+                consensus_text = f"✓ CONSENSUS: All states agree on Rank {unique_optimal_ranks[0]}"
+                text_color = 'green'
+                text_bg = 'lightgreen'
+            else:
+                most_common = max(rank_counts, key=rank_counts.get)
+                pct = rank_counts[most_common] / len(random_states) * 100
+                consensus_text = f"⚠ VARIABLE: Most common Rank {most_common} ({pct:.0f}% agreement)"
+                text_color = 'orange'
+                text_bg = 'lightyellow'
+            
+            ax.text(0.5, 0.02, consensus_text,
+                   transform=ax.transAxes, ha='center', va='bottom',
+                   fontsize=12, fontweight='bold', color=text_color,
+                   bbox=dict(boxstyle='round,pad=0.7', facecolor=text_bg, 
+                            edgecolor=text_color, linewidth=2.5, alpha=0.95))
+            
+            plt.tight_layout()
+            elbow_combined_file = os.path.join(comparison_dir, 'elbow_plot_combined_all_states.png')
+            plt.savefig(elbow_combined_file, dpi=300, bbox_inches='tight')
+            print(f"✓ Saved combined elbow plot to: {elbow_combined_file}")
+            plt.show()
+            plt.close()
+            
+            print(f"\n{'='*60}")
+            print("ELBOW PLOT GENERATION COMPLETE")
+            print(f"{'='*60}")
+            print(f"Generated plots:")
+            print(f"  1. Individual elbow plots: {elbow_individual_file}")
+            print(f"  2. Combined elbow plot: {elbow_combined_file}")
+            print(f"\nUse these plots to identify the optimal rank where:")
+            print(f"  • Marginal gains in FMS become small")
+            print(f"  • The curve flattens (diminishing returns)")
+            print(f"  • Trade-off between model complexity and performance")
+            print(f"{'='*60}\n")
 
-print(f"\nSYNTHETIC FMS ELBOW PLOT GENERATION COMPLETE")
+print(f"\nSYNTHETIC FMS PLOTTING COMPLETE")
 print(f"{'='*60}")
 ```
 
-### 1. Comparison Plots
+### 1. Synthetic FMS Plots for Rank Selection
 
 Located in `barnacle_factors/rank_comparison/`:
 
-- **`elbow_plot.png`** - Shows variance explained vs rank (MOST IMPORTANT)
-  - Look for the "elbow" where gains diminish
-  - Marginal gains are annotated on the plot
+**Elbow Plots (NEW - for rank selection):**
+- **`elbow_plot_combined_all_states.png`** - **MOST IMPORTANT FOR RANK SELECTION**
+  - Shows all random states together with mean curve
+  - Marginal gains annotated on mean curve
+  - Look for where the curve flattens (diminishing returns)
+  - Quality thresholds marked (Excellent > 0.9, Good > 0.7, Fair > 0.5)
   
+- **`elbow_plots_by_random_state.png`** - Individual elbow plots
+  - Separate subplot for each random initialization
+  - Check consistency of elbow position across random states
+  - Marginal gains annotated for each state
+
+**FMS Comparison Plots:**
+- **`synthetic_fms_by_random_state.png`** - Line plot of FMS curves
+- **`synthetic_fms_heatmap.png`** - Heatmap showing rank vs random state
+- **`optimal_rank_frequency.png`** - Bar plot of how often each rank is optimal
+
+**Legacy Variance Plots:**
+- **`elbow_plot.png`** - Shows variance explained vs rank (from original comparison)
 - **`rank_comparison_summary.png`** - 6-panel overview
 - **`loss_trajectories.png`** - Convergence speed comparison
 
@@ -2532,7 +4987,13 @@ File: `barnacle_factors/rank_comparison/rank_comparison_metrics.csv`
 
 Contains all quantitative metrics for comparison.
 
-### 3. Individual Rank Results
+### 3. FMS Results Table
+
+File: `barnacle_factors/rank_comparison/synthetic_fms_all_random_states.csv`
+
+Contains synthetic FMS scores for all (rank, random_state) combinations.
+
+### 4. Individual Rank Results
 
 Each rank gets its own directory (`rank_05/`, `rank_10/`, etc.) with full factor matrices.
 
@@ -2777,6 +5238,334 @@ else:
     plt.close()
     
     print(f"\nAll comparison plots saved to: {comparison_dir}")
+```
+
+### Plot Comprehensive Methods Comparison
+
+This chunk creates a comprehensive side-by-side comparison of all three rank selection methods:
+1. Dissertation-validated Cross-Validation (PRIMARY - validated on 100 simulations)
+2. Synthetic FMS (SUPPLEMENTARY - alternative validation)
+3. Variance Explained (SUPPLEMENTARY - heuristic inspection)
+
+```{python plot-methods-comparison, eval=FALSE}
+# ===========================================
+# COMPREHENSIVE RANK SELECTION METHODS COMPARISON
+# Compares all three approaches side-by-side
+# ===========================================
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
+import numpy as np
+import json
+import os
+
+print("\n" + "="*60)
+print("COMPREHENSIVE RANK SELECTION METHODS COMPARISON")
+print("="*60)
+
+# Initialize figure
+fig = plt.figure(figsize=(18, 12))
+gs = fig.add_gridspec(3, 3, hspace=0.3, wspace=0.3)
+
+fig.suptitle('Comprehensive Rank Selection: Comparing Three Methods', 
+             fontsize=18, fontweight='bold', y=0.98)
+
+# ===========================================
+# METHOD 1: DISSERTATION CV-SSE (TOP ROW)
+# ===========================================
+if 'cv_rank_results' in locals() and cv_rank_results is not None:
+    cv_data = cv_rank_results[cv_rank_results['n_successful_folds'] == len(replicate_groups)].copy()
+    
+    if len(cv_data) > 0:
+        # Plot 1A: CV-SSE
+        ax1a = fig.add_subplot(gs[0, 0])
+        ax1a.errorbar(cv_data['rank'], cv_data['mean_cv_sse'],
+                     yerr=cv_data['std_cv_sse'],
+                     marker='o', markersize=8, linewidth=2.5,
+                     capsize=5, color='steelblue', ecolor='lightblue')
+        
+        if 'optimal_rank_cv' in locals() and optimal_rank_cv is not None:
+            opt_data = cv_data[cv_data['rank'] == optimal_rank_cv]
+            if len(opt_data) > 0:
+                ax1a.plot(optimal_rank_cv, opt_data['mean_cv_sse'].values[0],
+                         '*', markersize=22, color='red', 
+                         markeredgecolor='darkred', markeredgewidth=2, zorder=10)
+                ax1a.axvline(x=optimal_rank_cv, color='red', 
+                            linestyle='--', alpha=0.5, linewidth=2)
+        
+        ax1a.set_xlabel('Rank', fontsize=11, fontweight='bold')
+        ax1a.set_ylabel('CV-SSE', fontsize=11, fontweight='bold')
+        ax1a.set_title('Method 1A: Cross-Validated SSE\n(Dissertation-Validated)', 
+                      fontsize=11, fontweight='bold', color='darkgreen')
+        ax1a.grid(True, alpha=0.3)
+        ax1a.ticklabel_format(style='scientific', axis='y', scilimits=(0,0))
+        
+        # Plot 1B: Normalized CV-SSE
+        ax1b = fig.add_subplot(gs[0, 1])
+        min_sse = cv_data['mean_cv_sse'].min()
+        cv_data['norm_sse'] = cv_data['mean_cv_sse'] / min_sse
+        
+        ax1b.plot(cv_data['rank'], cv_data['norm_sse'],
+                 'o-', linewidth=2.5, markersize=8, color='darkgreen')
+        ax1b.axhline(y=1.0, color='red', linestyle='--', alpha=0.5, linewidth=2)
+        
+        if 'optimal_rank_cv' in locals() and optimal_rank_cv is not None:
+            opt_data = cv_data[cv_data['rank'] == optimal_rank_cv]
+            if len(opt_data) > 0:
+                ax1b.plot(optimal_rank_cv, opt_data['norm_sse'].values[0],
+                         '*', markersize=22, color='red',
+                         markeredgecolor='darkred', markeredgewidth=2, zorder=10)
+                ax1b.axvline(x=optimal_rank_cv, color='red',
+                            linestyle='--', alpha=0.5, linewidth=2)
+        
+        ax1b.set_xlabel('Rank', fontsize=11, fontweight='bold')
+        ax1b.set_ylabel('Normalized CV-SSE', fontsize=11, fontweight='bold')
+        ax1b.set_title('Method 1B: Relative CV-SSE\n(Min = 1.0)', 
+                      fontsize=11, fontweight='bold', color='darkgreen')
+        ax1b.grid(True, alpha=0.3)
+        
+        # Plot 1C: Method 1 Summary
+        ax1c = fig.add_subplot(gs[0, 2])
+        ax1c.axis('off')
+        
+        summary1 = "METHOD 1: DISSERTATION CV\n"
+        summary1 += "="*30 + "\n\n"
+        summary1 += "Status: PRIMARY METHOD\n"
+        summary1 += "Validation: ✓ Tested\n\n"
+        
+        if 'optimal_rank_cv' in locals() and optimal_rank_cv is not None:
+            summary1 += f"Optimal Rank: {optimal_rank_cv}\n"
+            opt_data = cv_data[cv_data['rank'] == optimal_rank_cv]
+            if len(opt_data) > 0:
+                sse = opt_data['mean_cv_sse'].values[0]
+                summary1 += f"CV-SSE: {sse:.2e}\n\n"
+        
+        summary1 += "Criterion: Min CV-SSE\n"
+        summary1 += f"CV Folds: {len(replicate_groups)}\n"
+        summary1 += "Reference: Blaskowski\n"
+        summary1 += "           (2024)\n\n"
+        summary1 += "Validated:\n"
+        summary1 += "  • 86% accuracy\n"
+        summary1 += "  • 100 simulations\n"
+        summary1 += "  • 10:1 noise ratio\n\n"
+        summary1 += "★ RECOMMENDED ★"
+        
+        ax1c.text(0.05, 0.95, summary1,
+                 transform=ax1c.transAxes,
+                 verticalalignment='top',
+                 fontsize=10,
+                 family='monospace',
+                 bbox=dict(boxstyle='round', facecolor='lightgreen', alpha=0.4))
+else:
+    # No CV results
+    for i in range(3):
+        ax = fig.add_subplot(gs[0, i])
+        ax.text(0.5, 0.5, 'CV Results Not Available\nRun run-cv-rank-selection',
+               ha='center', va='center', fontsize=12, color='gray')
+        ax.axis('off')
+
+# ===========================================
+# METHOD 2: SYNTHETIC FMS (MIDDLE ROW)
+# ===========================================
+# Check if FMS results exist
+fms_comparison_file = os.path.join(output_dir, 'rank_comparison', 'fms_comparison_results.json')
+if os.path.exists(fms_comparison_file):
+    with open(fms_comparison_file, 'r') as f:
+        fms_results = json.load(f)
+    
+    # Plot 2A: Mean FMS
+    ax2a = fig.add_subplot(gs[1, 0])
+    ranks_fms = [int(r) for r in fms_results.keys()]
+    mean_fms = [fms_results[str(r)]['mean_fms'] for r in ranks_fms]
+    std_fms = [fms_results[str(r)]['std_fms'] for r in ranks_fms]
+    
+    ax2a.errorbar(ranks_fms, mean_fms, yerr=std_fms,
+                 marker='o', markersize=8, linewidth=2.5,
+                 capsize=5, color='purple', ecolor='lavender')
+    
+    if 'optimal_rank_fms' in locals() and optimal_rank_fms is not None:
+        if str(optimal_rank_fms) in fms_results:
+            opt_fms = fms_results[str(optimal_rank_fms)]['mean_fms']
+            ax2a.plot(optimal_rank_fms, opt_fms,
+                     '*', markersize=22, color='red',
+                     markeredgecolor='darkred', markeredgewidth=2, zorder=10)
+            ax2a.axvline(x=optimal_rank_fms, color='red',
+                        linestyle='--', alpha=0.5, linewidth=2)
+    
+    ax2a.set_xlabel('Rank', fontsize=11, fontweight='bold')
+    ax2a.set_ylabel('Mean FMS', fontsize=11, fontweight='bold')
+    ax2a.set_title('Method 2A: Synthetic FMS\n(Alternative Validation)', 
+                  fontsize=11, fontweight='bold', color='purple')
+    ax2a.grid(True, alpha=0.3)
+    ax2a.set_ylim([0, 1.05])
+    
+    # Plot 2B: FMS Stability
+    ax2b = fig.add_subplot(gs[1, 1])
+    cv_fms = [fms_results[str(r)]['std_fms'] / (fms_results[str(r)]['mean_fms'] + 1e-10) 
+              for r in ranks_fms]
+    
+    ax2b.bar(ranks_fms, cv_fms, color='purple', alpha=0.6)
+    
+    if 'optimal_rank_fms' in locals() and optimal_rank_fms is not None:
+        ax2b.axvline(x=optimal_rank_fms, color='red',
+                    linestyle='--', linewidth=2, alpha=0.7)
+    
+    ax2b.set_xlabel('Rank', fontsize=11, fontweight='bold')
+    ax2b.set_ylabel('CV (Std/Mean)', fontsize=11, fontweight='bold')
+    ax2b.set_title('Method 2B: FMS Stability\n(Lower = more stable)', 
+                  fontsize=11, fontweight='bold', color='purple')
+    ax2b.grid(True, alpha=0.3, axis='y')
+    
+    # Plot 2C: Method 2 Summary
+    ax2c = fig.add_subplot(gs[1, 2])
+    ax2c.axis('off')
+    
+    summary2 = "METHOD 2: SYNTHETIC FMS\n"
+    summary2 += "="*30 + "\n\n"
+    summary2 += "Status: SUPPLEMENTARY\n"
+    summary2 += "Validation: Alternative\n\n"
+    
+    if 'optimal_rank_fms' in locals() and optimal_rank_fms is not None:
+        summary2 += f"Optimal Rank: {optimal_rank_fms}\n"
+        if str(optimal_rank_fms) in fms_results:
+            fms = fms_results[str(optimal_rank_fms)]['mean_fms']
+            summary2 += f"Mean FMS: {fms:.3f}\n\n"
+    
+    summary2 += "Criterion: Max FMS\n"
+    summary2 += f"Random States: {fms_results[str(ranks_fms[0])]['n_states']}\n"
+    summary2 += "Approach: Synthetic\n"
+    summary2 += "          data test\n\n"
+    summary2 += "Note: Alternative\n"
+    summary2 += "validation method,\n"
+    summary2 += "not used in\n"
+    summary2 += "dissertation."
+    
+    ax2c.text(0.05, 0.95, summary2,
+             transform=ax2c.transAxes,
+             verticalalignment='top',
+             fontsize=10,
+             family='monospace',
+             bbox=dict(boxstyle='round', facecolor='lavender', alpha=0.4))
+else:
+    # No FMS results
+    for i in range(3):
+        ax = fig.add_subplot(gs[1, i])
+        ax.text(0.5, 0.5, 'FMS Results Not Available',
+               ha='center', va='center', fontsize=12, color='gray')
+        ax.axis('off')
+
+# ===========================================
+# METHOD 3: VARIANCE EXPLAINED (BOTTOM ROW)
+# ===========================================
+comparison_metrics_file = os.path.join(output_dir, 'rank_comparison', 'rank_comparison_metrics.csv')
+if os.path.exists(comparison_metrics_file):
+    var_exp_data = pd.read_csv(comparison_metrics_file)
+    
+    # Plot 3A: Variance Explained
+    ax3a = fig.add_subplot(gs[2, 0])
+    ax3a.plot(var_exp_data['Rank'], var_exp_data['variance_explained'],
+             'o-', linewidth=2.5, markersize=8, color='coral')
+    
+    ax3a.axhline(y=0.8, color='green', linestyle='--', alpha=0.5, 
+                linewidth=2, label='80% (excellent)')
+    ax3a.axhline(y=0.6, color='orange', linestyle='--', alpha=0.5,
+                linewidth=2, label='60% (good)')
+    
+    if 'optimal_rank_variance' in locals() and optimal_rank_variance is not None:
+        opt_var = var_exp_data[var_exp_data['Rank'] == optimal_rank_variance]
+        if len(opt_var) > 0:
+            ax3a.plot(optimal_rank_variance, opt_var['variance_explained'].values[0],
+                     '*', markersize=22, color='red',
+                     markeredgecolor='darkred', markeredgewidth=2, zorder=10)
+            ax3a.axvline(x=optimal_rank_variance, color='red',
+                        linestyle='--', alpha=0.5, linewidth=2)
+    
+    ax3a.set_xlabel('Rank', fontsize=11, fontweight='bold')
+    ax3a.set_ylabel('Variance Explained', fontsize=11, fontweight='bold')
+    ax3a.set_title('Method 3A: Variance Explained\n(Heuristic Elbow)', 
+                  fontsize=11, fontweight='bold', color='coral')
+    ax3a.grid(True, alpha=0.3)
+    ax3a.legend(fontsize=9)
+    ax3a.set_ylim([0, 1.05])
+    
+    # Plot 3B: Marginal Gains
+    ax3b = fig.add_subplot(gs[2, 1])
+    
+    if len(var_exp_data) > 1:
+        ranks_var = var_exp_data['Rank'].values
+        var_exp_vals = var_exp_data['variance_explained'].values
+        marginal_gains = np.diff(var_exp_vals)
+        
+        colors = ['green' if g > 0.05 else 'orange' if g > 0.02 else 'red' 
+                 for g in marginal_gains]
+        
+        ax3b.bar(ranks_var[1:], marginal_gains, color=colors, alpha=0.7)
+        ax3b.axhline(y=0.02, color='orange', linestyle='--', alpha=0.5, 
+                    linewidth=2, label='2% threshold')
+        
+        if 'optimal_rank_variance' in locals() and optimal_rank_variance is not None:
+            ax3b.axvline(x=optimal_rank_variance, color='red',
+                        linestyle='--', linewidth=2, alpha=0.7)
+        
+        ax3b.set_xlabel('Rank', fontsize=11, fontweight='bold')
+        ax3b.set_ylabel('Marginal Gain', fontsize=11, fontweight='bold')
+        ax3b.set_title('Method 3B: Diminishing Returns\n(Δ Variance per rank)', 
+                      fontsize=11, fontweight='bold', color='coral')
+        ax3b.grid(True, alpha=0.3, axis='y')
+        ax3b.legend(fontsize=9)
+    
+    # Plot 3C: Method 3 Summary
+    ax3c = fig.add_subplot(gs[2, 2])
+    ax3c.axis('off')
+    
+    summary3 = "METHOD 3: VARIANCE\n"
+    summary3 += "="*30 + "\n\n"
+    summary3 += "Status: SUPPLEMENTARY\n"
+    summary3 += "Validation: None\n\n"
+    
+    if 'optimal_rank_variance' in locals() and optimal_rank_variance is not None:
+        summary3 += f"Suggested Rank: {optimal_rank_variance}\n"
+        opt_var = var_exp_data[var_exp_data['Rank'] == optimal_rank_variance]
+        if len(opt_var) > 0:
+            var = opt_var['variance_explained'].values[0]
+            summary3 += f"Var Explained: {var:.1%}\n\n"
+    
+    summary3 += "Criterion: Elbow\n"
+    summary3 += "Approach: Visual\n"
+    summary3 += "          inspection\n\n"
+    summary3 += "Note: Heuristic\n"
+    summary3 += "method, subjective\n"
+    summary3 += "interpretation.\n\n"
+    summary3 += "Not independently\n"
+    summary3 += "validated."
+    
+    ax3c.text(0.05, 0.95, summary3,
+             transform=ax3c.transAxes,
+             verticalalignment='top',
+             fontsize=10,
+             family='monospace',
+             bbox=dict(boxstyle='round', facecolor='mistyrose', alpha=0.4))
+else:
+    # No variance data
+    for i in range(3):
+        ax = fig.add_subplot(gs[2, i])
+        ax.text(0.5, 0.5, 'Variance Data Not Available',
+               ha='center', va='center', fontsize=12, color='gray')
+        ax.axis('off')
+
+# Save figure
+plt.tight_layout()
+comparison_plot_file = os.path.join(output_dir, 'rank_comparison', 
+                                   'comprehensive_methods_comparison.png')
+plt.savefig(comparison_plot_file, dpi=300, bbox_inches='tight')
+print(f"\n✓ Comprehensive comparison plot saved to:")
+print(f"  {comparison_plot_file}")
+
+plt.show()
+plt.close()
+
+print("="*60)
 ```
 
 
