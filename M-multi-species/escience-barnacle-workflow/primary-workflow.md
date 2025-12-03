@@ -127,6 +127,17 @@ This script performs **tensor decomposition analysis** on multi-species time-ser
 **Location:** Lines ~3100-3250
 
 ```python
+ranks_to_test = [5, 8, 10, 12, 15, 20, 25, 35, 45, 55, 65, 75]
+for test_rank in sorted(ranks_to_test):
+    result = run_single_rank_decomposition(
+        tensor=tensor_3d,
+        rank=test_rank,
+        lambdas=[0.1, 0.0, 0.1],
+        n_iter_max=10000
+    )
+```
+
+```python
 # Calculate variance explained
 total_variance = np.nanvar(tensor_filled)
 reconstruction_error = np.nansum((tensor_filled - reconstructed) ** 2)
