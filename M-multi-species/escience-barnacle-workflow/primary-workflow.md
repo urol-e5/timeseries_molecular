@@ -107,7 +107,18 @@ This script performs **tensor decomposition analysis** on multi-species time-ser
 
 ## SAM'S METHOD
 
-### 1. Full Dissertation Grid Search Function
+**Tensor Structure:** `genes × combined_samples × timepoints`
+
+- **Dimension 1 (Genes):** 9,801 ortholog groups
+- **Dimension 2 (Samples):** 27 colonies (10 apul + 9 peve + 8 ptua)
+  - Samples combined across species in a single dimension
+  - Each colony represented by 4 timepoint measurements
+  - Species identity tracked in metadata mapping
+- **Dimension 3 (Timepoints):** 4 measurement times (TP1-TP4)
+
+**Final Tensor Shape:** `(9801, 27, 4)` = ~1.06M data points
+
+### 1.Grid Search Function
 
 Code:
 
