@@ -118,11 +118,25 @@ This script performs **tensor decomposition analysis** on multi-species time-ser
 
 **Final Tensor Shape:** `(9801, 27, 4)` = ~1.06M data points
 
-### 1.Grid Search Function
+### Ideal Rank Determination Approaches
 
-Code:
+#### Variance explained
 
-[`M-multi-species/scripts/13.00-multiomics-barnacle.Rmd`](https://github.com/urol-e5/timeseries_molecular/blob/main/M-multi-species/scripts/13.00-multiomics-barnacle.Rmd)
+**Function:** `run_single_rank_decomposition()`
+
+**Location:** Lines ~3100-3250
+
+```python
+# Calculate variance explained
+total_variance = np.nanvar(tensor_filled)
+reconstruction_error = np.nansum((tensor_filled - reconstructed) ** 2)
+variance_explained = 1 - (reconstruction_error / (total_variance * tensor_filled.size))
+```
+
+<img width="1475" height="881" alt="image" src="https://github.com/user-attachments/assets/4c084473-80a8-4759-9eed-c02236c25353" />
+
+
+#### Grid Search
 
 **Function:** `dissertation_grid_search_cv()`
 
