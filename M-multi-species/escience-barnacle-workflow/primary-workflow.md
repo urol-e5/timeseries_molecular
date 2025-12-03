@@ -102,3 +102,67 @@ This script performs **tensor decomposition analysis** on multi-species time-ser
 ## Barnacle: Rank Determination
 
 ## Barnacle: Optimization
+
+---
+
+## SAM'S METHOD
+
+### 1. Full Dissertation Grid Search Function
+
+**Function:** `dissertation_grid_search_cv()`
+
+**Location:** Lines ~1360-1750 in `13.00-multiomics-barnacle.Rmd`
+
+**Implementation Details:**
+
+```python
+dissertation_grid_search_cv(
+    tensor,
+    replicate_groups,
+    rank_range=[5, 10, 15, 20, 25, 30],
+    lambda_values=[0.0, 0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0],
+    n_iter_max=10000,
+    random_state=42
+)
+```
+
+**What it does:**
+
+1. **Grid Search**: Tests ALL rank × lambda combinations
+   - For each combination (R, λ):
+     - Fits model to each CV fold (leave-one-group-out)
+     - Calculates SSE on held-out data
+     - Stores decomposition for FMS calculation
+
+2. **SSE Calculation**: 
+   - Each fitted model evaluated against ALL held-out groups
+   - Creates cross-validated SSE scores (as dissertation describes)
+
+3. **FMS Calculation**:
+   - Pairwise Factor Match Score between successful fold models
+   - Compares gene and time factors only (sample factors have dimension mismatch)
+   - Creates cross-validated FMS scores (as dissertation describes)
+
+4. **Two-Stage Selection** (exact dissertation method):
+   - **Stage 1 - Rank Selection**: 
+     - Filter to λ=0.0 models only
+     - Select R at minimum mean CV-SSE
+   - **Stage 2 - Lambda Selection**:
+     - Filter to optimal rank only
+     - Find maximum FMS and its standard error
+     - Calculate 1SE threshold: `max_FMS - SE(max_FMS)`
+     - Select maximum λ where FMS ≥ threshold
+
+**Returns:**
+- `optimal_rank`: Selected rank from Stage 1
+- `optimal_lambda`: Selected lambda from Stage 2
+- `grid_results_df`: Full DataFrame with all combinations and metrics
+
+### RESULTS
+
+- Rank 35 identified as ideal rank
+  - Seems to select highest rank, since SSE appears to decrease with rank. Not useful
+
+  <img width="3572" height="1767" alt="image" src="https://github.com/user-attachments/assets/77708c54-9323-4fef-bc0d-edd3d72725e3" />
+
+
