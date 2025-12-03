@@ -109,6 +109,10 @@ This script performs **tensor decomposition analysis** on multi-species time-ser
 
 ### 1. Full Dissertation Grid Search Function
 
+Code:
+
+[`M-multi-species/scripts/13.00-multiomics-barnacle.Rmd`](https://github.com/urol-e5/timeseries_molecular/blob/main/M-multi-species/scripts/13.00-multiomics-barnacle.Rmd)
+
 **Function:** `dissertation_grid_search_cv()`
 
 **Location:** Lines ~1360-1750 in `13.00-multiomics-barnacle.Rmd`
