@@ -164,8 +164,23 @@ dissertation_grid_search_cv(
 
 ### RESULTS
 
-- Rank 35 identified as ideal rank
-  - Seems to select highest rank, since SSE appears to decrease with rank. Not useful
+**Rank Selection Details:**
+- Tested ranks 5-35 (7 values)
+- CV-SSE showed monotonic decrease across range
+- Rank 35 (highest tested) had lowest error
+- **IMPORTANT CAVEAT:** Monotonic decrease suggests true optimal rank may be higher than 35, or that a statistical significance criterion (1SE rule) should be applied to prefer lower ranks
+
+**Cross-Validation Performance:**
+| Rank | Mean CV-SSE | Std CV-SSE | Successful Folds |
+|------|-------------|------------|------------------|
+| 5    | 509,692     | 41,853     | 3/3              |
+| 10   | 495,049     | 29,922     | 3/3              |
+| 15   | 492,031     | 30,408     | 3/3              |
+| 20   | 491,723     | 29,053     | 3/3              |
+| 25   | 489,845     | 29,885     | 3/3              |
+| 30   | 489,372     | 28,991     | 3/3              |
+| **35** | **488,328** | **29,505** | **3/3**      |
+
 
   <img width="3572" height="1767" alt="image" src="https://github.com/user-attachments/assets/77708c54-9323-4fef-bc0d-edd3d72725e3" />
 
