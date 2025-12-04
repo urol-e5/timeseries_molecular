@@ -8,8 +8,8 @@ output:
     toc: yes
     toc_depth: 6
     toc_float: yes
-editor_options: 
-  chunk_output_type: console
+#editor_options: 
+ # chunk_output_type: console
 --- 
 
 # Set up 
@@ -286,6 +286,8 @@ module_colors <- labels2colors(net$colors)
 MEs           <- net$MEs
 # Order eigengenes by hierarchical clustering
 MEs           <- orderMEs(MEs)
+
+save(net, module_colors, module_labels, MEs, expr_mat, file = "M-multi-species/output/18-ortholog-wgcna/wgcna_ortho.rda")
 ```
 
 ```{r}
@@ -328,6 +330,8 @@ print(
     dplyr::slice_max(order_by = abs(cor), n = 5) %>%
     dplyr::ungroup()
 )
+
+save(mod_trait_pval,mod_trait_cor, mod_trait_tbl, trait_mat_plus, file = "M-multi-species/output/18-ortholog-wgcna/wgcna_mod_trait.rda")
 ```
 
 
@@ -345,7 +349,7 @@ gene_module_df <- tibble(
 )
 
 # Example: save gene lists per module color
-write_csv(gene_module_df, "M-multi-species/output/18-ortholog-wgcna/gene_module_assignments.csv")
+#write_csv(gene_module_df, "M-multi-species/output/18-ortholog-wgcna/gene_module_assignments.csv")
 
 #summarize number of genes in each module
 
@@ -523,7 +527,7 @@ combined <- kME_tbl %>%
   dplyr::select(group_id, module_label)%>%
   dplyr::rename(wgcna_module=module_label)
 
-write_csv(combined, file.path(out_base, "wgcna_ortholog_module_assignments.csv"))
+#write_csv(combined, file.path(out_base, "wgcna_ortholog_module_assignments.csv"))
 ```
 
 ## Plot eigengenes - combined 
