@@ -1780,6 +1780,12 @@ print("Ready to run complete rank × lambda grid search")
 
 ### Run full dissertation grid search
 
+**WORKFLOW NOTE**: This chunk saves results to files, allowing you to:
+1. Run grid search (this chunk) - may take hours
+2. Close notebook / R session
+3. Come back later
+4. Run visualization chunk independently (loads from files)
+
 ```{python run-dissertation-grid-search, eval=FALSE}
 # ===========================================
 # RUN FULL DISSERTATION GRID SEARCH
@@ -1907,30 +1913,69 @@ print("="*80)
 
 ### Visualize grid search results
 
+**INDEPENDENT CHUNK**: This chunk loads results from saved files and can be run:
+- Immediately after grid search completes
+- Hours/days later in a fresh R session
+- Multiple times to regenerate plots
+- Without needing the grid search to be in memory
+
+**Required files** (created by grid search chunk):
+- `dissertation_grid_search/full_grid_results.csv`
+- `dissertation_grid_search/optimal_parameters.json`
+
 ```{python plot-grid-search-results, eval=FALSE}
 # ===========================================
 # VISUALIZE FULL GRID SEARCH RESULTS
+# ===========================================
+# This chunk can be run independently after grid search completes
+# It loads results from saved files
 # ===========================================
 
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
+import pandas as pd
+import json
+import os
 
 print("="*80)
 print("CREATING GRID SEARCH VISUALIZATIONS")
 print("="*80)
 
-# Create output directory
+# Define output directory
 grid_search_dir = os.path.join(output_dir, 'dissertation_grid_search')
 
-if 'grid_results_df' not in locals() or grid_results_df is None:
-    print("ERROR: No grid search results available. Run grid search first.")
+# Check if results files exist
+results_file = os.path.join(grid_search_dir, 'full_grid_results.csv')
+params_file = os.path.join(grid_search_dir, 'optimal_parameters.json')
+
+if not os.path.exists(results_file):
+    print(f"ERROR: Grid search results file not found: {results_file}")
+    print("Please run the grid search chunk first.")
 else:
+    print(f"Loading results from: {results_file}")
+    
+    # Load grid search results from file
+    grid_results_df = pd.read_csv(results_file)
+    print(f"✓ Loaded {len(grid_results_df)} grid search results")
+    
+    # Load optimal parameters from file
+    if os.path.exists(params_file):
+        with open(params_file, 'r') as f:
+            optimal_params = json.load(f)
+        optimal_rank_grid = optimal_params['optimal_rank']
+        optimal_lambda_grid = optimal_params['optimal_lambda']
+        print(f"✓ Loaded optimal parameters: rank={optimal_rank_grid}, lambda={optimal_lambda_grid}")
+    else:
+        print("WARNING: Optimal parameters file not found. Plots will not show optimal selections.")
+        optimal_rank_grid = None
+        optimal_lambda_grid = None
+    
     # Clean data for plotting
     plot_df = grid_results_df.copy()
     plot_df = plot_df[~plot_df['mean_cv_sse'].isna()]
     
-    print(f"Plotting {len(plot_df)} combinations with valid results")
+    print(f"\nPlotting {len(plot_df)} combinations with valid results")
     
     # ============================================
     # Figure 1: SSE Heatmap (Rank × Lambda)
