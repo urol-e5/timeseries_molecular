@@ -101,12 +101,6 @@ This script performs **tensor decomposition analysis** on multi-species time-ser
 
 ## Barnacle: Rank Determination
 
-## Barnacle: Optimization
-
----
-
-## SAM'S METHOD
-
 **Tensor Structure:** `genes × combined_samples × timepoints`
 
 - **Dimension 1 (Genes):** 9,801 ortholog groups
@@ -122,9 +116,9 @@ This script performs **tensor decomposition analysis** on multi-species time-ser
 
 #### Variance explained
 
-**Function:** `run_single_rank_decomposition()`
+- Function: `run_single_rank_decomposition()`
 
-**Location:** Lines ~3100-3250
+- Location: Lines ~3100-3250
 
 ```python
 ranks_to_test = [5, 8, 10, 12, 15, 20, 25, 35, 45, 55, 65, 75]
@@ -149,11 +143,11 @@ variance_explained = 1 - (reconstruction_error / (total_variance * tensor_filled
 
 #### Grid Search
 
-**Function:** `dissertation_grid_search_cv()`
+- Function: `dissertation_grid_search_cv()`
 
-**Location:** Lines ~1360-1750 in `13.00-multiomics-barnacle.Rmd`
+- Location: Lines ~1360-1750 in `13.00-multiomics-barnacle.Rmd`
 
-**Implementation Details:**
+Implementation Details:
 
 ```python
 dissertation_grid_search_cv(
@@ -166,7 +160,7 @@ dissertation_grid_search_cv(
 )
 ```
 
-**What it does:**
+What it does:
 
 1. **Grid Search**: Tests ALL rank × lambda combinations
    - For each combination (R, λ):
@@ -219,5 +213,7 @@ dissertation_grid_search_cv(
 
 
   <img width="3572" height="1767" alt="image" src="https://github.com/user-attachments/assets/77708c54-9323-4fef-bc0d-edd3d72725e3" />
+
+## Barnacle: Optimization
 
 
