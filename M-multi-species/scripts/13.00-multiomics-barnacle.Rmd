@@ -1546,6 +1546,94 @@ def calculate_cv_sse(tensor, decomposition, train_indices, test_indices):
     return sse
 
 
+def _fit_single_model_combination(
+    R, lambda_val, train_tensor, test_tensor, tensor_filled,
+    train_indices, test_indices, boot_idx, boot_seed, n_iter_max
+):
+    """
+    Helper function to fit a single rank×lambda combination.
+    Used for parallel execution within bootstrap iterations.
+    
+    Parameters are intentionally simplified to avoid pickling issues.
+    """
+    try:
+        # Fit model on TRAINING data
+        model_train = SparseCP(
+            rank=R,
+            lambdas=[lambda_val, 0.0, lambda_val],
+            nonneg_modes=[0],
+            norm_constraint=True,
+            init='random',
+            tol=1e-5,
+            n_iter_max=n_iter_max,
+            random_state=boot_seed,
+            n_initializations=1
+        )
+        decomp_train = model_train.fit_transform(train_tensor, verbose=0)
+        
+        # Calculate SSE on TEST data
+        sse_test = calculate_cv_sse(tensor_filled, decomp_train, 
+                                   train_indices, test_indices)
+        
+        # Fit model on TEST data (for FMS calculation)
+        model_test = SparseCP(
+            rank=R,
+            lambdas=[lambda_val, 0.0, lambda_val],
+            nonneg_modes=[0],
+            norm_constraint=True,
+            init='random',
+            tol=1e-5,
+            n_iter_max=n_iter_max,
+            random_state=boot_seed + 1000,  # Different seed
+            n_initializations=1
+        )
+        decomp_test = model_test.fit_transform(test_tensor, verbose=0)
+        
+        # Calculate FMS between train and test models
+        try:
+            cp_train = (
+                decomp_train.weights,
+                [decomp_train.factors[0],  # genes
+                 decomp_train.factors[2]]  # time
+            )
+            cp_test = (
+                decomp_test.weights,
+                [decomp_test.factors[0],  # genes
+                 decomp_test.factors[2]]  # time
+            )
+            
+            fms = factor_match_score(cp_train, cp_test, return_permutation=False)
+        except Exception as e:
+            fms = np.nan
+        
+        return {
+            'bootstrap_iter': boot_idx,
+            'boot_seed': boot_seed,
+            'rank': R,
+            'lambda': lambda_val,
+            'sse_test': sse_test,
+            'fms': fms,
+            'n_train': len(train_indices),
+            'n_test': len(test_indices),
+            'converged': True,
+            'error': None
+        }
+        
+    except Exception as e:
+        return {
+            'bootstrap_iter': boot_idx,
+            'boot_seed': boot_seed,
+            'rank': R,
+            'lambda': lambda_val,
+            'sse_test': np.inf,
+            'fms': np.nan,
+            'n_train': len(train_indices),
+            'n_test': len(test_indices),
+            'converged': False,
+            'error': str(e)
+        }
+
+
 def split_half_bootstrap_grid_search(
     tensor,
     species_sample_map,
@@ -1556,13 +1644,15 @@ def split_half_bootstrap_grid_search(
     n_iter_max=10000,
     random_state=42,
     output_dir=None,
-    resume=True
+    resume=True,
+    n_jobs=-1
 ):
     """
     Split-half bootstrap grid search with repeated random splits.
     
     INCREMENTAL SAVING: Results saved after each bootstrap iteration.
     RESUME CAPABILITY: Can load existing results and continue from last iteration.
+    PARALLEL EXECUTION: Uses joblib to parallelize grid search within each bootstrap iteration.
     
     Recommended by dissertation author when you don't have enough replicates
     for separate training/test tensors.
@@ -1570,7 +1660,7 @@ def split_half_bootstrap_grid_search(
     Approach:
     1. For each bootstrap iteration:
        - Create stratified 50/50 train/test split (species-balanced)
-       - Fit models at all rank × lambda combinations on training set
+       - Fit models at all rank × lambda combinations ON PARALLEL (using joblib)
        - Evaluate on test set
        - SAVE RESULTS IMMEDIATELY to checkpoint file
     2. Aggregate results across bootstrap iterations
@@ -1602,6 +1692,9 @@ def split_half_bootstrap_grid_search(
     resume : bool
         If True and output_dir exists, load completed iterations and continue.
         If False, delete existing checkpoints and start fresh.
+    n_jobs : int
+        Number of parallel jobs for grid search within each bootstrap iteration.
+        -1 uses all available cores. 1 disables parallelization.
     
     Returns:
     --------
@@ -1615,6 +1708,7 @@ def split_half_bootstrap_grid_search(
         Raw results from each bootstrap iteration
     """
     import os
+    from joblib import Parallel, delayed
     
     print("="*80)
     print("SPLIT-HALF BOOTSTRAP GRID SEARCH")
@@ -1626,6 +1720,18 @@ def split_half_bootstrap_grid_search(
     print(f"Total combinations: {len(rank_range)} × {len(lambda_values)} = {len(rank_range) * len(lambda_values)}")
     print(f"Total models to fit: {len(rank_range) * len(lambda_values) * n_bootstrap * 2}")
     print(f"  ({n_bootstrap} bootstrap × 2 models per split × {len(rank_range) * len(lambda_values)} combinations)")
+    
+    # Parallel execution setup
+    if n_jobs == -1:
+        import multiprocessing
+        n_jobs_actual = multiprocessing.cpu_count()
+        print(f"Parallel execution: ENABLED ({n_jobs_actual} cores)")
+    elif n_jobs == 1:
+        n_jobs_actual = 1
+        print(f"Parallel execution: DISABLED (sequential)")
+    else:
+        n_jobs_actual = n_jobs
+        print(f"Parallel execution: ENABLED ({n_jobs_actual} cores)")
     
     # Setup incremental saving
     if output_dir:
@@ -1713,93 +1819,32 @@ def split_half_bootstrap_grid_search(
         train_tensor = tensor_filled[:, train_indices, :]
         test_tensor = tensor_filled[:, test_indices, :]
         
-        # Grid search over all rank × lambda combinations
-        for rank_idx, R in enumerate(rank_range):
-            for lambda_idx, lambda_val in enumerate(lambda_values):
-                combo_num = rank_idx * len(lambda_values) + lambda_idx + 1
-                total_combos = len(rank_range) * len(lambda_values)
-                
-                print(f"\n  [{combo_num}/{total_combos}] Rank={R}, Lambda={lambda_val}")
-                
-                try:
-                    # Fit model on TRAINING data
-                    model_train = SparseCP(
-                        rank=R,
-                        lambdas=[lambda_val, 0.0, lambda_val],
-                        nonneg_modes=[0],
-                        norm_constraint=True,
-                        init='random',
-                        tol=1e-5,
-                        n_iter_max=n_iter_max,
-                        random_state=boot_seed,
-                        n_initializations=1
-                    )
-                    decomp_train = model_train.fit_transform(train_tensor, verbose=0)
-                    
-                    # Calculate SSE on TEST data
-                    sse_test = calculate_cv_sse(tensor_filled, decomp_train, 
-                                               train_indices, test_indices)
-                    
-                    # Fit model on TEST data (for FMS calculation)
-                    model_test = SparseCP(
-                        rank=R,
-                        lambdas=[lambda_val, 0.0, lambda_val],
-                        nonneg_modes=[0],
-                        norm_constraint=True,
-                        init='random',
-                        tol=1e-5,
-                        n_iter_max=n_iter_max,
-                        random_state=boot_seed + 1000,  # Different seed
-                        n_initializations=1
-                    )
-                    decomp_test = model_test.fit_transform(test_tensor, verbose=0)
-                    
-                    # Calculate FMS between train and test models
-                    # Compare gene and time factors (sample factors have different dimensions)
-                    try:
-                        cp_train = (
-                            decomp_train.weights,
-                            [decomp_train.factors[0],  # genes
-                             decomp_train.factors[2]]  # time
-                        )
-                        cp_test = (
-                            decomp_test.weights,
-                            [decomp_test.factors[0],  # genes
-                             decomp_test.factors[2]]  # time
-                        )
-                        
-                        fms = factor_match_score(cp_train, cp_test, return_permutation=False)
-                    except Exception as e:
-                        print(f"    Warning: FMS calculation failed: {e}")
-                        fms = np.nan
-                    
-                    print(f"    ✓ SSE={sse_test:.2e}, FMS={fms:.4f}")
-                    
-                    iter_results.append({
-                        'bootstrap_iter': boot_idx,
-                        'boot_seed': boot_seed,
-                        'rank': R,
-                        'lambda': lambda_val,
-                        'sse_test': sse_test,
-                        'fms': fms,
-                        'n_train': len(train_indices),
-                        'n_test': len(test_indices),
-                        'converged': True
-                    })
-                    
-                except Exception as e:
-                    print(f"    ✗ Error: {e}")
-                    iter_results.append({
-                        'bootstrap_iter': boot_idx,
-                        'boot_seed': boot_seed,
-                        'rank': R,
-                        'lambda': lambda_val,
-                        'sse_test': np.inf,
-                        'fms': np.nan,
-                        'n_train': len(train_indices),
-                        'n_test': len(test_indices),
-                        'converged': False
-                    })
+        # Grid search over all rank × lambda combinations (PARALLEL)
+        print(f"\nRunning grid search with {n_jobs_actual} parallel job(s)...")
+        
+        # Create list of all combinations to process
+        combinations_to_process = [
+            (R, lambda_val)
+            for R in rank_range
+            for lambda_val in lambda_values
+        ]
+        
+        # Parallel execution of all rank×lambda combinations
+        iter_results = Parallel(n_jobs=n_jobs_actual, verbose=10)(
+            delayed(_fit_single_model_combination)(
+                R, lambda_val, train_tensor, test_tensor, tensor_filled,
+                train_indices, test_indices, boot_idx, boot_seed, n_iter_max
+            )
+            for R, lambda_val in combinations_to_process
+        )
+        
+        # Print summary of results
+        n_converged = sum(1 for r in iter_results if r['converged'])
+        n_failed = len(iter_results) - n_converged
+        print(f"\nCompleted {len(iter_results)} model fits:")
+        print(f"  ✓ Converged: {n_converged}")
+        if n_failed > 0:
+            print(f"  ✗ Failed: {n_failed}")
         
         # SAVE CHECKPOINT after completing this bootstrap iteration
         all_bootstrap_results.extend(iter_results)
@@ -2290,6 +2335,13 @@ print("="*80)
 - Bootstrap iterations assess model training consistency
 - Validates that results are reproducible regardless of which samples are used
 
+**Parallel Execution:**
+- Grid search within each bootstrap iteration runs in parallel using `joblib`
+- Set `n_jobs=-1` to use all available CPU cores (default)
+- Set `n_jobs=1` to disable parallelization (sequential execution)
+- Significantly reduces runtime on multi-core systems
+- Example: 56 models with 8 cores = ~7x faster than sequential
+
 **Incremental Saving:**
 - Results saved after each bootstrap iteration completes
 - If interrupted, can resume from last completed iteration
@@ -2298,7 +2350,7 @@ print("="*80)
 - Set `resume=False` to delete checkpoints and start fresh
 
 **Workflow:**
-1. Run this chunk (may take several hours depending on n_bootstrap)
+1. Run this chunk (runtime depends on cores available and n_bootstrap)
 2. If interrupted, re-run to resume from last checkpoint
 3. Final results automatically saved to aggregated files
 4. Visualization chunk loads from files independently
@@ -2329,12 +2381,14 @@ BOOTSTRAP_N_ITERATIONS = 10  # Number of random train/test splits
 BOOTSTRAP_TEST_FRACTION = 0.5  # 50/50 split
 BOOTSTRAP_N_ITER_MAX = 10000
 BOOTSTRAP_RANDOM_STATE = 42
+BOOTSTRAP_N_JOBS = -1  # Use all available cores (-1), or set to specific number (1 = sequential)
 
 print(f"\nConfiguration:")
 print(f"  Ranks: {BOOTSTRAP_RANK_RANGE}")
 print(f"  Lambdas: {BOOTSTRAP_LAMBDA_VALUES}")
 print(f"  Bootstrap iterations: {BOOTSTRAP_N_ITERATIONS}")
 print(f"  Train/test split: {int((1-BOOTSTRAP_TEST_FRACTION)*100)}/{int(BOOTSTRAP_TEST_FRACTION*100)}")
+print(f"  Parallel jobs: {BOOTSTRAP_N_JOBS} ({'all cores' if BOOTSTRAP_N_JOBS == -1 else 'cores' if BOOTSTRAP_N_JOBS > 1 else 'sequential'})")
 print("="*80)
 
 # Estimate runtime
@@ -2342,8 +2396,14 @@ total_models = len(BOOTSTRAP_RANK_RANGE) * len(BOOTSTRAP_LAMBDA_VALUES) * BOOTST
 print(f"\nEstimated workload:")
 print(f"  Total model fits: {total_models}")
 print(f"  ({len(BOOTSTRAP_RANK_RANGE)} ranks × {len(BOOTSTRAP_LAMBDA_VALUES)} lambdas × {BOOTSTRAP_N_ITERATIONS} bootstrap × 2 models per split)")
-print(f"  Estimated time: ~{total_models * 2 / 60:.1f}-{total_models * 5 / 60:.1f} minutes")
-print(f"    (assuming 2-5 min per model)")
+if BOOTSTRAP_N_JOBS == -1 or BOOTSTRAP_N_JOBS > 1:
+    import multiprocessing
+    n_cores = multiprocessing.cpu_count() if BOOTSTRAP_N_JOBS == -1 else BOOTSTRAP_N_JOBS
+    print(f"  Estimated time with {n_cores} cores: ~{total_models * 2 / 60 / n_cores:.1f}-{total_models * 5 / 60 / n_cores:.1f} minutes")
+    print(f"    (assuming 2-5 min per model, parallelized)")
+else:
+    print(f"  Estimated time (sequential): ~{total_models * 2 / 60:.1f}-{total_models * 5 / 60:.1f} minutes")
+    print(f"    (assuming 2-5 min per model)")
 print("="*80)
 print("\n⚠ NOTE: Set eval=TRUE above when ready to run")
 print("="*80)
@@ -2355,7 +2415,7 @@ start_time = time.time()
 bootstrap_dir = os.path.join(output_dir, 'bootstrap_grid_search')
 os.makedirs(bootstrap_dir, exist_ok=True)
 
-# Run split-half bootstrap grid search with incremental saving
+# Run split-half bootstrap grid search with incremental saving and parallel execution
 optimal_rank_boot, optimal_lambda_boot, results_df_boot, bootstrap_raw = split_half_bootstrap_grid_search(
     tensor=tensor_3d,
     species_sample_map=species_sample_map,
@@ -2366,7 +2426,8 @@ optimal_rank_boot, optimal_lambda_boot, results_df_boot, bootstrap_raw = split_h
     n_iter_max=BOOTSTRAP_N_ITER_MAX,
     random_state=BOOTSTRAP_RANDOM_STATE,
     output_dir=bootstrap_dir,  # Enable incremental saving
-    resume=True  # Resume from existing checkpoints if interrupted
+    resume=True,  # Resume from existing checkpoints if interrupted
+    n_jobs=BOOTSTRAP_N_JOBS  # Parallel execution
 )
 
 elapsed_time = time.time() - start_time
