@@ -1180,11 +1180,19 @@ Both approaches implement this logic, but the grid search does it with full join
 
 ---
 
-### Identify biological replicate groups
+### [LEGACY] Identify biological replicate groups
+
+**NOTE: This approach is NO LONGER USED. See "Split-Half Bootstrap Grid Search" below for current recommended approach.**
+
+The leave-one-out cross-validation approach below was replaced based on consultation with the dissertation author (Blaskowski). For limited replicate scenarios, split-half CV with bootstrap resampling provides more stable and interpretable parameter selection.
 
 ```{python identify-replicate-groups, eval=TRUE}
 # ===========================================
 # IDENTIFY BIOLOGICAL REPLICATE GROUPS
+# ===========================================
+# ⚠️ LEGACY CODE - NOT USED IN CURRENT ANALYSIS
+# This code supports the original leave-one-out CV approach.
+# Current approach uses split-half bootstrap (see below).
 # ===========================================
 # For cross-validation, we need to group samples that are biological replicates
 # 
@@ -1379,13 +1387,15 @@ print("SUGGESTED: Start with species-level CV for initial rank selection")
 print("="*80)
 ```
 
-### Full Dissertation Grid Search (Rank × Lambda)
+### [CURRENT] Split-Half Bootstrap Grid Search (RECOMMENDED)
 
 **APPROACH:** Following consultation with dissertation author, we implement:
 1. **Split-half cross-validation** (instead of leave-one-out)
 2. **Bootstrap resampling** (repeated random splits)
 3. **Stability assessment** across bootstrap iterations
-4. **Two-stage selection**: SSE for rank, FMS for lambda
+4. **Incremental checkpointing** (saves after each bootstrap iteration)
+5. **Resume capability** (continue from last checkpoint if interrupted)
+6. **Two-stage selection**: SSE for rank, FMS for lambda
 
 This approach is recommended when you don't have enough replicates to create completely independent training/test tensors.
 
@@ -1944,9 +1954,13 @@ def dissertation_grid_search_cv(
     random_state=42
 ):
     """
-    Full dissertation grid search: Test all rank × lambda combinations.
+    [LEGACY] Full dissertation grid search: Test all rank × lambda combinations.
     
-    Implementation of Blaskowski (2024) Section 1.2.3, page 20-21:
+    ⚠️ THIS FUNCTION IS NO LONGER USED IN CURRENT ANALYSIS
+    Replaced by split_half_bootstrap_grid_search() based on author consultation.
+    Preserved for reference and comparison purposes only.
+    
+    Original implementation of Blaskowski (2024) Section 1.2.3, page 20-21:
     "We fit a series of models to each replicate subtensor using a grid search 
      of different R and λ parameter values."
     
@@ -2254,15 +2268,18 @@ def dissertation_grid_search_cv(
 print("="*80)
 print("PARAMETER SELECTION FUNCTIONS LOADED")
 print("="*80)
-print("Available approaches:")
-print("  1. split_half_bootstrap_grid_search() - RECOMMENDED")
-print("     → Split-half CV with bootstrap resampling")
-print("     → Recommended by dissertation author for limited replicates")
-print("     → Assesses model training consistency")
+print("✓ CURRENT APPROACH (RECOMMENDED):")
+print("  - split_half_bootstrap_grid_search()")
+print("    → Split-half CV with bootstrap resampling")
+print("    → Incremental checkpointing & resume capability")
+print("    → Recommended by dissertation author for limited replicates")
+print("    → Assesses model training consistency")
 print("")
-print("  2. dissertation_grid_search_cv() - LEGACY")
-print("     → Leave-one-out cross-validation")
-print("     → Original dissertation approach")
+print("⚠ LEGACY APPROACHES (NOT USED):")
+print("  - dissertation_grid_search_cv()")
+print("    → Leave-one-out cross-validation")
+print("    → Original dissertation approach")
+print("    → Preserved for reference only")
 print("="*80)
 ```
 
