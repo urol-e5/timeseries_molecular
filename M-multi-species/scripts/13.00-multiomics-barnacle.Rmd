@@ -1457,10 +1457,16 @@ def create_stratified_split(species_sample_map, test_fraction=0.5, random_state=
 
 def calculate_cv_sse(tensor, decomposition, train_indices, test_indices):
     """
-    Calculate Sum of Squared Errors on test data.
+    Calculate Sum of Squared Errors on test data using tensorly's built-in functions.
     
     This reconstructs the tensor using factors learned from training data
     and evaluates SSE on held-out test data.
+    
+    Approach:
+    - Use gene and time factors from training decomposition (fixed)
+    - Fit sample factors for test set using least-squares (optimal projection)
+    - Reconstruct test tensor using tensorly's cp_to_tensor
+    - Calculate SSE using standard formula
     
     Parameters:
     -----------
@@ -1478,9 +1484,12 @@ def calculate_cv_sse(tensor, decomposition, train_indices, test_indices):
     sse : float
         Sum of squared errors on test data
     """
+    import tensorly as tl
+    from tensorly.tenalg import multi_mode_dot
+    
     # Extract factors from training
     gene_factors = decomposition.factors[0]  # genes × rank
-    sample_factors_train = decomposition.factors[1]  # train_samples × rank
+    sample_factors_train = decomposition.factors[1]  # train_samples × rank  
     time_factors = decomposition.factors[2]  # timepoints × rank
     weights = decomposition.weights  # rank
     
@@ -1489,26 +1498,40 @@ def calculate_cv_sse(tensor, decomposition, train_indices, test_indices):
     n_genes, n_test_samples, n_timepoints = test_tensor.shape
     rank = len(weights)
     
-    # For test samples, we need to fit sample factors while keeping gene and time factors fixed
-    # This is a simplified approach: use mean of training sample factors as proxy
-    # More sophisticated: solve least-squares for test sample factors
-    sample_factors_test = np.tile(
-        sample_factors_train.mean(axis=0, keepdims=True),
-        (n_test_samples, 1)
+    # Fit sample factors for test set using least-squares
+    # This finds optimal sample factors given fixed gene and time factors
+    # Solve: test_tensor ≈ gene_factors × sample_factors_test^T × time_factors
+    # Using tensorly's contraction: unfold along sample mode and solve
+    
+    # Unfold test tensor along sample mode (mode 1)
+    test_unfolded = tl.unfold(test_tensor, mode=1)  # n_test_samples × (n_genes * n_timepoints)
+    
+    # Compute Khatri-Rao product of gene and time factors
+    # This represents the "design matrix" for sample factors
+    kr_product = tl.tenalg.khatri_rao([gene_factors, time_factors])  # (n_genes * n_timepoints) × rank
+    
+    # Apply weights to Khatri-Rao product
+    kr_weighted = kr_product * weights[np.newaxis, :]  # Broadcast weights
+    
+    # Solve least-squares: sample_factors_test = test_unfolded @ kr_weighted @ (kr_weighted^T @ kr_weighted)^-1
+    # Simplified: use lstsq for numerical stability
+    sample_factors_test, residuals, rank_kr, s = np.linalg.lstsq(
+        kr_weighted, 
+        test_unfolded.T,  # Transpose to solve for each sample
+        rcond=None
     )
+    sample_factors_test = sample_factors_test.T  # n_test_samples × rank
     
-    # Reconstruct test tensor
-    reconstructed = np.zeros(test_tensor.shape)
-    for r in range(rank):
-        # Outer product: genes × test_samples × times
-        component = np.einsum('i,j,k->ijk',
-                            gene_factors[:, r],
-                            sample_factors_test[:, r],
-                            time_factors[:, r])
-        reconstructed += weights[r] * component
+    # Reconstruct test tensor using tensorly's cp_to_tensor
+    # This is the standard, validated reconstruction method
+    cp_tensor_test = tl.cp_tensor.CPTensor(
+        (weights, [gene_factors, sample_factors_test, time_factors])
+    )
+    reconstructed = tl.cp_to_tensor(cp_tensor_test)
     
-    # Calculate SSE
-    sse = np.sum((test_tensor - reconstructed) ** 2)
+    # Calculate SSE using standard formula
+    # SSE = sum of squared differences between observed and reconstructed
+    sse = tl.norm(test_tensor - reconstructed, 2) ** 2
     
     return sse
 
