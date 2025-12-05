@@ -1381,17 +1381,26 @@ print("="*80)
 
 ### Full Dissertation Grid Search (Rank × Lambda)
 
+**APPROACH:** Following consultation with dissertation author, we implement:
+1. **Split-half cross-validation** (instead of leave-one-out)
+2. **Bootstrap resampling** (repeated random splits)
+3. **Stability assessment** across bootstrap iterations
+4. **Two-stage selection**: SSE for rank, FMS for lambda
+
+This approach is recommended when you don't have enough replicates to create completely independent training/test tensors.
+
 ```{python dissertation-grid-search-functions, eval=TRUE}
 # ===========================================
-# FULL DISSERTATION GRID SEARCH
+# SPLIT-HALF BOOTSTRAP GRID SEARCH
 # Implementation of Blaskowski (2024) Section 1.2.3
+# Modified with dissertation author's recommendation
 # ===========================================
-# "We fit a series of models to each replicate subtensor using a grid search 
-#  of different R and λ parameter values. Six cross-validated SSE scores were 
-#  calculated for each unique set of parameters by comparing each fit model 
-#  against the two held out replicate subtensors. Three cross-validated FMS 
-#  scores were calculated for each parameter set by comparing the components 
-#  between each pair of replicate models."
+# Original: Leave-one-dataset-out CV with 3 datasets
+# Modified: Split-half CV with bootstrap resampling
+# 
+# Rationale: With limited replicates (27 colonies, 3 species),
+# split-half provides more stable train/test sets than LOOCV.
+# Bootstrap iterations assess model training consistency.
 # ===========================================
 
 from barnacle.decomposition import SparseCP
@@ -1399,6 +1408,52 @@ from tlviz.factor_tools import factor_match_score
 import numpy as np
 import pandas as pd
 from itertools import combinations
+
+
+def create_stratified_split(species_sample_map, test_fraction=0.5, random_state=None):
+    """
+    Create stratified train/test split ensuring species representation.
+    
+    Parameters:
+    -----------
+    species_sample_map : dict
+        Mapping of sample indices to species and sample_id
+    test_fraction : float
+        Fraction of samples to hold out for testing (default: 0.5 for split-half)
+    random_state : int or None
+        Random seed for reproducibility
+    
+    Returns:
+    --------
+    train_indices : list
+        Sample indices for training
+    test_indices : list
+        Sample indices for testing
+    """
+    if random_state is not None:
+        np.random.seed(random_state)
+    
+    # Group samples by species
+    species_samples = {}
+    for idx, info in species_sample_map.items():
+        species = info['species']
+        if species not in species_samples:
+            species_samples[species] = []
+        species_samples[species].append(idx)
+    
+    train_indices = []
+    test_indices = []
+    
+    # Split each species proportionally
+    for species, indices in species_samples.items():
+        indices = list(indices)
+        np.random.shuffle(indices)
+        
+        n_test = max(1, int(len(indices) * test_fraction))  # At least 1 per species
+        test_indices.extend(indices[:n_test])
+        train_indices.extend(indices[n_test:])
+    
+    return sorted(train_indices), sorted(test_indices)
 
 def calculate_cv_sse(tensor, decomposition, train_indices, test_indices):
     """
@@ -1456,6 +1511,332 @@ def calculate_cv_sse(tensor, decomposition, train_indices, test_indices):
     sse = np.sum((test_tensor - reconstructed) ** 2)
     
     return sse
+
+
+def split_half_bootstrap_grid_search(
+    tensor,
+    species_sample_map,
+    rank_range=[5, 10, 15, 20, 25, 30, 35, 40],
+    lambda_values=[0.0, 0.01, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0],
+    n_bootstrap=10,
+    test_fraction=0.5,
+    n_iter_max=10000,
+    random_state=42
+):
+    """
+    Split-half bootstrap grid search with repeated random splits.
+    
+    Recommended by dissertation author when you don't have enough replicates
+    for separate training/test tensors.
+    
+    Approach:
+    1. For each bootstrap iteration:
+       - Create stratified 50/50 train/test split (species-balanced)
+       - Fit models at all rank × lambda combinations on training set
+       - Evaluate on test set
+    2. Aggregate results across bootstrap iterations
+    3. Two-stage selection:
+       - Stage 1: Select rank at minimum mean CV-SSE (λ=0.0 only)
+       - Stage 2: Select lambda using FMS at optimal rank
+    
+    Parameters:
+    -----------
+    tensor : 3D array
+        Full tensor (genes × samples × timepoints)
+    species_sample_map : dict
+        Mapping of sample indices to species/sample metadata
+    rank_range : list
+        Ranks to test
+    lambda_values : list
+        Lambda values to test
+    n_bootstrap : int
+        Number of random train/test splits (default: 10)
+    test_fraction : float
+        Fraction of samples for testing (default: 0.5 for split-half)
+    n_iter_max : int
+        Maximum iterations for optimization
+    random_state : int
+        Base random seed (each bootstrap uses seed + iteration)
+    
+    Returns:
+    --------
+    optimal_rank : int
+        Selected rank (minimum mean CV-SSE at λ=0.0)
+    optimal_lambda : float
+        Selected lambda (maximum λ with FMS ≥ max_FMS - 1SE)
+    results_df : DataFrame
+        Full results with bootstrap statistics
+    bootstrap_results : list
+        Raw results from each bootstrap iteration
+    """
+    
+    print("="*80)
+    print("SPLIT-HALF BOOTSTRAP GRID SEARCH")
+    print("="*80)
+    print(f"Bootstrap iterations: {n_bootstrap}")
+    print(f"Train/test split: {int((1-test_fraction)*100)}/{int(test_fraction*100)}")
+    print(f"Ranks to test: {rank_range}")
+    print(f"Lambdas to test: {lambda_values}")
+    print(f"Total combinations: {len(rank_range)} × {len(lambda_values)} = {len(rank_range) * len(lambda_values)}")
+    print(f"Total models to fit: {len(rank_range) * len(lambda_values) * n_bootstrap * 2}")
+    print(f"  ({n_bootstrap} bootstrap × 2 models per split × {len(rank_range) * len(lambda_values)} combinations)")
+    print("="*80)
+    
+    # Handle missing values
+    tensor_filled = np.nan_to_num(tensor, nan=0.0)
+    
+    # Storage for all bootstrap iterations
+    all_bootstrap_results = []
+    
+    # Run bootstrap iterations
+    for boot_idx in range(n_bootstrap):
+        boot_seed = random_state + boot_idx
+        print(f"\n{'='*80}")
+        print(f"BOOTSTRAP ITERATION {boot_idx + 1}/{n_bootstrap} (seed={boot_seed})")
+        print("="*80)
+        
+        # Create stratified train/test split
+        train_indices, test_indices = create_stratified_split(
+            species_sample_map, 
+            test_fraction=test_fraction,
+            random_state=boot_seed
+        )
+        
+        print(f"Train samples: {len(train_indices)}, Test samples: {len(test_indices)}")
+        
+        # Count species in each split
+        train_species = {}
+        test_species = {}
+        for idx in train_indices:
+            sp = species_sample_map[idx]['species']
+            train_species[sp] = train_species.get(sp, 0) + 1
+        for idx in test_indices:
+            sp = species_sample_map[idx]['species']
+            test_species[sp] = test_species.get(sp, 0) + 1
+        
+        print(f"Train species: {train_species}")
+        print(f"Test species: {test_species}")
+        
+        train_tensor = tensor_filled[:, train_indices, :]
+        test_tensor = tensor_filled[:, test_indices, :]
+        
+        # Grid search over all rank × lambda combinations
+        for rank_idx, R in enumerate(rank_range):
+            for lambda_idx, lambda_val in enumerate(lambda_values):
+                combo_num = rank_idx * len(lambda_values) + lambda_idx + 1
+                total_combos = len(rank_range) * len(lambda_values)
+                
+                print(f"\n  [{combo_num}/{total_combos}] Rank={R}, Lambda={lambda_val}")
+                
+                try:
+                    # Fit model on TRAINING data
+                    model_train = SparseCP(
+                        rank=R,
+                        lambdas=[lambda_val, 0.0, lambda_val],
+                        nonneg_modes=[0],
+                        norm_constraint=True,
+                        init='random',
+                        tol=1e-5,
+                        n_iter_max=n_iter_max,
+                        random_state=boot_seed,
+                        n_initializations=1
+                    )
+                    decomp_train = model_train.fit_transform(train_tensor, verbose=0)
+                    
+                    # Calculate SSE on TEST data
+                    sse_test = calculate_cv_sse(tensor_filled, decomp_train, 
+                                               train_indices, test_indices)
+                    
+                    # Fit model on TEST data (for FMS calculation)
+                    model_test = SparseCP(
+                        rank=R,
+                        lambdas=[lambda_val, 0.0, lambda_val],
+                        nonneg_modes=[0],
+                        norm_constraint=True,
+                        init='random',
+                        tol=1e-5,
+                        n_iter_max=n_iter_max,
+                        random_state=boot_seed + 1000,  # Different seed
+                        n_initializations=1
+                    )
+                    decomp_test = model_test.fit_transform(test_tensor, verbose=0)
+                    
+                    # Calculate FMS between train and test models
+                    # Compare gene and time factors (sample factors have different dimensions)
+                    try:
+                        cp_train = (
+                            decomp_train.weights,
+                            [decomp_train.factors[0],  # genes
+                             decomp_train.factors[2]]  # time
+                        )
+                        cp_test = (
+                            decomp_test.weights,
+                            [decomp_test.factors[0],  # genes
+                             decomp_test.factors[2]]  # time
+                        )
+                        
+                        fms = factor_match_score(cp_train, cp_test, return_permutation=False)
+                    except Exception as e:
+                        print(f"    Warning: FMS calculation failed: {e}")
+                        fms = np.nan
+                    
+                    print(f"    ✓ SSE={sse_test:.2e}, FMS={fms:.4f}")
+                    
+                    all_bootstrap_results.append({
+                        'bootstrap_iter': boot_idx,
+                        'boot_seed': boot_seed,
+                        'rank': R,
+                        'lambda': lambda_val,
+                        'sse_test': sse_test,
+                        'fms': fms,
+                        'n_train': len(train_indices),
+                        'n_test': len(test_indices),
+                        'converged': True
+                    })
+                    
+                except Exception as e:
+                    print(f"    ✗ Error: {e}")
+                    all_bootstrap_results.append({
+                        'bootstrap_iter': boot_idx,
+                        'boot_seed': boot_seed,
+                        'rank': R,
+                        'lambda': lambda_val,
+                        'sse_test': np.inf,
+                        'fms': np.nan,
+                        'n_train': len(train_indices),
+                        'n_test': len(test_indices),
+                        'converged': False
+                    })
+    
+    # Convert to DataFrame
+    bootstrap_df = pd.DataFrame(all_bootstrap_results)
+    
+    # Calculate aggregate statistics across bootstrap iterations
+    print(f"\n{'='*80}")
+    print("AGGREGATING BOOTSTRAP RESULTS")
+    print("="*80)
+    
+    agg_results = []
+    for (R, lambda_val), group in bootstrap_df.groupby(['rank', 'lambda']):
+        valid_sse = group[group['converged']]['sse_test']
+        valid_fms = group[group['converged']]['fms'].dropna()
+        
+        agg_results.append({
+            'rank': R,
+            'lambda': lambda_val,
+            'mean_sse': valid_sse.mean() if len(valid_sse) > 0 else np.inf,
+            'std_sse': valid_sse.std() if len(valid_sse) > 0 else np.inf,
+            'se_sse': valid_sse.sem() if len(valid_sse) > 0 else np.inf,
+            'mean_fms': valid_fms.mean() if len(valid_fms) > 0 else np.nan,
+            'std_fms': valid_fms.std() if len(valid_fms) > 0 else np.nan,
+            'se_fms': valid_fms.sem() if len(valid_fms) > 0 else np.nan,
+            'n_converged': group['converged'].sum(),
+            'n_total': len(group)
+        })
+    
+    results_df = pd.DataFrame(agg_results)
+    
+    # ===========================================
+    # STAGE 1: SELECT RANK (λ=0.0 models only)
+    # ===========================================
+    print(f"\n{'='*80}")
+    print("STAGE 1: RANK SELECTION")
+    print("Criterion: Minimum mean SSE at λ=0.0")
+    print("="*80)
+    
+    lambda_zero_df = results_df[results_df['lambda'] == 0.0].copy()
+    
+    if len(lambda_zero_df) == 0:
+        print("ERROR: No λ=0.0 models found")
+        return None, None, results_df, all_bootstrap_results
+    
+    optimal_rank_idx = lambda_zero_df['mean_sse'].idxmin()
+    optimal_rank = int(lambda_zero_df.loc[optimal_rank_idx, 'rank'])
+    optimal_rank_sse = lambda_zero_df.loc[optimal_rank_idx, 'mean_sse']
+    optimal_rank_se = lambda_zero_df.loc[optimal_rank_idx, 'se_sse']
+    
+    print(f"\n✓ OPTIMAL RANK: {optimal_rank}")
+    print(f"  Mean SSE: {optimal_rank_sse:.2e} ± {optimal_rank_se:.2e}")
+    print(f"  (averaged across {n_bootstrap} bootstrap iterations)")
+    
+    print(f"\nAll λ=0.0 results:")
+    display_df = lambda_zero_df[['rank', 'mean_sse', 'se_sse', 'n_converged']].copy()
+    display_df = display_df.sort_values('mean_sse')
+    print(display_df.to_string(index=False))
+    
+    # ===========================================
+    # STAGE 2: SELECT LAMBDA (fixed rank)
+    # ===========================================
+    print(f"\n{'='*80}")
+    print("STAGE 2: LAMBDA SELECTION")
+    print("Criterion: Maximum λ where FMS ≥ (max_FMS - 1SE)")
+    print("="*80)
+    
+    fixed_rank_df = results_df[results_df['rank'] == optimal_rank].copy()
+    fixed_rank_df = fixed_rank_df[~fixed_rank_df['mean_fms'].isna()]
+    
+    if len(fixed_rank_df) == 0:
+        print("WARNING: No valid FMS scores at optimal rank")
+        optimal_lambda = 0.0
+    else:
+        max_fms_idx = fixed_rank_df['mean_fms'].idxmax()
+        max_fms = fixed_rank_df.loc[max_fms_idx, 'mean_fms']
+        max_fms_se = fixed_rank_df.loc[max_fms_idx, 'se_fms']
+        
+        threshold = max_fms - max_fms_se
+        
+        print(f"\nMax FMS: {max_fms:.4f} ± {max_fms_se:.4f}")
+        print(f"1SE Threshold: {threshold:.4f}")
+        
+        within_1se = fixed_rank_df[fixed_rank_df['mean_fms'] >= threshold]
+        
+        if len(within_1se) > 0:
+            optimal_lambda_idx = within_1se['lambda'].idxmax()
+            optimal_lambda = float(within_1se.loc[optimal_lambda_idx, 'lambda'])
+            optimal_fms = within_1se.loc[optimal_lambda_idx, 'mean_fms']
+            
+            print(f"\n✓ OPTIMAL LAMBDA: {optimal_lambda}")
+            print(f"  Mean FMS: {optimal_fms:.4f}")
+        else:
+            optimal_lambda = 0.0
+            print(f"\nWARNING: No lambda within 1SE, defaulting to 0.0")
+    
+    print(f"\n{'='*80}")
+    print("BOOTSTRAP STABILITY ASSESSMENT")
+    print("="*80)
+    
+    # Check coefficient of variation for optimal parameters
+    optimal_combo = bootstrap_df[
+        (bootstrap_df['rank'] == optimal_rank) & 
+        (bootstrap_df['lambda'] == optimal_lambda) &
+        (bootstrap_df['converged'])
+    ]
+    
+    if len(optimal_combo) > 0:
+        cv_sse = optimal_combo['sse_test'].std() / optimal_combo['sse_test'].mean()
+        cv_fms = optimal_combo['fms'].std() / optimal_combo['fms'].mean() if optimal_combo['fms'].notna().sum() > 0 else np.nan
+        
+        print(f"Optimal rank={optimal_rank}, lambda={optimal_lambda}:")
+        print(f"  SSE coefficient of variation: {cv_sse:.3f}")
+        print(f"  FMS coefficient of variation: {cv_fms:.3f}")
+        print(f"  Convergence rate: {len(optimal_combo)}/{n_bootstrap} ({len(optimal_combo)/n_bootstrap*100:.1f}%)")
+        
+        if cv_sse < 0.1:
+            print(f"  ✓ Excellent stability (CV < 0.1)")
+        elif cv_sse < 0.2:
+            print(f"  ✓ Good stability (CV < 0.2)")
+        else:
+            print(f"  ⚠ Variable results (CV > 0.2) - consider more bootstrap iterations")
+    
+    print(f"\n{'='*80}")
+    print("FINAL SELECTED PARAMETERS")
+    print("="*80)
+    print(f"✓ Rank: {optimal_rank}")
+    print(f"✓ Lambda: {optimal_lambda}")
+    print(f"  Based on {n_bootstrap} bootstrap iterations")
+    print("="*80)
+    
+    return optimal_rank, optimal_lambda, results_df, all_bootstrap_results
 
 
 def dissertation_grid_search_cv(
@@ -1774,11 +2155,354 @@ def dissertation_grid_search_cv(
     return optimal_rank, optimal_lambda, grid_df
 
 
-print("Full dissertation grid search functions loaded")
-print("Ready to run complete rank × lambda grid search")
+print("="*80)
+print("PARAMETER SELECTION FUNCTIONS LOADED")
+print("="*80)
+print("Available approaches:")
+print("  1. split_half_bootstrap_grid_search() - RECOMMENDED")
+print("     → Split-half CV with bootstrap resampling")
+print("     → Recommended by dissertation author for limited replicates")
+print("     → Assesses model training consistency")
+print("")
+print("  2. dissertation_grid_search_cv() - LEGACY")
+print("     → Leave-one-out cross-validation")
+print("     → Original dissertation approach")
+print("="*80)
 ```
 
-### Run full dissertation grid search
+### Run Split-Half Bootstrap Grid Search (RECOMMENDED)
+
+**RECOMMENDED APPROACH** based on consultation with dissertation author.
+
+**Why split-half with bootstrap?**
+- You don't have enough replicates to create independent train/test tensors
+- Split-half provides stable train/test sets (unlike leave-one-out)
+- Bootstrap iterations assess model training consistency
+- Validates that results are reproducible regardless of which samples are used
+
+**Workflow:**
+1. Run this chunk (may take several hours depending on n_bootstrap)
+2. Results automatically saved to files
+3. Visualization chunk loads from files independently
+
+```{python run-split-half-bootstrap, eval=FALSE}
+# ===========================================
+# RUN SPLIT-HALF BOOTSTRAP GRID SEARCH
+# ===========================================
+# Recommended by dissertation author for limited replicate scenarios
+# ===========================================
+
+print("="*80)
+print("SPLIT-HALF BOOTSTRAP PARAMETER SELECTION")
+print("="*80)
+
+# ============================================
+# CONFIGURE PARAMETERS
+# ============================================
+
+# Rank range to test
+BOOTSTRAP_RANK_RANGE = [5, 10, 15, 20, 25, 30, 35]
+
+# Lambda values to test
+BOOTSTRAP_LAMBDA_VALUES = [0.0, 0.01, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0]
+
+# Bootstrap parameters
+BOOTSTRAP_N_ITERATIONS = 10  # Number of random train/test splits
+BOOTSTRAP_TEST_FRACTION = 0.5  # 50/50 split
+BOOTSTRAP_N_ITER_MAX = 10000
+BOOTSTRAP_RANDOM_STATE = 42
+
+print(f"\nConfiguration:")
+print(f"  Ranks: {BOOTSTRAP_RANK_RANGE}")
+print(f"  Lambdas: {BOOTSTRAP_LAMBDA_VALUES}")
+print(f"  Bootstrap iterations: {BOOTSTRAP_N_ITERATIONS}")
+print(f"  Train/test split: {int((1-BOOTSTRAP_TEST_FRACTION)*100)}/{int(BOOTSTRAP_TEST_FRACTION*100)}")
+print("="*80)
+
+# Estimate runtime
+total_models = len(BOOTSTRAP_RANK_RANGE) * len(BOOTSTRAP_LAMBDA_VALUES) * BOOTSTRAP_N_ITERATIONS * 2
+print(f"\nEstimated workload:")
+print(f"  Total model fits: {total_models}")
+print(f"  ({len(BOOTSTRAP_RANK_RANGE)} ranks × {len(BOOTSTRAP_LAMBDA_VALUES)} lambdas × {BOOTSTRAP_N_ITERATIONS} bootstrap × 2 models per split)")
+print(f"  Estimated time: ~{total_models * 2 / 60:.1f}-{total_models * 5 / 60:.1f} minutes")
+print(f"    (assuming 2-5 min per model)")
+print("="*80)
+print("\n⚠ NOTE: Set eval=TRUE above when ready to run")
+print("="*80)
+
+import time
+start_time = time.time()
+
+# Run split-half bootstrap grid search
+optimal_rank_boot, optimal_lambda_boot, results_df_boot, bootstrap_raw = split_half_bootstrap_grid_search(
+    tensor=tensor_3d,
+    species_sample_map=species_sample_map,
+    rank_range=BOOTSTRAP_RANK_RANGE,
+    lambda_values=BOOTSTRAP_LAMBDA_VALUES,
+    n_bootstrap=BOOTSTRAP_N_ITERATIONS,
+    test_fraction=BOOTSTRAP_TEST_FRACTION,
+    n_iter_max=BOOTSTRAP_N_ITER_MAX,
+    random_state=BOOTSTRAP_RANDOM_STATE
+)
+
+elapsed_time = time.time() - start_time
+
+print(f"\n{'='*80}")
+print("BOOTSTRAP GRID SEARCH COMPLETE")
+print("="*80)
+print(f"Total time: {elapsed_time / 60:.1f} minutes")
+print(f"Time per model: {elapsed_time / total_models:.1f} seconds")
+print("="*80)
+
+# Save results
+bootstrap_dir = os.path.join(output_dir, 'bootstrap_grid_search')
+os.makedirs(bootstrap_dir, exist_ok=True)
+
+# Save aggregated results
+results_df_boot.to_csv(
+    os.path.join(bootstrap_dir, 'bootstrap_aggregated_results.csv'),
+    index=False
+)
+print(f"\n✓ Aggregated results saved to: bootstrap_aggregated_results.csv")
+
+# Save raw bootstrap data
+pd.DataFrame(bootstrap_raw).to_csv(
+    os.path.join(bootstrap_dir, 'bootstrap_raw_iterations.csv'),
+    index=False
+)
+print(f"✓ Raw bootstrap data saved to: bootstrap_raw_iterations.csv")
+
+# Save optimal parameters
+import json
+with open(os.path.join(bootstrap_dir, 'optimal_parameters.json'), 'w') as f:
+    json.dump({
+        'method': 'split_half_bootstrap',
+        'reference': 'Blaskowski 2024 (modified with author consultation)',
+        'optimal_rank': int(optimal_rank_boot) if optimal_rank_boot is not None else None,
+        'optimal_lambda': float(optimal_lambda_boot) if optimal_lambda_boot is not None else None,
+        'rank_range_tested': BOOTSTRAP_RANK_RANGE,
+        'lambda_values_tested': BOOTSTRAP_LAMBDA_VALUES,
+        'n_bootstrap_iterations': BOOTSTRAP_N_ITERATIONS,
+        'test_fraction': BOOTSTRAP_TEST_FRACTION,
+        'random_state': BOOTSTRAP_RANDOM_STATE,
+        'timestamp': pd.Timestamp.now().isoformat(),
+        'elapsed_minutes': elapsed_time / 60
+    }, f, indent=2)
+
+print(f"✓ Optimal parameters saved to: optimal_parameters.json")
+print(f"\n✓ All results saved to: {bootstrap_dir}/")
+print("="*80)
+```
+
+### Visualize Bootstrap Results
+
+```{python visualize-bootstrap-results, eval=FALSE}
+# ===========================================
+# VISUALIZE BOOTSTRAP GRID SEARCH RESULTS
+# ===========================================
+# This chunk loads from files, so can run independently
+# ===========================================
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
+import numpy as np
+import os
+import json
+
+bootstrap_dir = os.path.join(output_dir, 'bootstrap_grid_search')
+
+# Check if results exist
+results_file = os.path.join(bootstrap_dir, 'bootstrap_aggregated_results.csv')
+if not os.path.exists(results_file):
+    print("ERROR: Bootstrap results not found. Run the bootstrap grid search first.")
+else:
+    # Load results
+    results_df = pd.read_csv(results_file)
+    
+    # Load optimal parameters
+    with open(os.path.join(bootstrap_dir, 'optimal_parameters.json'), 'r') as f:
+        optimal_params = json.load(f)
+    
+    optimal_rank = optimal_params['optimal_rank']
+    optimal_lambda = optimal_params['optimal_lambda']
+    
+    print(f"Loaded bootstrap results:")
+    print(f"  Optimal rank: {optimal_rank}")
+    print(f"  Optimal lambda: {optimal_lambda}")
+    print(f"  Bootstrap iterations: {optimal_params['n_bootstrap_iterations']}")
+    
+    # Create visualization directory
+    fig_dir = os.path.join(bootstrap_dir, 'figures')
+    os.makedirs(fig_dir, exist_ok=True)
+    
+    # ========================================
+    # FIGURE 1: SSE Heatmap
+    # ========================================
+    fig, ax = plt.subplots(figsize=(12, 8))
+    
+    plot_df = results_df.pivot(index='rank', columns='lambda', values='mean_sse')
+    
+    sns.heatmap(plot_df, annot=True, fmt='.2e', cmap='YlOrRd_r',
+                cbar_kws={'label': 'Mean SSE'}, ax=ax)
+    
+    # Mark optimal
+    if optimal_rank is not None and optimal_lambda is not None:
+        rank_pos = list(plot_df.index).index(optimal_rank)
+        lambda_pos = list(plot_df.columns).index(optimal_lambda)
+        ax.plot(lambda_pos + 0.5, rank_pos + 0.5, 'b*', markersize=20, 
+                markeredgewidth=2, markeredgecolor='white')
+    
+    ax.set_title('Bootstrap Grid Search: Mean SSE across Rank × Lambda', 
+                fontsize=14, fontweight='bold')
+    ax.set_xlabel('Lambda (Regularization)', fontsize=12)
+    ax.set_ylabel('Rank', fontsize=12)
+    
+    plt.tight_layout()
+    plt.savefig(os.path.join(fig_dir, 'bootstrap_sse_heatmap.png'),
+                dpi=300, bbox_inches='tight')
+    plt.show()
+    plt.close()
+    
+    # ========================================
+    # FIGURE 2: FMS Heatmap
+    # ========================================
+    fig, ax = plt.subplots(figsize=(12, 8))
+    
+    plot_df_fms = results_df.pivot(index='rank', columns='lambda', values='mean_fms')
+    
+    sns.heatmap(plot_df_fms, annot=True, fmt='.3f', cmap='RdYlGn',
+                vmin=0, vmax=1, cbar_kws={'label': 'Mean FMS'}, ax=ax)
+    
+    # Mark optimal
+    if optimal_rank is not None and optimal_lambda is not None:
+        if optimal_lambda in plot_df_fms.columns:
+            rank_pos = list(plot_df_fms.index).index(optimal_rank)
+            lambda_pos = list(plot_df_fms.columns).index(optimal_lambda)
+            ax.plot(lambda_pos + 0.5, rank_pos + 0.5, 'b*', markersize=20,
+                   markeredgewidth=2, markeredgecolor='white')
+    
+    ax.set_title('Bootstrap Grid Search: Mean FMS across Rank × Lambda',
+                fontsize=14, fontweight='bold')
+    ax.set_xlabel('Lambda (Regularization)', fontsize=12)
+    ax.set_ylabel('Rank', fontsize=12)
+    
+    plt.tight_layout()
+    plt.savefig(os.path.join(fig_dir, 'bootstrap_fms_heatmap.png'),
+                dpi=300, bbox_inches='tight')
+    plt.show()
+    plt.close()
+    
+    # ========================================
+    # FIGURE 3: Rank Selection (λ=0.0)
+    # ========================================
+    lambda_zero = results_df[results_df['lambda'] == 0.0].copy()
+    lambda_zero = lambda_zero.sort_values('rank')
+    
+    fig, ax = plt.subplots(figsize=(12, 6))
+    
+    ax.errorbar(lambda_zero['rank'], lambda_zero['mean_sse'],
+               yerr=lambda_zero['se_sse'],
+               marker='o', markersize=10, linewidth=2.5,
+               capsize=5, capthick=2,
+               color='darkviolet', ecolor='plum')
+    
+    if optimal_rank is not None:
+        ax.axvline(x=optimal_rank, color='red', linestyle='--',
+                  linewidth=2, alpha=0.7,
+                  label=f'Optimal Rank = {optimal_rank}')
+    
+    ax.set_xlabel('Rank', fontsize=12)
+    ax.set_ylabel('Mean SSE (± SE)', fontsize=12)
+    ax.set_title('Stage 1: Rank Selection at λ=0.0\n' +
+                f'Based on {optimal_params["n_bootstrap_iterations"]} Bootstrap Iterations',
+                fontsize=13, fontweight='bold')
+    ax.legend(fontsize=11)
+    ax.grid(alpha=0.3)
+    
+    plt.tight_layout()
+    plt.savefig(os.path.join(fig_dir, 'bootstrap_rank_selection.png'),
+                dpi=300, bbox_inches='tight')
+    plt.show()
+    plt.close()
+    
+    # ========================================
+    # FIGURE 4: Lambda Selection at Optimal Rank
+    # ========================================
+    if optimal_rank is not None:
+        optimal_rank_data = results_df[results_df['rank'] == optimal_rank].copy()
+        optimal_rank_data = optimal_rank_data.sort_values('lambda')
+        
+        fig, axes = plt.subplots(2, 1, figsize=(12, 10))
+        
+        # SSE vs Lambda
+        ax1 = axes[0]
+        ax1.errorbar(optimal_rank_data['lambda'], optimal_rank_data['mean_sse'],
+                    yerr=optimal_rank_data['se_sse'],
+                    marker='o', markersize=10, linewidth=2.5,
+                    capsize=5, capthick=2,
+                    color='steelblue', ecolor='lightblue')
+        
+        if optimal_lambda is not None:
+            ax1.axvline(x=optimal_lambda, color='red', linestyle='--',
+                       linewidth=2, alpha=0.7,
+                       label=f'Optimal λ = {optimal_lambda}')
+        
+        ax1.set_xlabel('Lambda', fontsize=12)
+        ax1.set_ylabel('Mean SSE (± SE)', fontsize=12)
+        ax1.set_title(f'SSE vs Lambda at Optimal Rank (R={optimal_rank})',
+                     fontsize=13, fontweight='bold')
+        ax1.legend(fontsize=11)
+        ax1.grid(alpha=0.3)
+        
+        # FMS vs Lambda
+        ax2 = axes[1]
+        fms_data = optimal_rank_data[~optimal_rank_data['mean_fms'].isna()]
+        
+        if len(fms_data) > 0:
+            ax2.errorbar(fms_data['lambda'], fms_data['mean_fms'],
+                        yerr=fms_data['se_fms'],
+                        marker='o', markersize=10, linewidth=2.5,
+                        capsize=5, capthick=2,
+                        color='forestgreen', ecolor='lightgreen')
+            
+            # 1SE threshold
+            max_fms = fms_data['mean_fms'].max()
+            max_fms_row = fms_data[fms_data['mean_fms'] == max_fms].iloc[0]
+            threshold = max_fms - max_fms_row['se_fms']
+            
+            ax2.axhline(y=threshold, color='orange', linestyle='--',
+                       linewidth=2, alpha=0.7,
+                       label=f'1SE Threshold = {threshold:.3f}')
+            
+            if optimal_lambda is not None:
+                ax2.axvline(x=optimal_lambda, color='red', linestyle='--',
+                           linewidth=2, alpha=0.7,
+                           label=f'Optimal λ = {optimal_lambda}')
+            
+            ax2.set_xlabel('Lambda', fontsize=12)
+            ax2.set_ylabel('Mean FMS (± SE)', fontsize=12)
+            ax2.set_title(f'Stage 2: Lambda Selection at Optimal Rank (R={optimal_rank})\n' +
+                         'Criterion: Maximum λ where FMS ≥ (max_FMS - 1SE)',
+                         fontsize=13, fontweight='bold')
+            ax2.legend(fontsize=11)
+            ax2.grid(alpha=0.3)
+            ax2.set_ylim(0, 1.05)
+        
+        plt.tight_layout()
+        plt.savefig(os.path.join(fig_dir, 'bootstrap_lambda_selection.png'),
+                    dpi=300, bbox_inches='tight')
+        plt.show()
+        plt.close()
+    
+    print(f"\n✓ All figures saved to: {fig_dir}/")
+```
+
+---
+
+### LEGACY: Run full dissertation grid search (Leave-One-Out CV)
+
+**NOTE:** This is the original leave-one-out approach. The split-half bootstrap approach above is now **RECOMMENDED** based on consultation with the dissertation author.
 
 **WORKFLOW NOTE**: This chunk saves results to files, allowing you to:
 1. Run grid search (this chunk) - may take hours
