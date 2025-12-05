@@ -1810,9 +1810,6 @@ def split_half_bootstrap_grid_search(
             iter_df.to_csv(checkpoint_file, index=False)
             print(f"\n✓ Saved checkpoint: {checkpoint_file}")
             print(f"  ({len(iter_results)} results for iteration {boot_idx + 1})")
-
-                        'converged': False
-                    })
     
     # Convert to DataFrame
     bootstrap_df = pd.DataFrame(all_bootstrap_results)
