@@ -2583,15 +2583,20 @@ else:
     lambda_zero = results_df[results_df['lambda'] == 0.0].copy()
     lambda_zero = lambda_zero.sort_values('rank')
     
+    # Calculate relative SSE (normalized to lowest rank)
+    baseline_sse = lambda_zero.iloc[0]['mean_sse']
+    lambda_zero['relative_sse'] = lambda_zero['mean_sse'] / baseline_sse
+    lambda_zero['relative_se'] = lambda_zero['se_sse'] / baseline_sse
+    
     # Calculate coefficient of variation (relative variability)
     lambda_zero['cv'] = lambda_zero['std_sse'] / lambda_zero['mean_sse']
     
     fig, axes = plt.subplots(2, 1, figsize=(12, 10), height_ratios=[2, 1])
     
-    # Panel A: Absolute SSE with error bars
+    # Panel A: Relative SSE (normalized to rank 5)
     ax1 = axes[0]
-    ax1.errorbar(lambda_zero['rank'], lambda_zero['mean_sse'],
-               yerr=lambda_zero['se_sse'],
+    ax1.errorbar(lambda_zero['rank'], lambda_zero['relative_sse'],
+               yerr=lambda_zero['relative_se'],
                marker='o', markersize=10, linewidth=2.5,
                capsize=5, capthick=2,
                color='darkviolet', ecolor='plum')
@@ -2601,13 +2606,17 @@ else:
                   linewidth=2, alpha=0.7,
                   label=f'Optimal Rank = {optimal_rank}')
     
+    # Add reference line at 1.0
+    ax1.axhline(y=1.0, color='gray', linestyle=':', linewidth=1.5, alpha=0.5)
+    
     ax1.set_xlabel('Rank', fontsize=12)
-    ax1.set_ylabel('Mean SSE (± SE)', fontsize=12)
+    ax1.set_ylabel(f'Relative SSE (normalized to rank {int(lambda_zero.iloc[0]["rank"])})', fontsize=12)
     ax1.set_title('Stage 1: Rank Selection at λ=0.0\n' +
                 f'Based on {optimal_params["n_bootstrap_iterations"]} Bootstrap Iterations',
                 fontsize=13, fontweight='bold')
     ax1.legend(fontsize=11, loc='upper right')
     ax1.grid(alpha=0.3)
+    ax1.set_ylim([0.75, 1.05])
     
     # Panel B: Coefficient of Variation (shows relative uncertainty is consistent)
     ax2 = axes[1]
