@@ -1,0 +1,31 @@
+{
+  "method": "split_half_bootstrap",
+  "reference": "Blaskowski 2024 (modified with author consultation)",
+  "optimal_rank": 40,
+  "optimal_lambda": 2.0,
+  "rank_range_tested": [
+    5,
+    10,
+    15,
+    20,
+    25,
+    30,
+    35,
+    40
+  ],
+  "lambda_values_tested": [
+    0.0,
+    0.01,
+    0.05,
+    0.1,
+    0.5,
+    1.0,
+    2.0,
+    5.0
+  ],
+  "n_bootstrap_iterations": 10,
+  "test_fraction": 0.5,
+  "random_state": 42,
+  "timestamp": "2025-12-07T13:58:26.592374",
+  "elapsed_minutes": 2914.8136585672696
+}
