@@ -2583,26 +2583,55 @@ else:
     lambda_zero = results_df[results_df['lambda'] == 0.0].copy()
     lambda_zero = lambda_zero.sort_values('rank')
     
-    fig, ax = plt.subplots(figsize=(12, 6))
+    # Calculate coefficient of variation (relative variability)
+    lambda_zero['cv'] = lambda_zero['std_sse'] / lambda_zero['mean_sse']
     
-    ax.errorbar(lambda_zero['rank'], lambda_zero['mean_sse'],
+    fig, axes = plt.subplots(2, 1, figsize=(12, 10), height_ratios=[2, 1])
+    
+    # Panel A: Absolute SSE with error bars
+    ax1 = axes[0]
+    ax1.errorbar(lambda_zero['rank'], lambda_zero['mean_sse'],
                yerr=lambda_zero['se_sse'],
                marker='o', markersize=10, linewidth=2.5,
                capsize=5, capthick=2,
                color='darkviolet', ecolor='plum')
     
     if optimal_rank is not None:
-        ax.axvline(x=optimal_rank, color='red', linestyle='--',
+        ax1.axvline(x=optimal_rank, color='red', linestyle='--',
                   linewidth=2, alpha=0.7,
                   label=f'Optimal Rank = {optimal_rank}')
     
-    ax.set_xlabel('Rank', fontsize=12)
-    ax.set_ylabel('Mean SSE (± SE)', fontsize=12)
-    ax.set_title('Stage 1: Rank Selection at λ=0.0\n' +
+    ax1.set_xlabel('Rank', fontsize=12)
+    ax1.set_ylabel('Mean SSE (± SE)', fontsize=12)
+    ax1.set_title('Stage 1: Rank Selection at λ=0.0\n' +
                 f'Based on {optimal_params["n_bootstrap_iterations"]} Bootstrap Iterations',
                 fontsize=13, fontweight='bold')
-    ax.legend(fontsize=11)
-    ax.grid(alpha=0.3)
+    ax1.legend(fontsize=11, loc='upper right')
+    ax1.grid(alpha=0.3)
+    
+    # Panel B: Coefficient of Variation (shows relative uncertainty is consistent)
+    ax2 = axes[1]
+    ax2.plot(lambda_zero['rank'], lambda_zero['cv'] * 100,
+            marker='s', markersize=8, linewidth=2,
+            color='teal', label='CV across bootstrap iterations')
+    
+    if optimal_rank is not None:
+        ax2.axvline(x=optimal_rank, color='red', linestyle='--',
+                  linewidth=2, alpha=0.7)
+    
+    # Add horizontal line for mean CV
+    mean_cv = lambda_zero['cv'].mean() * 100
+    ax2.axhline(y=mean_cv, color='gray', linestyle=':', 
+               linewidth=1.5, alpha=0.7,
+               label=f'Mean CV = {mean_cv:.2f}%')
+    
+    ax2.set_xlabel('Rank', fontsize=12)
+    ax2.set_ylabel('Coefficient of Variation (%)', fontsize=12)
+    ax2.set_title('Relative Bootstrap Variability (CV = σ/μ)',
+                fontsize=11, fontweight='bold')
+    ax2.legend(fontsize=10, loc='upper right')
+    ax2.grid(alpha=0.3)
+    ax2.set_ylim([0, max(lambda_zero['cv'] * 100) * 1.2])
     
     plt.tight_layout()
     plt.savefig(os.path.join(fig_dir, 'bootstrap_rank_selection.png'),
