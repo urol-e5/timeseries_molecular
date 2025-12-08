@@ -1,0 +1,902 @@
+============================================================
+BARNACLE ANALYSIS LOG
+Started: 2025-12-05 09:58:08
+Log file: ../output/13.00-multiomics-barnacle/barnacle_analysis_log_20251205_095808.txt
+============================================================
+
+Working in output directory: ../output/13.00-multiomics-barnacle
+Loaded normalized data:
+Apul: (10223, 41)
+Peve: (10223, 37)
+Ptua: (10223, 37)
+
+Common genes across all species: 10223
+
+Filtered to common genes:
+Apul: (10223, 40)
+Peve: (10223, 36)
+Ptua: (10223, 36)
+Parsing sample information for each species...
+apul:
+  Samples: 10 (['ACR.139', 'ACR.145', 'ACR.150']...)
+  Timepoints: [1, 2, 3, 4]
+peve:
+  Samples: 9 (['POR.216', 'POR.245', 'POR.260']...)
+  Timepoints: [1, 2, 3, 4]
+ptua:
+  Samples: 9 (['POC.219', 'POC.222', 'POC.255']...)
+  Timepoints: [1, 2, 3, 4]
+
+Timepoints found across all species: [1, 2, 3, 4]
+Maximum samples in any species: 10
+
+Detailed sample structure:
+apul: 10 samples × 4 timepoints
+peve: 9 samples × 4 timepoints
+ptua: 9 samples × 4 timepoints
+Creating 3D tensor by combining species and samples...
+Note: R-level filtering has already removed samples without all 4 timepoints
+
+Processing apul:
+  Added ACR.139 with 4 timepoints: [1, 2, 3, 4]
+  Added ACR.145 with 4 timepoints: [1, 2, 3, 4]
+  Added ACR.150 with 4 timepoints: [1, 2, 3, 4]
+  Added ACR.173 with 4 timepoints: [1, 2, 3, 4]
+  Added ACR.186 with 4 timepoints: [1, 2, 3, 4]
+  Added ACR.225 with 4 timepoints: [1, 2, 3, 4]
+  Added ACR.229 with 4 timepoints: [1, 2, 3, 4]
+  Added ACR.237 with 4 timepoints: [1, 2, 3, 4]
+  Added ACR.244 with 4 timepoints: [1, 2, 3, 4]
+  Added ACR.265 with 4 timepoints: [1, 2, 3, 4]
+
+Processing peve:
+  Added POR.216 with 4 timepoints: [1, 2, 3, 4]
+  Added POR.245 with 4 timepoints: [1, 2, 3, 4]
+  Added POR.260 with 4 timepoints: [1, 2, 3, 4]
+  Added POR.262 with 4 timepoints: [1, 2, 3, 4]
+  Added POR.69 with 4 timepoints: [1, 2, 3, 4]
+  Added POR.72 with 4 timepoints: [1, 2, 3, 4]
+  Added POR.73 with 4 timepoints: [1, 2, 3, 4]
+  Added POR.74 with 4 timepoints: [1, 2, 3, 4]
+  Added POR.83 with 4 timepoints: [1, 2, 3, 4]
+
+Processing ptua:
+  Added POC.219 with 4 timepoints: [1, 2, 3, 4]
+  Added POC.222 with 4 timepoints: [1, 2, 3, 4]
+  Added POC.255 with 4 timepoints: [1, 2, 3, 4]
+  Added POC.259 with 4 timepoints: [1, 2, 3, 4]
+  Added POC.40 with 4 timepoints: [1, 2, 3, 4]
+  Added POC.42 with 4 timepoints: [1, 2, 3, 4]
+  Added POC.52 with 4 timepoints: [1, 2, 3, 4]
+  Added POC.53 with 4 timepoints: [1, 2, 3, 4]
+  Added POC.57 with 4 timepoints: [1, 2, 3, 4]
+
+Creating 3D tensor with shape: (10223, 28, 4)
+Combined samples from all species: 28
+
+=== TENSOR STATISTICS ===
+Tensor shape: (10223, 28, 4)
+Total elements: 1144976
+Finite values: 1144976
+Missing/NaN values: 0
+Missing percentage: 0.00%
+Filled 112 sample-timepoint combinations
+Missing 0 sample-timepoint combinations
+Non-zero finite values: 1128956
+Zero finite values: 16020
+Sparsity among finite values: 1.40%
+
+Sample mapping:
+   combined_index  sample_label species sample_id
+0               0  apul_ACR.139    apul   ACR.139
+1               1  apul_ACR.145    apul   ACR.145
+2               2  apul_ACR.150    apul   ACR.150
+3               3  apul_ACR.173    apul   ACR.173
+4               4  apul_ACR.186    apul   ACR.186
+5               5  apul_ACR.225    apul   ACR.225
+6               6  apul_ACR.229    apul   ACR.229
+7               7  apul_ACR.237    apul   ACR.237
+8               8  apul_ACR.244    apul   ACR.244
+9               9  apul_ACR.265    apul   ACR.265
+================================================================================
+CROSS-VALIDATION STRUCTURE FOR TIMESERIES TENSOR
+================================================================================
+Tensor structure: genes × samples × timepoints
+  - Total samples: 28
+  - Timepoints per sample: 4
+
+HOW THE TENSOR IS ORGANIZED:
+  • Each sample dimension = one COLONY (e.g., ACR-139)
+  • That colony's data at each timepoint is in the 3rd dimension
+  • Example: tensor[:, 0, :] contains all 4 timepoints for colony #0
+  • Example: tensor[:, 0, 2] is colony #0 at timepoint TP3
+
+CV approach: Leave-one-COLONY-out
+  • Train on: N-1 colonies (all their timepoints)
+  • Test on: 1 held-out colony (all its timepoints)
+
+IMPORTANT CLARIFICATION:
+  • Biological reality: Each sample is collected at ONE timepoint
+  • Tensor organization: Timepoints grouped by colony
+  • CV tests: Can model predict a NEW colony's timeseries?
+
+CV Groups (one per colony):
+  apul: 10 colonies
+    apul_ACR.139, apul_ACR.145, apul_ACR.150, apul_ACR.173, apul_ACR.186...
+  peve: 9 colonies
+    peve_POR.216, peve_POR.245, peve_POR.260, peve_POR.262, peve_POR.69...
+  ptua: 9 colonies
+    ptua_POC.219, ptua_POC.222, ptua_POC.255, ptua_POC.259, ptua_POC.40...
+
+Total CV folds: 28
+CV method: Leave-one-colony-out (train on N-1 colonies, test on 1)
+
+WARNING: This is computationally expensive!
+  - Each rank tested will require 28 model fits
+  - Consider subsetting to fewer colonies or using species-level CV
+================================================================================
+
+Replicate groups stored for cross-validation
+Available for dissertation-validated rank selection
+No Python documentation found for '# - Tests species generalization: can model learn patterns that work across species'.
+Use help() to get the interactive help utility.
+Use help(str) for help on the str class.
+
+================================================================================
+SPECIES-LEVEL CV GROUPS (ALTERNATIVE APPROACH)
+================================================================================
+CV approach: Leave-one-SPECIES-out
+  - Train on 2 species
+  - Test on 1 held-out species
+
+This tests: Can the decomposition generalize to a NEW SPECIES?
+
+Species groups:
+  apul: 10 colonies
+    Colonies: ACR.139, ACR.145, ACR.150, ACR.173, ACR.186...
+  peve: 9 colonies
+    Colonies: POR.216, POR.245, POR.260, POR.262, POR.69...
+  ptua: 9 colonies
+    Colonies: POC.219, POC.222, POC.255, POC.259, POC.40...
+
+Total CV folds: 3
+This is MUCH faster than colony-level CV
+================================================================================
+
+================================================================================
+RECOMMENDATION FOR CV APPROACH:
+================================================================================
+1. SPECIES-LEVEL CV (species_groups):
+   → Use this for PRACTICAL rank selection
+   → Fast: only 3 folds
+   → Tests: Does model work on new species?
+   → Similar to dissertation's leave-one-dataset-out approach
+
+2. COLONY-LEVEL CV (replicate_groups):
+   → Use for COMPREHENSIVE validation
+   → Slow: ~30-40 folds
+   → Tests: Does model work on new colony within same species?
+   → More traditional biological replicate CV
+
+SUGGESTED: Start with species-level CV for initial rank selection
+================================================================================
+
+================================================================================
+AGGREGATING BOOTSTRAP RESULTS
+================================================================================
+
+================================================================================
+STAGE 1: RANK SELECTION
+Criterion: Minimum mean SSE at λ=0.0
+================================================================================
+
+All λ=0.0 results:
+
+================================================================================
+STAGE 2: LAMBDA SELECTION
+Criterion: Maximum λ where FMS ≥ (max_FMS - 1SE)
+================================================================================
+
+WARNING: No lambda within 1SE, defaulting to 0.0
+
+================================================================================
+BOOTSTRAP STABILITY ASSESSMENT
+================================================================================
+FINAL SELECTED PARAMETERS
+================================================================================
+✓ Lambda: 0.0
+================================================================================
+================================================================================
+PARAMETER SELECTION FUNCTIONS LOADED
+================================================================================
+Available approaches:
+  1. split_half_bootstrap_grid_search() - RECOMMENDED
+     → Split-half CV with bootstrap resampling
+     → Recommended by dissertation author for limited replicates
+     → Assesses model training consistency
+
+  2. dissertation_grid_search_cv() - LEGACY
+     → Leave-one-out cross-validation
+     → Original dissertation approach
+================================================================================
+
+================================================================================
+AGGREGATING BOOTSTRAP RESULTS
+================================================================================
+
+================================================================================
+STAGE 1: RANK SELECTION
+Criterion: Minimum mean SSE at λ=0.0
+================================================================================
+
+All λ=0.0 results:
+
+================================================================================
+STAGE 2: LAMBDA SELECTION
+Criterion: Maximum λ where FMS ≥ (max_FMS - 1SE)
+================================================================================
+
+WARNING: No lambda within 1SE, defaulting to 0.0
+
+================================================================================
+BOOTSTRAP STABILITY ASSESSMENT
+================================================================================
+FINAL SELECTED PARAMETERS
+================================================================================
+✓ Lambda: 0.0
+================================================================================
+================================================================================
+PARAMETER SELECTION FUNCTIONS LOADED
+================================================================================
+✓ CURRENT APPROACH (RECOMMENDED):
+  - split_half_bootstrap_grid_search()
+    → Split-half CV with bootstrap resampling
+    → Incremental checkpointing & resume capability
+    → Recommended by dissertation author for limited replicates
+    → Assesses model training consistency
+
+⚠ LEGACY APPROACHES (NOT USED):
+  - dissertation_grid_search_cv()
+    → Leave-one-out cross-validation
+    → Original dissertation approach
+    → Preserved for reference only
+================================================================================
+================================================================================
+SPLIT-HALF BOOTSTRAP PARAMETER SELECTION
+================================================================================
+
+Configuration:
+  Ranks: [5, 10, 15, 20, 25, 30, 35]
+  Lambdas: [0.0, 0.01, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0]
+  Bootstrap iterations: 10
+  Train/test split: 50/50
+================================================================================
+
+Estimated workload:
+  Total model fits: 1120
+  (7 ranks × 8 lambdas × 10 bootstrap × 2 models per split)
+  Estimated time: ~37.3-93.3 minutes
+    (assuming 2-5 min per model)
+================================================================================
+
+⚠ NOTE: Set eval=TRUE above when ready to run
+================================================================================
+================================================================================
+SPLIT-HALF BOOTSTRAP GRID SEARCH
+================================================================================
+Bootstrap iterations: 10
+Train/test split: 50/50
+Ranks to test: [5, 10, 15, 20, 25, 30, 35]
+Lambdas to test: [0.0, 0.01, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0]
+Total combinations: 7 × 8 = 56
+Total models to fit: 1120
+  (10 bootstrap × 2 models per split × 56 combinations)
+Output directory: ../output/13.00-multiomics-barnacle/bootstrap_grid_search
+Incremental saving: ENABLED
+================================================================================
+
+Checking for existing checkpoint files...
+  No existing checkpoints found. Starting from beginning.
+
+Running bootstrap iterations 0 to 9...
+
+================================================================================
+BOOTSTRAP ITERATION 1/10 (seed=42)
+================================================================================
+Train samples: 15, Test samples: 13
+Train species: {'apul': 5, 'peve': 5, 'ptua': 5}
+Test species: {'apul': 5, 'peve': 4, 'ptua': 4}
+
+  [1/56] Rank=5, Lambda=0.0
+    ✓ SSE=6.90e+05, FMS=0.3244
+
+  [2/56] Rank=5, Lambda=0.01
+    ✓ SSE=6.97e+05, FMS=0.4158
+
+  [3/56] Rank=5, Lambda=0.05
+    ✓ SSE=6.97e+05, FMS=0.4219
+
+  [4/56] Rank=5, Lambda=0.1
+    ✓ SSE=6.97e+05, FMS=0.4092
+
+  [5/56] Rank=5, Lambda=0.5
+    ✓ SSE=6.99e+05, FMS=0.3783
+
+  [6/56] Rank=5, Lambda=1.0
+    ✓ SSE=7.00e+05, FMS=0.3254
+
+  [7/56] Rank=5, Lambda=2.0
+    ✓ SSE=7.00e+05, FMS=0.3482
+
+  [8/56] Rank=5, Lambda=5.0
+    ✓ SSE=6.94e+05, FMS=0.3795
+
+  [9/56] Rank=10, Lambda=0.0
+    ✓ SSE=6.48e+05, FMS=0.4440
+
+  [10/56] Rank=10, Lambda=0.01
+    ✓ SSE=6.50e+05, FMS=0.4751
+
+  [11/56] Rank=10, Lambda=0.05
+    ✓ SSE=6.51e+05, FMS=0.4543
+
+  [12/56] Rank=10, Lambda=0.1
+    ✓ SSE=6.51e+05, FMS=0.4594
+
+  [13/56] Rank=10, Lambda=0.5
+    ✓ SSE=6.44e+05, FMS=0.4331
+
+  [14/56] Rank=10, Lambda=1.0
+    ✓ SSE=6.44e+05, FMS=0.4529
+
+  [15/56] Rank=10, Lambda=2.0
+    ✓ SSE=6.44e+05, FMS=0.4951
+
+  [16/56] Rank=10, Lambda=5.0
+
+================================================================================
+BOOTSTRAP GRID SEARCH COMPLETE
+================================================================================
+Total time: 60.2 minutes
+Time per model: 3.2 seconds
+================================================================================
+
+✓ Aggregated results saved to: bootstrap_aggregated_results.csv
+✓ Raw bootstrap data saved to: bootstrap_raw_iterations.csv
+✓ Optimal parameters saved to: optimal_parameters.json
+
+✓ All results saved to: ../output/13.00-multiomics-barnacle/bootstrap_grid_search/
+================================================================================
+================================================================================
+PARAMETER SELECTION FUNCTIONS LOADED
+================================================================================
+✓ CURRENT APPROACH (RECOMMENDED):
+  - split_half_bootstrap_grid_search()
+    → Split-half CV with bootstrap resampling
+    → Incremental checkpointing & resume capability
+    → Recommended by dissertation author for limited replicates
+    → Assesses model training consistency
+
+⚠ LEGACY APPROACHES (NOT USED):
+  - dissertation_grid_search_cv()
+    → Leave-one-out cross-validation
+    → Original dissertation approach
+    → Preserved for reference only
+================================================================================
+================================================================================
+SPLIT-HALF BOOTSTRAP PARAMETER SELECTION
+================================================================================
+
+Configuration:
+  Ranks: [5, 10, 15, 20, 25, 30, 35]
+  Lambdas: [0.0, 0.01, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0]
+  Bootstrap iterations: 10
+  Train/test split: 50/50
+================================================================================
+
+Estimated workload:
+  Total model fits: 1120
+  (7 ranks × 8 lambdas × 10 bootstrap × 2 models per split)
+  Estimated time: ~37.3-93.3 minutes
+    (assuming 2-5 min per model)
+================================================================================
+
+⚠ NOTE: Set eval=TRUE above when ready to run
+================================================================================
+================================================================================
+SPLIT-HALF BOOTSTRAP GRID SEARCH
+================================================================================
+Bootstrap iterations: 10
+Train/test split: 50/50
+Ranks to test: [5, 10, 15, 20, 25, 30, 35]
+Lambdas to test: [0.0, 0.01, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0]
+Total combinations: 7 × 8 = 56
+Total models to fit: 1120
+  (10 bootstrap × 2 models per split × 56 combinations)
+Output directory: ../output/13.00-multiomics-barnacle/bootstrap_grid_search
+Incremental saving: ENABLED
+================================================================================
+
+Checking for existing checkpoint files...
+  No existing checkpoints found. Starting from beginning.
+
+Running bootstrap iterations 0 to 9...
+
+================================================================================
+BOOTSTRAP ITERATION 1/10 (seed=42)
+================================================================================
+Train samples: 15, Test samples: 13
+Train species: {'apul': 5, 'peve': 5, 'ptua': 5}
+Test species: {'apul': 5, 'peve': 4, 'ptua': 4}
+
+  [1/56] Rank=5, Lambda=0.0
+    ✓ SSE=6.90e+05, FMS=0.3244
+
+  [2/56] Rank=5, Lambda=0.01
+
+================================================================================
+BOOTSTRAP GRID SEARCH COMPLETE
+================================================================================
+Total time: 2.3 minutes
+Time per model: 0.1 seconds
+================================================================================
+
+✓ Aggregated results saved to: bootstrap_aggregated_results.csv
+✓ Raw bootstrap data saved to: bootstrap_raw_iterations.csv
+✓ Optimal parameters saved to: optimal_parameters.json
+
+✓ All results saved to: ../output/13.00-multiomics-barnacle/bootstrap_grid_search/
+================================================================================
+================================================================================
+PARAMETER SELECTION FUNCTIONS LOADED
+================================================================================
+✓ CURRENT APPROACH (RECOMMENDED):
+  - split_half_bootstrap_grid_search()
+    → Split-half CV with bootstrap resampling
+    → Incremental checkpointing & resume capability
+    → Recommended by dissertation author for limited replicates
+    → Assesses model training consistency
+
+⚠ LEGACY APPROACHES (NOT USED):
+  - dissertation_grid_search_cv()
+    → Leave-one-out cross-validation
+    → Original dissertation approach
+    → Preserved for reference only
+================================================================================
+================================================================================
+SPLIT-HALF BOOTSTRAP PARAMETER SELECTION
+================================================================================
+
+Configuration:
+  Ranks: [5, 10, 15, 20, 25, 30, 35]
+  Lambdas: [0.0, 0.01, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0]
+  Bootstrap iterations: 10
+  Train/test split: 50/50
+  Parallel jobs: -1 (all cores)
+================================================================================
+
+Estimated workload:
+  Total model fits: 1120
+  (7 ranks × 8 lambdas × 10 bootstrap × 2 models per split)
+  Estimated time with 40 cores: ~0.9-2.3 minutes
+    (assuming 2-5 min per model, parallelized)
+================================================================================
+
+⚠ NOTE: Set eval=TRUE above when ready to run
+================================================================================
+================================================================================
+SPLIT-HALF BOOTSTRAP GRID SEARCH
+================================================================================
+Bootstrap iterations: 10
+Train/test split: 50/50
+Ranks to test: [5, 10, 15, 20, 25, 30, 35]
+Lambdas to test: [0.0, 0.01, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0]
+Total combinations: 7 × 8 = 56
+Total models to fit: 1120
+  (10 bootstrap × 2 models per split × 56 combinations)
+Parallel execution: ENABLED (40 cores)
+Output directory: ../output/13.00-multiomics-barnacle/bootstrap_grid_search
+Incremental saving: ENABLED
+================================================================================
+
+Checking for existing checkpoint files...
+  No existing checkpoints found. Starting from beginning.
+
+Running bootstrap iterations 0 to 9...
+
+================================================================================
+BOOTSTRAP ITERATION 1/10 (seed=42)
+================================================================================
+Train samples: 15, Test samples: 13
+Train species: {'apul': 5, 'peve': 5, 'ptua': 5}
+Test species: {'apul': 5, 'peve': 4, 'ptua': 4}
+
+Running grid search with 40 parallel job(s)...
+[Parallel(n_jobs=40)]: Using backend LokyBackend with 40 concurrent workers.
+[Parallel(n_jobs=40)]: Done   7 out of  56 | elapsed:  6.1min remaining: 42.4min
+[Parallel(n_jobs=40)]: Done  13 out of  56 | elapsed: 19.4min remaining: 64.1min
+[Parallel(n_jobs=40)]: Done  19 out of  56 | elapsed: 42.3min remaining: 82.3min
+[Parallel(n_jobs=40)]: Done  25 out of  56 | elapsed: 69.8min remaining: 86.6min
+[Parallel(n_jobs=40)]: Done  31 out of  56 | elapsed: 79.2min remaining: 63.9min
+[Parallel(n_jobs=40)]: Done  37 out of  56 | elapsed: 94.5min remaining: 48.5min
+[Parallel(n_jobs=40)]: Done  43 out of  56 | elapsed: 121.4min remaining: 36.7min
+
+================================================================================
+BOOTSTRAP GRID SEARCH COMPLETE
+================================================================================
+Total time: 123.7 minutes
+Time per model: 6.6 seconds
+================================================================================
+
+✓ Aggregated results saved to: bootstrap_aggregated_results.csv
+✓ Raw bootstrap data saved to: bootstrap_raw_iterations.csv
+✓ Optimal parameters saved to: optimal_parameters.json
+
+✓ All results saved to: ../output/13.00-multiomics-barnacle/bootstrap_grid_search/
+================================================================================
+================================================================================
+SPLIT-HALF BOOTSTRAP PARAMETER SELECTION
+================================================================================
+
+Configuration:
+  Ranks: [5, 10, 15, 20, 25, 30, 35, 40]
+  Lambdas: [0.0, 0.01, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0]
+  Bootstrap iterations: 10
+  Train/test split: 50/50
+  Parallel jobs: -1 (all cores)
+================================================================================
+
+Estimated workload:
+  Total model fits: 1280
+  (8 ranks × 8 lambdas × 10 bootstrap × 2 models per split)
+  Estimated time with 40 cores: ~1.1-2.7 minutes
+    (assuming 2-5 min per model, parallelized)
+================================================================================
+
+⚠ NOTE: Set eval=TRUE above when ready to run
+================================================================================
+================================================================================
+SPLIT-HALF BOOTSTRAP GRID SEARCH
+================================================================================
+Bootstrap iterations: 10
+Train/test split: 50/50
+Ranks to test: [5, 10, 15, 20, 25, 30, 35, 40]
+Lambdas to test: [0.0, 0.01, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0]
+Total combinations: 8 × 8 = 64
+Total models to fit: 1280
+  (10 bootstrap × 2 models per split × 64 combinations)
+Parallel execution: ENABLED (40 cores)
+Output directory: ../output/13.00-multiomics-barnacle/bootstrap_grid_search
+Incremental saving: ENABLED
+================================================================================
+
+Checking for existing checkpoint files...
+  No existing checkpoints found. Starting from beginning.
+
+Running bootstrap iterations 0 to 9...
+
+================================================================================
+BOOTSTRAP ITERATION 1/10 (seed=42)
+================================================================================
+Train samples: 15, Test samples: 13
+Train species: {'apul': 5, 'peve': 5, 'ptua': 5}
+Test species: {'apul': 5, 'peve': 4, 'ptua': 4}
+
+Running grid search with 40 parallel job(s)...
+[Parallel(n_jobs=40)]: Using backend LokyBackend with 40 concurrent workers.
+[Parallel(n_jobs=40)]: Done   6 out of  64 | elapsed:  4.1min remaining: 39.6min
+[Parallel(n_jobs=40)]: Done  13 out of  64 | elapsed: 19.4min remaining: 76.0min
+[Parallel(n_jobs=40)]: Done  20 out of  64 | elapsed: 50.6min remaining: 111.3min
+[Parallel(n_jobs=40)]: Done  27 out of  64 | elapsed: 82.9min remaining: 113.6min
+[Parallel(n_jobs=40)]: Done  34 out of  64 | elapsed: 93.7min remaining: 82.7min
+[Parallel(n_jobs=40)]: Done  41 out of  64 | elapsed: 133.6min remaining: 75.0min
+[Parallel(n_jobs=40)]: Done  48 out of  64 | elapsed: 158.8min remaining: 52.9min
+[Parallel(n_jobs=40)]: Done  55 out of  64 | elapsed: 202.5min remaining: 33.1min
+[Parallel(n_jobs=40)]: Done  62 out of  64 | elapsed: 253.9min remaining:  8.2min
+[Parallel(n_jobs=40)]: Done  64 out of  64 | elapsed: 304.6min finished
+
+Completed 64 model fits:
+  ✓ Converged: 64
+
+✓ Saved checkpoint: ../output/13.00-multiomics-barnacle/bootstrap_grid_search/bootstrap_checkpoint_iter000.csv
+  (64 results for iteration 1)
+
+================================================================================
+BOOTSTRAP ITERATION 2/10 (seed=43)
+================================================================================
+Train samples: 15, Test samples: 13
+Train species: {'apul': 5, 'peve': 5, 'ptua': 5}
+Test species: {'apul': 5, 'peve': 4, 'ptua': 4}
+
+Running grid search with 40 parallel job(s)...
+[Parallel(n_jobs=40)]: Using backend LokyBackend with 40 concurrent workers.
+[Parallel(n_jobs=40)]: Done   6 out of  64 | elapsed:  4.0min remaining: 38.3min
+[Parallel(n_jobs=40)]: Done  13 out of  64 | elapsed: 17.0min remaining: 66.6min
+[Parallel(n_jobs=40)]: Done  20 out of  64 | elapsed: 48.5min remaining: 106.6min
+[Parallel(n_jobs=40)]: Done  27 out of  64 | elapsed: 72.5min remaining: 99.3min
+[Parallel(n_jobs=40)]: Done  34 out of  64 | elapsed: 96.6min remaining: 85.2min
+[Parallel(n_jobs=40)]: Done  41 out of  64 | elapsed: 132.1min remaining: 74.1min
+[Parallel(n_jobs=40)]: Done  48 out of  64 | elapsed: 160.6min remaining: 53.5min
+[Parallel(n_jobs=40)]: Done  55 out of  64 | elapsed: 188.7min remaining: 30.9min
+[Parallel(n_jobs=40)]: Done  62 out of  64 | elapsed: 258.2min remaining:  8.3min
+[Parallel(n_jobs=40)]: Done  64 out of  64 | elapsed: 297.0min finished
+
+Completed 64 model fits:
+  ✓ Converged: 64
+
+✓ Saved checkpoint: ../output/13.00-multiomics-barnacle/bootstrap_grid_search/bootstrap_checkpoint_iter001.csv
+  (64 results for iteration 2)
+
+================================================================================
+BOOTSTRAP ITERATION 3/10 (seed=44)
+================================================================================
+Train samples: 15, Test samples: 13
+Train species: {'apul': 5, 'peve': 5, 'ptua': 5}
+Test species: {'apul': 5, 'peve': 4, 'ptua': 4}
+
+Running grid search with 40 parallel job(s)...
+[Parallel(n_jobs=40)]: Using backend LokyBackend with 40 concurrent workers.
+[Parallel(n_jobs=40)]: Done   6 out of  64 | elapsed:  3.7min remaining: 36.0min
+[Parallel(n_jobs=40)]: Done  13 out of  64 | elapsed: 23.1min remaining: 90.8min
+[Parallel(n_jobs=40)]: Done  20 out of  64 | elapsed: 35.6min remaining: 78.2min
+[Parallel(n_jobs=40)]: Done  27 out of  64 | elapsed: 64.2min remaining: 88.0min
+[Parallel(n_jobs=40)]: Done  34 out of  64 | elapsed: 93.7min remaining: 82.6min
+[Parallel(n_jobs=40)]: Done  41 out of  64 | elapsed: 117.9min remaining: 66.1min
+[Parallel(n_jobs=40)]: Done  48 out of  64 | elapsed: 168.9min remaining: 56.3min
+[Parallel(n_jobs=40)]: Done  55 out of  64 | elapsed: 193.3min remaining: 31.6min
+[Parallel(n_jobs=40)]: Done  62 out of  64 | elapsed: 252.5min remaining:  8.1min
+[Parallel(n_jobs=40)]: Done  64 out of  64 | elapsed: 280.3min finished
+
+Completed 64 model fits:
+  ✓ Converged: 64
+
+✓ Saved checkpoint: ../output/13.00-multiomics-barnacle/bootstrap_grid_search/bootstrap_checkpoint_iter002.csv
+  (64 results for iteration 3)
+
+================================================================================
+BOOTSTRAP ITERATION 4/10 (seed=45)
+================================================================================
+Train samples: 15, Test samples: 13
+Train species: {'apul': 5, 'peve': 5, 'ptua': 5}
+Test species: {'apul': 5, 'peve': 4, 'ptua': 4}
+
+Running grid search with 40 parallel job(s)...
+[Parallel(n_jobs=40)]: Using backend LokyBackend with 40 concurrent workers.
+[Parallel(n_jobs=40)]: Done   6 out of  64 | elapsed:  4.8min remaining: 46.7min
+[Parallel(n_jobs=40)]: Done  13 out of  64 | elapsed: 22.0min remaining: 86.2min
+[Parallel(n_jobs=40)]: Done  20 out of  64 | elapsed: 36.5min remaining: 80.3min
+[Parallel(n_jobs=40)]: Done  27 out of  64 | elapsed: 70.5min remaining: 96.7min
+[Parallel(n_jobs=40)]: Done  34 out of  64 | elapsed: 99.2min remaining: 87.5min
+[Parallel(n_jobs=40)]: Done  41 out of  64 | elapsed: 131.8min remaining: 73.9min
+[Parallel(n_jobs=40)]: Done  48 out of  64 | elapsed: 160.4min remaining: 53.5min
+[Parallel(n_jobs=40)]: Done  55 out of  64 | elapsed: 194.0min remaining: 31.7min
+[Parallel(n_jobs=40)]: Done  62 out of  64 | elapsed: 271.7min remaining:  8.8min
+[Parallel(n_jobs=40)]: Done  64 out of  64 | elapsed: 277.0min finished
+
+Completed 64 model fits:
+  ✓ Converged: 64
+
+✓ Saved checkpoint: ../output/13.00-multiomics-barnacle/bootstrap_grid_search/bootstrap_checkpoint_iter003.csv
+  (64 results for iteration 4)
+
+================================================================================
+BOOTSTRAP ITERATION 5/10 (seed=46)
+================================================================================
+Train samples: 15, Test samples: 13
+Train species: {'apul': 5, 'peve': 5, 'ptua': 5}
+Test species: {'apul': 5, 'peve': 4, 'ptua': 4}
+
+Running grid search with 40 parallel job(s)...
+[Parallel(n_jobs=40)]: Using backend LokyBackend with 40 concurrent workers.
+[Parallel(n_jobs=40)]: Done   6 out of  64 | elapsed:  5.1min remaining: 49.0min
+[Parallel(n_jobs=40)]: Done  13 out of  64 | elapsed: 21.2min remaining: 83.1min
+[Parallel(n_jobs=40)]: Done  20 out of  64 | elapsed: 37.0min remaining: 81.5min
+[Parallel(n_jobs=40)]: Done  27 out of  64 | elapsed: 71.7min remaining: 98.2min
+[Parallel(n_jobs=40)]: Done  34 out of  64 | elapsed: 106.4min remaining: 93.9min
+[Parallel(n_jobs=40)]: Done  41 out of  64 | elapsed: 123.7min remaining: 69.4min
+[Parallel(n_jobs=40)]: Done  48 out of  64 | elapsed: 161.7min remaining: 53.9min
+[Parallel(n_jobs=40)]: Done  55 out of  64 | elapsed: 195.6min remaining: 32.0min
+[Parallel(n_jobs=40)]: Done  62 out of  64 | elapsed: 245.4min remaining:  7.9min
+[Parallel(n_jobs=40)]: Done  64 out of  64 | elapsed: 299.8min finished
+
+Completed 64 model fits:
+  ✓ Converged: 64
+
+✓ Saved checkpoint: ../output/13.00-multiomics-barnacle/bootstrap_grid_search/bootstrap_checkpoint_iter004.csv
+  (64 results for iteration 5)
+
+================================================================================
+BOOTSTRAP ITERATION 6/10 (seed=47)
+================================================================================
+Train samples: 15, Test samples: 13
+Train species: {'apul': 5, 'peve': 5, 'ptua': 5}
+Test species: {'apul': 5, 'peve': 4, 'ptua': 4}
+
+Running grid search with 40 parallel job(s)...
+[Parallel(n_jobs=40)]: Using backend LokyBackend with 40 concurrent workers.
+[Parallel(n_jobs=40)]: Done   6 out of  64 | elapsed:  4.8min remaining: 46.7min
+[Parallel(n_jobs=40)]: Done  13 out of  64 | elapsed: 21.2min remaining: 83.2min
+[Parallel(n_jobs=40)]: Done  20 out of  64 | elapsed: 37.6min remaining: 82.7min
+[Parallel(n_jobs=40)]: Done  27 out of  64 | elapsed: 69.0min remaining: 94.5min
+[Parallel(n_jobs=40)]: Done  34 out of  64 | elapsed: 91.3min remaining: 80.6min
+[Parallel(n_jobs=40)]: Done  41 out of  64 | elapsed: 129.5min remaining: 72.6min
+[Parallel(n_jobs=40)]: Done  48 out of  64 | elapsed: 167.2min remaining: 55.7min
+[Parallel(n_jobs=40)]: Done  55 out of  64 | elapsed: 210.0min remaining: 34.4min
+[Parallel(n_jobs=40)]: Done  62 out of  64 | elapsed: 249.3min remaining:  8.0min
+[Parallel(n_jobs=40)]: Done  64 out of  64 | elapsed: 305.8min finished
+
+Completed 64 model fits:
+  ✓ Converged: 64
+
+✓ Saved checkpoint: ../output/13.00-multiomics-barnacle/bootstrap_grid_search/bootstrap_checkpoint_iter005.csv
+  (64 results for iteration 6)
+
+================================================================================
+BOOTSTRAP ITERATION 7/10 (seed=48)
+================================================================================
+Train samples: 15, Test samples: 13
+Train species: {'apul': 5, 'peve': 5, 'ptua': 5}
+Test species: {'apul': 5, 'peve': 4, 'ptua': 4}
+
+Running grid search with 40 parallel job(s)...
+[Parallel(n_jobs=40)]: Using backend LokyBackend with 40 concurrent workers.
+[Parallel(n_jobs=40)]: Done   6 out of  64 | elapsed:  5.7min remaining: 55.1min
+[Parallel(n_jobs=40)]: Done  13 out of  64 | elapsed: 22.0min remaining: 86.2min
+[Parallel(n_jobs=40)]: Done  20 out of  64 | elapsed: 43.8min remaining: 96.3min
+[Parallel(n_jobs=40)]: Done  27 out of  64 | elapsed: 72.9min remaining: 99.9min
+[Parallel(n_jobs=40)]: Done  34 out of  64 | elapsed: 112.0min remaining: 98.9min
+[Parallel(n_jobs=40)]: Done  41 out of  64 | elapsed: 127.4min remaining: 71.5min
+[Parallel(n_jobs=40)]: Done  48 out of  64 | elapsed: 166.1min remaining: 55.4min
+[Parallel(n_jobs=40)]: Done  55 out of  64 | elapsed: 210.6min remaining: 34.5min
+[Parallel(n_jobs=40)]: Done  62 out of  64 | elapsed: 272.4min remaining:  8.8min
+[Parallel(n_jobs=40)]: Done  64 out of  64 | elapsed: 299.7min finished
+
+Completed 64 model fits:
+  ✓ Converged: 64
+
+✓ Saved checkpoint: ../output/13.00-multiomics-barnacle/bootstrap_grid_search/bootstrap_checkpoint_iter006.csv
+  (64 results for iteration 7)
+
+================================================================================
+BOOTSTRAP ITERATION 8/10 (seed=49)
+================================================================================
+Train samples: 15, Test samples: 13
+Train species: {'apul': 5, 'peve': 5, 'ptua': 5}
+Test species: {'apul': 5, 'peve': 4, 'ptua': 4}
+
+Running grid search with 40 parallel job(s)...
+[Parallel(n_jobs=40)]: Using backend LokyBackend with 40 concurrent workers.
+[Parallel(n_jobs=40)]: Done   6 out of  64 | elapsed:  4.1min remaining: 39.8min
+[Parallel(n_jobs=40)]: Done  13 out of  64 | elapsed: 19.7min remaining: 77.4min
+[Parallel(n_jobs=40)]: Done  20 out of  64 | elapsed: 41.8min remaining: 91.9min
+[Parallel(n_jobs=40)]: Done  27 out of  64 | elapsed: 64.5min remaining: 88.3min
+[Parallel(n_jobs=40)]: Done  34 out of  64 | elapsed: 89.7min remaining: 79.2min
+[Parallel(n_jobs=40)]: Done  41 out of  64 | elapsed: 122.3min remaining: 68.6min
+[Parallel(n_jobs=40)]: Done  48 out of  64 | elapsed: 142.9min remaining: 47.6min
+[Parallel(n_jobs=40)]: Done  55 out of  64 | elapsed: 194.3min remaining: 31.8min
+[Parallel(n_jobs=40)]: Done  62 out of  64 | elapsed: 248.4min remaining:  8.0min
+[Parallel(n_jobs=40)]: Done  64 out of  64 | elapsed: 265.2min finished
+
+Completed 64 model fits:
+  ✓ Converged: 64
+
+✓ Saved checkpoint: ../output/13.00-multiomics-barnacle/bootstrap_grid_search/bootstrap_checkpoint_iter007.csv
+  (64 results for iteration 8)
+
+================================================================================
+BOOTSTRAP ITERATION 9/10 (seed=50)
+================================================================================
+Train samples: 15, Test samples: 13
+Train species: {'apul': 5, 'peve': 5, 'ptua': 5}
+Test species: {'apul': 5, 'peve': 4, 'ptua': 4}
+
+Running grid search with 40 parallel job(s)...
+[Parallel(n_jobs=40)]: Using backend LokyBackend with 40 concurrent workers.
+[Parallel(n_jobs=40)]: Done   6 out of  64 | elapsed:  4.9min remaining: 47.2min
+[Parallel(n_jobs=40)]: Done  13 out of  64 | elapsed: 15.8min remaining: 61.9min
+[Parallel(n_jobs=40)]: Done  20 out of  64 | elapsed: 38.9min remaining: 85.6min
+[Parallel(n_jobs=40)]: Done  27 out of  64 | elapsed: 79.0min remaining: 108.3min
+[Parallel(n_jobs=40)]: Done  34 out of  64 | elapsed: 106.4min remaining: 93.9min
+[Parallel(n_jobs=40)]: Done  41 out of  64 | elapsed: 122.3min remaining: 68.6min
+[Parallel(n_jobs=40)]: Done  48 out of  64 | elapsed: 161.0min remaining: 53.7min
+[Parallel(n_jobs=40)]: Done  55 out of  64 | elapsed: 203.7min remaining: 33.3min
+[Parallel(n_jobs=40)]: Done  62 out of  64 | elapsed: 248.9min remaining:  8.0min
+[Parallel(n_jobs=40)]: Done  64 out of  64 | elapsed: 283.2min finished
+
+Completed 64 model fits:
+  ✓ Converged: 64
+
+✓ Saved checkpoint: ../output/13.00-multiomics-barnacle/bootstrap_grid_search/bootstrap_checkpoint_iter008.csv
+  (64 results for iteration 9)
+
+================================================================================
+BOOTSTRAP ITERATION 10/10 (seed=51)
+================================================================================
+Train samples: 15, Test samples: 13
+Train species: {'apul': 5, 'peve': 5, 'ptua': 5}
+Test species: {'apul': 5, 'peve': 4, 'ptua': 4}
+
+Running grid search with 40 parallel job(s)...
+[Parallel(n_jobs=40)]: Using backend LokyBackend with 40 concurrent workers.
+[Parallel(n_jobs=40)]: Done   6 out of  64 | elapsed:  5.5min remaining: 53.0min
+[Parallel(n_jobs=40)]: Done  13 out of  64 | elapsed: 21.8min remaining: 85.3min
+[Parallel(n_jobs=40)]: Done  20 out of  64 | elapsed: 49.8min remaining: 109.6min
+[Parallel(n_jobs=40)]: Done  27 out of  64 | elapsed: 68.9min remaining: 94.4min
+[Parallel(n_jobs=40)]: Done  34 out of  64 | elapsed: 99.1min remaining: 87.5min
+[Parallel(n_jobs=40)]: Done  41 out of  64 | elapsed: 122.2min remaining: 68.5min
+[Parallel(n_jobs=40)]: Done  48 out of  64 | elapsed: 160.6min remaining: 53.5min
+[Parallel(n_jobs=40)]: Done  55 out of  64 | elapsed: 210.2min remaining: 34.4min
+[Parallel(n_jobs=40)]: Done  62 out of  64 | elapsed: 241.3min remaining:  7.8min
+[Parallel(n_jobs=40)]: Done  64 out of  64 | elapsed: 302.1min finished
+
+Completed 64 model fits:
+  ✓ Converged: 64
+
+✓ Saved checkpoint: ../output/13.00-multiomics-barnacle/bootstrap_grid_search/bootstrap_checkpoint_iter009.csv
+  (64 results for iteration 10)
+
+================================================================================
+AGGREGATING BOOTSTRAP RESULTS
+================================================================================
+
+================================================================================
+STAGE 1: RANK SELECTION
+Criterion: Minimum mean SSE at λ=0.0
+================================================================================
+
+✓ OPTIMAL RANK: 40
+  Mean SSE: 5.49e+05 ± 7.54e+03
+  (averaged across 10 bootstrap iterations)
+
+All λ=0.0 results:
+ rank      mean_sse      se_sse  n_converged
+   40 549113.738364 7536.621219           10
+   35 555821.768591 8213.485671           10
+   30 561876.916644 8570.243716           10
+   25 572302.536357 9538.329827           10
+   20 588466.318271 8854.508902           10
+   15 605298.547955 9198.166618           10
+   10 627793.334053 8061.062514           10
+    5 670217.657659 8376.203705           10
+
+================================================================================
+STAGE 2: LAMBDA SELECTION
+Criterion: Maximum λ where FMS ≥ (max_FMS - 1SE)
+================================================================================
+
+Max FMS: 0.5369 ± 0.0090
+1SE Threshold: 0.5279
+
+✓ OPTIMAL LAMBDA: 2.0
+  Mean FMS: 0.5322
+
+================================================================================
+BOOTSTRAP STABILITY ASSESSMENT
+================================================================================
+Optimal rank=40, lambda=2.0:
+  SSE coefficient of variation: 0.043
+  FMS coefficient of variation: 0.053
+  Convergence rate: 10/10 (100.0%)
+  ✓ Excellent stability (CV < 0.1)
+
+================================================================================
+FINAL SELECTED PARAMETERS
+================================================================================
+✓ Rank: 40
+✓ Lambda: 2.0
+  Based on 10 bootstrap iterations
+================================================================================
+
+================================================================================
+BOOTSTRAP GRID SEARCH COMPLETE
+================================================================================
+Total time: 2914.8 minutes
+Time per model: 136.6 seconds
+================================================================================
+
+✓ Aggregated results saved to: bootstrap_aggregated_results.csv
+✓ Raw bootstrap data saved to: bootstrap_raw_iterations.csv
+✓ Optimal parameters saved to: optimal_parameters.json
+
+✓ All results saved to: ../output/13.00-multiomics-barnacle/bootstrap_grid_search/
+================================================================================
