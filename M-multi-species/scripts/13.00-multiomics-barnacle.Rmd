@@ -1393,9 +1393,27 @@ print("="*80)
 1. **Split-half cross-validation** (instead of leave-one-out)
 2. **Bootstrap resampling** (repeated random splits)
 3. **Stability assessment** across bootstrap iterations
-4. **Incremental checkpointing** (saves after each bootstrap iteration)
-5. **Resume capability** (continue from last checkpoint if interrupted)
-6. **Two-stage selection**: SSE for rank, FMS for lambda
+4. **1SE rule for rank selection** (parsimony principle)
+5. **1SE rule for lambda selection** (sparsity with stability)
+6. **Incremental checkpointing** (saves after each bootstrap iteration)
+7. **Resume capability** (continue from last checkpoint if interrupted)
+8. **Parallel execution** (multi-core speedup)
+
+**Two-Stage Parameter Selection:**
+
+**Stage 1 - Rank Selection (1SE Rule):**
+- Evaluate all ranks at λ=0.0 (no regularization)
+- Find minimum mean SSE and its standard error (SE)
+- Calculate 1SE threshold: min_SSE + 1×SE
+- **Select smallest rank with SSE ≤ threshold** (most parsimonious)
+- Rationale: Avoids overfitting by preferring simpler models when performance is comparable
+
+**Stage 2 - Lambda Selection (1SE Rule):**
+- At the selected rank, evaluate all lambda values
+- Find maximum FMS and its standard error
+- Calculate 1SE threshold: max_FMS - 1×SE
+- **Select maximum lambda with FMS ≥ threshold** (most sparse)
+- Rationale: Maximizes sparsity while maintaining factor stability
 
 This approach is recommended when you don't have enough replicates to create completely independent training/test tensors.
 
@@ -1888,8 +1906,8 @@ def split_half_bootstrap_grid_search(
     # STAGE 1: SELECT RANK (λ=0.0 models only)
     # ===========================================
     print(f"\n{'='*80}")
-    print("STAGE 1: RANK SELECTION")
-    print("Criterion: Minimum mean SSE at λ=0.0")
+    print("STAGE 1: RANK SELECTION (1SE RULE)")
+    print("Criterion: Smallest rank within 1SE of minimum SSE at λ=0.0")
     print("="*80)
     
     lambda_zero_df = results_df[results_df['lambda'] == 0.0].copy()
@@ -1898,25 +1916,61 @@ def split_half_bootstrap_grid_search(
         print("ERROR: No λ=0.0 models found")
         return None, None, results_df, all_bootstrap_results
     
-    optimal_rank_idx = lambda_zero_df['mean_sse'].idxmin()
-    optimal_rank = int(lambda_zero_df.loc[optimal_rank_idx, 'rank'])
-    optimal_rank_sse = lambda_zero_df.loc[optimal_rank_idx, 'mean_sse']
-    optimal_rank_se = lambda_zero_df.loc[optimal_rank_idx, 'se_sse']
+    # Find minimum SSE and its SE
+    min_sse_idx = lambda_zero_df['mean_sse'].idxmin()
+    min_sse = lambda_zero_df.loc[min_sse_idx, 'mean_sse']
+    min_sse_se = lambda_zero_df.loc[min_sse_idx, 'se_sse']
+    min_sse_rank = int(lambda_zero_df.loc[min_sse_idx, 'rank'])
     
-    print(f"\n✓ OPTIMAL RANK: {optimal_rank}")
-    print(f"  Mean SSE: {optimal_rank_sse:.2e} ± {optimal_rank_se:.2e}")
-    print(f"  (averaged across {n_bootstrap} bootstrap iterations)")
+    # Calculate 1SE threshold (minimum SSE + 1 standard error)
+    sse_1se_threshold = min_sse + min_sse_se
     
-    print(f"\nAll λ=0.0 results:")
-    display_df = lambda_zero_df[['rank', 'mean_sse', 'se_sse', 'n_converged']].copy()
-    display_df = display_df.sort_values('mean_sse')
-    print(display_df.to_string(index=False))
+    print(f"\nMinimum SSE: {min_sse:.2e} ± {min_sse_se:.2e} (at rank={min_sse_rank})")
+    print(f"1SE Threshold: {sse_1se_threshold:.2e}")
+    print(f"\nApplying 1SE rule (parsimony principle):")
+    print(f"  Select smallest rank where SSE ≤ {sse_1se_threshold:.2e}")
+    
+    # Find all ranks within 1SE of minimum
+    within_1se = lambda_zero_df[lambda_zero_df['mean_sse'] <= sse_1se_threshold].copy()
+    within_1se = within_1se.sort_values('rank')
+    
+    if len(within_1se) > 0:
+        # Select SMALLEST rank (most parsimonious) within 1SE
+        optimal_rank = int(within_1se.iloc[0]['rank'])
+        optimal_rank_sse = within_1se.iloc[0]['mean_sse']
+        optimal_rank_se = within_1se.iloc[0]['se_sse']
+        
+        print(f"\n✓ OPTIMAL RANK (1SE rule): {optimal_rank}")
+        print(f"  Mean SSE: {optimal_rank_sse:.2e} ± {optimal_rank_se:.2e}")
+        print(f"  (smallest rank with SSE within 1SE of minimum)")
+        
+        if optimal_rank != min_sse_rank:
+            print(f"\n  Note: Rank {min_sse_rank} had absolute minimum SSE,")
+            print(f"        but rank {optimal_rank} selected by 1SE rule (more parsimonious)")
+        
+        print(f"\nRanks within 1SE of minimum:")
+        display_df = within_1se[['rank', 'mean_sse', 'se_sse', 'n_converged']].copy()
+        print(display_df.to_string(index=False))
+    else:
+        # Fallback: use minimum SSE rank
+        optimal_rank = min_sse_rank
+        optimal_rank_sse = min_sse
+        optimal_rank_se = min_sse_se
+        print(f"\n✓ OPTIMAL RANK (minimum SSE): {optimal_rank}")
+        print(f"  Mean SSE: {optimal_rank_sse:.2e} ± {optimal_rank_se:.2e}")
+        print(f"  (no other ranks within 1SE)")
+    
+    print(f"\nAll λ=0.0 results (for reference):")
+    display_all = lambda_zero_df[['rank', 'mean_sse', 'se_sse', 'n_converged']].copy()
+    display_all = display_all.sort_values('rank')
+    display_all['within_1se'] = display_all['mean_sse'] <= sse_1se_threshold
+    print(display_all.to_string(index=False))
     
     # ===========================================
     # STAGE 2: SELECT LAMBDA (fixed rank)
     # ===========================================
     print(f"\n{'='*80}")
-    print("STAGE 2: LAMBDA SELECTION")
+    print("STAGE 2: LAMBDA SELECTION (1SE RULE)")
     print("Criterion: Maximum λ where FMS ≥ (max_FMS - 1SE)")
     print("="*80)
     
@@ -2504,17 +2558,43 @@ else:
     # Load results
     results_df = pd.read_csv(results_file)
     
-    # Load optimal parameters
-    with open(os.path.join(bootstrap_dir, 'optimal_parameters.json'), 'r') as f:
-        optimal_params = json.load(f)
-    
-    optimal_rank = optimal_params['optimal_rank']
-    optimal_lambda = optimal_params['optimal_lambda']
+    # Load optimal parameters (if exists, otherwise calculate with 1SE rule)
+    params_file = os.path.join(bootstrap_dir, 'optimal_parameters.json')
+    if os.path.exists(params_file):
+        with open(params_file, 'r') as f:
+            optimal_params = json.load(f)
+        optimal_rank = optimal_params['optimal_rank']
+        optimal_lambda = optimal_params['optimal_lambda']
+        n_bootstrap = optimal_params['n_bootstrap_iterations']
+    else:
+        # Calculate optimal rank using 1SE rule
+        lambda_zero = results_df[results_df['lambda'] == 0.0].copy()
+        min_idx = lambda_zero['mean_sse'].idxmin()
+        min_sse = lambda_zero.loc[min_idx, 'mean_sse']
+        min_se = lambda_zero.loc[min_idx, 'se_sse']
+        threshold = min_sse + min_se
+        within_1se = lambda_zero[lambda_zero['mean_sse'] <= threshold].sort_values('rank')
+        optimal_rank = int(within_1se.iloc[0]['rank'])
+        
+        # Calculate optimal lambda using 1SE rule
+        fixed_rank = results_df[results_df['rank'] == optimal_rank].copy()
+        fixed_rank = fixed_rank[~fixed_rank['mean_fms'].isna()]
+        if len(fixed_rank) > 0:
+            max_idx = fixed_rank['mean_fms'].idxmax()
+            max_fms = fixed_rank.loc[max_idx, 'mean_fms']
+            max_se = fixed_rank.loc[max_idx, 'se_fms']
+            fms_threshold = max_fms - max_se
+            within_1se_fms = fixed_rank[fixed_rank['mean_fms'] >= fms_threshold]
+            optimal_lambda = float(within_1se_fms['lambda'].max())
+        else:
+            optimal_lambda = 0.0
+        
+        n_bootstrap = 10  # Default if not in file
     
     print(f"Loaded bootstrap results:")
-    print(f"  Optimal rank: {optimal_rank}")
-    print(f"  Optimal lambda: {optimal_lambda}")
-    print(f"  Bootstrap iterations: {optimal_params['n_bootstrap_iterations']}")
+    print(f"  Optimal rank (1SE rule): {optimal_rank_1se}")
+    print(f"  Optimal lambda (1SE rule): {optimal_lambda}")
+    print(f"  Bootstrap iterations: {n_bootstrap}")
     
     # Create visualization directory
     fig_dir = os.path.join(bootstrap_dir, 'figures')
@@ -2531,8 +2611,8 @@ else:
                 cbar_kws={'label': 'Mean SSE'}, ax=ax)
     
     # Mark optimal
-    if optimal_rank is not None and optimal_lambda is not None:
-        rank_pos = list(plot_df.index).index(optimal_rank)
+    if optimal_rank_1se is not None and optimal_lambda is not None:
+        rank_pos = list(plot_df.index).index(optimal_rank_1se)
         lambda_pos = list(plot_df.columns).index(optimal_lambda)
         ax.plot(lambda_pos + 0.5, rank_pos + 0.5, 'b*', markersize=20, 
                 markeredgewidth=2, markeredgecolor='white')
@@ -2548,6 +2628,8 @@ else:
     plt.show()
     plt.close()
     
+    print("✓ Figure 1 saved: bootstrap_sse_heatmap.png")
+    
     # ========================================
     # FIGURE 2: FMS Heatmap
     # ========================================
@@ -2559,9 +2641,9 @@ else:
                 vmin=0, vmax=1, cbar_kws={'label': 'Mean FMS'}, ax=ax)
     
     # Mark optimal
-    if optimal_rank is not None and optimal_lambda is not None:
+    if optimal_rank_1se is not None and optimal_lambda is not None:
         if optimal_lambda in plot_df_fms.columns:
-            rank_pos = list(plot_df_fms.index).index(optimal_rank)
+            rank_pos = list(plot_df_fms.index).index(optimal_rank_1se)
             lambda_pos = list(plot_df_fms.columns).index(optimal_lambda)
             ax.plot(lambda_pos + 0.5, rank_pos + 0.5, 'b*', markersize=20,
                    markeredgewidth=2, markeredgecolor='white')
@@ -2577,56 +2659,98 @@ else:
     plt.show()
     plt.close()
     
+    print("✓ Figure 2 saved: bootstrap_fms_heatmap.png")
+    
     # ========================================
-    # FIGURE 3: Rank Selection (λ=0.0)
+    # FIGURE 3: Rank Selection (λ=0.0) with 1SE Rule
     # ========================================
+    print("\nGenerating Figure 3: Rank selection with 1SE rule...")
+    
     lambda_zero = results_df[results_df['lambda'] == 0.0].copy()
     lambda_zero = lambda_zero.sort_values('rank')
     
-    # Calculate relative SSE (normalized to lowest rank)
-    baseline_sse = lambda_zero.iloc[0]['mean_sse']
-    lambda_zero['relative_sse'] = lambda_zero['mean_sse'] / baseline_sse
-    lambda_zero['relative_se'] = lambda_zero['se_sse'] / baseline_sse
+    # Calculate 1SE threshold for rank selection
+    min_sse_idx = lambda_zero['mean_sse'].idxmin()
+    min_sse = lambda_zero.loc[min_sse_idx, 'mean_sse']
+    min_sse_se = lambda_zero.loc[min_sse_idx, 'se_sse']
+    min_sse_rank = int(lambda_zero.loc[min_sse_idx, 'rank'])
+    sse_1se_threshold = min_sse + min_sse_se
+    
+    print(f"  Minimum SSE: {min_sse:.2e} ± {min_sse_se:.2e} (at rank={min_sse_rank})")
+    print(f"  1SE Threshold: {sse_1se_threshold:.2e}")
+    
+    # Identify which ranks are within 1SE
+    lambda_zero['within_1se'] = lambda_zero['mean_sse'] <= sse_1se_threshold
+    
+    # Find optimal rank by 1SE rule (smallest rank within 1SE)
+    within_1se_df = lambda_zero[lambda_zero['within_1se']].sort_values('rank')
+    if len(within_1se_df) > 0:
+        optimal_rank_1se = int(within_1se_df.iloc[0]['rank'])
+        print(f"  Optimal rank (1SE rule): {optimal_rank_1se}")
+        print(f"  Ranks within 1SE: {list(within_1se_df['rank'])}")
+    else:
+        optimal_rank_1se = min_sse_rank
+        print(f"  Optimal rank (minimum SSE): {optimal_rank_1se}")
     
     # Calculate coefficient of variation (relative variability)
     lambda_zero['cv'] = lambda_zero['std_sse'] / lambda_zero['mean_sse']
     
     fig, axes = plt.subplots(2, 1, figsize=(12, 10), height_ratios=[2, 1])
     
-    # Panel A: Relative SSE (normalized to rank 5)
+    # Panel A: Mean SSE with 1SE threshold
     ax1 = axes[0]
-    ax1.errorbar(lambda_zero['rank'], lambda_zero['relative_sse'],
-               yerr=lambda_zero['relative_se'],
+    
+    # Plot all points
+    ax1.errorbar(lambda_zero['rank'], lambda_zero['mean_sse'],
+               yerr=lambda_zero['se_sse'],
                marker='o', markersize=10, linewidth=2.5,
                capsize=5, capthick=2,
-               color='darkviolet', ecolor='plum')
+               color='darkviolet', ecolor='plum',
+               label='Mean SSE ± SE', zorder=2)
     
-    if optimal_rank is not None:
-        ax1.axvline(x=optimal_rank, color='red', linestyle='--',
-                  linewidth=2, alpha=0.7,
-                  label=f'Optimal Rank = {optimal_rank}')
+    # Highlight points within 1SE
+    within_1se_df = lambda_zero[lambda_zero['within_1se']]
+    ax1.scatter(within_1se_df['rank'], within_1se_df['mean_sse'],
+               s=200, marker='o', facecolors='none', 
+               edgecolors='green', linewidths=3,
+               label='Within 1SE of minimum', zorder=3)
     
-    # Add reference line at 1.0
-    ax1.axhline(y=1.0, color='gray', linestyle=':', linewidth=1.5, alpha=0.5)
+    # Draw 1SE threshold line
+    ax1.axhline(y=sse_1se_threshold, color='orange', linestyle='--',
+              linewidth=2.5, alpha=0.8,
+              label=f'1SE Threshold = {sse_1se_threshold:.2e}')
+    
+    # Mark minimum SSE rank
+    ax1.axvline(x=min_sse_rank, color='blue', linestyle=':',
+              linewidth=2, alpha=0.6,
+              label=f'Min SSE at rank={min_sse_rank}')
+    
+    # Mark optimal rank (1SE rule) - use calculated value, not loaded parameter
+    ax1.axvline(x=optimal_rank_1se, color='red', linestyle='--',
+              linewidth=2.5, alpha=0.8,
+              label=f'Selected Rank = {optimal_rank_1se} (1SE rule)')
     
     ax1.set_xlabel('Rank', fontsize=12)
-    ax1.set_ylabel(f'Relative SSE (normalized to rank {int(lambda_zero.iloc[0]["rank"])})', fontsize=12)
-    ax1.set_title('Stage 1: Rank Selection at λ=0.0\n' +
-                f'Based on {optimal_params["n_bootstrap_iterations"]} Bootstrap Iterations',
+    ax1.set_ylabel('Mean SSE', fontsize=12)
+    ax1.set_title('Stage 1: Rank Selection at λ=0.0 (1SE Rule)\n' +
+                f'Based on {n_bootstrap} Bootstrap Iterations',
                 fontsize=13, fontweight='bold')
-    ax1.legend(fontsize=11, loc='upper right')
+    ax1.legend(fontsize=10, loc='upper right')
     ax1.grid(alpha=0.3)
-    ax1.set_ylim([0.75, 1.05])
+    ax1.ticklabel_format(style='scientific', axis='y', scilimits=(0,0))
     
-    # Panel B: Coefficient of Variation (shows relative uncertainty is consistent)
+    # Panel B: Coefficient of Variation
     ax2 = axes[1]
-    ax2.plot(lambda_zero['rank'], lambda_zero['cv'] * 100,
-            marker='s', markersize=8, linewidth=2,
-            color='teal', label='CV across bootstrap iterations')
     
-    if optimal_rank is not None:
-        ax2.axvline(x=optimal_rank, color='red', linestyle='--',
-                  linewidth=2, alpha=0.7)
+    # Color code by within 1SE
+    colors = ['green' if w else 'teal' for w in lambda_zero['within_1se']]
+    ax2.scatter(lambda_zero['rank'], lambda_zero['cv'] * 100,
+               s=100, c=colors, marker='s', alpha=0.7, edgecolors='black', linewidths=1.5)
+    ax2.plot(lambda_zero['rank'], lambda_zero['cv'] * 100,
+            linewidth=2, color='gray', alpha=0.5, linestyle=':')
+    
+    ax2.axvline(x=optimal_rank_1se, color='red', linestyle='--',
+              linewidth=2, alpha=0.7)
     
     # Add horizontal line for mean CV
     mean_cv = lambda_zero['cv'].mean() * 100
@@ -2636,23 +2760,26 @@ else:
     
     ax2.set_xlabel('Rank', fontsize=12)
     ax2.set_ylabel('Coefficient of Variation (%)', fontsize=12)
-    ax2.set_title('Relative Bootstrap Variability (CV = σ/μ)',
+    ax2.set_title('Bootstrap Stability',
                 fontsize=11, fontweight='bold')
     ax2.legend(fontsize=10, loc='upper right')
     ax2.grid(alpha=0.3)
-    ax2.set_ylim([0, max(lambda_zero['cv'] * 100) * 1.2])
     
     plt.tight_layout()
-    plt.savefig(os.path.join(fig_dir, 'bootstrap_rank_selection.png'),
+    plt.savefig(os.path.join(fig_dir, 'bootstrap_rank_selection_1se.png'),
                 dpi=300, bbox_inches='tight')
     plt.show()
     plt.close()
     
+    print("✓ Figure 3 saved: bootstrap_rank_selection_1se.png")
+    
     # ========================================
     # FIGURE 4: Lambda Selection at Optimal Rank
     # ========================================
-    if optimal_rank is not None:
-        optimal_rank_data = results_df[results_df['rank'] == optimal_rank].copy()
+    print(f"\nGenerating Figure 4: Lambda selection at rank={optimal_rank_1se}...")
+    
+    if optimal_rank_1se is not None:
+        optimal_rank_data = results_df[results_df['rank'] == optimal_rank_1se].copy()
         optimal_rank_data = optimal_rank_data.sort_values('lambda')
         
         fig, axes = plt.subplots(2, 1, figsize=(12, 10))
@@ -2672,7 +2799,7 @@ else:
         
         ax1.set_xlabel('Lambda', fontsize=12)
         ax1.set_ylabel('Mean SSE (± SE)', fontsize=12)
-        ax1.set_title(f'SSE vs Lambda at Optimal Rank (R={optimal_rank})',
+        ax1.set_title(f'SSE vs Lambda at Optimal Rank (R={optimal_rank_1se})',
                      fontsize=13, fontweight='bold')
         ax1.legend(fontsize=11)
         ax1.grid(alpha=0.3)
@@ -2704,7 +2831,7 @@ else:
             
             ax2.set_xlabel('Lambda', fontsize=12)
             ax2.set_ylabel('Mean FMS (± SE)', fontsize=12)
-            ax2.set_title(f'Stage 2: Lambda Selection at Optimal Rank (R={optimal_rank})\n' +
+            ax2.set_title(f'Stage 2: Lambda Selection at Optimal Rank (R={optimal_rank_1se})\n' +
                          'Criterion: Maximum λ where FMS ≥ (max_FMS - 1SE)',
                          fontsize=13, fontweight='bold')
             ax2.legend(fontsize=11)
