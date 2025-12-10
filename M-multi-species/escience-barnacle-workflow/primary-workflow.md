@@ -101,4 +101,119 @@ This script performs **tensor decomposition analysis** on multi-species time-ser
 
 ## Barnacle: Rank Determination
 
+**Tensor Structure:** `genes × combined_samples × timepoints`
+
+- **Dimension 1 (Genes):** 9,801 ortholog groups
+- **Dimension 2 (Samples):** 27 colonies (10 apul + 9 peve + 8 ptua)
+  - Samples combined across species in a single dimension
+  - Each colony represented by 4 timepoint measurements
+  - Species identity tracked in metadata mapping
+- **Dimension 3 (Timepoints):** 4 measurement times (TP1-TP4)
+
+**Final Tensor Shape:** `(9801, 27, 4)` = ~1.06M data points
+
+### Ideal Rank Determination Approaches
+
+#### Variance explained
+
+- Function: `run_single_rank_decomposition()`
+
+- Location: Lines ~3100-3250
+
+```python
+ranks_to_test = [5, 8, 10, 12, 15, 20, 25, 35, 45, 55, 65, 75]
+for test_rank in sorted(ranks_to_test):
+    result = run_single_rank_decomposition(
+        tensor=tensor_3d,
+        rank=test_rank,
+        lambdas=[0.1, 0.0, 0.1],
+        n_iter_max=10000
+    )
+```
+
+```python
+# Calculate variance explained
+total_variance = np.nanvar(tensor_filled)
+reconstruction_error = np.nansum((tensor_filled - reconstructed) ** 2)
+variance_explained = 1 - (reconstruction_error / (total_variance * tensor_filled.size))
+```
+
+<img width="1475" height="881" alt="image" src="https://github.com/user-attachments/assets/4c084473-80a8-4759-9eed-c02236c25353" />
+
+
+#### Grid Search
+
+- Function: `dissertation_grid_search_cv()`
+
+- Location: Lines ~1360-1750 in `13.00-multiomics-barnacle.Rmd`
+
+Implementation Details:
+
+```python
+dissertation_grid_search_cv(
+    tensor,
+    replicate_groups,
+    rank_range=[5, 10, 15, 20, 25, 30],
+    lambda_values=[0.0, 0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0],
+    n_iter_max=10000,
+    random_state=42
+)
+```
+
+What it does:
+
+1. **Grid Search**: Tests ALL rank × lambda combinations
+   - For each combination (R, λ):
+     - Fits model to each CV fold (leave-one-group-out)
+     - Calculates SSE on held-out data
+     - Stores decomposition for FMS calculation
+
+2. **SSE Calculation**: 
+   - Each fitted model evaluated against ALL held-out groups
+   - Creates cross-validated SSE scores (as dissertation describes)
+
+3. **FMS Calculation**:
+   - Pairwise Factor Match Score between successful fold models
+   - Compares gene and time factors only (sample factors have dimension mismatch)
+   - Creates cross-validated FMS scores (as dissertation describes)
+
+4. **Two-Stage Selection** (exact dissertation method):
+   - **Stage 1 - Rank Selection**: 
+     - Filter to λ=0.0 models only
+     - Select R at minimum mean CV-SSE
+   - **Stage 2 - Lambda Selection**:
+     - Filter to optimal rank only
+     - Find maximum FMS and its standard error
+     - Calculate 1SE threshold: `max_FMS - SE(max_FMS)`
+     - Select maximum λ where FMS ≥ threshold
+
+**Returns:**
+- `optimal_rank`: Selected rank from Stage 1
+- `optimal_lambda`: Selected lambda from Stage 2
+- `grid_results_df`: Full DataFrame with all combinations and metrics
+
+### RESULTS
+
+**Rank Selection Details:**
+- Tested ranks 5-35 (7 values)
+- CV-SSE showed monotonic decrease across range
+- Rank 35 (highest tested) had lowest error
+- **IMPORTANT CAVEAT:** Monotonic decrease suggests true optimal rank may be higher than 35, or that a statistical significance criterion (1SE rule) should be applied to prefer lower ranks
+
+**Cross-Validation Performance:**
+| Rank | Mean CV-SSE | Std CV-SSE | Successful Folds |
+|------|-------------|------------|------------------|
+| 5    | 509,692     | 41,853     | 3/3              |
+| 10   | 495,049     | 29,922     | 3/3              |
+| 15   | 492,031     | 30,408     | 3/3              |
+| 20   | 491,723     | 29,053     | 3/3              |
+| 25   | 489,845     | 29,885     | 3/3              |
+| 30   | 489,372     | 28,991     | 3/3              |
+| **35** | **488,328** | **29,505** | **3/3**      |
+
+
+  <img width="3572" height="1767" alt="image" src="https://github.com/user-attachments/assets/77708c54-9323-4fef-bc0d-edd3d72725e3" />
+
 ## Barnacle: Optimization
+
+
