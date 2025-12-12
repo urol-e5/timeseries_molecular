@@ -60,7 +60,7 @@ genome_guided_assembly_name <- "apul-GG-Trinity"
 
 #SETTINGS
 ## THREADS
-threads <- "150"
+threads <- "44"
 
 ## MAX RAM
 max_ram <- "100G"
@@ -132,7 +132,8 @@ Trinity \
 --left "${R1_list}" \
 --right "${R2_list}" \
 --output ${de_novo_output_dir}/trinity_out_dir \
---full_cleanup
+--full_cleanup \
+> ${de_novo_output_dir}/trinity.log 2>&1
 ```
 
 
