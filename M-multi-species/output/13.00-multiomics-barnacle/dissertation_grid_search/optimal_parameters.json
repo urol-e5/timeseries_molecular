@@ -1,0 +1,35 @@
+{
+  "method": "dissertation_grid_search",
+  "reference": "Blaskowski 2024, Section 1.2.3",
+  "optimal_rank": 35,
+  "optimal_lambda": 5.0,
+  "rank_range_tested": [
+    5,
+    10,
+    15,
+    20,
+    25,
+    30,
+    35
+  ],
+  "lambda_values_tested": [
+    0.0,
+    0.01,
+    0.05,
+    0.1,
+    0.5,
+    1.0,
+    2.0,
+    5.0
+  ],
+  "cv_method": "leave_one_group_out",
+  "n_cv_folds": 3,
+  "cv_groups": [
+    "apul",
+    "peve",
+    "ptua"
+  ],
+  "total_combinations": 56,
+  "runtime_minutes": 3052.481789604823,
+  "timestamp": "2025-11-26T13:56:18.516537"
+}
