@@ -31,6 +31,7 @@ bibliography: references.bib
 ## Libraries and markdown settings
 ```{r setup, include=TRUE}
 library(knitr)
+library(reticulate)
 knitr::opts_chunk$set(
   echo = TRUE,         # Display code chunks
   eval = FALSE,        # Evaluate code chunks
@@ -65,6 +66,10 @@ threads <- "44"
 ## MAX RAM
 max_ram <- "100G"
 
+# CONDA
+conda_env_name <- c("/srlab/programs/miniforge3-24.7.1-0")
+conda_path <- c("/srlab/programs/miniforge3-24.7.1-0/bin/conda")
+
 
 # FORMATTING
 line <- "-----------------------------------------------"
@@ -84,6 +89,21 @@ Sys.setenv(
   threads = threads,
   trimmed_reads_dir = trimmed_reads_dir
 )
+```
+
+## Load conda environment
+
+Needed for numpy module in Trinity.
+
+If this is successful, the first line of output should show that the Python being used is the one in your conda environment path.
+
+E.g.
+
+`python:         /srlab/programs/miniforge3-24.7.1-0/bin/python`
+
+```{r load-barnacle-conda-env, eval=TRUE}
+use_condaenv(condaenv = conda_env_name, conda = conda_path)
+py_config()
 ```
 
 # DE NOVO ASSEMBLY
