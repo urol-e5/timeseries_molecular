@@ -31,6 +31,7 @@ bibliography: references.bib
 ## Libraries and markdown settings
 ```{r setup, include=TRUE}
 library(knitr)
+library(reticulate)
 knitr::opts_chunk$set(
   echo = TRUE,         # Display code chunks
   eval = FALSE,        # Evaluate code chunks
@@ -60,7 +61,7 @@ genome_guided_assembly_name <- "apul-GG-Trinity"
 
 #SETTINGS
 ## THREADS
-threads <- "150"
+threads <- "44"
 
 ## MAX RAM
 max_ram <- "100G"
@@ -89,7 +90,29 @@ Sys.setenv(
 # DE NOVO ASSEMBLY
 
 ## Run Trinity
-```{r de-novo-assembly, engine='bash'}
+
+Trinity was run using the [Trinity Singularity (Apptainer) container](https://github.com/trinityrnaseq/trinityrnaseq/wiki/Trinity-in-Docker#running-trinity-using-singularity), `trinityrnaseq.v2.15.2.simg` from the `urol-e5/timeseries_molecular/D-Apul/code/` directory.
+
+This was done in a terminal, outside of this notebook.
+
+
+### Set Bash variables
+
+```bash
+# Directories
+top_output_dir="../output"
+
+output_dir="${top_output_dir}/00.30-D-Apul-transcriptome-assembly-Trinity"
+de_novo_output_dir="${output_dir}/de_novo_assembly"
+genome_guided_output_dir="${output_dir}/genome_guided_assembly"
+trimmed_reads_dir="${top_output_dir}/01.00-D-Apul-RNAseq-trimming-fastp-FastQC-MultiQC"
+
+## THREADS
+threads="150"
+
+## MAX RAM
+max_ram="100G"
+
 # Make output directoy, if it doesn't exist
 mkdir --parents ${de_novo_output_dir}
 
@@ -104,26 +127,33 @@ R2_list=""
 # Create array of fastq R1 files
 R1_array=(${trimmed_reads_dir}/*R1_001.fastp-trim.fq.gz)
 
-
-
 # Create array of fastq R2 files
 R2_array=(${trimmed_reads_dir}/*R2_001.fastp-trim.fq.gz)
 
 # Create list of fastq files used in analysis
 ## Uses parameter substitution to strip leading path from filename
-for fastq in ${trimmed_reads_dir}/*.fq.gz
-do
-  echo "${fastq##*/}" >> ${de_novo_output_dir}/fastq.list.txt
-done
+if [ ! -f "${de_novo_output_dir}/fastq.list.txt" ]; then
+  for fastq in ${trimmed_reads_dir}/*.fq.gz
+  do
+    echo "${fastq##*/}" >> ${de_novo_output_dir}/fastq.list.txt
+  done
+fi
 
 # Create comma-separated lists of FastQ reads
 R1_list=$(echo "${R1_array[@]}" | tr " " ",")
 R2_list=$(echo "${R2_array[@]}" | tr " " ",")
+```
 
-echo $R1_list
+
+### Run Trinity Singularity image.
+
+Used "stranded" setting (--SS_lib_type).
 
 
-# Run Trinity using "stranded" setting (--SS_lib_type)
+```bash
+singularity exec \
+-B /home \
+-e trinityrnaseq.v2.15.2.simg \
 Trinity \
 --seqType fq \
 --max_memory ${max_ram} \
@@ -132,7 +162,9 @@ Trinity \
 --left "${R1_list}" \
 --right "${R2_list}" \
 --output ${de_novo_output_dir}/trinity_out_dir \
---full_cleanup
+--full_cleanup \
+> ${de_novo_output_dir}/trinity.log \
+2>&1
 ```
 
 

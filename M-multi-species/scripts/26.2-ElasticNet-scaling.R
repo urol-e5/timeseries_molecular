@@ -1,37 +1,28 @@
 
 cat("loading libraries", "\n")
-library(tidyverse)
-library(ggplot2)
-library(DESeq2)
-library(igraph)
-library(psych)
-library(tidygraph)
-library(ggraph)
-library(WGCNA)
-library(edgeR)
-library(reshape2)
-library(ggcorrplot)
-library(corrplot)
-library(rvest)
-library(purrr)
-library(pheatmap)
-library(glmnet)
-library(caret)
-library(factoextra)
-library(vegan)
-library(ggfortify)
-library(genefilter)
-library(scales)
-library(purrr)
-
-
-# set seed
-set.seed(703)
-
-# --------- Robust command-line parsing + defaults ----------
-cat("loading libraries\n")
-
-# (your library() calls here) ...
+suppressMessages(suppressWarnings(library(tidyverse)))
+suppressMessages(suppressWarnings(library(ggplot2)))
+suppressMessages(suppressWarnings(library(DESeq2)))
+suppressMessages(suppressWarnings(library(igraph)))
+suppressMessages(suppressWarnings(library(psych)))
+suppressMessages(suppressWarnings(library(tidygraph)))
+suppressMessages(suppressWarnings(library(ggraph)))
+suppressMessages(suppressWarnings(library(WGCNA)))
+suppressMessages(suppressWarnings(library(edgeR)))
+suppressMessages(suppressWarnings(library(reshape2)))
+suppressMessages(suppressWarnings(library(ggcorrplot)))
+suppressMessages(suppressWarnings(library(corrplot)))
+suppressMessages(suppressWarnings(library(rvest)))
+suppressMessages(suppressWarnings(library(purrr)))
+suppressMessages(suppressWarnings(library(pheatmap)))
+suppressMessages(suppressWarnings(library(glmnet)))
+suppressMessages(suppressWarnings(library(caret)))
+suppressMessages(suppressWarnings(library(factoextra)))
+suppressMessages(suppressWarnings(library(vegan)))
+suppressMessages(suppressWarnings(library(ggfortify)))
+suppressMessages(suppressWarnings(library(genefilter)))
+suppressMessages(suppressWarnings(library(scales)))
+suppressMessages(suppressWarnings(library(purrr)))
 
 # set seed
 set.seed(703)
@@ -80,6 +71,7 @@ if (is.na(excluded_samples_raw) || excluded_samples_raw == "" || excluded_sample
   excluded_samples <- unlist(strsplit(excluded_samples_raw, "[,;\\s]+"))
   excluded_samples <- excluded_samples[excluded_samples != ""]
 }
+cat("List of samples to exclude", excluded_samples, "\n")
 
 # diagnostics
 cat("Running EN model with:\n")
@@ -95,7 +87,7 @@ cat(" bootstrap1_reps: ", bootstrap1_reps, "\n")
 cat(" bootstrap2_reps: ", bootstrap2_reps, "\n")
 cat(" r2_threshold: ", r2_threshold, "\n")
 
-# make output dir
+# make output dirs
 if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 
 # nice to have for debugging: sessionInfo and time
@@ -104,7 +96,7 @@ print(sessionInfo())
 cat("Start time: ", Sys.time(), "\n")
 
 # --------- Defining model functions ----------
-cat("Defining model functions")
+cat("Defining model functions", "\n")
 
 # Define model functions
 train_models <- function(response_features, predictor_features) {
@@ -203,20 +195,27 @@ train_models_split <- function(response_features, predictor_features, train_frac
 ## Load and format data 
 ### mRNA ###
 # raw gene counts data (will filter and variance stabilize)
-genes <- as.data.frame(read_csv(genes_file))
+cat("Loading gene counts\n")
+genes <- as.data.frame(read.csv(genes_file)) %>% select(-gene_id)
+# Format sample names to match standard (SPEC-Sample#-TP#)
+colnames(genes) <- gsub("\\.", "-", colnames(genes))
 # format gene IDs as rownames (instead of a column)
-rownames(genes) <- genes$gene_id
-genes <- genes%>%select(!gene_id)
+rownames(genes) <- genes[,1]
+genes <- genes %>% select(-1)
 
 ### miRNA ###
 # raw miRNA counts (will filter and variance stabilize)
+cat("loading miRNA counts\n")
 miRNA <- read.table(file = miRNA_file, header = TRUE, sep = "\t", check.names = FALSE)
+# Format sample names to match standard (SPEC-Sample#-TP#)
+colnames(miRNA) <- gsub("\\.", "-", colnames(miRNA))
 # format miRNA IDs as rownames (instead of a column)
-rownames(miRNA) <- miRNA$Name
-miRNA <- miRNA%>%select(!Name)
+rownames(miRNA) <- miRNA[,1]
+miRNA <- miRNA%>%select(-1)
 
 ### lncRNA ###
 # raw lncRNA counts (will filter and variance stabilize)
+cat("Loading lncRNA counts\n")
 lncRNA_full <- read.table(lncRNA_file, header = TRUE, sep = "\t", check.names = FALSE)
 # Remove info on genomic location, set lncRNA IDs as rownames
 rownames(lncRNA_full) <- lncRNA_full$Geneid
@@ -225,17 +224,42 @@ lncRNA <- lncRNA_full %>% select(-Geneid, -Chr, -Start, -End, -Strand, -Length)
 colnames(lncRNA) <- gsub("\\.", "-", colnames(lncRNA))
 
 ### WGBS data ###
-WGBS <- read.csv(WGBS_file)
+cat("Loading WGBS data\n")
+WGBS <- read.table(WGBS_file, header=TRUE)
 # Format sample names to match standard (SPEC-Sample#-TP#)
 colnames(WGBS) <- gsub("\\.", "-", colnames(WGBS))
 
 ### load and format metadata ###
-metadata <- read_csv("../../M-multi-species/data/rna_metadata.csv")%>%select(AzentaSampleName, ColonyID, Timepoint) %>%
-  filter(grepl("ACR", ColonyID))
+cat("Loading metadata table\n")
+# Detect which species prefix is present
+if (any(grepl("ACR", colnames(miRNA)))) {
+  species_prefix <- "ACR"
+  species_code   <- "Apul"
+} else if (any(grepl("POR", colnames(miRNA)))) {
+  species_prefix <- "POR"
+  species_code   <- "Peve"
+} else if (any(grepl("POC", colnames(miRNA)))) {
+  species_prefix <- "POC"
+  species_code   <- "Ptuh"
+} else {
+  stop("No recognized species prefix found in column names of miRNA data")
+}
+cat("Species prefix and code: ", species_prefix, ", ", species_code, "\n")
+
+metadata <- read_csv("../../M-multi-species/data/rna_metadata.csv", show_col_types = FALSE) %>% 
+  select(AzentaSampleName, ColonyID, Timepoint) %>%
+  filter(grepl(species_prefix, ColonyID)) %>%
+  as.data.frame()
 metadata$Sample <- paste0(metadata$ColonyID, "-", metadata$Timepoint)
 rownames(metadata) <- metadata$Sample
 colonies <- unique(metadata$ColonyID)
 
+# Convert Timepoint and ColonyID to factors (needed for DESeq later)
+metadata$Timepoint <- factor(metadata$Timepoint)
+metadata$ColonyID  <- factor(metadata$ColonyID)
+
+# Make output subdirectory for gene importance and expression plots
+dir.create(paste0(output_dir, "/", species_code, "_gene_plots"))
 
 # --------- Data preprocessing ----------
 
@@ -249,12 +273,12 @@ rownames(metadata) <- metadata$Sample
 
 #### WGBS
 # Only keep CpGs that have a non-zero value in all samples. 
-WGBS_filt <- WGBS %>% filter(if_all(-X, ~ .x > 0))
+WGBS_filt <- WGBS %>% filter(if_all(-1, ~ .x > 0))
 # Ensure it's formatted as a data frame
 WGBS_filt <- as.data.frame(WGBS_filt)
 # Set CpG IDs to rownames
-rownames(WGBS_filt) <- WGBS_filt$X
-WGBS_filt <- WGBS_filt %>% select(-X)
+rownames(WGBS_filt) <- WGBS_filt[,1]
+WGBS_filt <- WGBS_filt %>% select(-1)
 
 cat("Number of raw WGBS sites: ", nrow(WGBS), "\n")
 cat("Number of WGBS sites retained after filtering: ", nrow(WGBS_filt), "\n")
@@ -330,28 +354,28 @@ WGBS_filt <- WGBS_filt[, desired_order]
 
 # Use a variance stabilized transformation for all the RNA data sets. Variance stabilization essentially tries to make variance independent of the mean, and we'll implement via the differential expression analysis package `DESeq2`
 ### genes ###
-dds_Apul <- DESeqDataSetFromMatrix(countData = genes_filt, 
+dds_genes <- suppressMessages(DESeqDataSetFromMatrix(countData = genes_filt, 
                               colData = metadata, 
-                              design = ~Timepoint+ColonyID)
+                              design = ~Timepoint+ColonyID))
 # Variance Stabilizing Transformation
-vsd_genes <- varianceStabilizingTransformation(dds_Apul, blind = TRUE)  # Must use varianceStabilizingTransformation() instead of vst() due to few input genes
+vsd_genes <- suppressMessages(varianceStabilizingTransformation(dds_genes, blind = TRUE))  # Must use varianceStabilizingTransformation() instead of vst() due to few input genes
 vsd_genes <- assay(vsd_genes)
 
 ### miRNA ###
-dds_miRNA <- DESeqDataSetFromMatrix(countData = miRNA_filt, 
+dds_miRNA <- suppressMessages(DESeqDataSetFromMatrix(countData = miRNA_filt, 
                               colData = metadata, 
-                              design = ~Timepoint+ColonyID)
+                              design = ~Timepoint+ColonyID))
 # Variance Stabilizing Transformation
-vsd_miRNA <- varianceStabilizingTransformation(dds_miRNA, blind=TRUE) # Must use varianceStabilizingTransformation() instead of vst() due to few input genes
+vsd_miRNA <- suppressMessages(varianceStabilizingTransformation(dds_miRNA, blind=TRUE)) # Must use varianceStabilizingTransformation() instead of vst() due to few input genes
 vsd_miRNA <- assay(vsd_miRNA)
 
 ### lncRNA ###
 # All values must be integers
 lncRNA_filt <- lncRNA_filt %>% mutate(across(where(is.numeric), round))
 
-dds_lncRNA <- DESeqDataSetFromMatrix(countData = lncRNA_filt, 
+dds_lncRNA <- suppressMessages(DESeqDataSetFromMatrix(countData = lncRNA_filt, 
                               colData = metadata, 
-                              design = ~Timepoint+ColonyID)
+                              design = ~Timepoint+ColonyID))
 # Variance Stabilizing Transformation
 vsd_lncRNA <- assay(vst(dds_lncRNA, blind = TRUE))
 
@@ -394,6 +418,7 @@ cat("Predictor set dimensions: ", dim(pred_counts), "\n")
 ### Format
 # Transform the counts matrices so that samples are on the rows and gene IDs on the columns
 vsd_genes_t <- t(vsd_genes_scaled)
+cat("Gene set dimensions: ", dim(vsd_genes_t), "\n")
 
 # Ensure both are formatted as data frames
 pred_counts <- as.data.frame(pred_counts)
@@ -436,12 +461,16 @@ for (i in 1:bootstrap1_reps) {
   FI_list[[i]]$Replicate <- i
 }
 
+cat("Finished first round of bootstrapping\n")
+
 # Combine all results
+cat("Combine all results\n")
 all_TM <- do.call(rbind, TM_list)
 all_MP <- do.call(rbind, MP_list)
 all_FI <- do.call(rbind, FI_list)
 
-# Count how often each feature exceeds the R² threshold
+# Count how often each feature exceeds the R^2 threshold
+cat("Count how often each feature exceeds the R^2 threshold\n")
 MP_summary <- all_MP %>%
   group_by(Feature) %>%
   summarize(
@@ -454,6 +483,7 @@ MP_summary <- all_MP %>%
   arrange(desc(High_Perf_Count))
 
 # How many genes are consistently well-predicted?
+cat("How many genes are consistently well-predicted?\n")
 cat("On first round of bootstrapping, ", sum(!is.na(MP_summary$Feature) & MP_summary$Mean_R2 > 0.5, na.rm = TRUE), " genes are consistently well-predicted", "\n")
 
 
@@ -465,7 +495,7 @@ all_MP <- merge(all_MP, MP_summary[, c("Feature", "Mean_R2", "SD_R2")], by = "Fe
 all_MP$Feature <- factor(all_MP$Feature,
                               levels = MP_summary$Feature[order(MP_summary$Mean_R2)])
 
-# Plot mean R² with error bars
+# Plot mean R^2 with error bars
 # Choose SD to describe variability in model performance
 p <- ggplot(all_MP, aes(x = Feature, y = Mean_R2)) +
   geom_errorbar(aes(ymin = Mean_R2 - SD_R2, ymax = Mean_R2 + SD_R2), width = 0.4, color = "gray40", linewidth = 0.25) +
@@ -473,28 +503,30 @@ p <- ggplot(all_MP, aes(x = Feature, y = Mean_R2)) +
   geom_hline(yintercept = 0.5,
              linetype = "dashed", color = "blue") +
   theme_minimal() +
-  labs(title = "Apul: Mean R² with Error Bars Across Gene Features",
-       x = "Gene Expression Feature (Ordered by Mean R²)",
-       y = "Mean R² ± SD") +
+  labs(title = paste0(species_code, ": Bootstrap1, Mean R^2 with Error Bars Across Gene Features"),
+       x = "Gene Expression Feature (Ordered by Mean R^2)",
+       y = "Mean R^2 ± SD") +
   theme(axis.text.x = element_text(angle = 45, hjust = 1, size=5)) +
   ylim(-0.2, 1.2) +
   scale_y_continuous(breaks = c(0, 0.25, 0.5, 0.75, 1))
-ggsave(paste0(output_dir, "/bootstrap1_performance_errorbars.png"), p)
+outfile <- file.path(output_dir, paste0(species_code, "_bootstrap1_performance_errorbars.png"))
+ggsave(outfile, plot = p, width = 7, height = 7)
 
-# Plot with features sorted by mean R²
+# Plot with features sorted by mean R^2
 p <- ggplot(all_MP, aes(x = Feature, y = R2)) +
   geom_point(aes(color = as.factor(Replicate)), size = 1) +
   geom_point(aes(y = Mean_R2), color = "black", shape = 18, size = 3) + 
   geom_hline(yintercept = mean(all_MP$R2, na.rm = TRUE),
              linetype = "dashed", color = "blue") +
   theme_minimal() +
-  labs(title = "Apul: Model Performance Across Gene Expression",
-       x = "Gene Expression Feature (Ordered by Mean R²)",
-       y = "R² (Variance Explained)",
+  labs(title = paste0(species_code, ": Bootstrap1, Model Performance Across Gene Expression"),
+       x = "Gene Expression Feature (Ordered by Mean R^2)",
+       y = "R^2 (Variance Explained)",
        color = "Replicate") +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   ylim(0, 1)
-ggsave(paste0(output_dir, "/bootstrap1_performance.png"), p)
+outfile <- file.path(output_dir, paste0(species_code, "_bootstrap1_performance.png"))
+ggsave(outfile, plot = p, width = 7, height = 7)
 
 # Average importance of all predictive features and plot those with highest average importance across all replicates
 # Average importance across replicates
@@ -511,10 +543,11 @@ p <- ggplot(top_features, aes(x = reorder(Feature, MeanImportance), y = MeanImpo
   geom_bar(stat = "identity", fill = "steelblue") +
   coord_flip() +  # Flip for readability
   theme_minimal() +
-  labs(title = "Apul: Top Predictive Features by Mean Importance",
+  labs(title = paste0(species_code, ": Bootstrap1, Top Predictive Features by Mean Importance"),
        x = "Feature",
        y = "Mean Importance")
-ggsave(paste0(output_dir, "/bootstrap1_top50_features.png"), p)
+outfile <- file.path(output_dir, paste0(species_code, "_bootstrap1_top50_features.png"))
+ggsave(outfile, plot = p, width = 7, height = 7)
 
 ## Boostrapping on predictable genes
 # Isolate well-predicted genes
@@ -555,7 +588,7 @@ all_TM_highperf <- do.call(rbind, TM_list)
 all_MP_highperf <- do.call(rbind, MP_list)
 all_FI_highperf <- do.call(rbind, FI_list)
 
-# Count how often each feature exceeds the R² threshold
+# Count how often each feature exceeds the R^2 threshold
 MP_summary_highperf <- all_MP_highperf %>%
   group_by(Feature) %>%
   summarize(
@@ -575,7 +608,7 @@ all_MP_highperf <- merge(all_MP_highperf, MP_summary_highperf[, c("Feature", "Me
 all_MP_highperf$Feature <- factor(all_MP_highperf$Feature,
                                           levels = MP_summary_highperf$Feature[order(MP_summary_highperf$Mean_R2)])
 
-# Plot mean R² with error bars
+# Plot mean R^2 with error bars
 # Choose SD to describe variability in model performance
 p <- ggplot(all_MP_highperf, aes(x = Feature, y = Mean_R2)) +
   geom_errorbar(aes(ymin = Mean_R2 - SD_R2, ymax = Mean_R2 + SD_R2), width = 0.3, color = "gray40") +
@@ -583,28 +616,30 @@ p <- ggplot(all_MP_highperf, aes(x = Feature, y = Mean_R2)) +
   geom_hline(yintercept = 0.5,
              linetype = "dashed", color = "blue") +
   theme_minimal() +
-  labs(title = "Apul: Mean R² with Error Bars Across Gene Features",
-       x = "Gene Expression Feature (Ordered by Mean R²)",
-       y = "Mean R² ± SD") +
+  labs(title = paste0(species_code, ": Bootstrap2, Mean R^2 with Error Bars Across Gene Features"),
+       x = "Gene Expression Feature (Ordered by Mean R^2)",
+       y = "Mean R^2 ± SD") +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   ylim(-0.2, 1.2) +
   scale_y_continuous(breaks = c(0, 0.25, 0.5, 0.75, 1))
-ggsave(paste0(output_dir, "/bootstrap2_performance_errorbars.png"), p)
+outfile <- file.path(output_dir, paste0(species_code, "_bootstrap2_performance_errorbars.png"))
+ggsave(outfile, plot = p, width = 7, height = 7)
 
-# Plot all replicate R2s, with features sorted by mean R²
+# Plot all replicate R2s, with features sorted by mean R^2
 p <- ggplot(all_MP_highperf, aes(x = Feature, y = R2)) +
   geom_point(aes(color = as.factor(Replicate)), size = 1.5) +
   geom_point(aes(y = Mean_R2), color = "black", shape = 18, size = 3) + 
   geom_hline(yintercept = mean(all_MP_highperf$R2, na.rm = TRUE),
              linetype = "dashed", color = "blue") +
   theme_minimal() +
-  labs(title = "Apul: Model Performance Across Gene Expression",
-       x = "Gene Expression Feature (Ordered by Mean R²)",
-       y = "R² (Variance Explained)",
+  labs(title = paste0(species_code, ": Bootstrap2, Model Performance Across Gene Expression"),
+       x = "Gene Expression Feature (Ordered by Mean R^2)",
+       y = "R^2 (Variance Explained)",
        color = "Replicate") +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   ylim(0, 1)
-ggsave(paste0(output_dir, "/bootstrap2_performance.png"), p)
+outfile <- file.path(output_dir, paste0(species_code, "_bootstrap2_performance.png"))
+ggsave(outfile, plot = p, width = 7, height = 7)
 
 # Average importance across replicates
 mean_importance_df_highperf <- all_FI_highperf %>%
@@ -620,10 +655,11 @@ p <- ggplot(top_features_highperf, aes(x = reorder(Feature, MeanImportance), y =
   geom_bar(stat = "identity", fill = "steelblue") +
   coord_flip() +  # Flip for readability
   theme_minimal() +
-  labs(title = "Apul: Top Predictive Features by Mean Importance",
+  labs(title = paste0(species_code, ": Bootstrap2, Top Predictive Features by Mean Importance"),
        x = "Feature",
        y = "Mean Importance")
-ggsave(paste0(output_dir, "/bootstrap2_top50_features.png"), p)
+outfile <- file.path(output_dir, paste0(species_code, "_bootstrap2_top50_features.png"))
+ggsave(outfile, plot = p, width = 7, height = 7)
 
 # How many genes are consistently well-predicted?
 cat("On second round of bootstrapping, ", nrow(MP_summary_highperf[MP_summary_highperf$Mean_R2 > r2_threshold,]), " genes are again consistently well-predicted", "\n")
@@ -695,7 +731,9 @@ for (target_feature in all_features_highR2) {
     mutate(Feature = target_feature)
   
   top_predictors[[target_feature]] <- top20
-  ggsave(paste0(output_dir, "/", target_feature,"_predictors.png"), plot=p)
+  outfile1 <- file.path(output_dir, paste0(species_code, "_gene_plots/"))
+  outfile2 <- file.path(outfile1, paste0(target_feature,"_predictors.png"))
+  ggsave(outfile2, plot = p, width = 7, height = 7)
 }
 
 
@@ -751,8 +789,9 @@ for (feature in names(top_predictors)) {
        y = "Expression") +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
-
-  ggsave(paste0(output_dir, "/", feature,"_expression.png"), plot=p)
+  outfile1 <- file.path(output_dir, paste0(species_code, "_gene_plots/"))
+  outfile2 <- file.path(outfile1, paste0(feature,"_expression.png"))
+  ggsave(outfile2, plot = p, width = 7, height = 7)
 }
 
 # Save top predictors and metrics of each well-predicted gene
@@ -761,7 +800,7 @@ top_predictors_df <- imap_dfr(top_predictors, ~ {
   .x
 })
 
-write.csv(top_predictors_df, paste0(output_dir, "/top_predictors.csv"), row.names = FALSE)
+write.csv(top_predictors_df, paste0(output_dir, "/", species_code, "_top_predictors.csv"), row.names = FALSE)
 
 
 

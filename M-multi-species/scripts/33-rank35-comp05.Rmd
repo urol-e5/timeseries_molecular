@@ -1,0 +1,691 @@
+---
+title: "33-rank35-comp05"
+output: html_document
+date: "2025-11-18"
+---
+
+Lets get top100 genes from component 5 of the rank 35 decomposition with lambda gene 0.02
+
+```{bash}
+head ../output/26-rank35-optimization/lambda_gene_0.2/top_genes_per_component/Component_5_top100.csv
+```
+
+```{bash}
+head -2 ../output/26-rank35-optimization/lambda_gene_0.2/top_genes_per_component/Component_5_top100_annotation.csv
+```
+
+
+
+```{bash}
+head ../output/26-rank35-optimization/lambda_gene_0.2/barnacle_factors/gene_factors.csv
+```
+
+```{bash}
+head ../output/26-rank35-optimization/lambda_gene_0.2/barnacle_factors/sample_factors.csv
+```
+
+```{bash}
+head ../output/26-rank35-optimization/lambda_gene_0.2/barnacle_factors/time_factors.csv
+```
+
+
+```{r}
+# Path to your CSV file
+csv_path <- "../output/26-rank35-optimization/lambda_gene_0.2/barnacle_factors/gene_factors.csv"
+
+# Read all lines
+lines <- readLines(csv_path)
+
+# Create new header
+new_header <- paste(
+  c("OG_ID", paste0("Component_", 1:35)),
+  collapse = ","
+)
+
+# Replace the first line
+lines[1] <- new_header
+
+# Write updated file
+writeLines(lines, csv_path)
+
+cat("✅ Header updated successfully!\n")
+```
+
+```{r}
+# Path to your CSV file
+csv_path <- "../output/26-rank35-optimization/lambda_gene_0.2/barnacle_factors/time_factors.csv"
+
+# Read all lines
+lines <- readLines(csv_path)
+
+# Create new header
+new_header <- paste(
+  c("OG_ID", paste0("Component_", 1:35)),
+  collapse = ","
+)
+
+# Replace the first line
+lines[1] <- new_header
+
+# Write updated file
+writeLines(lines, csv_path)
+
+cat("✅ Header updated successfully!\n")
+```
+
+```{r}
+# Path to your CSV file
+csv_path <- "../output/26-rank35-optimization/lambda_gene_0.2/barnacle_factors/sample_factors.csv"
+
+# Read all lines
+lines <- readLines(csv_path)
+
+# Create new header
+new_header <- paste(
+  c("OG_ID", paste0("Component_", 1:35)),
+  collapse = ","
+)
+
+# Replace the first line
+lines[1] <- new_header
+
+# Write updated file
+writeLines(lines, csv_path)
+
+cat("✅ Header updated successfully!\n")
+```
+
+
+
+	
+
+# Samples
+
+
+
+```{r fig.width=12, fig.height=10}
+# Load required libraries
+library(readr)
+library(pheatmap)
+
+# Read the CSV (adjust the filename if needed)
+df <- read_csv("../output/26-rank35-optimization/lambda_gene_0.2/barnacle_factors/sample_factors.csv")
+
+# Make the first column row names
+df_mat <- df |> 
+  column_to_rownames(var = colnames(df)[1]) |> 
+  as.matrix()
+
+# Optional: scale rows or columns for better contrast
+df_scaled <- scale(df_mat)
+
+# Plot heatmap
+pheatmap(df_scaled,
+         color = colorRampPalette(c("navy","white","firebrick3"))(100),
+         clustering_method = "ward.D2",
+         show_rownames = TRUE,
+         show_colnames = TRUE,
+         main = "Heatmap of Samples vs Features")
+```
+# Time
+
+```{r}
+library(tidyverse)
+
+# File path
+file_path <- "../output/26-rank35-optimization/lambda_gene_0.2/barnacle_factors/time_factors.csv"
+
+# Read the CSV
+df <- read_csv(file_path)
+
+# Pivot to long format for plotting
+df_long <- df %>%
+  pivot_longer(
+    cols = starts_with("Component_"),
+    names_to = "Component",
+    values_to = "Value"
+  )
+
+# Line plot
+ggplot(df_long, aes(x = OG_ID, y = Value, group = Component, color = Component)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 2) +
+  theme_minimal(base_size = 14) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "right"
+  ) +
+  labs(
+    title = "Time Factor Loadings Across Components",
+    x = "Time Point",
+    y = "Loading Value"
+  )
+```
+
+```{r}
+library(tidyverse)
+
+# File path
+file_path <- "../output/26-rank35-optimization/lambda_gene_0.2/barnacle_factors/time_factors.csv"
+
+# Read data
+df <- read_csv(file_path)
+
+# Compute variance of each component across timepoints
+var_components <- df %>%
+  pivot_longer(cols = starts_with("Component_"),
+               names_to = "Component",
+               values_to = "Value") %>%
+  group_by(Component) %>%
+  summarise(Variance = var(Value, na.rm = TRUE)) %>%
+  arrange(desc(Variance))
+
+# Select top 10 most variable components
+top10_components <- var_components %>% slice_max(Variance, n = 10) %>% pull(Component)
+
+# Prepare data for plotting
+df_long <- df %>%
+  pivot_longer(cols = starts_with("Component_"),
+               names_to = "Component",
+               values_to = "Value") %>%
+  filter(Component %in% top10_components)
+
+# Line plot
+ggplot(df_long, aes(x = OG_ID, y = Value, group = Component, color = Component)) +
+  geom_line(linewidth = 1.2) +
+  geom_point(size = 2) +
+  theme_minimal(base_size = 14) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(
+    title = "Top 10 Most Variable Components Across Timepoints",
+    x = "Time Point",
+    y = "Component Value"
+  )
+```
+
+# Pick your component
+
+
+```{r}
+library(tidyverse)
+
+# File path
+file_path <- "../output/26-rank35-optimization/lambda_gene_0.2/barnacle_factors/time_factors.csv"
+
+# ---- USER INPUT ----
+# Pick the component you want to plot (e.g., "Component_5")
+selected_component <- "Component_5"
+# ---------------------
+
+# Read data
+df <- read_csv(file_path)
+
+# Convert to long format
+df_long <- df %>%
+  pivot_longer(
+    cols = starts_with("Component_"),
+    names_to = "Component",
+    values_to = "Value"
+  )
+
+# Check that the chosen component exists
+if (!(selected_component %in% unique(df_long$Component))) {
+  stop(paste("Component", selected_component, "not found in data!"))
+}
+
+# Filter for the selected component
+df_sel <- df_long %>% filter(Component == selected_component)
+
+# Plot single component across timepoints
+ggplot(df_sel, aes(x = OG_ID, y = Value, group = 1)) +
+  geom_line(linewidth = 1.2, color = "steelblue") +
+  geom_point(size = 3, color = "firebrick") +
+  theme_minimal(base_size = 14) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(
+    title = paste0(selected_component, " Across Timepoints"),
+    x = "Time Point",
+    y = "Loading Value"
+  )
+```
+
+
+
+# Genes
+
+```{r}
+library(tidyverse)
+library(pheatmap)
+
+# Path to your file
+file_path <- "../output/26-rank35-optimization/lambda_gene_0.2/barnacle_factors/gene_factors.csv"
+
+# Read data
+df <- read_csv(file_path)
+
+# Convert to matrix (remove OG_ID column)
+mat <- df %>%
+  column_to_rownames(var = "OG_ID") %>%
+  as.matrix()
+
+
+# Optional: scale rows (genes) so colors represent relative loadings per gene
+pheatmap(
+  mat,
+  scale = "row",
+  color = colorRampPalette(c("navy", "white", "firebrick3"))(100),
+  clustering_method = "ward.D2",
+  show_rownames = FALSE,
+  main = "Gene Factor Loadings (All Components)"
+)
+```
+
+
+```{r}
+library(tidyverse)
+library(pheatmap)
+
+# Path to file
+file_path <- "../output/26-rank35-optimization/lambda_gene_0.2/barnacle_factors/gene_factors.csv"
+
+# Read data
+df <- read_csv(file_path)
+
+# Convert to numeric matrix
+mat <- df %>%
+  column_to_rownames(var = "OG_ID") %>%
+  as.matrix()
+
+# Heatmap of actual (unscaled) values
+pheatmap(
+  mat,
+  scale = "none",  # do not scale
+  color = colorRampPalette(c("navy", "white", "firebrick3"))(200),
+  clustering_method = "ward.D2",
+  show_rownames = FALSE,
+  main = "Gene Factor Loadings (Actual Values)"
+)
+```
+
+# Annotation 
+
+```{r fig.width=8, fig.height=20}
+library(tidyverse)
+library(pheatmap)
+
+# ---- File path ----
+file_path <- "../output/26-rank35-optimization/lambda_gene_0.2/top_genes_per_component/goslim_term_counts.csv"  # change to your actual path
+
+# ---- Read data ----
+df <- read_csv(file_path)
+
+# Remove the "total" column if present
+df <- df %>% select(-total)
+
+# Convert to matrix (terms as row names)
+mat <- df %>%
+  column_to_rownames(var = "term") %>%
+  as.matrix()
+
+
+
+top_terms <- df %>%
+  mutate(total_count = rowSums(across(starts_with("Component_")))) %>%
+  slice_max(total_count, n = 50)
+
+mat_top <- top_terms %>%
+  column_to_rownames(var = "term") %>%
+  select(-total_count) %>%
+  as.matrix()
+
+pheatmap(
+  mat_top,
+  scale = "row",
+  color = colorRampPalette(c("navy", "white", "firebrick3"))(200),
+  show_rownames = TRUE,
+  main = "Top 25 Terms by Total Count")
+
+# ---- Plot heatmap ----
+pheatmap(
+  mat,
+  scale = "none",  # use actual values
+  color = colorRampPalette(c("navy", "white", "firebrick3"))(200),
+  clustering_method = "ward.D2",
+  show_rownames = TRUE,
+  main = "Term Enrichment Across Components"
+)
+
+
+
+# Apply log10 transformation (adding +1 to avoid log(0))
+mat_log <- log10(mat + 1)
+
+# ---- Plot heatmap ----
+pheatmap(
+  mat_log,
+  scale = "none",
+  color = colorRampPalette(c("navy", "white", "firebrick3"))(200),
+  clustering_method = "ward.D2",
+  show_rownames = TRUE,
+  main = "Log10-transformed Term Enrichment Across Components"
+)
+
+
+#scale = "row",  # normalize each row (mean=0, sd=1)
+
+
+# Apply log10 transformation (adding +1 to avoid log(0))
+mat_top_log <- log10(mat_top + 1)
+
+# ---- Plot heatmap ----
+pheatmap(
+  mat_top_log,
+  scale = "none",
+  color = colorRampPalette(c("navy", "white", "firebrick3"))(200),
+  clustering_method = "ward.D2",
+  show_rownames = TRUE,
+  main = "Log10-transformed Term Enrichment Across Components"
+)
+```
+
+
+
+# User pick
+
+
+```{r fig.width=10}
+library(tidyverse)
+library(pheatmap)
+
+# ---- File path ----
+file_path <- "../output/26-rank35-optimization/lambda_gene_0.2/top_genes_per_component/goslim_term_counts.csv"  # change to your actual CSV path
+
+# ---- User input ----
+# Enter one or more GO terms (exact or partial match)
+selected_terms <- c("protein catabolic process", "lipid", "immune system process", "carbohydrate", "antioxidant activity", "mitochondrion", "inflammatory response", "reproductive")  # example
+
+# ---- Options ----
+row_normalize <- TRUE   # TRUE for row-normalized (z-score), FALSE for raw
+log_transform <- TRUE   # TRUE to apply log10(x+1) before plotting
+
+# ---- Load and prepare data ----
+df <- read_csv(file_path)
+
+# Remove total column if present
+df <- df %>% select(-any_of("total"))
+
+# Filter by GO term (partial match supported)
+df_sel <- df %>%
+  filter(if_any(term, ~ str_detect(.x, paste(selected_terms, collapse = "|"))))
+
+if (nrow(df_sel) == 0) {
+  stop("⚠️ No matching GO terms found. Check spelling or capitalization.")
+}
+
+# Convert to matrix
+mat <- df_sel %>%
+  column_to_rownames(var = "term") %>%
+  as.matrix()
+
+# Optional log-transform
+if (log_transform) {
+  mat <- log10(mat + 1)
+}
+
+# Optional row normalization
+if (row_normalize) {
+  mat <- t(scale(t(mat)))  # z-score per row
+}
+
+# ---- Plot heatmap ----
+pheatmap(
+  mat,
+  scale = "none",
+  color = colorRampPalette(c("navy", "white", "firebrick3"))(200),
+  clustering_method = "ward.D2",
+  show_rownames = TRUE,
+  main = paste(
+    "GO Term Heatmap —",
+    if (row_normalize) "Row-normalized" else "Raw values",
+    if (log_transform) "(log10)" else ""
+  )
+)
+```
+
+
+
+# What are all gene in component 5?
+
+
+```{bash}
+head ../output/26-rank35-optimization/lambda_gene_0.2/top_genes_per_component/Component_5_top100.csv
+```
+
+Get expression matrix
+
+
+
+```{python}
+#!/usr/bin/env python3
+"""
+Filter count matrices based on ortholog groups from a component.
+
+This script:
+1. Reads OG_IDs from a component file (e.g., Component_24_top100.csv)
+2. Maps OG_IDs to species-specific gene IDs from ortholog_groups_annotated.csv
+3. Filters count matrices for each species to include only genes from the component
+4. Saves filtered matrices to the output directory
+"""
+
+import sys
+import os
+import csv
+import pandas as pd
+
+
+def read_component_og_ids(component_file):
+    """
+    Read OG_IDs from a component CSV file.
+    
+    Args:
+        component_file: Path to component CSV file (e.g., Component_24_top100.csv)
+        
+    Returns:
+        List of OG_IDs
+    """
+    og_ids = []
+    with open(component_file, 'r', encoding='utf-8') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            og_ids.append(row['OG_ID'])
+    
+    print(f"Read {len(og_ids)} OG_IDs from {component_file}")
+    return og_ids
+
+
+def map_og_to_species_genes(ortholog_file, og_ids):
+    """
+    Map OG_IDs to species-specific gene IDs.
+    
+    Args:
+        ortholog_file: Path to ortholog_groups_annotated.csv
+        og_ids: List of OG_IDs to map
+        
+    Returns:
+        Dictionary with keys 'apul', 'peve', 'ptua', each containing list of gene IDs
+    """
+    og_set = set(og_ids)
+    gene_mapping = {
+        'apul': [],
+        'peve': [],
+        'ptua': []
+    }
+    
+    with open(ortholog_file, 'r', encoding='utf-8') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            if row['group_id'] in og_set:
+                # Add gene IDs if they exist (not empty)
+                if row['apul']:
+                    gene_mapping['apul'].append(row['apul'])
+                if row['peve']:
+                    gene_mapping['peve'].append(row['peve'])
+                if row['ptua']:
+                    gene_mapping['ptua'].append(row['ptua'])
+    
+    print(f"\nMapped to species-specific genes:")
+    print(f"  apul: {len(gene_mapping['apul'])} genes")
+    print(f"  peve: {len(gene_mapping['peve'])} genes")
+    print(f"  ptua: {len(gene_mapping['ptua'])} genes")
+    
+    return gene_mapping
+
+
+def filter_count_matrix(count_matrix_file, gene_ids, output_file, gene_prefix="", strip_suffix=""):
+    """
+    Filter a count matrix to include only specified genes.
+    
+    Args:
+        count_matrix_file: Path to input count matrix CSV
+        gene_ids: List of gene IDs to keep
+        output_file: Path to output filtered CSV
+        gene_prefix: Prefix to add to gene IDs when looking them up (e.g., "gene-")
+        strip_suffix: Suffix to remove from gene IDs before matching (e.g., "-T1")
+    """
+    # Create set of gene IDs to keep (with prefix and/or without suffix if needed)
+    processed_ids = []
+    for gene_id in gene_ids:
+        # Strip suffix if specified
+        if strip_suffix and gene_id.endswith(strip_suffix):
+            gene_id = gene_id[:-len(strip_suffix)]
+        # Add prefix if specified
+        if gene_prefix:
+            gene_id = f"{gene_prefix}{gene_id}"
+        processed_ids.append(gene_id)
+    
+    genes_to_keep = set(processed_ids)
+    
+    print(f"\nFiltering {count_matrix_file}...")
+    print(f"Looking for {len(genes_to_keep)} genes...")
+    
+    # Read the count matrix
+    df = pd.read_csv(count_matrix_file, encoding='utf-8')
+    
+    # Filter rows where gene_id is in our set
+    filtered_df = df[df['gene_id'].isin(genes_to_keep)]
+    
+    print(f"Found {len(filtered_df)} genes in count matrix")
+    
+    # Save filtered matrix
+    filtered_df.to_csv(output_file, index=False, encoding='utf-8')
+    print(f"Saved to {output_file}")
+    
+    return len(filtered_df)
+
+
+def main():
+    # Base paths - use script location to find repository root
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    base_dir = os.path.abspath(os.path.join(script_dir, "..", ".."))
+    
+    # Input files
+    component_file = os.path.join(
+        base_dir,
+        "M-multi-species/output/26-rank35-optimization/lambda_gene_0.2/top_genes_per_component",
+        "Component_24_top100.csv"
+    )
+    
+    ortholog_file = os.path.join(
+        base_dir,
+        "M-multi-species/output/12-ortho-annot",
+        "ortholog_groups_annotated.csv"
+    )
+    
+    # Count matrix files
+    apul_matrix = os.path.join(
+        base_dir,
+        "D-Apul/output/02.20-D-Apul-RNAseq-alignment-HiSat2",
+        "apul-gene_count_matrix.csv"
+    )
+    
+    peve_matrix = os.path.join(
+        base_dir,
+        "E-Peve/output/02.20-E-Peve-RNAseq-alignment-HiSat2",
+        "peve-gene_count_matrix.csv"
+    )
+    
+    ptua_matrix = os.path.join(
+        base_dir,
+        "F-Ptua/output/02.20-F-Ptua-RNAseq-alignment-HiSat2",
+        "ptua-gene_count_matrix.csv"
+    )
+    
+    # Output directory
+    output_dir = os.path.join(
+        base_dir,
+        "M-multi-species/output/26-rank35-optimization/lambda_gene_0.2/top_genes_per_component"
+    )
+    
+    # Verify input files exist
+    for filepath in [component_file, ortholog_file, apul_matrix, peve_matrix, ptua_matrix]:
+        if not os.path.exists(filepath):
+            print(f"Error: Input file not found: {filepath}")
+            sys.exit(1)
+    
+    print("=== Generating Component 24 Count Matrices ===\n")
+    
+    # Step 1: Read OG_IDs from component file
+    og_ids = read_component_og_ids(component_file)
+    
+    # Step 2: Map OG_IDs to species-specific gene IDs
+    gene_mapping = map_og_to_species_genes(ortholog_file, og_ids)
+    
+    # Step 3: Filter count matrices for each species
+    # Note: 
+    #   - apul IDs in ortholog file have "-T1" suffix but count matrix doesn't
+    #   - peve and ptua have "gene-" prefix in count matrix
+    results = {}
+    
+    results['apul'] = filter_count_matrix(
+        apul_matrix,
+        gene_mapping['apul'],
+        os.path.join(output_dir, "Component_24_apul_count_matrix.csv"),
+        gene_prefix="",
+        strip_suffix="-T1"
+    )
+    
+    results['peve'] = filter_count_matrix(
+        peve_matrix,
+        gene_mapping['peve'],
+        os.path.join(output_dir, "Component_24_peve_count_matrix.csv"),
+        gene_prefix="gene-"
+    )
+    
+    results['ptua'] = filter_count_matrix(
+        ptua_matrix,
+        gene_mapping['ptua'],
+        os.path.join(output_dir, "Component_24_ptua_count_matrix.csv"),
+        gene_prefix="gene-"
+    )
+    
+    print("\n=== Summary ===")
+    print(f"Total OG_IDs in Component_24: {len(og_ids)}")
+    print(f"Genes found in count matrices:")
+    print(f"  apul: {results['apul']}")
+    print(f"  peve: {results['peve']}")
+    print(f"  ptua: {results['ptua']}")
+    print("\nFiltered count matrices saved successfully!")
+
+
+if __name__ == "__main__":
+    main()
+
+```
+
+
+
+
+
+
+
+
