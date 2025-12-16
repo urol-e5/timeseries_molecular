@@ -32,36 +32,47 @@ This analysis prepares three-species ortholog expression matrices, normalizes th
 
 1. **Data Preparation** - Extract and normalize ortholog expression data
 2. **Tensor Construction** - Build 3D tensor combining species, samples, and timepoints
-3. **Rank Comparison** - Test multiple ranks systematically to find optimal components
-4. **Interpretation** - Choose best rank and examine factors, visualizations, and biological meaning
+3. **Parameter Selection** - Use split-half bootstrap grid search to jointly optimize rank and lambda parameters
+4. **Final Decomposition** - Fit model with optimal parameters on full dataset
+5. **Interpretation** - Examine factors, visualizations, and biological meaning
 
-## Rank selection approach
+## Parameter selection approach
 
-**This analysis uses a systematic rank comparison approach.**
+**This analysis uses a split-half bootstrap grid search approach** recommended by the dissertation author [@blaskowski2024] for datasets with limited biological replicates.
 
-The workflow:
-1. Configure `ranks_to_test` in the comparison chunk (e.g., `[5, 8, 10, 12, 15, 20]`)
-2. Run decompositions for all specified ranks (10-30 minutes)
-3. Evaluate synthetic factor match scores (FMS) across multiple random initializations
-4. Review comparison metrics and elbow plots:
-   - **Synthetic FMS elbow plots** - Shows how well factors can be recovered (MOST IMPORTANT)
-   - Variance explained plots - Shows reconstruction accuracy
-   - Look for the "elbow" where marginal gains diminish
-5. Choose optimal rank based on:
-   - Synthetic FMS elbow (where curve flattens)
-   - Consistency across random initializations
-   - Variance explained (aim for >60%)
-   - Sparsity patterns
-   - Component interpretability
-6. Use chosen rank for final biological interpretation
+### Split-Half Bootstrap Grid Search
 
-**Key metrics for comparison:**
-- **Synthetic FMS**: How well factors can be recovered from synthetic data (higher = better identifiability)
-- **Variance explained**: How much of data variation is captured
-- **Relative error**: Reconstruction accuracy
-- **Sparsity**: How many genes/samples load strongly per component
-- **Convergence**: Whether optimization completed successfully
-- **Component weights**: Distribution of importance across components
+**Key features:**
+- **Split-half cross-validation** (50/50 train/test split) instead of leave-one-out
+- **Bootstrap resampling** with repeated random splits to assess stability
+- **Stratified splitting** ensures balanced species representation in train/test sets
+- **Joint rank × lambda grid search** tests all parameter combinations simultaneously
+- **Incremental checkpointing** saves results after each bootstrap iteration
+- **Resume capability** allows continuing from last checkpoint if interrupted
+- **Parallel execution** using joblib for multi-core speedup
+
+**Two-stage parameter selection using 1SE rule:**
+
+**Stage 1 - Rank Selection:**
+- Evaluate all ranks at λ=0.0 (no regularization) across bootstrap iterations
+- Calculate mean cross-validation SSE and standard error for each rank
+- Find minimum mean SSE and compute 1SE threshold: min_SSE + 1×SE
+- **Select smallest rank with mean SSE ≤ threshold** (parsimony principle)
+- Rationale: Avoids overfitting by preferring simpler models when performance is statistically comparable
+
+**Stage 2 - Lambda Selection:**
+- At the selected rank, evaluate all lambda values across bootstrap iterations
+- Calculate mean Factor Match Score (FMS) and standard error for each lambda
+- Find maximum mean FMS and compute 1SE threshold: max_FMS - 1×SE
+- **Select maximum lambda with mean FMS ≥ threshold** (maximum sparsity)
+- Rationale: Maximizes sparsity while maintaining factor stability and identifiability
+
+**Key metrics:**
+- **Cross-validation SSE**: Prediction error on held-out test data (lower = better generalization)
+- **Factor Match Score (FMS)**: Stability of factor recovery across random initializations (higher = better identifiability)
+- **Variance explained**: Proportion of data variation captured by the model
+- **Sparsity**: Number of genes/samples with strong loadings per component
+- **1SE rule**: Conservative selection criterion balancing model complexity and performance
 
 ## Key steps performed by this script:
 
