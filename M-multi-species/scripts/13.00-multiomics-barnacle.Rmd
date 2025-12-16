@@ -650,9 +650,14 @@ if(total_incomplete == 0) {
 cat("\n")
 ```
 
-### Diagnostic analysis
+### Verify three-way ortholog filtering and gene coverage
 
-```{r diagnostic-analysis, eval=TRUE}
+This section verifies that:
+1. All ortholog groups are complete three-way orthologs
+2. Gene counts are identical across all three species
+3. Expression data contains 100% of the expected ortholog genes
+
+```{r verify-ortho-filtering, eval=TRUE}
 cat("\n=== VERIFICATION: THREE-WAY ORTHOLOG COUNTS ===\n")
 cat("After filtering, all species should have identical three_way ortholog counts.\n\n")
 
