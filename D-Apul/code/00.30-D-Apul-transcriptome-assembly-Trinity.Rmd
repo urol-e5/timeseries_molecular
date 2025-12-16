@@ -66,10 +66,6 @@ threads <- "44"
 ## MAX RAM
 max_ram <- "100G"
 
-# CONDA
-conda_env_name <- c("/srlab/programs/miniforge3-24.7.1-0")
-conda_path <- c("/srlab/programs/miniforge3-24.7.1-0/bin/conda")
-
 
 # FORMATTING
 line <- "-----------------------------------------------"
@@ -91,25 +87,32 @@ Sys.setenv(
 )
 ```
 
-## Load conda environment
-
-Needed for numpy module in Trinity.
-
-If this is successful, the first line of output should show that the Python being used is the one in your conda environment path.
-
-E.g.
-
-`python:         /srlab/programs/miniforge3-24.7.1-0/bin/python`
-
-```{r load-barnacle-conda-env, eval=TRUE}
-use_condaenv(condaenv = conda_env_name, conda = conda_path)
-py_config()
-```
-
 # DE NOVO ASSEMBLY
 
 ## Run Trinity
-```{r de-novo-assembly, engine='bash'}
+
+Trinity was run using the [Trinity Singularity (Apptainer) container](https://github.com/trinityrnaseq/trinityrnaseq/wiki/Trinity-in-Docker#running-trinity-using-singularity), `trinityrnaseq.v2.15.2.simg` from the `urol-e5/timeseries_molecular/D-Apul/code/` directory.
+
+This was done in a terminal, outside of this notebook.
+
+
+### Set Bash variables
+
+```bash
+# Directories
+top_output_dir="../output"
+
+output_dir="${top_output_dir}/00.30-D-Apul-transcriptome-assembly-Trinity"
+de_novo_output_dir="${output_dir}/de_novo_assembly"
+genome_guided_output_dir="${output_dir}/genome_guided_assembly"
+trimmed_reads_dir="${top_output_dir}/01.00-D-Apul-RNAseq-trimming-fastp-FastQC-MultiQC"
+
+## THREADS
+threads="150"
+
+## MAX RAM
+max_ram="100G"
+
 # Make output directoy, if it doesn't exist
 mkdir --parents ${de_novo_output_dir}
 
@@ -123,8 +126,6 @@ R2_list=""
 
 # Create array of fastq R1 files
 R1_array=(${trimmed_reads_dir}/*R1_001.fastp-trim.fq.gz)
-
-
 
 # Create array of fastq R2 files
 R2_array=(${trimmed_reads_dir}/*R2_001.fastp-trim.fq.gz)
@@ -141,10 +142,18 @@ fi
 # Create comma-separated lists of FastQ reads
 R1_list=$(echo "${R1_array[@]}" | tr " " ",")
 R2_list=$(echo "${R2_array[@]}" | tr " " ",")
+```
 
 
+### Run Trinity Singularity image.
 
-# Run Trinity using "stranded" setting (--SS_lib_type)
+Used "stranded" setting (--SS_lib_type).
+
+
+```bash
+singularity exec \
+-B /home \
+-e trinityrnaseq.v2.15.2.simg \
 Trinity \
 --seqType fq \
 --max_memory ${max_ram} \
@@ -154,7 +163,8 @@ Trinity \
 --right "${R2_list}" \
 --output ${de_novo_output_dir}/trinity_out_dir \
 --full_cleanup \
-> ${de_novo_output_dir}/trinity.log 2>&1
+> ${de_novo_output_dir}/trinity.log \
+2>&1
 ```
 
 
