@@ -1288,6 +1288,41 @@ sample_mapping = pd.DataFrame([
 ])
 print(f"\nSample mapping:")
 print(sample_mapping.head(10))
+
+# Save tensor and metadata for later use
+print(f"\n=== SAVING TENSOR DATA ===")
+tensor_file = os.path.join(output_dir, 'multiomics_tensor.npy')
+sample_mapping_file = os.path.join(output_dir, 'sample_mapping.csv')
+gene_list_file = os.path.join(output_dir, 'gene_list.csv')
+species_map_file = os.path.join(output_dir, 'species_sample_map.pkl')
+
+# Save tensor as numpy array
+np.save(tensor_file, tensor_3d)
+print(f"✓ Tensor saved: {tensor_file}")
+print(f"  Shape: {tensor_3d.shape}")
+
+# Save sample mapping
+sample_mapping.to_csv(sample_mapping_file, index=False)
+print(f"✓ Sample mapping saved: {sample_mapping_file}")
+
+# Save gene list
+gene_list_df = pd.DataFrame({'gene_id': common_genes_list})
+gene_list_df.to_csv(gene_list_file, index=False)
+print(f"✓ Gene list saved: {gene_list_file}")
+
+# Save species sample map (pickle for complex structure)
+import pickle
+with open(species_map_file, 'wb') as f:
+    pickle.dump(species_sample_map, f)
+print(f"✓ Species sample map saved: {species_map_file}")
+
+# Save timepoints list
+timepoints_df = pd.DataFrame({'timepoint': common_timepoints})
+timepoints_df.to_csv(os.path.join(output_dir, 'timepoints.csv'), index=False)
+print(f"✓ Timepoints saved: timepoints.csv")
+
+print(f"\nAll tensor data saved. Can be loaded later to skip preprocessing.")
+print("="*80)
 ```
 
 ## Dissertation-Validated Parameter Selection
@@ -2411,6 +2446,559 @@ else:
 ```
 
 
+# FINAL BARNACLE ANALYSIS WITH OPTIMAL PARAMETERS
+
+Now we run the final Barnacle decomposition using the optimal rank and lambda values determined from the bootstrap cross-validation.
+
+## Run Final Barnacle Decomposition
+
+```{python run-final-barnacle, eval=TRUE}
+import pickle
+import time
+from datetime import datetime
+from barnacle.decomposition import SparseCP
+import tensorly as tl
+
+print("="*80)
+print("FINAL BARNACLE DECOMPOSITION WITH OPTIMAL PARAMETERS")
+print("="*80)
+
+# Load tensor and metadata from saved files
+print("\nLoading tensor data from saved files...")
+tensor_file = os.path.join(output_dir, 'multiomics_tensor.npy')
+sample_mapping_file = os.path.join(output_dir, 'sample_mapping.csv')
+gene_list_file = os.path.join(output_dir, 'gene_list.csv')
+species_map_file = os.path.join(output_dir, 'species_sample_map.pkl')
+timepoints_file = os.path.join(output_dir, 'timepoints.csv')
+
+# Check if tensor files exist
+if not os.path.exists(tensor_file):
+    raise FileNotFoundError(f"Tensor file not found: {tensor_file}\n"
+                          "Please run the tensor creation chunk first.")
+
+# Load tensor
+tensor_3d = np.load(tensor_file)
+print(f"✓ Loaded tensor from: {tensor_file}")
+print(f"  Shape: {tensor_3d.shape}")
+
+# Load sample mapping
+sample_mapping = pd.read_csv(sample_mapping_file)
+sample_labels = sample_mapping['sample_label'].tolist()
+print(f"✓ Loaded sample mapping: {len(sample_labels)} samples")
+
+# Load gene list
+gene_list_df = pd.read_csv(gene_list_file)
+common_genes_list = gene_list_df['gene_id'].tolist()
+print(f"✓ Loaded gene list: {len(common_genes_list)} genes")
+
+# Load species sample map
+with open(species_map_file, 'rb') as f:
+    species_sample_map = pickle.load(f)
+print(f"✓ Loaded species sample map")
+
+# Load timepoints
+timepoints_df = pd.read_csv(timepoints_file)
+common_timepoints = timepoints_df['timepoint'].tolist()
+print(f"✓ Loaded timepoints: {common_timepoints}")
+
+print("\n" + "="*80)
+
+# Load optimal parameters if they exist, otherwise use the variables from bootstrap
+optimal_params_file = os.path.join(output_dir, 'bootstrap_grid_search', 'optimal_parameters.json')
+if os.path.exists(optimal_params_file):
+    import json
+    with open(optimal_params_file, 'r') as f:
+        optimal_params = json.load(f)
+    final_rank = optimal_params['optimal_rank']
+    final_lambda = optimal_params['optimal_lambda']
+    print(f"Loaded optimal parameters from: {optimal_params_file}")
+else:
+    # Use variables from bootstrap analysis
+    final_rank = optimal_rank_1se if 'optimal_rank_1se' in dir() else optimal_rank_boot
+    final_lambda = optimal_lambda if 'optimal_lambda' in dir() else optimal_lambda_boot
+    print(f"Using optimal parameters from bootstrap analysis")
+
+print(f"\nOptimal Parameters:")
+print(f"  Rank (R): {final_rank}")
+print(f"  Lambda (λ): {final_lambda}")
+print(f"\nTensor shape: {tensor_3d.shape}")
+print(f"  Genes: {tensor_3d.shape[0]}")
+print(f"  Samples: {tensor_3d.shape[1]} (combined across species)")
+print(f"  Timepoints: {tensor_3d.shape[2]}")
+print("="*80)
+
+# Handle missing values (replace NaN with 0)
+tensor_filled = np.nan_to_num(tensor_3d, nan=0.0)
+
+# Set up lambda parameters for each mode
+# Apply regularization to gene mode (mode 0) and time mode (mode 2)
+# No regularization on sample mode (mode 1) for interpretability
+lambda_params = [final_lambda, 0.0, final_lambda]
+
+print(f"\nRegularization configuration:")
+print(f"  Gene mode (0): λ = {lambda_params[0]}")
+print(f"  Sample mode (1): λ = {lambda_params[1]}")
+print(f"  Time mode (2): λ = {lambda_params[2]}")
+
+# Set up decomposition parameters
+max_iter = 500
+tol = 1e-6
+verbose = 2  # Show progress
+
+print(f"\nDecomposition parameters:")
+print(f"  Maximum iterations: {max_iter}")
+print(f"  Convergence tolerance: {tol}")
+print(f"  Verbose: {verbose}")
+
+# Initialize barnacle decomposition with multi-threading
+print(f"\n{'='*80}")
+print("Initializing Barnacle SparseCP decomposition...")
+print("Using multi-threading for FISTA optimization")
+print("="*80)
+
+barnacle_final = SparseCP(
+    rank=final_rank,
+    lmbda=lambda_params,
+    non_negative=[0],  # Non-negativity constraint on gene mode only
+    max_iter=max_iter,
+    tol=tol,
+    verbose=verbose,
+    n_iter_max=100  # FISTA inner iterations
+)
+
+# Fit the decomposition
+print(f"\nStarting decomposition at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}...")
+start_time = time.time()
+
+try:
+    barnacle_final.fit(tensor_filled)
+    elapsed_time = time.time() - start_time
+    
+    print(f"\n{'='*80}")
+    print("✓ DECOMPOSITION COMPLETE")
+    print("="*80)
+    print(f"Time elapsed: {elapsed_time / 60:.2f} minutes ({elapsed_time:.1f} seconds)")
+    print(f"Converged: {barnacle_final.converged}")
+    print(f"Final reconstruction error: {barnacle_final.rec_errors[-1]:.6e}")
+    print(f"Number of iterations: {len(barnacle_final.rec_errors)}")
+    print("="*80)
+    
+except Exception as e:
+    print(f"\n{'='*80}")
+    print("✗ ERROR DURING DECOMPOSITION")
+    print("="*80)
+    print(f"Error: {str(e)}")
+    import traceback
+    traceback.print_exc()
+    print("="*80)
+    raise
+
+# Save the final decomposition
+print(f"\nSaving final decomposition results...")
+
+# Create final output directory
+final_dir = os.path.join(output_dir, 'final_barnacle_decomposition')
+os.makedirs(final_dir, exist_ok=True)
+
+# Save full decomposition object (for complete reproducibility)
+decomp_file = os.path.join(final_dir, 'barnacle_decomposition.pkl')
+with open(decomp_file, 'wb') as f:
+    pickle.dump(barnacle_final, f)
+print(f"✓ Decomposition object saved: {decomp_file}")
+
+# Extract and save factor matrices
+gene_factors = barnacle_final.factors[0]  # Genes × Rank
+sample_factors = barnacle_final.factors[1]  # Samples × Rank
+time_factors = barnacle_final.factors[2]  # Timepoints × Rank
+weights = barnacle_final.weights  # Component weights
+
+# Save factor matrices as CSV for easy access
+gene_factors_df = pd.DataFrame(
+    gene_factors,
+    index=common_genes_list,
+    columns=[f'Component_{i+1}' for i in range(final_rank)]
+)
+gene_factors_df.to_csv(os.path.join(final_dir, 'gene_factors.csv'))
+print(f"✓ Gene factors saved: gene_factors.csv ({gene_factors.shape})")
+
+sample_factors_df = pd.DataFrame(
+    sample_factors,
+    index=sample_labels,
+    columns=[f'Component_{i+1}' for i in range(final_rank)]
+)
+sample_factors_df.to_csv(os.path.join(final_dir, 'sample_factors.csv'))
+print(f"✓ Sample factors saved: sample_factors.csv ({sample_factors.shape})")
+
+time_factors_df = pd.DataFrame(
+    time_factors,
+    index=[f'TP{tp}' for tp in common_timepoints],
+    columns=[f'Component_{i+1}' for i in range(final_rank)]
+)
+time_factors_df.to_csv(os.path.join(final_dir, 'time_factors.csv'))
+print(f"✓ Time factors saved: time_factors.csv ({time_factors.shape})")
+
+weights_df = pd.DataFrame({
+    'Component': [f'Component_{i+1}' for i in range(final_rank)],
+    'Weight': weights
+})
+weights_df.to_csv(os.path.join(final_dir, 'component_weights.csv'), index=False)
+print(f"✓ Component weights saved: component_weights.csv")
+
+# Save convergence information
+convergence_df = pd.DataFrame({
+    'iteration': range(len(barnacle_final.rec_errors)),
+    'reconstruction_error': barnacle_final.rec_errors
+})
+convergence_df.to_csv(os.path.join(final_dir, 'convergence.csv'), index=False)
+print(f"✓ Convergence history saved: convergence.csv")
+
+# Save metadata
+import json
+metadata = {
+    'analysis_date': datetime.now().isoformat(),
+    'optimal_rank': int(final_rank),
+    'optimal_lambda': float(final_lambda),
+    'lambda_configuration': {
+        'gene_mode': float(lambda_params[0]),
+        'sample_mode': float(lambda_params[1]),
+        'time_mode': float(lambda_params[2])
+    },
+    'tensor_shape': {
+        'genes': int(tensor_3d.shape[0]),
+        'samples': int(tensor_3d.shape[1]),
+        'timepoints': int(tensor_3d.shape[2])
+    },
+    'convergence': {
+        'converged': bool(barnacle_final.converged),
+        'iterations': int(len(barnacle_final.rec_errors)),
+        'final_error': float(barnacle_final.rec_errors[-1])
+    },
+    'runtime_minutes': float(elapsed_time / 60)
+}
+
+with open(os.path.join(final_dir, 'metadata.json'), 'w') as f:
+    json.dump(metadata, f, indent=2)
+print(f"✓ Metadata saved: metadata.json")
+
+print(f"\n✓ All results saved to: {final_dir}/")
+print("="*80)
+```
+
+## Visualize Final Decomposition Components
+
+```{python visualize-final-decomposition, eval=TRUE}
+import matplotlib.pyplot as plt
+import seaborn as sns
+from matplotlib.gridspec import GridSpec
+
+print("="*80)
+print("GENERATING VISUALIZATION OF FINAL DECOMPOSITION")
+print("="*80)
+
+# Create figure directory
+fig_dir = os.path.join(final_dir, 'figures')
+os.makedirs(fig_dir, exist_ok=True)
+
+# Set plotting style
+sns.set_style("whitegrid")
+plt.rcParams['figure.dpi'] = 300
+plt.rcParams['savefig.dpi'] = 300
+
+# ========================================
+# FIGURE 1: Component Weights
+# ========================================
+print("\nGenerating Figure 1: Component weights...")
+
+fig, ax = plt.subplots(figsize=(10, 6))
+
+components = [f'C{i+1}' for i in range(final_rank)]
+ax.bar(components, weights, color='steelblue', edgecolor='black', linewidth=1.5, alpha=0.8)
+
+ax.set_xlabel('Component', fontsize=14, fontweight='bold')
+ax.set_ylabel('Weight', fontsize=14, fontweight='bold')
+ax.set_title(f'Component Weights (Rank={final_rank})', fontsize=16, fontweight='bold')
+ax.grid(axis='y', alpha=0.3)
+
+# Add value labels on bars
+for i, (comp, w) in enumerate(zip(components, weights)):
+    ax.text(i, w, f'{w:.3f}', ha='center', va='bottom', fontsize=10, fontweight='bold')
+
+plt.tight_layout()
+plt.savefig(os.path.join(fig_dir, '01_component_weights.png'), bbox_inches='tight')
+plt.show()
+plt.close()
+
+print("✓ Figure 1 saved: 01_component_weights.png")
+
+# ========================================
+# FIGURE 2: Temporal Dynamics (Time Factors)
+# ========================================
+print("\nGenerating Figure 2: Temporal dynamics...")
+
+fig, ax = plt.subplots(figsize=(12, 7))
+
+# Plot each component's temporal profile
+colors = plt.cm.Set2(np.linspace(0, 1, final_rank))
+for i in range(final_rank):
+    ax.plot(common_timepoints, time_factors[:, i], 
+           marker='o', markersize=10, linewidth=3, 
+           label=f'Component {i+1}', color=colors[i], alpha=0.8)
+
+ax.set_xlabel('Timepoint', fontsize=14, fontweight='bold')
+ax.set_ylabel('Loading', fontsize=14, fontweight='bold')
+ax.set_title('Temporal Dynamics of Components', fontsize=16, fontweight='bold')
+ax.set_xticks(common_timepoints)
+ax.set_xticklabels([f'TP{tp}' for tp in common_timepoints])
+ax.legend(fontsize=11, loc='best', frameon=True, shadow=True)
+ax.grid(alpha=0.3)
+
+plt.tight_layout()
+plt.savefig(os.path.join(fig_dir, '02_temporal_dynamics.png'), bbox_inches='tight')
+plt.show()
+plt.close()
+
+print("✓ Figure 2 saved: 02_temporal_dynamics.png")
+
+# ========================================
+# FIGURE 3: Sample Loadings Heatmap
+# ========================================
+print("\nGenerating Figure 3: Sample loadings heatmap...")
+
+# Add species information to sample labels for better visualization
+sample_labels_annotated = []
+species_colors_map = {'apul': 'red', 'peve': 'green', 'ptua': 'blue'}
+species_color_list = []
+
+for idx, label in enumerate(sample_labels):
+    species = species_sample_map[idx]['species']
+    sample_id = species_sample_map[idx]['sample_id']
+    sample_labels_annotated.append(f"{species.upper()}_{sample_id}")
+    species_color_list.append(species_colors_map[species])
+
+# Create heatmap
+fig = plt.figure(figsize=(14, max(8, final_rank * 1.5)))
+gs = GridSpec(1, 20, figure=fig, wspace=0.3)
+
+# Main heatmap
+ax_heat = fig.add_subplot(gs[0, :18])
+im = ax_heat.imshow(sample_factors.T, aspect='auto', cmap='RdYlBu_r', 
+                     interpolation='nearest')
+
+# Customize heatmap
+ax_heat.set_yticks(range(final_rank))
+ax_heat.set_yticklabels([f'Component {i+1}' for i in range(final_rank)], fontsize=11)
+ax_heat.set_xticks(range(len(sample_labels_annotated)))
+ax_heat.set_xticklabels(sample_labels_annotated, rotation=90, fontsize=8)
+ax_heat.set_xlabel('Samples', fontsize=13, fontweight='bold')
+ax_heat.set_ylabel('Components', fontsize=13, fontweight='bold')
+ax_heat.set_title('Sample Loadings Across Components', fontsize=15, fontweight='bold', pad=20)
+
+# Add colorbar
+cbar_ax = fig.add_subplot(gs[0, 19])
+cbar = plt.colorbar(im, cax=cbar_ax)
+cbar.set_label('Loading', fontsize=12, fontweight='bold')
+
+# Add species color bar at bottom
+for idx, color in enumerate(species_color_list):
+    ax_heat.add_patch(plt.Rectangle((idx-0.5, -0.5), 1, 0.3, 
+                                    color=color, alpha=0.6, 
+                                    clip_on=False, transform=ax_heat.transData))
+
+plt.tight_layout()
+plt.savefig(os.path.join(fig_dir, '03_sample_loadings_heatmap.png'), bbox_inches='tight')
+plt.show()
+plt.close()
+
+print("✓ Figure 3 saved: 03_sample_loadings_heatmap.png")
+
+# ========================================
+# FIGURE 4: Top Gene Loadings per Component
+# ========================================
+print("\nGenerating Figure 4: Top gene loadings per component...")
+
+n_top_genes = 20  # Top genes to show per component
+
+fig, axes = plt.subplots(1, final_rank, figsize=(5*final_rank, 8))
+if final_rank == 1:
+    axes = [axes]
+
+for comp_idx in range(final_rank):
+    ax = axes[comp_idx]
+    
+    # Get top genes for this component
+    gene_loadings = gene_factors[:, comp_idx]
+    top_indices = np.argsort(gene_loadings)[-n_top_genes:][::-1]
+    top_genes = [common_genes_list[i] for i in top_indices]
+    top_values = gene_loadings[top_indices]
+    
+    # Create horizontal bar plot
+    y_pos = np.arange(len(top_genes))
+    ax.barh(y_pos, top_values, color='coral', edgecolor='black', linewidth=0.5)
+    
+    ax.set_yticks(y_pos)
+    ax.set_yticklabels(top_genes, fontsize=8)
+    ax.set_xlabel('Loading', fontsize=11, fontweight='bold')
+    ax.set_title(f'Component {comp_idx+1}\nTop {n_top_genes} Genes', 
+                fontsize=12, fontweight='bold')
+    ax.grid(axis='x', alpha=0.3)
+    ax.invert_yaxis()
+
+plt.tight_layout()
+plt.savefig(os.path.join(fig_dir, '04_top_gene_loadings.png'), bbox_inches='tight')
+plt.show()
+plt.close()
+
+print("✓ Figure 4 saved: 04_top_gene_loadings.png")
+
+# ========================================
+# FIGURE 5: Gene Loading Sparsity
+# ========================================
+print("\nGenerating Figure 5: Gene loading sparsity...")
+
+fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+
+# Panel A: Distribution of gene loadings
+ax1 = axes[0]
+for comp_idx in range(final_rank):
+    gene_loadings = gene_factors[:, comp_idx]
+    ax1.hist(gene_loadings, bins=50, alpha=0.6, label=f'Component {comp_idx+1}', edgecolor='black')
+
+ax1.set_xlabel('Gene Loading', fontsize=12, fontweight='bold')
+ax1.set_ylabel('Frequency', fontsize=12, fontweight='bold')
+ax1.set_title('Distribution of Gene Loadings', fontsize=13, fontweight='bold')
+ax1.legend(fontsize=10)
+ax1.grid(alpha=0.3)
+
+# Panel B: Number of non-zero genes per component
+ax2 = axes[1]
+threshold = 0.01  # Consider loadings > 0.01 as "active"
+n_active_genes = []
+for comp_idx in range(final_rank):
+    gene_loadings = gene_factors[:, comp_idx]
+    n_active = np.sum(gene_loadings > threshold)
+    n_active_genes.append(n_active)
+
+components = [f'C{i+1}' for i in range(final_rank)]
+ax2.bar(components, n_active_genes, color='teal', edgecolor='black', linewidth=1.5, alpha=0.8)
+
+ax2.set_xlabel('Component', fontsize=12, fontweight='bold')
+ax2.set_ylabel(f'Number of Active Genes (>{threshold})', fontsize=12, fontweight='bold')
+ax2.set_title(f'Gene Sparsity per Component', fontsize=13, fontweight='bold')
+ax2.grid(axis='y', alpha=0.3)
+
+# Add value labels
+for i, (comp, n) in enumerate(zip(components, n_active_genes)):
+    ax2.text(i, n, str(n), ha='center', va='bottom', fontsize=10, fontweight='bold')
+
+plt.tight_layout()
+plt.savefig(os.path.join(fig_dir, '05_gene_sparsity.png'), bbox_inches='tight')
+plt.show()
+plt.close()
+
+print("✓ Figure 5 saved: 05_gene_sparsity.png")
+
+# ========================================
+# FIGURE 6: Sample Loadings by Species
+# ========================================
+print("\nGenerating Figure 6: Sample loadings by species...")
+
+fig, axes = plt.subplots(final_rank, 1, figsize=(12, 4*final_rank))
+if final_rank == 1:
+    axes = [axes]
+
+for comp_idx in range(final_rank):
+    ax = axes[comp_idx]
+    
+    # Group samples by species
+    species_groups = {'apul': [], 'peve': [], 'ptua': []}
+    species_loadings = {'apul': [], 'peve': [], 'ptua': []}
+    
+    for sample_idx, label in enumerate(sample_labels):
+        species = species_sample_map[sample_idx]['species']
+        loading = sample_factors[sample_idx, comp_idx]
+        species_groups[species].append(label)
+        species_loadings[species].append(loading)
+    
+    # Create grouped bar plot
+    x_pos = 0
+    colors_species = {'apul': 'red', 'peve': 'green', 'ptua': 'blue'}
+    
+    for species in ['apul', 'peve', 'ptua']:
+        loadings = species_loadings[species]
+        positions = range(x_pos, x_pos + len(loadings))
+        ax.bar(positions, loadings, color=colors_species[species], 
+              alpha=0.7, label=species.upper(), edgecolor='black', linewidth=0.5)
+        x_pos += len(loadings) + 1  # Add gap between species
+    
+    ax.set_ylabel('Loading', fontsize=11, fontweight='bold')
+    ax.set_title(f'Component {comp_idx+1}: Sample Loadings by Species', 
+                fontsize=12, fontweight='bold')
+    ax.legend(fontsize=10)
+    ax.grid(axis='y', alpha=0.3)
+    ax.set_xticks([])
+
+plt.tight_layout()
+plt.savefig(os.path.join(fig_dir, '06_sample_loadings_by_species.png'), bbox_inches='tight')
+plt.show()
+plt.close()
+
+print("✓ Figure 6 saved: 06_sample_loadings_by_species.png")
+
+# ========================================
+# FIGURE 7: Convergence Plot
+# ========================================
+print("\nGenerating Figure 7: Convergence plot...")
+
+fig, ax = plt.subplots(figsize=(10, 6))
+
+iterations = range(len(barnacle_final.rec_errors))
+ax.plot(iterations, barnacle_final.rec_errors, linewidth=2.5, 
+       color='darkviolet', marker='o', markersize=4, alpha=0.8)
+
+ax.set_xlabel('Iteration', fontsize=13, fontweight='bold')
+ax.set_ylabel('Reconstruction Error', fontsize=13, fontweight='bold')
+ax.set_title('Convergence of Barnacle Decomposition', fontsize=15, fontweight='bold')
+ax.grid(alpha=0.3)
+ax.set_yscale('log')  # Log scale for better visualization
+
+# Add text box with convergence info
+textstr = f"Converged: {barnacle_final.converged}\n"
+textstr += f"Iterations: {len(barnacle_final.rec_errors)}\n"
+textstr += f"Final error: {barnacle_final.rec_errors[-1]:.6e}"
+props = dict(boxstyle='round', facecolor='wheat', alpha=0.8)
+ax.text(0.05, 0.95, textstr, transform=ax.transAxes, fontsize=11,
+       verticalalignment='top', bbox=props)
+
+plt.tight_layout()
+plt.savefig(os.path.join(fig_dir, '07_convergence.png'), bbox_inches='tight')
+plt.show()
+plt.close()
+
+print("✓ Figure 7 saved: 07_convergence.png")
+
+# ========================================
+# Summary Statistics
+# ========================================
+print("\n" + "="*80)
+print("DECOMPOSITION SUMMARY")
+print("="*80)
+
+print(f"\nComponent Statistics:")
+for comp_idx in range(final_rank):
+    weight = weights[comp_idx]
+    n_active_genes = np.sum(gene_factors[:, comp_idx] > 0.01)
+    mean_sample_loading = np.mean(sample_factors[:, comp_idx])
+    max_time_loading = np.max(time_factors[:, comp_idx])
+    
+    print(f"\nComponent {comp_idx+1}:")
+    print(f"  Weight: {weight:.4f}")
+    print(f"  Active genes (>0.01): {n_active_genes}/{len(common_genes_list)} ({n_active_genes/len(common_genes_list)*100:.1f}%)")
+    print(f"  Mean sample loading: {mean_sample_loading:.4f}")
+    print(f"  Max time loading: {max_time_loading:.4f}")
+
+print(f"\n✓ All figures saved to: {fig_dir}/")
+print("="*80)
+```
 
 
 ## Close log file
