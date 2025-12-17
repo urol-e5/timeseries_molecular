@@ -1294,27 +1294,21 @@ print(f"\n=== SAVING TENSOR DATA ===")
 tensor_file = os.path.join(output_dir, 'multiomics_tensor.npy')
 sample_mapping_file = os.path.join(output_dir, 'sample_mapping.csv')
 gene_list_file = os.path.join(output_dir, 'gene_list.csv')
-species_map_file = os.path.join(output_dir, 'species_sample_map.pkl')
 
 # Save tensor as numpy array
 np.save(tensor_file, tensor_3d)
 print(f"✓ Tensor saved: {tensor_file}")
 print(f"  Shape: {tensor_3d.shape}")
 
-# Save sample mapping
+# Save sample mapping (contains all species info)
 sample_mapping.to_csv(sample_mapping_file, index=False)
 print(f"✓ Sample mapping saved: {sample_mapping_file}")
+print(f"  (species_sample_map can be reconstructed from this CSV)")
 
 # Save gene list
 gene_list_df = pd.DataFrame({'gene_id': common_genes_list})
 gene_list_df.to_csv(gene_list_file, index=False)
 print(f"✓ Gene list saved: {gene_list_file}")
-
-# Save species sample map (pickle for complex structure)
-import pickle
-with open(species_map_file, 'wb') as f:
-    pickle.dump(species_sample_map, f)
-print(f"✓ Species sample map saved: {species_map_file}")
 
 # Save timepoints list
 timepoints_df = pd.DataFrame({'timepoint': common_timepoints})
@@ -2468,7 +2462,6 @@ print("\nLoading tensor data from saved files...")
 tensor_file = os.path.join(output_dir, 'multiomics_tensor.npy')
 sample_mapping_file = os.path.join(output_dir, 'sample_mapping.csv')
 gene_list_file = os.path.join(output_dir, 'gene_list.csv')
-species_map_file = os.path.join(output_dir, 'species_sample_map.pkl')
 timepoints_file = os.path.join(output_dir, 'timepoints.csv')
 
 # Check if tensor files exist
@@ -2486,15 +2479,19 @@ sample_mapping = pd.read_csv(sample_mapping_file)
 sample_labels = sample_mapping['sample_label'].tolist()
 print(f"✓ Loaded sample mapping: {len(sample_labels)} samples")
 
+# Reconstruct species_sample_map dictionary from sample_mapping DataFrame
+species_sample_map = {}
+for _, row in sample_mapping.iterrows():
+    species_sample_map[int(row['combined_index'])] = {
+        'species': row['species'],
+        'sample_id': row['sample_id']
+    }
+print(f"✓ Reconstructed species sample map from CSV")
+
 # Load gene list
 gene_list_df = pd.read_csv(gene_list_file)
 common_genes_list = gene_list_df['gene_id'].tolist()
 print(f"✓ Loaded gene list: {len(common_genes_list)} genes")
-
-# Load species sample map
-with open(species_map_file, 'rb') as f:
-    species_sample_map = pickle.load(f)
-print(f"✓ Loaded species sample map")
 
 # Load timepoints
 timepoints_df = pd.read_csv(timepoints_file)
@@ -2544,11 +2541,13 @@ print(f"  Time mode (2): λ = {lambda_params[2]}")
 max_iter = 500
 tol = 1e-6
 verbose = 2  # Show progress
+random_state = 42  # Set random seed for reproducibility
 
 print(f"\nDecomposition parameters:")
 print(f"  Maximum iterations: {max_iter}")
 print(f"  Convergence tolerance: {tol}")
 print(f"  Verbose: {verbose}")
+print(f"  Random state: {random_state}")
 
 # Initialize barnacle decomposition with multi-threading
 print(f"\n{'='*80}")
@@ -2563,7 +2562,8 @@ barnacle_final = SparseCP(
     max_iter=max_iter,
     tol=tol,
     verbose=verbose,
-    n_iter_max=100  # FISTA inner iterations
+    n_iter_max=100,  # FISTA inner iterations
+    random_state=random_state  # Reproducible initialization
 )
 
 # Fit the decomposition
