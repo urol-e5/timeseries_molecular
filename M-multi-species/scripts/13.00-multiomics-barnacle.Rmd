@@ -26,92 +26,239 @@ citeproc: true
 
 # BACKGROUND
 
-This analysis prepares three-species ortholog expression matrices, normalizes the data, constructs a multi‑omics tensor (genes × combined species-samples × timepoints), and runs a sparse tensor decomposition using the [barnacle](https://github.com/blasks/barnacle) [@blaskowski2024] workflow to discover shared gene/time/species patterns.
+This script performs a comprehensive multi-species comparative transcriptomics analysis using sparse tensor decomposition to identify shared temporal gene expression patterns across three coral species (*Acropora pulchra*, *Porites evermanni*, and *Pocillopora tuahiniensis*). The analysis integrates orthologous gene expression data across species, timepoints, and biological replicates into a unified 3D tensor framework, then applies the [barnacle](https://github.com/blasks/barnacle) [@blaskowski2024] sparse CP (CANDECOMP/PARAFAC) decomposition method to discover latent factors representing coordinated gene expression programs.
 
-## Workflow overview
+## Analysis Overview
 
-1. **Data Preparation** - Extract and normalize ortholog expression data
-2. **Tensor Construction** - Build 3D tensor combining species, samples, and timepoints
-3. **Parameter Selection** - Use split-half bootstrap grid search to jointly optimize rank and lambda parameters
-4. **Final Decomposition** - Fit model with optimal parameters on full dataset
-5. **Interpretation** - Examine factors, visualizations, and biological meaning
+This analysis addresses the challenge of identifying conserved temporal gene expression responses across evolutionarily divergent coral species by:
 
-## Parameter selection approach
+1. **Integrating ortholog-mapped expression data** from three species into a common analytical framework
+2. **Filtering for temporal completeness** to ensure all samples have measurements at all four timepoints (TP1-TP4)
+3. **Normalizing count data** using variance-stabilizing transformations (sctransform)
+4. **Constructing a 3D tensor** (genes × species-samples × timepoints) that captures the full data structure
+5. **Optimizing model parameters** using split-half bootstrap cross-validation to balance model complexity, sparsity, and stability
+6. **Decomposing the tensor** to extract biologically interpretable factors representing gene programs, sample/species loadings, and temporal dynamics
+7. **Identifying conserved patterns** across species through factor analysis and visualization
 
-**This analysis uses a split-half bootstrap grid search approach** recommended by the dissertation author [@blaskowski2024] for datasets with limited biological replicates.
+## Workflow Stages
 
-### Split-Half Bootstrap Grid Search
+### Stage 1: Data Preparation and Ortholog Mapping
+
+**Purpose:** Extract and prepare species-specific expression data aligned to ortholog groups
+
+**Steps:**
+1. Load annotated ortholog groups containing three-way species matches
+2. Load per-species gene count matrices from RNA-seq alignments
+3. Filter ortholog groups to retain only complete three-way matches with available expression data
+4. Clean gene IDs to match between ortholog annotations and count matrices (handle species-specific formatting)
+5. Filter samples to retain only those with complete temporal profiles (all 4 timepoints present)
+6. Extract per-species expression matrices indexed by ortholog group IDs
+7. Export intermediate ortholog expression matrices for validation
+
+### Stage 2: Data Normalization
+
+**Purpose:** Apply variance-stabilizing transformations to enable cross-sample comparisons
+
+**Methods:**
+- Primary: **sctransform** - regularized negative binomial regression accounting for sequencing depth and gene-specific variation
+- Fallback: **log2(CPM+1)** - simple log-transformed counts per million for robustness
+
+**Outputs:** Normalized expression matrices for each species
+
+### Stage 3: Tensor Construction
+
+**Purpose:** Combine all data into a unified 3D array structure
+
+**Architecture:**
+- **Dimension 1 (Genes):** Ortholog groups present in all three species (n = number of common orthologs)
+- **Dimension 2 (Samples):** Combined species-sample units (n = total samples across all species)
+- **Dimension 3 (Time):** Experimental timepoints (n = 4; TP1, TP2, TP3, TP4)
 
 **Key features:**
-- **Split-half cross-validation** (50/50 train/test split) instead of leave-one-out
-- **Bootstrap resampling** with repeated random splits to assess stability
-- **Stratified splitting** ensures balanced species representation in train/test sets
-- **Joint rank × lambda grid search** tests all parameter combinations simultaneously
-- **Incremental checkpointing** saves results after each bootstrap iteration
-- **Resume capability** allows continuing from last checkpoint if interrupted
-- **Parallel execution** using joblib for multi-core speedup
+- Samples are concatenated across species with metadata tracking species identity
+- Only samples with complete temporal coverage are included
+- Missing values are handled explicitly (filled with zeros before decomposition)
 
-**Two-stage parameter selection using 1SE rule:**
+### Stage 4: Parameter Optimization via Bootstrap Grid Search
 
-**Stage 1 - Rank Selection:**
-- Evaluate all ranks at λ=0.0 (no regularization) across bootstrap iterations
-- Calculate mean cross-validation SSE and standard error for each rank
-- Find minimum mean SSE and compute 1SE threshold: min_SSE + 1×SE
-- **Select smallest rank with mean SSE ≤ threshold** (parsimony principle)
-- Rationale: Avoids overfitting by preferring simpler models when performance is statistically comparable
+**Purpose:** Jointly optimize rank (R) and sparsity (λ) parameters using rigorous cross-validation
 
-**Stage 2 - Lambda Selection:**
-- At the selected rank, evaluate all lambda values across bootstrap iterations
-- Calculate mean Factor Match Score (FMS) and standard error for each lambda
-- Find maximum mean FMS and compute 1SE threshold: max_FMS - 1×SE
-- **Select maximum lambda with mean FMS ≥ threshold** (maximum sparsity)
-- Rationale: Maximizes sparsity while maintaining factor stability and identifiability
+**Approach:** Split-half bootstrap grid search [@blaskowski2024] adapted for limited biological replicates
+
+**Key features:**
+- **Split-half cross-validation:** 50/50 random train/test splits (more stable than leave-one-out)
+- **Bootstrap resampling:** Multiple random splits assess parameter stability across data partitions
+- **Stratified splitting:** Ensures balanced species representation in train/test sets
+- **Joint grid search:** Tests all rank × lambda combinations simultaneously
+- **Incremental checkpointing:** Saves results after each bootstrap iteration
+- **Resume capability:** Can continue from last checkpoint if interrupted
+- **Parallel execution:** Uses joblib for multi-core speedup
+
+**Two-stage selection using 1SE rule:**
+
+**Stage 4a - Rank Selection (at λ=0.0):**
+1. Fit models at all candidate ranks with no regularization (λ=0.0)
+2. Calculate mean cross-validation SSE (sum of squared errors) and standard error across bootstrap iterations
+3. Identify minimum mean SSE and compute 1SE threshold: min_SSE + 1×SE
+4. **Select smallest rank with mean SSE ≤ threshold** (parsimony principle)
+5. Rationale: Prefers simpler models when prediction accuracy is statistically equivalent
+
+**Stage 4b - Lambda Selection (at optimal rank):**
+1. At the selected rank, fit models across all lambda values
+2. Calculate mean Factor Match Score (FMS) and standard error across bootstrap iterations
+3. Identify maximum mean FMS and compute 1SE threshold: max_FMS - 1×SE
+4. **Select maximum lambda with mean FMS ≥ threshold** (maximum sparsity)
+5. Rationale: Maximizes interpretability (sparse factors) while maintaining factor stability
 
 **Key metrics:**
-- **Cross-validation SSE**: Prediction error on held-out test data (lower = better generalization)
-- **Factor Match Score (FMS)**: Stability of factor recovery across random initializations (higher = better identifiability)
-- **Variance explained**: Proportion of data variation captured by the model
-- **Sparsity**: Number of genes/samples with strong loadings per component
-- **1SE rule**: Conservative selection criterion balancing model complexity and performance
+- **Cross-validation SSE:** Prediction error on held-out test data (lower = better generalization)
+- **Factor Match Score (FMS):** Factor recovery consistency across random initializations (higher = more identifiable/stable)
+- **Variance explained:** Proportion of tensor variation captured by the model
+- **Sparsity:** Number of genes/samples with strong loadings per component
+- **Coefficient of variation:** Relative variability across bootstrap iterations
 
-## Key steps performed by this script:
+### Stage 5: Final Tensor Decomposition
 
-- Load annotated ortholog groups and per-species count matrices.
-- Filter ortholog groups to retain complete three‑way matches with available expression data.
-- Extract per‑species expression matrices mapped to ortholog group IDs.
-- Normalize counts using `sctransform`.
-- Build a 3D tensor combining species/sample and timepoint dimensions.
-- Run [barnacle](https://github.com/blasks/barnacle) [@blaskowski2024] sparse CP decomposition and save factor matrices, metadata and figures.
-- Assess rank appropriateness through multiple metrics and visualizations.
+**Purpose:** Fit final model with optimized parameters on full dataset
 
-## Input files
+**Method:** Sparse CP decomposition with:
+- **Rank:** Optimal value from Stage 4a
+- **Lambda:** Optimal sparsity parameters from Stage 4b applied to gene and time modes
+- **Non-negativity constraint:** Applied to gene mode (ensures biologically interpretable gene loadings)
+- **Normalization:** Factor matrices are normalized for stability
 
-- `../output/12-ortho-annot/ortholog_groups_annotated.csv` : annotated ortholog groups with columns for `group_id`, `apul`, `peve`, `ptua`, `type`, etc.
-- `../../D-Apul/output/02.20-D-Apul-RNAseq-alignment-HiSat2/apul-gene_count_matrix.csv` : Apul gene count matrix (contains `gene_id` plus sample columns).
-- `../../E-Peve/output/02.20-E-Peve-RNAseq-alignment-HiSat2/peve-gene_count_matrix.csv` : Peve gene count matrix.
-- `../../F-Ptua/output/02.20-F-Ptua-RNAseq-alignment-HiSat2/ptua-gene_count_matrix.csv` : Ptua gene count matrix.
-- (Also referenced) transcript-level matrices: `apul-transcript_count_matrix.csv`, `peve-transcript_count_matrix.csv`, `ptua-transcript_count_matrix.csv` when needed.
+**Outputs:** Three factor matrices representing:
+1. **Gene factors:** Ortholog group loadings per component (which genes contribute to each pattern)
+2. **Sample factors:** Species-sample loadings per component (which species/samples exhibit each pattern)
+3. **Time factors:** Timepoint loadings per component (temporal dynamics of each pattern)
 
-## Output files
+### Stage 6: Interpretation and Visualization
 
-- `apul_ortholog_expression.csv`, `peve_ortholog_expression.csv`, `ptua_ortholog_expression.csv` : per‑species expression matrices aligned to ortholog `group_id`.
-- `apul_normalized_expression.csv`, `peve_normalized_expression.csv`, `ptua_normalized_expression.csv` : normalized expression matrices (sctransform or log2(CPM+1)).
-- `multiomics_tensor.npy` : saved NumPy array of the 3D tensor used for decomposition (genes × combined_samples × timepoints).
-- `barnacle_factors/` directory containing:
-    - `gene_factors.csv` : gene loadings per component (genes × components).
-    - `sample_factors.csv` : combined sample (species_sample) loadings per component with `Species` and `Sample_ID` metadata.
-    - `time_factors.csv` : timepoint loadings per component.
-    - `component_weights.csv` : component weights / importance.
-    - `sample_mapping.csv` : mapping of combined sample indices to species and sample IDs.
-    - `metadata.json` : analysis parameters and tensor metadata (shape, rank, lambdas, convergence, etc.).
-    - `figures/` : generated visualizations (component weights, time loadings, sample heatmap, PCA, top ortholog plots).
+**Purpose:** Examine biological meaning of discovered factors
 
-## Notes / assumptions:
+**Analyses:**
+- Component weights showing relative importance of each factor
+- Temporal dynamics plots showing how patterns change over time
+- Species-sample heatmaps revealing species-specific vs. conserved patterns
+- Top gene identification for functional enrichment analysis
+- Cross-species correlation analysis
+- Variance explained decomposition
 
-- Sample column names are parsed expecting a dot-separated format with a `TP#` timepoint token (e.g., `ACR.139.TP1`).
-- Apul ortholog IDs in the ortholog table include transcript suffixes (e.g., `-T1`) which are removed for matching to the gene count matrix.
-- Missing values in the tensor are handled by substitution (current workflow fills NaNs with zeros before decomposition).
-- Samples must have all four timepoints (TP1, TP2, TP3, TP4) to be included in the analysis.
+## Input Files
+
+**Ortholog annotations:**
+- `../output/12-ortho-annot/ortholog_groups_annotated.csv`
+  - Annotated ortholog groups with columns: `group_id`, `apul`, `peve`, `ptua`, `type`, etc.
+  - Three-way ortholog relationships identified by OrthoFinder
+
+**Species-specific gene count matrices:**
+- `../../D-Apul/output/02.20-D-Apul-RNAseq-alignment-HiSat2/apul-gene_count_matrix.csv`
+  - *Acropora pulchra* raw gene counts from HISAT2 alignment
+  - Format: `gene_id` column + sample columns (e.g., `ACR.139.TP1`, `ACR.139.TP2`, ...)
+  
+- `../../E-Peve/output/02.20-E-Peve-RNAseq-alignment-HiSat2/peve-gene_count_matrix.csv`
+  - *Porites evermanni* raw gene counts from HISAT2 alignment
+  - Format: `gene_id` column (with `gene-` prefix) + sample columns (e.g., `POR.216.TP1`, ...)
+  
+- `../../F-Ptua/output/02.20-F-Ptua-RNAseq-alignment-HiSat2/ptua-gene_count_matrix.csv`
+  - *Pocillopora tuahiniensis* raw gene counts from HISAT2 alignment
+  - Format: `gene_id` column (with `gene-` prefix) + sample columns (e.g., `POC.201.TP1`, ...)
+
+**Note:** Sample column names follow dot-separated format with timepoint suffix: `{PREFIX}.{SAMPLE_ID}.TP{N}`
+
+## Output Files
+
+### Intermediate Data Files (for validation/reproducibility)
+
+**Ortholog-aligned expression matrices (raw counts):**
+- `apul_ortholog_expression.csv` - *A. pulchra* expression indexed by ortholog group_id
+- `peve_ortholog_expression.csv` - *P. evermanni* expression indexed by ortholog group_id
+- `ptua_ortholog_expression.csv` - *P. tuahiniensis* expression indexed by ortholog group_id
+
+**Normalized expression matrices:**
+- `apul_normalized_expression.csv` - sctransform-normalized *A. pulchra* data
+- `peve_normalized_expression.csv` - sctransform-normalized *P. evermanni* data
+- `ptua_normalized_expression.csv` - sctransform-normalized *P. tuahiniensis* data
+
+**Tensor data:**
+- `multiomics_tensor.npy` - 3D NumPy array (genes × combined_samples × timepoints) used for decomposition
+
+### Bootstrap Parameter Selection Results
+
+**Directory:** `bootstrap_grid_search/`
+
+**Files:**
+- `bootstrap_results_summary.csv` - Aggregated statistics across all bootstrap iterations
+  - Columns: rank, lambda, mean_sse, std_sse, se_sse, mean_fms, std_fms, se_fms, n_iterations
+  
+- `bootstrap_results_raw.csv` - Individual results from each bootstrap iteration
+  - Columns: iteration, rank, lambda, train_sse, test_sse, fms, train_indices, test_indices
+  
+- `optimal_parameters.json` - Selected optimal parameters from 1SE rule
+  - Fields: optimal_rank, optimal_lambda, min_sse, max_fms, selection_method, n_bootstrap_iterations, timestamp
+  
+- `checkpoint_bootstrap_iteration_{N}.csv` - Incremental checkpoints saved after each iteration (allows resumption)
+
+**Figures:** `bootstrap_grid_search/figures/`
+- `bootstrap_sse_heatmap.png` - Heatmap of mean SSE across rank × lambda grid
+- `bootstrap_fms_heatmap.png` - Heatmap of mean FMS across rank × lambda grid (where available)
+- `bootstrap_rank_selection_1se.png` - Rank selection plot showing 1SE rule application
+- `bootstrap_lambda_selection.png` - Lambda selection plot at optimal rank
+
+### Final Decomposition Results
+
+**Directory:** `barnacle_factors/` (or similar, name may vary)
+
+**Factor matrices:**
+- `gene_factors.csv` - Gene loadings per component (n_genes × n_components)
+  - Rows: ortholog group_ids
+  - Columns: Component_1, Component_2, ..., Component_R
+  
+- `sample_factors.csv` - Sample loadings per component with metadata (n_samples × [n_components + metadata])
+  - Columns: Species, Sample_ID, Component_1, Component_2, ..., Component_R
+  
+- `time_factors.csv` - Timepoint loadings per component (n_timepoints × n_components)
+  - Rows: TP1, TP2, TP3, TP4
+  - Columns: Component_1, Component_2, ..., Component_R
+
+**Metadata and mappings:**
+- `component_weights.csv` - Component importance/weights
+- `sample_mapping.csv` - Mapping of combined sample indices to species and sample IDs
+- `metadata.json` - Complete analysis parameters and diagnostics
+  - Fields: tensor_shape, rank, lambdas, n_iterations, convergence_status, variance_explained, timestamp, etc.
+
+**Visualizations:** `figures/` (subdirectory)
+- Component weights bar plots
+- Temporal dynamics line plots (time factors)
+- Species-sample heatmaps (sample factors)
+- PCA projections of factors
+- Top gene loadings per component
+- Variance explained plots
+
+## Technical Notes and Assumptions
+
+### Gene ID Handling
+- **Apul:** Ortholog annotations include transcript suffixes (e.g., `FUN_000185-T1`) which are removed to match gene-level count matrix IDs
+- **Peve/Ptua:** Count matrices have `gene-` prefix (e.g., `gene-Peve_00000032`) which is removed for matching
+
+### Sample Filtering Criteria
+- **Temporal completeness:** Only samples with all four timepoints (TP1, TP2, TP3, TP4) are retained
+- **Species balance:** Stratified cross-validation maintains species representation in train/test splits
+
+### Missing Value Handling
+- Missing values in the final tensor are filled with zeros before decomposition
+- Samples without complete temporal profiles are excluded during data preparation (upstream of tensor construction)
+
+### Column Name Parsing
+- Sample columns expected format: `{SPECIES_PREFIX}.{SAMPLE_NUMBER}.TP{TIMEPOINT}`
+- Examples: `ACR.139.TP1`, `POR.216.TP3`, `POC.201.TP4`
+- Parsing splits on dots (`.`) and extracts timepoint from final token
+
+### Statistical Considerations
+- **1SE rule:** Conservative selection criterion that balances model performance with parsimony/interpretability
+- **Bootstrap iterations:** Typically 20-100 iterations recommended for stable parameter estimates
+- **Cross-validation:** Split-half approach preferred over LOOCV for datasets with limited replicates
+- **FMS threshold:** Values > 0.9 indicate highly identifiable/stable factors; values < 0.7 suggest instability
 
 
 # SETUP
