@@ -1036,10 +1036,10 @@ for species, info in species_info.items():
 ## Create 3D tensor (genes × species_samples × timepoints)
 
 ```{python create-3d-tensor, eval=TRUE}
-# Create a 3D tensor: genes × (species_samples) × timepoints
-# This flattens species and samples into a single dimension that Barnacle can handle
+# Create a 3D tensor: genes × samples × timepoints
+# Samples are identified by their names which include species information (e.g., apul-A1, peve-P1)
 
-print("Creating 3D tensor by combining species and samples...")
+print("Creating 3D tensor with samples as the second dimension...")
 print("Note: R-level filtering has already removed samples without all 4 timepoints")
 
 # First, collect all actual sample-timepoint combinations that have data
