@@ -66,6 +66,9 @@ threads <- "44"
 ## MAX RAM
 max_ram <- "100G"
 
+# PROGRAMS
+samtools <- file.path("/home", "shared", "samtools-1.12", "samtools")
+
 
 # FORMATTING
 line <- "-----------------------------------------------"
@@ -82,6 +85,7 @@ Sys.setenv(
   max_ram = max_ram,
   output_dir = output_dir,
   top_output_dir = top_output_dir,
+  samtools = samtools,
   threads = threads,
   trimmed_reads_dir = trimmed_reads_dir
 )
@@ -167,29 +171,61 @@ Trinity \
 2>&1
 ```
 
+## Rename output files
 
+### Rename FastA
+```{r rename-de-denovo-fasta, engine='bash'}
 # Rename generic assembly FastA
-mv trinity_out_dir/Trinity.fasta trinity_out_dir/${fasta_name}
+mv ${de_novo_output_dir}/trinity_out_dir.Trinity.fasta \
+${de_novo_output_dir}/${denovo_assembly_name}.fasta
+```
 
-# Assembly stats
-${trinity_dir}/util/TrinityStats.pl trinity_out_dir/${fasta_name} \
-> ${assembly_stats}
+### Rename gene map and log
+```{r rename-de-novo-map-log, engine='bash'}
+mv ${de_novo_output_dir}/trinity_out_dir.Trinity.fasta.gene_trans_map \
+${de_novo_output_dir}/${denovo_assembly_name}.gene_trans_map
 
-# Create gene map files
-${trinity_dir}/util/support_scripts/get_Trinity_gene_to_trans_map.pl \
-trinity_out_dir/${fasta_name} \
-> trinity_out_dir/${fasta_name}.gene_trans_map
+mv ${de_novo_output_dir}/trinity.log \
+${de_novo_output_dir}/${denovo_assembly_name}.log
+```
 
-# Create FastA index
+
+### Assembly stats
+
+#### Run Trinity Singularity image.
+```bash
+singularity exec -B /home \
+-e trinityrnaseq.v2.15.2.simg \
+/usr/local/bin/util/TrinityStats.pl \
+../output/00.30-D-Apul-transcriptome-assembly-Trinity/de_novo_assembly/apul-denovo-Trinity.fasta \
+> ../output/00.30-D-Apul-transcriptome-assembly-Trinity/de_novo_assembly/apul-denovo-Trinity.stats
+```
+
+
+## Create FastA index
+```{r de-novo-fasta-index, engine='bash'}
 ${samtools} faidx \
-trinity_out_dir/${fasta_name}
+${de_novo_output_dir}/${denovo_assembly_name}.fasta
+```
 
 # GENOME-GUIDED ASSEMBLY
-```{r genome-guided-assembly, engine='bash'}
- Trinity --genome_guided_bam ${bam_alignment} \
-         --genome_guided_max_intron 10000 \
-         --max_memory ${max_ram} \
-         --CPU ${threads} 
+
+Trinity was run using the [Trinity Singularity (Apptainer) container](https://github.com/trinityrnaseq/trinityrnaseq/wiki/Trinity-in-Docker#running-trinity-using-singularity), `trinityrnaseq.v2.15.2.simg` from the `urol-e5/timeseries_molecular/D-Apul/code/` directory.
+
+This was done in a terminal, outside of this notebook.
+
+```bash
+singularity exec \
+-B /home -e trinityrnaseq.v2.15.2.simg \
+Trinity \
+--genome_guided_bam ../output/02.20-D-Apul-RNAseq-alignment-HiSat2/sorted-bams-merged.bam \
+--genome_guided_max_intron 10000 \
+--max_memory ${max_ram} \
+--CPU ${threads} \
+--SS_lib_type RF \
+--output ${genome_guided_output_dir}/trinity_out_dir \
+--full_cleanup \
+> ${genome_guided_output_dir}/trinity.log 2>&1
 ```
 
 
