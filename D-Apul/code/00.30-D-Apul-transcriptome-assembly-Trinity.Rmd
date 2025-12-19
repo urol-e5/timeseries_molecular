@@ -50,6 +50,8 @@ top_output_dir <- file.path("..", "output")
 output_dir <- file.path(top_output_dir, "00.30-D-Apul-transcriptome-assembly-Trinity")
 de_novo_output_dir <- file.path(output_dir, "de_novo_assembly")
 genome_guided_output_dir <- file.path(output_dir, "genome_guided_assembly")
+pasa_container_dir <- file.path("/home", "shared", "containers")
+PASA_HOME <- "/usr/local/src/PASApipeline"
 pasa_output_dir <- file.path(output_dir, "PASA")
 trimmed_reads_dir <- file.path(top_output_dir, "01.00-D-Apul-RNAseq-trimming-fastp-FastQC-MultiQC")
 
@@ -59,6 +61,7 @@ bam_alignment <- file.path(top_output_dir, "02.20-D-Apul-RNAseq-alignment-HiSat2
 genome_fasta <- file.path("..", "data", "Apulchra-genome.fa")
 denovo_assembly_name <- "apul-denovo-Trinity"
 genome_guided_assembly_name <- "apul-GG-Trinity"
+pasa_container <- "pasapipeline.v2.5.3.simg"
 
 #SETTINGS
 ## THREADS
@@ -86,6 +89,9 @@ Sys.setenv(
   max_ram = max_ram,
   output_dir = output_dir,
   top_output_dir = top_output_dir,
+  pasa_container = pasa_container,
+  pasa_container_dir = pasa_container_dir,
+  PASA_HOME = PASA_HOME,
   pasa_output_dir = pasa_output_dir,
   samtools = samtools,
   threads = threads,
@@ -296,4 +302,18 @@ if [ $sum -eq $pasa_count ]; then
 else
     echo "✗ Counts do not match: $sum ≠ $pasa_count (difference: $((pasa_count - sum)))"
 fi
+```
+
+## Extract transcript accessions
+
+
+```{r extract-transcript-accessions, engine='bash'}
+singularity exec \
+-B /home \
+-e ${pasa_container_dir}/${pasa_container} \
+$PASA_HOME/misc_utilities/accession_extractor.pl \
+< ${de_novo_output_dir}/${denovo_assembly_name}.fasta \
+> ${pasa_output_dir}/tdn.accs
+
+head ${pasa_output_dir}/tdn.accs
 ```
