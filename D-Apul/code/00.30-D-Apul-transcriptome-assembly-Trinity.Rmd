@@ -50,6 +50,7 @@ top_output_dir <- file.path("..", "output")
 output_dir <- file.path(top_output_dir, "00.30-D-Apul-transcriptome-assembly-Trinity")
 de_novo_output_dir <- file.path(output_dir, "de_novo_assembly")
 genome_guided_output_dir <- file.path(output_dir, "genome_guided_assembly")
+pasa_output_dir <- file.path(output_dir, "PASA")
 trimmed_reads_dir <- file.path(top_output_dir, "01.00-D-Apul-RNAseq-trimming-fastp-FastQC-MultiQC")
 
 
@@ -85,6 +86,7 @@ Sys.setenv(
   max_ram = max_ram,
   output_dir = output_dir,
   top_output_dir = top_output_dir,
+  pasa_output_dir = pasa_output_dir,
   samtools = samtools,
   threads = threads,
   trimmed_reads_dir = trimmed_reads_dir
@@ -229,18 +231,46 @@ Trinity \
 ```
 
 
+## Rename output files
+
+### Rename FastA
+```{r rename-de-denovo-fasta, engine='bash'}
 # Rename generic assembly FastA
-mv trinity_out_dir/Trinity.fasta trinity_out_dir/${fasta_name}
+mv ${genome_guided_output_dir}/trinity_out_dir.Trinity-GG.fasta \
+${genome_guided_output_dir}/${genome_guided_assembly_name}.fasta
+```
 
-# Assembly stats
-${trinity_dir}/util/TrinityStats.pl trinity_out_dir/${fasta_name} \
-> ${assembly_stats}
+### Rename gene map and log
+```{r rename-de-novo-map-log, engine='bash'}
+mv ${genome_guided_output_dir}/trinity_out_dir.Trinity-GG.fasta.gene_trans_map \
+${genome_guided_output_dir}/${genome_guided_assembly_name}.gene_trans_map
 
-# Create gene map files
-${trinity_dir}/util/support_scripts/get_Trinity_gene_to_trans_map.pl \
-trinity_out_dir/${fasta_name} \
-> trinity_out_dir/${fasta_name}.gene_trans_map
+mv ${genome_guided_output_dir}/trinity.log \
+${genome_guided_output_dir}/${genome_guided_assembly_name}.log
+```
 
-# Create FastA index
+## Create FastA index
+```{r de-novo-fasta-index, engine='bash'}
 ${samtools} faidx \
-trinity_out_dir/${fasta_name}
+${genome_guided_output_dir}/${genome_guided_assembly_name}.fasta
+```
+
+### Assembly stats
+
+#### Run Trinity Singularity image.
+```bash
+singularity exec -B /home \
+-e trinityrnaseq.v2.15.2.simg \
+/usr/local/bin/util/TrinityStats.pl \
+../output/00.30-D-Apul-transcriptome-assembly-Trinity/genome_guided_assembly/apul-GG-Trinity.fasta \
+> ../output/00.30-D-Apul-transcriptome-assembly-Trinity/genome_guided_assembly/apul-GG-Trinity.stats
+```
+
+# PASA PIPELINE
+
+## Concatenate Trinity assemblies
+```{r concatenate-Trinity-assemblies, engine='bash'}
+cat ${de_novo_output_dir}/${denovo_assembly_name}.fasta \
+${genome_guided_output_dir}/${genome_guided_assembly_name}.fasta
+> ${pasa_output_dir}/transcripts.fasta
+```
