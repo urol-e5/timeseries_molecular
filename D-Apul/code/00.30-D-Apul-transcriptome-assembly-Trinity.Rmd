@@ -271,6 +271,29 @@ singularity exec -B /home \
 ## Concatenate Trinity assemblies
 ```{r concatenate-Trinity-assemblies, engine='bash'}
 cat ${de_novo_output_dir}/${denovo_assembly_name}.fasta \
-${genome_guided_output_dir}/${genome_guided_assembly_name}.fasta
+${genome_guided_output_dir}/${genome_guided_assembly_name}.fasta \
 > ${pasa_output_dir}/transcripts.fasta
+```
+
+### Confirm counts
+```{r confirm-transcript-counts, engine='bash'}
+# Count transcripts in each file
+denovo_count=$(grep -c "^>" ${de_novo_output_dir}/${denovo_assembly_name}.fasta)
+genome_guided_count=$(grep -c "^>" ${genome_guided_output_dir}/${genome_guided_assembly_name}.fasta)
+pasa_count=$(grep -c "^>" ${pasa_output_dir}/transcripts.fasta)
+
+# Calculate sum of first two counts
+sum=$((denovo_count + genome_guided_count))
+
+# Compare sum to PASA count
+echo "De novo count: $denovo_count"
+echo "Genome-guided count: $genome_guided_count"
+echo "Sum: $sum"
+echo "PASA count: $pasa_count"
+
+if [ $sum -eq $pasa_count ]; then
+    echo "✓ Counts match: $sum = $pasa_count"
+else
+    echo "✗ Counts do not match: $sum ≠ $pasa_count (difference: $((pasa_count - sum)))"
+fi
 ```
