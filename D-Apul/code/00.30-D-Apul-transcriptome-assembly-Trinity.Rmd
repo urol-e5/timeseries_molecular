@@ -340,7 +340,9 @@ transcripts.fasta \
 ```
 
 ## PASA Assembly
-```{r pasa-assembly, engine='bash'}
+
+### Fix schema key length
+```{r fix-schema-key-length, engine='bash'}
 cd ${pasa_output_dir}
 
 #### Fix schema key length issue ####
@@ -354,10 +356,14 @@ sed -i 's/KEY mod_idx (model_id)/KEY mod_idx (model_id(255))/g' cdna_alignment_m
 sed -i 's/(gene_id)/(gene_id(255))/g' cdna_alignment_mysqlschema
 sed -i 's/(model_id)/(model_id(255))/g' cdna_alignment_mysqlschema
 sed -i 's/KEY gene_idx (annotation_version,gene_id)/KEY gene_idx (annotation_version,gene_id(255))/g' cdna_alignment_mysqlschema
+```
 
-#####################################
 
+### Run PASA Assembly Pipeline
 
+This was executed outside of RStudio due to the verbose output, which will cause RStudio to crash.
+
+```bash
 singularity exec \
 -B /home \
 -B /var/run/mysqld/mysqld.sock:/var/run/mysqld/mysqld.sock \
