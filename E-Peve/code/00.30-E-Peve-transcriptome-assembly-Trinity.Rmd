@@ -125,6 +125,10 @@ de_novo_output_dir="${output_dir}/de_novo_assembly"
 genome_guided_output_dir="${output_dir}/genome_guided_assembly"
 trimmed_reads_dir="${top_output_dir}/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC"
 
+# Files
+denovo_assembly_name="peve-denovo-Trinity"
+genome_guided_assembly_name="peve-GG-Trinity"
+
 ## THREADS
 threads="150"
 
