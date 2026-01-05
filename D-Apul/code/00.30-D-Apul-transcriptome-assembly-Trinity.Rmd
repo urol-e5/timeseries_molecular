@@ -384,3 +384,15 @@ $PASA_HOME/Launch_PASA_pipeline.pl \
 --transcribed_is_aligned_orient \
 --CPU ${threads}
 ```
+
+### Create comprehensive PASA transcriptome database
+
+This was executed outside of RStudio due to the verbose output, which will cause RStudio to crash.
+
+```bash
+singularity exec -B /home -B /var/run/mysqld/mysqld.sock:/var/run/mysqld/mysqld.sock -B $PWD/conf.txt:/usr/local/src/PASApipeline/pasa_conf/conf.txt -B $PWD/cdna_alignment_mysqlschema:/usr/local/src/PASApipeline/schema/cdna_alignment_mysqlschema pasapipeline.v2.5.3.simg /usr/local/src/PASApipeline/scripts/build_comprehensive_transcriptome.dbi \
+-c alignAssembly.config \
+-t transcripts.fasta \
+--min_per_ID 95 \
+--min_per_aligned 30
+```
