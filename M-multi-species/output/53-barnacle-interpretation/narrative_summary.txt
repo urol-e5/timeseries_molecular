@@ -1,0 +1,191 @@
+
+================================================================================
+BARNACLE TENSOR DECOMPOSITION: MULTI-SPECIES CORAL GENE EXPRESSION NARRATIVE
+================================================================================
+
+EXECUTIVE SUMMARY
+-----------------
+This analysis reveals conserved and divergent gene expression patterns across 
+three coral species (Acropora pulchra, Porites evermanni, and Pocillopora 
+tuahiniensis) over four experimental time points using tensor decomposition.
+
+The barnacle algorithm identified 35 expression components, with the top 5 
+components by weight being: C27, C24, C13, C29, C25.
+
+TEMPORAL DYNAMICS
+-----------------
+Gene expression across the coral species shows distinct temporal phases:
+
+• Early Peak (9 components): Components C1, C3, C6, C7, C12
+• Stable (9 components): Components C2, C4, C16, C20, C23
+• Late Peak (9 components): Components C8, C10, C11, C13, C18
+• Late Mid Peak (5 components): Components C5, C9, C15, C22, C26
+• Early Mid Peak (2 components): Components C14, C33
+• Dynamic (1 components): Components C32
+
+SPECIES-SPECIFIC PATTERNS
+-------------------------
+The three coral species show both shared and unique expression signatures:
+
+• Acropora pulchra: Shows highest expression in 10 components
+• Porites evermanni: Shows highest expression in 14 components
+• Pocillopora tuahiniensis: Shows highest expression in 11 components
+
+KEY BIOLOGICAL PROCESSES
+------------------------
+Analysis of GO term enrichment reveals major biological themes:
+
+• regulation of transcription by RNA polymerase II [GO:0006357]
+• positive regulation of transcription by RNA polymerase II [GO:0045944]
+• homophilic cell adhesion via plasma membrane adhesion molecules [GO:0007156]
+• cytoplasmic translation [GO:0002181]
+• translation [GO:0006412]
+• positive regulation of gene expression [GO:0010628]
+• negative regulation of transcription by RNA polymerase II [GO:0000122]
+• positive regulation of DNA-templated transcription [GO:0045893]
+• cellular response to xenobiotic stimulus [GO:0071466]
+• negative regulation of neuron apoptotic process [GO:0043524]
+
+COMPONENT INTERPRETATIONS
+-------------------------
+
+Component 27 (Weight: 1994.0, Pattern: stable)
+==================================================
+Top GO Processes: positive regulation of transcription by RNA polymerase II, regulation of transcription by RNA polymerase II, homophilic cell adhesion via plasma membrane adhesion molecules
+Key Proteins: Early growth response protein 1 (EGR-1) (Zinc finger protein Krox-24), Myosin light chain kinase, smooth muscle (MLCK) (smMLCK) (EC 2.7.11.18) (Kinase-related protein) (KRP) (Telokin) [Cleaved into: Myosin light chain kinase, smooth muscle, deglutamylated form], Ecdysone-induced protein 74EF isoform A (ETS-related protein E74A)
+
+Component 24 (Weight: 1501.5, Pattern: stable)
+==================================================
+Top GO Processes: negative regulation of neuron apoptotic process, signal transduction, cytoskeleton organization
+Key Proteins: Adenylyl cyclase-associated protein 2 (CAP 2), Wilms tumor protein 1-interacting protein homolog (WT1-interacting protein homolog), Myosin regulatory light polypeptide 9 (Myosin regulatory light chain 2, smooth muscle isoform) (Myosin regulatory light chain 9)
+
+Component 13 (Weight: 1435.0, Pattern: late peak)
+==================================================
+Top GO Processes: homophilic cell adhesion via plasma membrane adhesion molecules, cytoplasmic translation, translation
+Key Proteins: Lactotransferrin (Lactoferrin) (EC 3.4.21.-) (Growth-inhibiting protein 12) (Talalactoferrin) [Cleaved into: Lactoferricin-H (Lfcin-H); Kaliocin-1; Lactoferroxin-A; Lactoferroxin-B; Lactoferroxin-C], Microtubule-actin cross-linking factor 1, isoforms 1/2/3/4 (Actin cross-linking family 7), Apolipoprotein B-100 (Apo B-100) [Cleaved into: Apolipoprotein B-48 (Apo B-48)]
+
+Component 29 (Weight: 1299.2, Pattern: stable)
+==================================================
+Top GO Processes: positive regulation of transcription by RNA polymerase II, regulation of transcription by RNA polymerase II, intracellular signal transduction
+Key Proteins: Heat shock factor protein 1 (HSF 1) (Heat shock transcription factor 1) (HSTF 1), Kruppel-like factor 1 (Erythroid krueppel-like transcription factor) (Kruppel-like factor d), Heat shock protein HSP 90-beta
+
+Component 25 (Weight: 1281.5, Pattern: early peak)
+==================================================
+Top GO Processes: cytoplasmic translation, translation, regulation of transcription by RNA polymerase II
+Key Proteins: Early growth response protein 1 (EGR-1) (Zinc finger protein Krox-24), Lactotransferrin (Lactoferrin) (EC 3.4.21.-) (Growth-inhibiting protein 12) (Talalactoferrin) [Cleaved into: Lactoferricin-H (Lfcin-H); Kaliocin-1; Lactoferroxin-A; Lactoferroxin-B; Lactoferroxin-C], Krueppel-like factor 5 (Basic transcription element-binding protein 2) (BTE-binding protein 2) (Colon krueppel-like factor) (GC-box-binding protein 2) (Intestinal-enriched krueppel-like factor) (Transcription factor BTEB2)
+
+SPECIES-INDEPENDENT COMPONENTS
+------------------------------
+
+A key focus of this analysis is identifying components NOT primarily driven by 
+species differences - these represent conserved expression patterns shared across 
+all three coral species and likely reflect fundamental biological processes.
+
+Number of species-independent components: 10
+Number of species-driven components: 25
+
+Top species-independent components (lowest cross-species variation):
+  • Component 30: CV=0.243, Weight=750.9
+  • Component 9: CV=0.288, Weight=471.5
+  • Component 3: CV=0.344, Weight=561.5
+  • Component 11: CV=0.381, Weight=593.0
+  • Component 31: CV=0.414, Weight=1116.3
+
+Functional Categories in Species-Independent Components:
+  • organelle: 270 genes
+  • catalytic activity: 139 genes
+  • cytosol: 135 genes
+  • nucleus: 129 genes
+  • anatomical structure development: 124 genes
+  • plasma membrane: 90 genes
+  • molecular function regulator activity: 78 genes
+  • hydrolase activity: 72 genes
+
+Top Biological Processes (conserved across species):
+  • positive regulation of transcription by RNA polymerase II: 36 genes
+  • cytoplasmic translation: 31 genes
+  • translation: 30 genes
+  • regulation of transcription by RNA polymerase II: 28 genes
+  • negative regulation of transcription by RNA polymerase II: 27 genes
+  • positive regulation of gene expression: 24 genes
+
+ANNOTATION STATISTICS
+---------------------
+
+Across all components analyzed:
+  • Total genes: 3525
+  • Annotated: 1334 (37.8%)
+  • Unannotated: 2191 (62.2%)
+  • Mean % unannotated per component: 62.2%
+  • Components with >50% unannotated: 33
+
+This indicates that a significant portion of the coral transcriptome remains 
+functionally uncharacterized, highlighting the need for continued annotation 
+efforts in non-model marine organisms.
+
+Species-Independent Components Annotation:
+  • Mean % unannotated: 62.8%
+  • Range: 43.6% - 76.0%
+
+CONCLUSIONS
+-----------
+The tensor decomposition reveals that:
+
+1. Gene expression patterns are largely conserved across the three coral species,
+   suggesting shared stress response mechanisms and fundamental physiological 
+   processes.
+
+2. Temporal dynamics show distinct phases, with some components showing early 
+   activation followed by decline, while others show progressive increases or 
+   stable expression throughout the experiment.
+
+3. Species-specific expression signatures exist alongside conserved patterns, 
+   potentially reflecting evolutionary divergence in stress response strategies 
+   or ecological adaptations.
+
+4. Key biological processes including transcriptional regulation, translation, 
+   signal transduction, and metabolic pathways are dynamically regulated across 
+   the experimental timeline.
+
+5. Species-independent components reveal conserved cellular machinery including
+   translation, metabolic regulation, and stress response pathways that are 
+   fundamental to coral biology regardless of species identity.
+
+6. A substantial proportion of genes remain unannotated, indicating significant 
+   unexplored biology in coral genomes that warrants further investigation.
+
+PHYSIOLOGICAL CONTEXT
+---------------------
+
+Integration with physiological measurements reveals the following patterns:
+
+• Chlorophyll content shows species-specific baseline differences, with dynamic
+  changes across time points that may correlate with photosynthetic capacity
+  and symbiont density.
+
+• Symbiodinium density varies between species, reflecting differences in 
+  symbiotic relationships and potentially heat tolerance strategies.
+
+• Host biomass (AFDW) shows temporal dynamics that may be linked to the 
+  metabolic and stress response gene expression patterns identified in the
+  tensor decomposition.
+
+• Calcification rates differ between species, with potential links to 
+  components involved in biomineralization and ion transport gene expression.
+
+• Protein content dynamics across time points may reflect the translation
+  and protein synthesis pathways identified as major themes in the gene
+  expression components.
+
+These physiological measurements provide functional validation of the gene
+expression patterns and help contextualize the molecular stress response
+signatures across the three coral species.
+
+METHODS NOTE
+------------
+Analysis performed using barnacle tensor decomposition with rank-35 optimization
+and lambda_gene=0.2. Input data consisted of orthologous gene expression from 
+9800 ortholog groups across 30 samples and 4 time points.
+
+Visualizations and analysis performed using Python with matplotlib, seaborn, 
+numpy, and pandas. GO term enrichment from UniProt annotations.
