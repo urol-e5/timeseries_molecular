@@ -1,0 +1,386 @@
+---
+title: "00.30-D-Apul-transcriptome-assembly-Trinity"
+author: "Sam White"
+date: "2025-11-21"
+output: 
+  bookdown::html_document2:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+  github_document:
+    toc: true
+    number_sections: true
+  html_document:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+bibliography: references.bib
+---
+# BACKGROUND
+
+
+# SETUP
+
+
+## Libraries and markdown settings
+```{r setup, include=TRUE}
+library(knitr)
+library(reticulate)
+knitr::opts_chunk$set(
+  echo = TRUE,         # Display code chunks
+  eval = FALSE,        # Evaluate code chunks
+  warning = FALSE,     # Hide warnings
+  message = FALSE,     # Hide messages
+  comment = ""         # Prevents appending '##' to beginning of lines in code output
+)
+```
+
+
+## Set variables
+```{r set-variables, eval=TRUE}
+# DIRECTORIES
+top_output_dir <- file.path("..", "output")
+
+output_dir <- file.path(top_output_dir, "00.30-D-Apul-transcriptome-assembly-Trinity")
+de_novo_output_dir <- file.path(output_dir, "de_novo_assembly")
+genome_guided_output_dir <- file.path(output_dir, "genome_guided_assembly")
+pasa_container_dir <- file.path("/home", "shared", "containers")
+PASA_HOME <- "/usr/local/src/PASApipeline"
+pasa_output_dir <- file.path(output_dir, "PASA")
+stringtie_gtf_dir <- file.path(top_output_dir, "02.20-D-Apul-RNAseq-alignment-HiSat2")
+trimmed_reads_dir <- file.path(top_output_dir, "01.00-D-Apul-RNAseq-trimming-fastp-FastQC-MultiQC")
+
+
+# FILES
+bam_alignment <- file.path(top_output_dir, "02.20-D-Apul-RNAseq-alignment-HiSat2", "sorted-bams-merged.bam")
+
+## Path for genome will be relative to PASA output dir
+genome_fasta <- file.path("..", "..", "..", "data", "Apulchra-genome.fa")
+denovo_assembly_name <- "apul-denovo-Trinity"
+genome_guided_assembly_name <- "apul-GG-Trinity"
+pasa_container <- "pasapipeline.v2.5.3.simg"
+stringtie_gtf <- file.path(stringtie_gtf_dir, "Apulchra-genome.stringtie.gtf")
+
+#SETTINGS
+## THREADS
+threads <- "44"
+
+## MAX RAM
+max_ram <- "100G"
+
+# PROGRAMS
+samtools <- file.path("/home", "shared", "samtools-1.12", "samtools")
+
+
+# FORMATTING
+line <- "-----------------------------------------------"
+
+# Export these as environment variables for bash chunks.
+Sys.setenv(
+  bam_alignment = bam_alignment,
+  denovo_assembly_name = denovo_assembly_name,
+  de_novo_output_dir = de_novo_output_dir,
+  genome_fasta = genome_fasta,
+  genome_guided_assembly_name = genome_guided_assembly_name,
+  genome_guided_output_dir = genome_guided_output_dir,
+  line = line,
+  max_ram = max_ram,
+  output_dir = output_dir,
+  top_output_dir = top_output_dir,
+  pasa_container = pasa_container,
+  pasa_container_dir = pasa_container_dir,
+  PASA_HOME = PASA_HOME,
+  pasa_output_dir = pasa_output_dir,
+  samtools = samtools,
+  stringtie_gtf_dir = stringtie_gtf_dir,
+  stringtie_gtf = stringtie_gtf,
+  threads = threads,
+  trimmed_reads_dir = trimmed_reads_dir
+)
+```
+
+# DE NOVO ASSEMBLY
+
+## Run Trinity
+
+Trinity was run using the [Trinity Singularity (Apptainer) container](https://github.com/trinityrnaseq/trinityrnaseq/wiki/Trinity-in-Docker#running-trinity-using-singularity), `trinityrnaseq.v2.15.2.simg` from the `urol-e5/timeseries_molecular/D-Apul/code/` directory.
+
+This was done in a terminal, outside of this notebook.
+
+
+### Set Bash variables
+
+```bash
+# Directories
+top_output_dir="../output"
+
+output_dir="${top_output_dir}/00.30-D-Apul-transcriptome-assembly-Trinity"
+de_novo_output_dir="${output_dir}/de_novo_assembly"
+genome_guided_output_dir="${output_dir}/genome_guided_assembly"
+trimmed_reads_dir="${top_output_dir}/01.00-D-Apul-RNAseq-trimming-fastp-FastQC-MultiQC"
+
+## THREADS
+threads="150"
+
+## MAX RAM
+max_ram="100G"
+
+# Make output directoy, if it doesn't exist
+mkdir --parents ${de_novo_output_dir}
+
+## Inititalize arrays
+R1_array=()
+R2_array=()
+
+# Variables for R1/R2 lists
+R1_list=""
+R2_list=""
+
+# Create array of fastq R1 files
+R1_array=(${trimmed_reads_dir}/*R1_001.fastp-trim.fq.gz)
+
+# Create array of fastq R2 files
+R2_array=(${trimmed_reads_dir}/*R2_001.fastp-trim.fq.gz)
+
+# Create list of fastq files used in analysis
+## Uses parameter substitution to strip leading path from filename
+if [ ! -f "${de_novo_output_dir}/fastq.list.txt" ]; then
+  for fastq in ${trimmed_reads_dir}/*.fq.gz
+  do
+    echo "${fastq##*/}" >> ${de_novo_output_dir}/fastq.list.txt
+  done
+fi
+
+# Create comma-separated lists of FastQ reads
+R1_list=$(echo "${R1_array[@]}" | tr " " ",")
+R2_list=$(echo "${R2_array[@]}" | tr " " ",")
+```
+
+
+### Run Trinity Singularity image.
+
+Used "stranded" setting (--SS_lib_type).
+
+
+```bash
+singularity exec \
+-B /home \
+-e trinityrnaseq.v2.15.2.simg \
+Trinity \
+--seqType fq \
+--max_memory ${max_ram} \
+--CPU ${threads} \
+--SS_lib_type RF \
+--left "${R1_list}" \
+--right "${R2_list}" \
+--output ${de_novo_output_dir}/trinity_out_dir \
+--full_cleanup \
+> ${de_novo_output_dir}/trinity.log \
+2>&1
+```
+
+## Rename output files
+
+### Rename FastA
+```{r rename-de-denovo-fasta, engine='bash'}
+# Rename generic assembly FastA
+mv ${de_novo_output_dir}/trinity_out_dir.Trinity.fasta \
+${de_novo_output_dir}/${denovo_assembly_name}.fasta
+```
+
+### Rename gene map and log
+```{r rename-de-novo-map-log, engine='bash'}
+mv ${de_novo_output_dir}/trinity_out_dir.Trinity.fasta.gene_trans_map \
+${de_novo_output_dir}/${denovo_assembly_name}.gene_trans_map
+
+mv ${de_novo_output_dir}/trinity.log \
+${de_novo_output_dir}/${denovo_assembly_name}.log
+```
+
+
+### Assembly stats
+
+#### Run Trinity Singularity image.
+```bash
+singularity exec -B /home \
+-e trinityrnaseq.v2.15.2.simg \
+/usr/local/bin/util/TrinityStats.pl \
+../output/00.30-D-Apul-transcriptome-assembly-Trinity/de_novo_assembly/apul-denovo-Trinity.fasta \
+> ../output/00.30-D-Apul-transcriptome-assembly-Trinity/de_novo_assembly/apul-denovo-Trinity.stats
+```
+
+
+## Create FastA index
+```{r de-novo-fasta-index, engine='bash'}
+${samtools} faidx \
+${de_novo_output_dir}/${denovo_assembly_name}.fasta
+```
+
+# GENOME-GUIDED ASSEMBLY
+
+Trinity was run using the [Trinity Singularity (Apptainer) container](https://github.com/trinityrnaseq/trinityrnaseq/wiki/Trinity-in-Docker#running-trinity-using-singularity), `trinityrnaseq.v2.15.2.simg` from the `urol-e5/timeseries_molecular/D-Apul/code/` directory.
+
+This was done in a terminal, outside of this notebook.
+
+```bash
+singularity exec \
+-B /home -e trinityrnaseq.v2.15.2.simg \
+Trinity \
+--genome_guided_bam ../output/02.20-D-Apul-RNAseq-alignment-HiSat2/sorted-bams-merged.bam \
+--genome_guided_max_intron 10000 \
+--max_memory ${max_ram} \
+--CPU ${threads} \
+--SS_lib_type RF \
+--output ${genome_guided_output_dir}/trinity_out_dir \
+--full_cleanup \
+> ${genome_guided_output_dir}/trinity.log 2>&1
+```
+
+
+## Rename output files
+
+### Rename FastA
+```{r rename-de-denovo-fasta, engine='bash'}
+# Rename generic assembly FastA
+mv ${genome_guided_output_dir}/trinity_out_dir.Trinity-GG.fasta \
+${genome_guided_output_dir}/${genome_guided_assembly_name}.fasta
+```
+
+### Rename gene map and log
+```{r rename-de-novo-map-log, engine='bash'}
+mv ${genome_guided_output_dir}/trinity_out_dir.Trinity-GG.fasta.gene_trans_map \
+${genome_guided_output_dir}/${genome_guided_assembly_name}.gene_trans_map
+
+mv ${genome_guided_output_dir}/trinity.log \
+${genome_guided_output_dir}/${genome_guided_assembly_name}.log
+```
+
+## Create FastA index
+```{r de-novo-fasta-index, engine='bash'}
+${samtools} faidx \
+${genome_guided_output_dir}/${genome_guided_assembly_name}.fasta
+```
+
+### Assembly stats
+
+#### Run Trinity Singularity image.
+```bash
+singularity exec -B /home \
+-e trinityrnaseq.v2.15.2.simg \
+/usr/local/bin/util/TrinityStats.pl \
+../output/00.30-D-Apul-transcriptome-assembly-Trinity/genome_guided_assembly/apul-GG-Trinity.fasta \
+> ../output/00.30-D-Apul-transcriptome-assembly-Trinity/genome_guided_assembly/apul-GG-Trinity.stats
+```
+
+# PASA PIPELINE
+
+## Concatenate Trinity assemblies
+```{r concatenate-Trinity-assemblies, engine='bash'}
+cat ${de_novo_output_dir}/${denovo_assembly_name}.fasta \
+${genome_guided_output_dir}/${genome_guided_assembly_name}.fasta \
+> ${pasa_output_dir}/transcripts.fasta
+```
+
+### Confirm counts
+```{r confirm-transcript-counts, engine='bash'}
+# Count transcripts in each file
+denovo_count=$(grep -c "^>" ${de_novo_output_dir}/${denovo_assembly_name}.fasta)
+genome_guided_count=$(grep -c "^>" ${genome_guided_output_dir}/${genome_guided_assembly_name}.fasta)
+pasa_count=$(grep -c "^>" ${pasa_output_dir}/transcripts.fasta)
+
+# Calculate sum of first two counts
+sum=$((denovo_count + genome_guided_count))
+
+# Compare sum to PASA count
+echo "De novo count: $denovo_count"
+echo "Genome-guided count: $genome_guided_count"
+echo "Sum: $sum"
+echo "PASA count: $pasa_count"
+
+if [ $sum -eq $pasa_count ]; then
+    echo "✓ Counts match: $sum = $pasa_count"
+else
+    echo "✗ Counts do not match: $sum ≠ $pasa_count (difference: $((pasa_count - sum)))"
+fi
+```
+
+## Extract transcript accessions
+
+
+```{r extract-transcript-accessions, engine='bash'}
+singularity exec \
+-B /home \
+-e ${pasa_container_dir}/${pasa_container} \
+$PASA_HOME/misc_utilities/accession_extractor.pl \
+< ${de_novo_output_dir}/${denovo_assembly_name}.fasta \
+> ${pasa_output_dir}/tdn.accs
+
+head ${pasa_output_dir}/tdn.accs
+```
+
+## Clean transcripts
+
+```{r clean-transcripts, engine='bash'}
+cd ${pasa_output_dir}
+
+singularity exec \
+-B /home \
+-e \
+--env USER="$USER" \
+${pasa_container} \
+$PASA_HOME/bin/seqclean \
+transcripts.fasta \
+-c 16
+```
+
+## PASA Assembly
+
+### Fix schema key length
+```{r fix-schema-key-length, engine='bash'}
+cd ${pasa_output_dir}
+
+#### Fix schema key length issue ####
+singularity exec ${pasa_container} \
+cat /usr/local/src/PASApipeline/schema/cdna_alignment_mysqlschema \
+> cdna_alignment_mysqlschema
+
+# Fix all variations of gene_id and model_id indexes
+sed -i 's/KEY gene_id_idx (gene_id)/KEY gene_id_idx (gene_id(255))/g' cdna_alignment_mysqlschema
+sed -i 's/KEY mod_idx (model_id)/KEY mod_idx (model_id(255))/g' cdna_alignment_mysqlschema
+sed -i 's/(gene_id)/(gene_id(255))/g' cdna_alignment_mysqlschema
+sed -i 's/(model_id)/(model_id(255))/g' cdna_alignment_mysqlschema
+sed -i 's/KEY gene_idx (annotation_version,gene_id)/KEY gene_idx (annotation_version,gene_id(255))/g' cdna_alignment_mysqlschema
+```
+
+
+### Run PASA Assembly Pipeline
+
+This was executed outside of RStudio due to the verbose output, which will cause RStudio to crash.
+
+```bash
+singularity exec \
+-B /home \
+-B /var/run/mysqld/mysqld.sock:/var/run/mysqld/mysqld.sock \
+-B $PWD/conf.txt:/usr/local/src/PASApipeline/pasa_conf/conf.txt \
+-B $PWD/cdna_alignment_mysqlschema:/usr/local/src/PASApipeline/schema/cdna_alignment_mysqlschema \
+${pasa_container} \
+$PASA_HOME/Launch_PASA_pipeline.pl \
+--config alignAssembly.config \
+--create \
+--run \
+--genome ${genome_fasta} \
+--transcripts transcripts.fasta.clean \
+--trans_gtf ${stringtie_gtf} \
+-T \
+-u transcripts.fasta \
+--ALIGNERS blat,gmap,minimap2 \
+--TDN tdn.accs \
+--transcribed_is_aligned_orient \
+--CPU ${threads}
+```

@@ -4,6 +4,11 @@ output: html_document
 ---
 
 # Gene Methylation Analysis in A. pulchra
+and other species
+
+
+
+
 
 ## gene file
 
@@ -95,8 +100,8 @@ df_list <- lapply(files, function(f) {
   sample_name <- basename(f) |> sub("gene_methylation_", "", x = _) |> sub("_gt10.tsv", "", x = _)
 
   read_tsv(f, col_names = FALSE) |>
-    select(X4, X6) |>          # X4 = gene_id, X6 = methylation/count
-    rename(gene_id = X4, !!sample_name := X6)
+    select(X4, X5) |>          # X4 = gene_id, X5 = methylation
+    rename(gene_id = X4, !!sample_name := X5)
 })
 
 # Full join all files by gene_id
