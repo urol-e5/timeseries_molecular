@@ -123,12 +123,22 @@ top_output_dir="../output"
 output_dir="${top_output_dir}/00.30-F-Ptua-transcriptome-assembly-Trinity"
 de_novo_output_dir="${output_dir}/de_novo_assembly"
 genome_guided_output_dir="${output_dir}/genome_guided_assembly"
+pasa_output_dir="${output_dir}/PASA"
 trimmed_reads_dir="${top_output_dir}/01.00-F-Ptua-RNAseq-trimming-fastp-FastQC-MultiQC"
 
 # FILES
 bam_alignment="${top_output_dir}/02.20-F-Ptua-RNAseq-alignment-HiSat2/sorted-bams-merged.bam"
 denovo_assembly_name="ptua-denovo-Trinity"
 genome_guided_assembly_name="ptua-GG-Trinity"
+
+# PASA INPUT FILES
+####### NEED TO BE RELATIVE TO PASA SUBDIRECTORY #######
+genome_fasta="../../../data/Pocillopora_meandrina_HIv1.assembly.fasta"
+genome_gff="../../../data/Pocillopora_meandrina_HIv1.genes-validated.gff3"
+pasa_container="pasapipeline.v2.5.3.simg"
+PASA_HOME="/usr/local/src/PASApipeline"
+stringtie_gtf="../../../output/02.20-F-Ptua-RNAseq-alignment-HiSat2/Pocillopora_meandrina_HIv1.assembly.stringtie.gtf 
+"
 
 ## THREADS
 threads="44"
@@ -138,6 +148,7 @@ max_ram="100G"
 
 # Make output directoy, if it doesn't exist
 mkdir --parents ${de_novo_output_dir}
+mkdir --parents ${pasa_output_dir}
 
 ## Inititalize arrays
 R1_array=()
