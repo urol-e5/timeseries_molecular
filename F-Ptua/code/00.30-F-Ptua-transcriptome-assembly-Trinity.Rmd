@@ -383,8 +383,8 @@ This was executed outside of RStudio due to the verbose output, which will cause
 singularity exec \
 -B /home \
 -B /var/run/mysqld/mysqld.sock:/var/run/mysqld/mysqld.sock \
--B $PWD/conf.txt:/usr/local/src/PASApipeline/pasa_conf/conf.txt \
--B $PWD/cdna_alignment_mysqlschema:/usr/local/src/PASApipeline/schema/cdna_alignment_mysqlschema \
+-B $PWD/conf.txt:$PASA_HOME/pasa_conf/conf.txt \
+-B $PWD/cdna_alignment_mysqlschema:$PASA_HOME/schema/cdna_alignment_mysqlschema \
 ${pasa_container} \
 $PASA_HOME/Launch_PASA_pipeline.pl \
 --config alignAssembly.config \
@@ -393,10 +393,15 @@ $PASA_HOME/Launch_PASA_pipeline.pl \
 --genome ${genome_fasta} \
 --transcripts transcripts.fasta.clean \
 --trans_gtf ${stringtie_gtf} \
+--ALT_SPLICE \
 -T \
 -u transcripts.fasta \
 --ALIGNERS blat,gmap,minimap2 \
 --TDN tdn.accs \
 --transcribed_is_aligned_orient \
+--annot_compare \
+-L \
+--annots ${genome_gff} \
+--TRANSDECODER \
 --CPU ${threads}
 ```
