@@ -3,4 +3,6 @@ MYSQL_RW_USER=pasa_write
 MYSQL_RW_PASSWORD=pasa_write_pwd
 MYSQL_RO_USER=pasa_access
 MYSQL_RO_PASSWORD=pasa_access
+HOOK_PERL_LIBS=__PASAHOME__/SAMPLE_HOOKS
+HOOK_EXISTING_GENE_ANNOTATION_LOADER=GFF3::GFF3_annot_retriever::get_annot_retriever
 
