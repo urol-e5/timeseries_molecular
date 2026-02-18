@@ -398,3 +398,14 @@ $PASA_HOME/Launch_PASA_pipeline.pl \
 --CPU ${threads}
 ```
 
+### Alternative Splicing
+
+This doesn't seem to have run during the assembly phase.
+
+```bash
+Launch_PASA_pipeline.pl -c alignAssembly.config \
+                        --ALT_SPLICE \
+                        -g genome.fasta \
+                        -t all.transcripts.fasta.clean \
+                        --CPU 4
+```
