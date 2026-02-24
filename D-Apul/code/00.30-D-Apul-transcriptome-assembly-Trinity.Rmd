@@ -398,9 +398,9 @@ $PASA_HOME/Launch_PASA_pipeline.pl \
 --CPU ${threads}
 ```
 
-### Create comprehensive PASA transcriptome database
+### Alternative Splicing
 
-This was executed outside of RStudio due to the verbose output, which will cause RStudio to crash.
+This doesn't seem to have run during the assembly phase, so ran separately.
 
 ```bash
 singularity exec \
@@ -408,11 +408,35 @@ singularity exec \
 -B /var/run/mysqld/mysqld.sock:/var/run/mysqld/mysqld.sock \
 -B $PWD/conf.txt:$PASA_HOME/pasa_conf/conf.txt \
 -B $PWD/cdna_alignment_mysqlschema:$PASA_HOME/schema/cdna_alignment_mysqlschema \
-pasapipeline.v2.5.3.simg \
-$PASA_HOME/scripts/build_comprehensive_transcriptome.dbi \
+${pasa_container} \
+$PASA_HOME/Launch_PASA_pipeline.pl \
 -c alignAssembly.config \
--t transcripts.fasta \
---min_per_ID 95 \
---min_per_aligned 30
+--ALT_SPLICE \
+-g ${genome_fasta} \
+-t all.transcripts.fasta.clean \
+--CPU ${threads}
+```
+
+### Update annotations
+
+Now includes alternative splicing info.
+
+Uses output GFF3 from initial annotations as annotation _input_.
+
+```bash
+singularity exec \
+-B /home \
+-B /var/run/mysqld/mysqld.sock:/var/run/mysqld/mysqld.sock \
+-B $PWD/conf.txt:$PASA_HOME/pasa_conf/conf.txt \
+-B $PWD/cdna_alignment_mysqlschema:$PASA_HOME/schema/cdna_alignment_mysqlschema \
+${pasa_container} \
+$PASA_HOME/Launch_PASA_pipeline.pl \
+-c annotCompare.config \
+--annot_compare \
+-L \
+--annots apul_pasa.gene_structures_post_PASA_updates.2550130.gff3 \
+-g ${genome_fasta} \
+-t all.transcripts.fasta.clean \
+--CPU ${threads}
 ```
 
