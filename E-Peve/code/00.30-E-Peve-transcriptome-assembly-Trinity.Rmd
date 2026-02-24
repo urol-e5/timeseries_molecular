@@ -400,12 +400,44 @@ $PASA_HOME/Launch_PASA_pipeline.pl \
 
 ### Alternative Splicing
 
-This doesn't seem to have run during the assembly phase.
+This doesn't seem to have run during the assembly phase, so ran separately.
 
 ```bash
-Launch_PASA_pipeline.pl -c alignAssembly.config \
-                        --ALT_SPLICE \
-                        -g genome.fasta \
-                        -t all.transcripts.fasta.clean \
-                        --CPU 4
+singularity exec \
+-B /home \
+-B /var/run/mysqld/mysqld.sock:/var/run/mysqld/mysqld.sock \
+-B $PWD/conf.txt:$PASA_HOME/pasa_conf/conf.txt \
+-B $PWD/cdna_alignment_mysqlschema:$PASA_HOME/schema/cdna_alignment_mysqlschema \
+${pasa_container} \
+$PASA_HOME/Launch_PASA_pipeline.pl \
+-c alignAssembly.config \
+--ALT_SPLICE \
+-g ${genome_fasta} \
+-t all.transcripts.fasta.clean \
+--CPU ${threads}
 ```
+
+### Update annotations
+
+Now includes alternative splicing info.
+
+Uses output GFF3 from initial annotations as annotation _input_.
+
+```bash
+singularity exec \
+-B /home \
+-B /var/run/mysqld/mysqld.sock:/var/run/mysqld/mysqld.sock \
+-B $PWD/conf.txt:$PASA_HOME/pasa_conf/conf.txt \
+-B $PWD/cdna_alignment_mysqlschema:$PASA_HOME/schema/cdna_alignment_mysqlschema \
+${pasa_container} \
+$PASA_HOME/Launch_PASA_pipeline.pl \
+-c annotCompare.config \
+--annot_compare \
+-L \
+--annots peve_pasa.gene_structures_post_PASA_updates.2550221.gff3 \
+-g ${genome_fasta} \
+-t all.transcripts.fasta.clean \
+--CPU ${threads}
+```
+
+
