@@ -900,3 +900,39 @@ Time per model: 136.6 seconds
 
 ✓ All results saved to: ../output/13.00-multiomics-barnacle/bootstrap_grid_search/
 ================================================================================
+Loaded bootstrap results:
+  Optimal rank: 40
+  Optimal lambda: 2.0
+  Bootstrap iterations: 10
+<Axes: xlabel='lambda', ylabel='rank'>
+[<matplotlib.lines.Line2D object at 0x15120426e910>]
+Text(0.5, 1.0, 'Bootstrap Grid Search: Mean SSE across Rank × Lambda')
+Text(0.5, 58.7222222222222, 'Lambda (Regularization)')
+Text(120.72222222222221, 0.5, 'Rank')
+<Axes: xlabel='lambda', ylabel='rank'>
+[<matplotlib.lines.Line2D object at 0x1512600f0890>]
+Text(0.5, 1.0, 'Bootstrap Grid Search: Mean FMS across Rank × Lambda')
+Text(0.5, 58.7222222222222, 'Lambda (Regularization)')
+Text(120.72222222222221, 0.5, 'Rank')
+<ErrorbarContainer object of 3 artists>
+<matplotlib.lines.Line2D object at 0x1512600df110>
+Text(0.5, 0, 'Rank')
+Text(0, 0.5, 'Mean SSE (± SE)')
+Text(0.5, 1.0, 'Stage 1: Rank Selection at λ=0.0\nBased on 10 Bootstrap Iterations')
+<matplotlib.legend.Legend object at 0x151260178450>
+<ErrorbarContainer object of 3 artists>
+<matplotlib.lines.Line2D object at 0x151260187110>
+Text(0.5, 0, 'Lambda')
+Text(0, 0.5, 'Mean SSE (± SE)')
+Text(0.5, 1.0, 'SSE vs Lambda at Optimal Rank (R=40)')
+<matplotlib.legend.Legend object at 0x15120154a350>
+<ErrorbarContainer object of 3 artists>
+<matplotlib.lines.Line2D object at 0x151201551150>
+<matplotlib.lines.Line2D object at 0x1512013d3f10>
+Text(0.5, 0, 'Lambda')
+Text(0, 0.5, 'Mean FMS (± SE)')
+Text(0.5, 1.0, 'Stage 2: Lambda Selection at Optimal Rank (R=40)\nCriterion: Maximum λ where FMS ≥ (max_FMS - 1SE)')
+<matplotlib.legend.Legend object at 0x151201548a90>
+(0.0, 1.05)
+
+✓ All figures saved to: ../output/13.00-multiomics-barnacle/bootstrap_grid_search/figures/
