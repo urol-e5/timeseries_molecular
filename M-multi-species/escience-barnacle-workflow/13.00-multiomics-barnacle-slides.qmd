@@ -1,0 +1,410 @@
+---
+title: "Sparse Tensor Decomposition for Multi-Species Gene Expression Analysis"
+subtitle: "Benefits vs. Pairwise Comparisons, PCA, and WGCNA"
+author: "Sam White"
+date: "2026-02-25"
+format:
+  revealjs:
+    theme: default
+    slide-number: true
+    toc: false
+    incremental: false
+    transition: slide
+    smaller: true
+    code-fold: false
+    fig-align: center
+    logo: ""
+bibliography: references.bib
+---
+
+## The Problem: Three Simultaneous Axes of Variation {.center}
+
+Our coral data has structure that classical methods cannot natively capture:
+
+:::: {.columns}
+::: {.column width="33%"}
+**Axis 1: Genes**
+
+Ortholog groups shared across species
+:::
+::: {.column width="33%"}
+**Axis 2: Samples**
+
+Three species × biological replicates
+:::
+::: {.column width="33%"}
+**Axis 3: Time**
+
+TP1 → TP2 → TP3 → TP4
+:::
+::::
+
+::: {.fragment}
+> Every classical method **flattens or ignores** at least one of these axes.
+:::
+
+---
+
+## A Similar Challenge: Marine Metatranscriptomics
+
+**Blaskowski et al. (2025) faced an analogous problem** [@blaskowski2024]
+
+North Pacific cyanobacteria study:
+
+- Multiple species/clades (*Prochlorococcus*, *Synechococcus*)
+- 222 samples across environmental gradients
+- Gene expression patterns across taxonomy, space, and time
+- Need to identify conserved stress responses
+
+::: {.fragment}
+**Same fundamental challenge:**
+
+Identify biologically meaningful gene sets across multiple dimensions simultaneously
+:::
+
+---
+
+## Barnacle's Success Story
+
+**What they discovered:**
+
+:::: {.columns}
+::: {.column width="50%"}
+**Nitrogen limitation**
+
+- Subtropical gyre
+- Transporter genes
+
+**Iron limitation**
+
+- Subarctic waters
+- Photosynthesis restructuring
+:::
+::: {.column width="50%"}
+**Simultaneous N+Fe stress**
+
+- Transition zone
+- Both sets active
+
+**Novel insights**
+
+- Conserved across clades
+- Unknown gene functions revealed
+:::
+::::
+
+**Key achievement:** All patterns in a **single unified analysis**
+
+---
+
+## The Method: Sparse CP Tensor Decomposition
+
+**How Barnacle works:**
+
+- Models data as a 3D tensor (Gene × Taxon × Sample)
+- Decomposes into sparse components
+- Each component = one biological pattern
+
+::: {.fragment}
+**Why this works:**
+
+- Preserves all data dimensions natively
+- Sparsity identifies small, interpretable gene sets
+- Unsupervised — discovers patterns without labels
+:::
+
+::: {.fragment}
+> Let's unpack what tensors and decomposition mean...
+:::
+
+---
+
+## What Is a Tensor? {.center}
+
+**Tensor = Multidimensional Array**
+
+![A third-order tensor with gene, taxon, and sample dimensions. Source: [Barnacle documentation](https://barnacle-py.readthedocs.io/en/latest/model.html)](https://barnacle-py.readthedocs.io/en/latest/_images/example-tensor.svg){width=60%}
+
+---
+
+## What Is Tensor Decomposition? {.center}
+
+**Decomposition = Finding Patterns**
+
+![Breaking the tensor into a sum of components. Source: [Barnacle documentation](https://barnacle-py.readthedocs.io/en/latest/model.html)](https://barnacle-py.readthedocs.io/en/latest/_images/decomposition-diagram.svg){width=70%}
+
+---
+
+## Understanding Tensors
+
+A tensor is a **multidimensional array** — a generalization of a matrix.
+
+::: columns
+::: {.column width="50%"}
+
+- Scalar = 0th-order tensor
+- Vector = 1st-order tensor
+- Matrix = 2nd-order tensor
+- **3D array = 3rd-order tensor** ← our data
+:::
+::: {.column width="50%"}
+| Mode | This analysis |
+|------|--------------|
+| Axis 1 | Ortholog groups |
+| Axis 2 | Species-samples |
+| Axis 3 | Timepoints (TP1–4) |
+:::
+:::
+
+Tensors naturally represent datasets where the measurement (expression) depends on **multilinear combinations** of multiple variables simultaneously.
+
+---
+
+## What Is Tensor Decomposition?
+
+Tensor decomposition breaks a complex dataset into a set of simpler, distinct components — each representing one independent co-expression group.
+
+Each component contains **three linked factor vectors**:
+
+- **Gene factor** — which orthologs define this group
+- **Sample factor** — which species/samples express it
+- **Time factor** — the temporal trajectory of the group
+
+
+---
+
+## Sparsity
+
+Barnacle applies a **sparsity constraint** that pushes most gene weights toward zero, keeping only the strongest signals.
+
+::: columns
+::: {.column width="50%"}
+**Without sparsity**
+
+- Every gene has a non-zero weight
+- Background noise mixed with signal
+- Hard to define meaningful gene sets
+:::
+::: {.column width="50%"}
+**With sparsity** ✓
+
+- Most gene weights driven to zero
+- Non-zero genes = true signal
+- Component gene sets emerge naturally
+:::
+:::
+
+::: {.fragment}
+Sparsity = interpretability. No arbitrary threshold needed to extract a gene list from a component.
+:::
+
+---
+
+## What Is "Rank"?
+
+**Rank** is the number of components (factors) the model extracts from the tensor.
+
+- Each component = one distinct co-expression group
+- Rank 1: the entire dataset described by a single pattern
+- Rank 5: five independent co-expression groups
+- Higher rank → more nuanced signal, but more complexity to estimate
+
+> Think of rank as the number of bins you are asking the model to separate the data into. The goal is to find the smallest number of bins that still captures all the real biology.
+
+
+---
+
+## How Does This Compare to What We Already Use?
+
+Now that we understand **what** sparse CP tensor decomposition does, the question is:
+
+> How does it compare to the tools we already know and use?
+
+The next slides compare it directly against the three most common approaches in transcriptomics:
+
+- **Pairwise differential expression** (DESeq2 / edgeR)
+- **PCA** (principal component analysis)
+- **WGCNA** (weighted gene co-expression network analysis)
+
+::: {.fragment}
+Each comparison highlights **what is lost** when you use a 2D method on inherently 3D data.
+:::
+
+---
+
+## vs. Pairwise Comparisons (DESeq2 / edgeR)
+
+| Aspect | Pairwise | Sparse Tensor |
+|---|---|---|
+| Data structure | 2D: genes × samples | 3D: genes × samples × time |
+| Contrasts | One predefined contrast at a time | All axes simultaneously |
+| Cross-species | Separate tests; post-hoc overlap | All species in one joint model |
+| Temporal pattern | Interaction terms or repeated tests | Time is a native dimension |
+| Output | Binary gene lists | Continuous loadings across all axes |
+
+> Pairwise approaches require **multiple tests + arbitrary overlap thresholding** and cannot capture temporal trajectories as a unit.
+
+---
+
+## vs. PCA
+
+PCA is a **matrix** decomposition — to use it you must first **flatten the tensor**:
+
+::: columns
+::: {.column width="50%"}
+**Problems with flattening**
+
+- Collapsing time into samples conflates temporal variation with inter-individual variation
+- Running PCA per species gives no shared latent space
+- Dense loadings require post-hoc thresholding
+- Orthogonality constraint may not match biology
+:::
+::: {.column width="50%"}
+**Tensor advantage**
+
+- Native 3D structure preserved
+- Three linked factor matrices remain jointly meaningful
+- Sparsity constraint replaces arbitrary cutoffs
+- No orthogonality forced
+:::
+:::
+
+---
+
+## vs. WGCNA
+
+WGCNA also discovers co-expression modules without predefined contrasts — but operates only on 2D matrices.
+
+| Aspect | WGCNA | Sparse Tensor (Barnacle) |
+|---|---|---|
+| Data structure | 2D: gene × sample | 3D: gene × sample × time |
+| Multi-species | Per-species; post-hoc comparison | All species in one decomposition |
+| Temporal data | Time encoded as a trait | Time is a first-class axis |
+| Module definition | Topological overlap + clustering | Sparsity-constrained optimization |
+| "Dark matter" genes | Often filtered out | Included; placed by co-variation |
+| Supervised element | Module–trait correlations required | Fully unsupervised |
+
+---
+
+## The WGCNA Cross-Species Problem
+
+::: {.callout-important}
+WGCNA requires a **separate run per species**, then **manual post-hoc comparison** of module gene lists.
+:::
+
+This creates two compounding problems:
+
+1. **Modules are not shared** — each species produces its own independent set of modules with no guaranteed correspondence. You then have to manually decide which modules from Species A "match" modules from Species B — an inherently subjective step.
+
+2. **Conservation is inferred, not discovered** — a gene that is *almost* in a module in one species (just below the clustering threshold) is invisible to the comparison. You can only find conservation among genes that independently cleared each species' own threshold.
+
+
+---
+
+## Key Advantages (1 of 2)
+
+1. **Native multi-way structure** — genes, samples, and time are first-class dimensions; no flattening required
+
+2. **Single joint model** — all three coral species analyzed simultaneously; conservation is a direct output, not post-hoc
+
+3. **Temporal trajectory as a factor** — full TP1→TP4 dynamics captured as a factor vector, not just a trait correlation
+
+4. **Sparsity = interpretability** — sparsity constraint drives most gene weights to zero; gene sets emerge without threshold tuning
+
+---
+
+## Key Advantages (2 of 2)
+
+5. **Fully unsupervised** — no phenotype labels or predefined contrasts; uncharacterized "dark matter" genes included
+
+6. **Principled parameter selection** — rank and sparsity level jointly optimized via cross-validated bootstrap grid search (1SE rule)
+
+7. **Identifiability metric** — Factor Match Score (FMS) formally quantifies component reproducibility across random initializations
+
+
+---
+
+## Application: E5 Timeseries Coral Data
+
+:::: {.columns}
+::: {.column width="60%"}
+**Tensor dimensions:**
+
+- Axis 1: Ortholog groups (*A. pulchra* × *P. evermanni* × *P. tuahiniensis*)
+- Axis 2: Combined species-samples (all replicates)
+- Axis 3: TP1, TP2, TP3, TP4
+
+**Normalization:** sctransform
+
+**Tool:** [Barnacle](https://github.com/blasks/barnacle) [@blaskowski2024]
+:::
+::: {.column width="40%"}
+**Scientific question:**
+
+> Which gene co-expression patterns are conserved across evolutionarily divergent coral species at the same developmental timepoints?
+
+This question is not **directly answerable** by pairwise tests, PCA, or per-species WGCNA.
+:::
+::::
+
+---
+
+
+## Results: Rank Selection
+
+
+### Selecting the Best Rank
+
+Too low → real biological signals merged or missed.  
+Too high → noise fit as signal; components become unstable and uninterpretable.
+
+
+
+
+![](https://gannet.fish.washington.edu/seashell/snaps/2025-11-02_09-13-35.png){width="75%" fig-align="center"}
+
+---
+
+## Results: GO Term Enrichment Across Components
+
+Gene Ontology (Biological Process) enrichment heatmap across all 35 components.
+
+![GO BP heatmap for Rank 35 components](https://gannet.fish.washington.edu/v1_web/owlshell/bu-github/timeseries_molecular/M-multi-species/output/23-visualizing-rank35/rank35_BP_GO_heatmap.png){width="90%" fig-align="center"}
+
+---
+
+## Results: Top 30 GO Slim Terms (All Components)
+
+Top 30 Biological Process GO slim terms across all genes in Rank 35 components.
+
+![Top 30 BP GO slim terms across all Rank 35 components](https://gannet.fish.washington.edu/v1_web/owlshell/bu-github/timeseries_molecular/M-multi-species/output/23-visualizing-rank35/rank35_ALL_components_BP_GO_summary.png){width="90%" fig-align="center"}
+
+---
+
+## Results: Gene Z-Scores Across Components
+
+Heatmap of gene z-scores across all 35 components.
+
+![Rank 35 gene z-score heatmap across components](https://gannet.fish.washington.edu/v1_web/owlshell/bu-github/timeseries_molecular/M-multi-species/output/22-Visualizing-Rank-outs/rank35-heatmap-zscores.png){width="90%" fig-align="center"}
+
+---
+
+## Results: Gene Raw Expression Across Components
+
+Heatmap of raw gene expression across all 35 components.
+
+![Rank 35 gene raw expression heatmap across components](https://gannet.fish.washington.edu/v1_web/owlshell/bu-github/timeseries_molecular/M-multi-species/output/22-Visualizing-Rank-outs/rank35-heatmap-raw.png){width="90%" fig-align="center"}
+
+---
+
+## References {.smaller}
+
+::: {#refs}
+:::
+
+::: {.small}
+- **Blaskowski S, Roald M, Berube PM, Braakman R, Armbrust EV.** "Simultaneous acclimation to nitrogen and iron scarcity in open ocean cyanobacteria revealed by sparse tensor decomposition of metatranscriptomes." *Science Advances* 11(14):eadr4310, 2025. <https://doi.org/10.1126/sciadv.adr4310>
+- Kolda TG, Bader BW. "Tensor decompositions and applications." *SIAM Review* 51(3):455–500, 2009. <https://doi.org/10.1137/07070111X>
+- Barnacle documentation and tutorials: <https://barnacle-py.readthedocs.io>
+- Barnacle source code: <https://github.com/blasks/barnacle>
+:::
