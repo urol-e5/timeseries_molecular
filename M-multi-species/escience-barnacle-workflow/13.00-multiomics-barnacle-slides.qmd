@@ -211,6 +211,50 @@ Sparsity = interpretability. No arbitrary threshold needed to extract a gene lis
 
 > Think of rank as the number of bins you are asking the model to separate the data into. The goal is to find the smallest number of bins that still captures all the real biology.
 
+---
+
+## Stage 1: Selecting the Best Rank
+
+Too low → real biological signals merged or missed.  
+Too high → noise fit as signal; components become unstable and uninterpretable.
+
+**Fit all candidate ranks with no sparsity penalty (λ=0):**
+
+1. For each candidate rank, run split-half bootstrap cross-validation across many random 50/50 train/test splits
+2. Measure **cross-validated SSE** (sum of squared errors) on held-out test data, averaged across splits
+3. Apply the **1SE rule**: select the **smallest rank** whose mean SSE is within one standard error of the best-performing rank
+4. This enforces a **parsimony principle** — prefer the simpler model when prediction accuracy is statistically equivalent
+
+> The 1SE rule is objective, unlike the PCA "scree plot elbow" or WGCNA soft-thresholding power selection, both of which rely on subjective visual inspection.
+
+---
+
+## Stage 2: Selecting the Best Sparsity Level
+
+With rank fixed, how much sparsity should be applied? Too little → noisy, hard-to-interpret components. Too much → real signal is zeroed out.
+
+**Factor Match Score (FMS)** answers: *if we fit the model to two independent halves of the data, do we recover the same components?*
+
+- FMS = 1 → components are identical across data splits — stable, reproducible signal
+- FMS ≈ 0 → components differ across splits — the sparsity level is destroying real structure
+
+::: {.fragment}
+**Selection rule — applied at the optimal rank across all candidate λ values:**
+
+1. Fit models across a range of sparsity levels (λ) using split-half bootstrap cross-validation
+2. Calculate mean FMS across bootstrap splits for each λ
+3. Apply the **1SE rule**: select the **maximum λ** whose mean FMS is within one standard error of the best FMS
+4. *Maximum interpretability (most zeros) while components remain stable*
+:::
+
+::: {.fragment}
+> No equivalent exists in WGCNA or PCA — there is no formal way to ask whether a given module or PC would be recovered from an independent subsample of the data.
+:::
+
+::: {.fragment}
+**After the final model is fit**, FMS is also reported *per component* — each of the 35 components gets its own stability score. Components with consistently high FMS are reliable signals; any component with low FMS can be flagged for cautious interpretation, even within an overall well-chosen rank. This is an interpretive check, not a selection step, but it adds a layer of confidence unavailable in WGCNA or PCA.
+:::
+
 
 ---
 
