@@ -125,8 +125,16 @@ de_novo_output_dir="${output_dir}/de_novo_assembly"
 genome_guided_output_dir="${output_dir}/genome_guided_assembly"
 trimmed_reads_dir="${top_output_dir}/01.00-E-Peve-RNAseq-trimming-fastp-FastQC-MultiQC"
 
+# PASA INPUT FILES
+####### NEED TO BE RELATIVE TO PASA SUBDIRECTORY #######
+genome_fasta="../../../data/Porites_evermanni_v1.fa"
+genome_gff="../../../data/Porites_evermanni_validated.gff3"
+pasa_container="pasapipeline.v2.5.3.simg"
+PASA_HOME="/usr/local/src/PASApipeline"
+stringtie_gtf="../../02.20-E-Peve-RNAseq-alignment-HiSat2/Porites_evermanni_v1.stringtie.gtf"
+
 ## THREADS
-threads="150"
+threads="44"
 
 ## MAX RAM
 max_ram="100G"
@@ -367,8 +375,8 @@ This was executed outside of RStudio due to the verbose output, which will cause
 singularity exec \
 -B /home \
 -B /var/run/mysqld/mysqld.sock:/var/run/mysqld/mysqld.sock \
--B $PWD/conf.txt:/usr/local/src/PASApipeline/pasa_conf/conf.txt \
--B $PWD/cdna_alignment_mysqlschema:/usr/local/src/PASApipeline/schema/cdna_alignment_mysqlschema \
+-B $PWD/conf.txt:$PASA_HOME/pasa_conf/conf.txt \
+-B $PWD/cdna_alignment_mysqlschema:$PASA_HOME/schema/cdna_alignment_mysqlschema \
 ${pasa_container} \
 $PASA_HOME/Launch_PASA_pipeline.pl \
 --config alignAssembly.config \
@@ -377,10 +385,59 @@ $PASA_HOME/Launch_PASA_pipeline.pl \
 --genome ${genome_fasta} \
 --transcripts transcripts.fasta.clean \
 --trans_gtf ${stringtie_gtf} \
+--ALT_SPLICE \
 -T \
 -u transcripts.fasta \
 --ALIGNERS blat,gmap,minimap2 \
 --TDN tdn.accs \
 --transcribed_is_aligned_orient \
+--annot_compare \
+-L \
+--annots ${genome_gff} \
+--TRANSDECODER \
 --CPU ${threads}
 ```
+
+### Alternative Splicing
+
+This doesn't seem to have run during the assembly phase, so ran separately.
+
+```bash
+singularity exec \
+-B /home \
+-B /var/run/mysqld/mysqld.sock:/var/run/mysqld/mysqld.sock \
+-B $PWD/conf.txt:$PASA_HOME/pasa_conf/conf.txt \
+-B $PWD/cdna_alignment_mysqlschema:$PASA_HOME/schema/cdna_alignment_mysqlschema \
+${pasa_container} \
+$PASA_HOME/Launch_PASA_pipeline.pl \
+-c alignAssembly.config \
+--ALT_SPLICE \
+-g ${genome_fasta} \
+-t all.transcripts.fasta.clean \
+--CPU ${threads}
+```
+
+### Update annotations
+
+Now includes alternative splicing info.
+
+Uses output GFF3 from initial annotations as annotation _input_.
+
+```bash
+singularity exec \
+-B /home \
+-B /var/run/mysqld/mysqld.sock:/var/run/mysqld/mysqld.sock \
+-B $PWD/conf.txt:$PASA_HOME/pasa_conf/conf.txt \
+-B $PWD/cdna_alignment_mysqlschema:$PASA_HOME/schema/cdna_alignment_mysqlschema \
+${pasa_container} \
+$PASA_HOME/Launch_PASA_pipeline.pl \
+-c annotCompare.config \
+--annot_compare \
+-L \
+--annots peve_pasa.gene_structures_post_PASA_updates.2550221.gff3 \
+-g ${genome_fasta} \
+-t all.transcripts.fasta.clean \
+--CPU ${threads}
+```
+
+
