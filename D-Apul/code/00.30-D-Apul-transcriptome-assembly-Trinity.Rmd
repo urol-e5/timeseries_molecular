@@ -525,11 +525,11 @@ awk -F "\t" '!/^#/ && !/^[[:space:]]*$/ && NF > 0 && $3 != "" {print $3}' "${pas
 | sort | uniq -c | sort -rn | awk '{print $2, $1}'
 ```
 
-## Extract Protein Seqs
+# EXTRACT PROTEINS TO FASTA
 ```{r protein-fasta, eval=TRUE, engine='bash'}
-"${pasa_output_dir}"
+cd "${pasa_output_dir}"
 
-awk '/^#PROT / {print ">" $2 "." $3 "\n" $4}' "${pasa_gff}" > "${pasa_output_dir}"/proteins-PASA.fasta
+awk '/^#PROT / {print ">" $2 "." $3 "\n" $4}' "${pasa_gff}" > proteins-PASA.fasta
 
 printf "%s\n\n" "Original protein counts:"
 grep --count "^#PROT" "${pasa_gff}"
@@ -547,5 +547,6 @@ ${samtools} faidx proteins-PASA.fasta
 
 ## Checksums
 ```{r checksums, eval=TRUE, engine='bash'}
+cd "${pasa_output_dir}"
 md5sum proteins-PASA.fasta | tee proteins-PASA.fasta.md5
 ```
