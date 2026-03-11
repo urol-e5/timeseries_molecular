@@ -3,6 +3,9 @@ title: "00.30-D-Apul-transcriptome-assembly-Trinity"
 author: "Sam White"
 date: "2025-11-21"
 output: 
+  github_document:
+    toc: true
+    number_sections: true
   bookdown::html_document2:
     theme: cosmo
     toc: true
@@ -10,9 +13,6 @@ output:
     number_sections: true
     code_folding: show
     code_download: true
-  github_document:
-    toc: true
-    number_sections: true
   html_document:
     theme: cosmo
     toc: true
@@ -225,7 +225,7 @@ Trinity \
 ## Rename output files
 
 ### Rename FastA
-```{r rename-de-denovo-fasta, engine='bash'}
+```{r rename-de-novo-fasta, engine='bash'}
 # Rename generic assembly FastA
 mv ${de_novo_output_dir}/trinity_out_dir.Trinity.fasta \
 ${de_novo_output_dir}/${denovo_assembly_name}.fasta
@@ -290,14 +290,14 @@ Trinity \
 ## Rename output files
 
 ### Rename FastA
-```{r rename-de-denovo-fasta, engine='bash'}
+```{r rename-genome-guided-fasta, engine='bash'}
 # Rename generic assembly FastA
 mv ${genome_guided_output_dir}/trinity_out_dir.Trinity-GG.fasta \
 ${genome_guided_output_dir}/${genome_guided_assembly_name}.fasta
 ```
 
 ### Rename gene map and log
-```{r rename-de-novo-map-log, engine='bash'}
+```{r rename-genome-guided-map-log, engine='bash'}
 mv ${genome_guided_output_dir}/trinity_out_dir.Trinity-GG.fasta.gene_trans_map \
 ${genome_guided_output_dir}/${genome_guided_assembly_name}.gene_trans_map
 
@@ -306,7 +306,7 @@ ${genome_guided_output_dir}/${genome_guided_assembly_name}.log
 ```
 
 ## Create FastA index
-```{r de-novo-fasta-index, engine='bash'}
+```{r genome-guided-fasta-index, engine='bash'}
 ${samtools} faidx \
 ${genome_guided_output_dir}/${genome_guided_assembly_name}.fasta
 ```
