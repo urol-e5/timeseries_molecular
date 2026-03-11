@@ -24,14 +24,35 @@ bibliography: references.bib
 ---
 # BACKGROUND
 
+This notebook performs a comprehensive transcriptome assembly and annotaiton for *A.pulchra* using the [PASA (Program to Assemble Spliced Alignments)](https://github.com/PASApipeline/PASApipeline/wiki) pipeline, as well as alternative isoform identification. This pipeline relies on both *de novo* and genome-guided transcriptome assemblies with [Trinity](https://github.com/trinityrnaseq/trinityrnaseq/wiki).
+
+The key steps include:
+1.  **De Novo Assembly** and **Genome-Guided Assembly**: Using [Trinity](https://github.com/trinityrnaseq/trinityrnaseq/wiki) to assemble transcripts directly from RNA-seq reads.
+2.  **PASA Pipeline**: Utilizing [PASA](https://github.com/PASApipeline/PASApipeline/wiki) to merge the assemblies, clean transcripts, and update genome annotations with alternative splicing information.
+
+**Programs Used:**
+- [Trinity](https://github.com/trinityrnaseq/trinityrnaseq/wiki) - Transcriptome assembly.
+- [PASA](https://github.com/PASApipeline/PASApipeline/wiki) - Annotation update and transcript assembly refinement.
+- [AGAT](https://github.com/NBISweden/AGAT) - GFF/GTF toolkit for annotation merging and conversion.
+- [Singularity (Apptainer)](https://apptainer.org/) - Container platform used to run assembly pipelines.
+
+## Expected outputs
+
+**TRINITY**:
+
+- FastA: *De novo* transcriptome assembly.
+- FastA: Genome-guided transcriptome assembly.
+
+**PASA**: 
+
+- GFF3: Genome annotations produced by PASA pipeline in GFF3.
+- BED: Genome annotations produced by PASA pipeline in BED format.
 
 # SETUP
-
 
 ## Libraries and markdown settings
 ```{r setup, include=TRUE}
 library(knitr)
-library(reticulate)
 knitr::opts_chunk$set(
   echo = TRUE,         # Display code chunks
   eval = FALSE,        # Evaluate code chunks
@@ -62,9 +83,12 @@ bam_alignment <- file.path(top_output_dir, "02.20-D-Apul-RNAseq-alignment-HiSat2
 
 ## Path for genome will be relative to PASA output dir
 genome_fasta <- file.path("..", "..", "..", "data", "Apulchra-genome.fa")
+genome_gff <- file.path("..", "data", "Apulchra-genome.gff")
 denovo_assembly_name <- "apul-denovo-Trinity"
 genome_guided_assembly_name <- "apul-GG-Trinity"
+pasa_bed <- "apul-PASA.bed"
 pasa_container <- "pasapipeline.v2.5.3.simg"
+pasa_gff <- "apul-PASA.gff3"
 stringtie_gtf <- file.path(stringtie_gtf_dir, "Apulchra-genome.stringtie.gtf")
 
 #SETTINGS
@@ -78,6 +102,7 @@ max_ram <- "100G"
 samtools <- file.path("/home", "shared", "samtools-1.12", "samtools")
 
 
+
 # FORMATTING
 line <- "-----------------------------------------------"
 
@@ -87,6 +112,7 @@ Sys.setenv(
   denovo_assembly_name = denovo_assembly_name,
   de_novo_output_dir = de_novo_output_dir,
   genome_fasta = genome_fasta,
+  genome_gff = genome_gff,
   genome_guided_assembly_name = genome_guided_assembly_name,
   genome_guided_output_dir = genome_guided_output_dir,
   line = line,
@@ -95,6 +121,8 @@ Sys.setenv(
   top_output_dir = top_output_dir,
   pasa_container = pasa_container,
   pasa_container_dir = pasa_container_dir,
+  pasa_bed = pasa_bed,
+  pasa_gff = pasa_gff,
   PASA_HOME = PASA_HOME,
   pasa_output_dir = pasa_output_dir,
   samtools = samtools,
@@ -104,6 +132,7 @@ Sys.setenv(
   trimmed_reads_dir = trimmed_reads_dir
 )
 ```
+
 
 # DE NOVO ASSEMBLY
 
@@ -230,6 +259,13 @@ ${samtools} faidx \
 ${de_novo_output_dir}/${denovo_assembly_name}.fasta
 ```
 
+## Checksums
+```{r checksums-denovo, eval=TRUE, engine='bash'}
+cd ${de_novo_output_dir}
+
+md5sum ${denovo_assembly_name}.fasta | tee ${denovo_assembly_name}.fasta.md5
+```
+
 # GENOME-GUIDED ASSEMBLY
 
 Trinity was run using the [Trinity Singularity (Apptainer) container](https://github.com/trinityrnaseq/trinityrnaseq/wiki/Trinity-in-Docker#running-trinity-using-singularity), `trinityrnaseq.v2.15.2.simg` from the `urol-e5/timeseries_molecular/D-Apul/code/` directory.
@@ -275,6 +311,13 @@ ${samtools} faidx \
 ${genome_guided_output_dir}/${genome_guided_assembly_name}.fasta
 ```
 
+## Checksums
+```{r checksums-genome-guided, eval=TRUE, engine='bash'}
+cd ${genome_guided_output_dir}
+
+md5sum ${genome_guided_assembly_name}.fasta | tee ${genome_guided_assembly_name}.fasta.md5
+```
+
 ### Assembly stats
 
 #### Run Trinity Singularity image.
@@ -296,7 +339,7 @@ ${genome_guided_output_dir}/${genome_guided_assembly_name}.fasta \
 ```
 
 ### Confirm counts
-```{r confirm-transcript-counts, engine='bash'}
+```{r confirm-transcript-counts, eval=TRUE, engine='bash'}
 # Count transcripts in each file
 denovo_count=$(grep -c "^>" ${de_novo_output_dir}/${denovo_assembly_name}.fasta)
 genome_guided_count=$(grep -c "^>" ${genome_guided_output_dir}/${genome_guided_assembly_name}.fasta)
@@ -440,3 +483,69 @@ $PASA_HOME/Launch_PASA_pipeline.pl \
 --CPU ${threads}
 ```
 
+# PASA OUTPUTS
+
+## Generate checksums
+```{r checksums-PASA-outputs, eval=TRUE, engine='bash'}
+cd "${pasa_output_dir}"
+
+md5sum apul_pasa.gene_structures_post_PASA_updates.3761114.gff3 | tee apul_pasa.gene_structures_post_PASA_updates.3761114.gff3.md5
+
+md5sum apul_pasa.gene_structures_post_PASA_updates.3761114.bed | tee apul_pasa.gene_structures_post_PASA_updates.3761114.bed.md5
+```
+
+## Rename outputs
+```{r rename-PASA-outputs, eval=TRUE, engine='bash'}
+cd "${pasa_output_dir}"
+cp apul_pasa.gene_structures_post_PASA_updates.3761114.gff3 "${pasa_gff}"
+
+cp apul_pasa.gene_structures_post_PASA_updates.3761114.bed "${pasa_bed}"
+
+md5sum "${pasa_gff}" | tee "${pasa_gff}".md5
+md5sum "${pasa_bed}" | tee "${pasa_bed}".md5
+```
+
+## GFF3 Preview
+```{r GFF3-output-01, eval=TRUE, engine='bash'}
+head -n 50 "${pasa_output_dir}"/"${pasa_gff}"
+```
+
+## GFF Comparisons
+```{r GFF3-feature counts, eval=TRUE, engine='bash'}
+printf '%s\n\n' "Original GFF feature counts:"
+awk '!/^#/ && !/^[[:space:]]*$/ && NF > 0 && $3 != "" {print $3}' ${genome_gff} \
+| sort | uniq -c | sort -rn | awk '{print $2, $1}'
+
+echo ""
+echo "${line}"
+echo ""
+
+printf "%s\n\n" "Updated GFF feature counts:"
+awk -F "\t" '!/^#/ && !/^[[:space:]]*$/ && NF > 0 && $3 != "" {print $3}' "${pasa_output_dir}"/"${pasa_gff}" \
+| sort | uniq -c | sort -rn | awk '{print $2, $1}'
+```
+
+## Extract Protein Seqs
+```{r protein-fasta, eval=TRUE, engine='bash'}
+"${pasa_output_dir}"
+
+awk '/^#PROT / {print ">" $2 "." $3 "\n" $4}' "${pasa_gff}" > "${pasa_output_dir}"/proteins-PASA.fasta
+
+printf "%s\n\n" "Original protein counts:"
+grep --count "^#PROT" "${pasa_gff}"
+
+echo ""
+echo "${line}"
+echo ""
+
+printf "%s\n\n" "Extracted protein counts:"
+grep --count "^>" proteins-PASA.fasta
+
+# Create FastA Index
+${samtools} faidx proteins-PASA.fasta
+```
+
+## Checksums
+```{r checksums, eval=TRUE, engine='bash'}
+md5sum proteins-PASA.fasta | tee proteins-PASA.fasta.md5
+```
