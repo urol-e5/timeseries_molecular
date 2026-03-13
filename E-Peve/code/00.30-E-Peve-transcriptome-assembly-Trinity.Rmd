@@ -86,6 +86,7 @@ bam_alignment <- file.path(top_output_dir, "02.20-E-Peve-RNAseq-alignment-HiSat2
 
 ## Path for genome will be relative to PASA output dir
 genome_fasta <- file.path("..", "..", "..", "data", "Porites_evermanni_v1.fa")
+genome_gff <- file.path("..", "data", "Porites_evermanni_validated.gff3")
 denovo_assembly_name <- "peve-denovo-Trinity"
 genome_guided_assembly_name <- "peve-GG-Trinity"
 pasa_container <- "pasapipeline.v2.5.3.simg"
@@ -111,6 +112,7 @@ Sys.setenv(
   denovo_assembly_name = denovo_assembly_name,
   de_novo_output_dir = de_novo_output_dir,
   genome_fasta = genome_fasta,
+  genome_gff = genome_gff,
   genome_guided_assembly_name = genome_guided_assembly_name,
   genome_guided_output_dir = genome_guided_output_dir,
   line = line,
