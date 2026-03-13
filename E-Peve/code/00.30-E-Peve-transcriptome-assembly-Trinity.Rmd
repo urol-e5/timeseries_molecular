@@ -3,6 +3,9 @@ title: "00.30-E-Peve-transcriptome-assembly-Trinity"
 author: "Sam White"
 date: "2025-12-27"
 output: 
+  github_document:
+    toc: true
+    number_sections: true
   bookdown::html_document2:
     theme: cosmo
     toc: true
@@ -10,9 +13,6 @@ output:
     number_sections: true
     code_folding: show
     code_download: true
-  github_document:
-    toc: true
-    number_sections: true
   html_document:
     theme: cosmo
     toc: true
@@ -74,6 +74,7 @@ output_dir <- file.path(top_output_dir, "00.30-E-Peve-transcriptome-assembly-Tri
 de_novo_output_dir <- file.path(output_dir, "de_novo_assembly")
 genome_guided_output_dir <- file.path(output_dir, "genome_guided_assembly")
 pasa_container_dir <- file.path("/home", "shared", "containers")
+pasa_gff <- "peve-PASA.gff3"
 PASA_HOME <- "/usr/local/src/PASApipeline"
 pasa_output_dir <- file.path(output_dir, "PASA")
 stringtie_gtf_dir <- file.path(top_output_dir, "02.20-E-Peve-RNAseq-alignment-HiSat2")
