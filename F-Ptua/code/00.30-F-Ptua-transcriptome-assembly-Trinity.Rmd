@@ -88,6 +88,7 @@ genome_fasta <- file.path("..", "..", "..", "data", "Pocillopora_meandrina_HIv1.
 genome_gff <- file.path("..", "data", "Pocillopora_meandrina_HIv1.genes.gff3")
 denovo_assembly_name <- "ptua-denovo-Trinity"
 genome_guided_assembly_name <- "ptua-GG-Trinity"
+pasa_bed <- "ptua-PASA.bed"
 pasa_container <- "pasapipeline.v2.5.3.simg"
 pasa_gff <- "ptua-PASA.gff3"
 stringtie_gtf <- file.path(stringtie_gtf_dir, "Pocillopora_meandrina_HIv1.assembly.stringtie.gtf")
@@ -119,6 +120,7 @@ Sys.setenv(
   max_ram = max_ram,
   output_dir = output_dir,
   top_output_dir = top_output_dir,
+  pasa_bed = pasa_bed,
   pasa_container = pasa_container,
   pasa_container_dir = pasa_container_dir,
   pasa_gff = pasa_gff,
@@ -496,17 +498,17 @@ $PASA_HOME/Launch_PASA_pipeline.pl \
 ```{r checksums-PASA-outputs, eval=TRUE, engine='bash'}
 cd "${pasa_output_dir}"
 
-md5sum ptua_pasa.gene_structures_post_PASA_updates.2550175.gff3 | tee ptua_pasa.gene_structures_post_PASA_updates.2550175.gff3.md5
+md5sum ptua_pasa.gene_structures_post_PASA_updates.3761026.gff3 | tee ptua_pasa.gene_structures_post_PASA_updates.3761026.gff3.md5
 
-md5sum ptua_pasa.gene_structures_post_PASA_updates.2550175.bed | tee ptua_pasa.gene_structures_post_PASA_updates.2550175.bed.md5
+md5sum ptua_pasa.gene_structures_post_PASA_updates.3761026.bed | tee ptua_pasa.gene_structures_post_PASA_updates.3761026.bed.md5
 ```
 
 ## Rename outputs
 ```{r rename-PASA-outputs, eval=TRUE, engine='bash'}
 cd "${pasa_output_dir}"
-cp ptua_pasa.gene_structures_post_PASA_updates.2550175.gff3 "${pasa_gff}"
+cp ptua_pasa.gene_structures_post_PASA_updates.3761026.gff3 "${pasa_gff}"
 
-cp ptua_pasa.gene_structures_post_PASA_updates.2550175.bed "${pasa_bed}"
+cp ptua_pasa.gene_structures_post_PASA_updates.3761026.bed "${pasa_bed}"
 
 md5sum "${pasa_gff}" | tee "${pasa_gff}".md5
 md5sum "${pasa_bed}" | tee "${pasa_bed}".md5
