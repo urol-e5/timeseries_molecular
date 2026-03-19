@@ -1,0 +1,475 @@
+=== Log started: 2026-03-04 21:59:52.527294 ===
+
+
+Session info:
+R version 4.5.2 (2025-10-31)
+Platform: x86_64-conda-linux-gnu
+Running under: Ubuntu 24.04.4 LTS
+
+Matrix products: default
+BLAS/LAPACK: /home/shared/8TB_HDD_02/shedurkin/.local/share/r-miniconda/envs/r_enet_rscript/lib/libopenblasp-r0.3.30.so;  LAPACK version 3.12.0
+
+locale:
+ [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C              
+ [3] LC_TIME=en_US.UTF-8        LC_COLLATE=en_US.UTF-8    
+ [5] LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8   
+ [7] LC_PAPER=en_US.UTF-8       LC_NAME=C                 
+ [9] LC_ADDRESS=C               LC_TELEPHONE=C            
+[11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
+
+time zone: America/Los_Angeles
+tzcode source: system (glibc)
+
+attached base packages:
+[1] parallel  stats4    stats     graphics  grDevices utils     datasets 
+[8] methods   base     
+
+other attached packages:
+ [1] pbapply_1.7-4               doParallel_1.0.17          
+ [3] iterators_1.0.14            foreach_1.5.2              
+ [5] scales_1.4.0                genefilter_1.80.3          
+ [7] ggfortify_0.4.18            vegan_2.7-1                
+ [9] permute_0.9-8               factoextra_1.0.7           
+[11] caret_7.0-1                 lattice_0.22-7             
+[13] glmnet_4.1-10               Matrix_1.7-4               
+[15] pheatmap_1.0.13             rvest_1.0.5                
+[17] corrplot_0.95               ggcorrplot_0.1.4.1         
+[19] reshape2_1.4.4              edgeR_3.40.2               
+[21] limma_3.54.2                WGCNA_1.73                 
+[23] fastcluster_1.3.0           dynamicTreeCut_1.63-1      
+[25] ggraph_2.2.1                tidygraph_1.3.1            
+[27] psych_2.5.6                 igraph_2.1.4               
+[29] DESeq2_1.38.3               SummarizedExperiment_1.28.0
+[31] Biobase_2.58.0              MatrixGenerics_1.10.0      
+[33] matrixStats_1.5.0           GenomicRanges_1.50.2       
+[35] GenomeInfoDb_1.34.9         IRanges_2.32.0             
+[37] S4Vectors_0.36.2            BiocGenerics_0.44.0        
+[39] lubridate_1.9.4             forcats_1.0.1              
+[41] stringr_1.6.0               dplyr_1.1.4                
+[43] purrr_1.2.0                 readr_2.1.6                
+[45] tidyr_1.3.1                 tibble_3.3.0               
+[47] ggplot2_3.5.2               tidyverse_2.0.0            
+
+loaded via a namespace (and not attached):
+  [1] RColorBrewer_1.1-3     shape_1.4.6.1          rstudioapi_0.17.1     
+  [4] magrittr_2.0.4         farver_2.1.2           rmarkdown_2.29        
+  [7] zlibbioc_1.44.0        vctrs_0.6.5            memoise_2.0.1         
+ [10] RCurl_1.98-1.17        base64enc_0.1-3        htmltools_0.5.8.1     
+ [13] pROC_1.18.5            Formula_1.2-5          parallelly_1.45.0     
+ [16] htmlwidgets_1.6.4      plyr_1.8.9             impute_1.72.3         
+ [19] cachem_1.1.0           lifecycle_1.0.4        pkgconfig_2.0.3       
+ [22] R6_2.6.1               fastmap_1.2.0          future_1.58.0         
+ [25] GenomeInfoDbData_1.2.9 digest_0.6.39          colorspace_2.1-2      
+ [28] AnnotationDbi_1.60.2   geneplotter_1.76.0     Hmisc_5.2-3           
+ [31] RSQLite_2.4.2          timechange_0.3.0       mgcv_1.9-4            
+ [34] httr_1.4.7             polyclip_1.10-7        compiler_4.5.2        
+ [37] bit64_4.6.0-1          withr_3.0.2            htmlTable_2.4.3       
+ [40] backports_1.5.0        BiocParallel_1.32.6    viridis_0.6.5         
+ [43] DBI_1.2.3              ggforce_0.5.0          lava_1.8.1            
+ [46] MASS_7.3-65            DelayedArray_0.24.0    ModelMetrics_1.2.2.2  
+ [49] tools_4.5.2            foreign_0.8-90         future.apply_1.20.0   
+ [52] nnet_7.3-20            glue_1.8.0             nlme_3.1-168          
+ [55] grid_4.5.2             checkmate_2.3.2        cluster_2.1.8.1       
+ [58] recipes_1.3.1          generics_0.1.4         gtable_0.3.6          
+ [61] tzdb_0.5.0             class_7.3-23           preprocessCore_1.60.2 
+ [64] data.table_1.17.8      hms_1.1.4              xml2_1.5.0            
+ [67] XVector_0.38.0         ggrepel_0.9.6          pillar_1.11.1         
+ [70] splines_4.5.2          tweenr_2.0.3           survival_3.8-3        
+ [73] bit_4.6.0              annotate_1.76.0        tidyselect_1.2.1      
+ [76] GO.db_3.16.0           locfit_1.5-9.12        Biostrings_2.66.0     
+ [79] knitr_1.50             gridExtra_2.3          xfun_0.54             
+ [82] graphlayouts_1.2.2     hardhat_1.4.1          timeDate_4041.110     
+ [85] stringi_1.8.7          evaluate_1.0.5         codetools_0.2-20      
+ [88] cli_3.6.5              rpart_4.1.24           xtable_1.8-4          
+ [91] dichromat_2.0-0.1      Rcpp_1.1.0             globals_0.18.0        
+ [94] png_0.1-8              XML_3.99-0.18          gower_1.0.2           
+ [97] blob_1.2.4             bitops_1.0-9           listenv_0.9.1         
+[100] viridisLite_0.4.2      ipred_0.9-15           prodlim_2025.04.28    
+[103] crayon_1.5.3           rlang_1.1.6            KEGGREST_1.38.0       
+[106] mnormt_2.1.1          
+Start time:2026-03-04 21:59:52.562552
+
+Defining model functions
+Loading gene counts
+Loading miRNA counts
+Loading lncRNA counts
+Loading WGBS data
+Loading metadata table
+Species prefix and code:POR,Peve
+WGBS column name handling
+Filtering datasets
+filtering low count features
+Ensuring integer counts
+Filtered dimensions:
+  Genes: 471 x 31
+  miRNA: 46 x 31
+  lncRNA: 8317 x 31
+  WGBS: 19570 x 31
+Ensuring all dfs have identical column names and orders
+Applying variance stabilization
+Predictor set dimensions:31
+Predictor set dimensions:27933
+Gene set dimensions:31
+Gene set dimensions:471
+
+=== Data Validation and Cleaning ===
+Predictor matrix: 31 samples x 27933 features
+  Columns with NaN:           0
+  Columns with Inf:           0
+  Columns with NA:            9498
+  Constant columns (sd = 0):  0
+  Total problematic columns:  9498
+  Problematic columns by type:
+    Other: 9498
+  Removed 9498 problematic predictors. Remaining: 18435
+
+Response matrix: 31 samples x 471 genes
+  Genes with NaN/Inf/NA/constant values: 0
+
+Samples available: 31
+
+Cleaned data dimensions:
+  Predictors: 31 samples x 18435 features
+  Genes:      31 samples x 471 genes
+
+Pre-flight test: fitting one gene sequentially to verify data compatibility...
+  Pre-flight passed: gene 'OG_08920', R2 = 0.9997, 109 non-zero coefficients
+=== Data validation complete ===
+
+
+=== PART 1: Elastic Net with Bootstrapped Train/Test Splits ===
+
+--- Round 1: 10 bootstrap replicates across all 471 genes ---
+Round1: Running 10 replicates across 10 cores...
+Round1: 0/10 (0.0%)
+Round1: 10/10 (100.0%)
+
+Round 1 results: 195/471 genes with mean R2 >= 0.50
+
+--- Round 2: 10 bootstrap replicates on 195 well-predicted genes ---
+Round2: Running 10 replicates across 10 cores...
+Round2: 0/10 (0.0%)
+Round2: 10/10 (100.0%)
+
+Round 2 performance summary:
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+ 0.1818  0.5657  0.6604  0.6667  0.7749  0.9407 
+
+Bootstrapping completed in 7.38 minutes
+
+=== PART 1.5: R-squared Bootstrap Plots ===
+Plotting Round 1 R² (all genes)...
+  Saved: ../output/26.6-ElasticNet-stability-selection-2/Peve/Peve_R2_round1-allgenes.png
+Plotting Round 2 R² (well-predicted genes)...
+  Saved: ../output/26.6-ElasticNet-stability-selection-2/Peve/Peve_R2_round2-well-predictedgenes.png
+
+=== PART 2: Stability Selection for Predictor Reliability ===
+This step assesses how reliably each predictor is selected across random
+subsamples of the data, providing a robust measure of predictor importance.
+Unlike permutation testing, stability selection avoids the degenerate null
+distribution problem that arises with sparse penalized regression.
+
+Running stability selection for 195 well-predicted genes
+
+Calculating stability selection for 195 genes with 10 subsample iterations each
+Total predictors per gene: 18435
+Using 10 core(s) for gene-level parallelization
+Complementary pairs: each iteration produces 2 fits (20 total fits per gene)
+StabSel: Running in parallel mode across 195 genes...
+StabSel: 0/195 (0.0%)
+StabSel: 195/195 (100.0%)
+
+=== Stability Selection Summary ===
+Total predictor-gene combinations: 3594825
+Predictors ever selected (in at least 1 fit): 75651 (2.10%)
+Average predictors with any selection per gene: 388.0
+Subsample iterations per gene: 10 (producing 20 complementary-pair fits)
+
+Stability selection completed in 2.20 minutes
+Applying PFER bound with selection threshold pi = 0.60
+
+PFER bound applied with selection threshold pi = 0.60
+Theoretical guarantee: E(false selections) <= PFER_bound per gene
+
+Per-gene PFER diagnostics:
+  OG_00246: PFER <= 2.207 | Stable predictors: 41 | Avg selected/fit: 90.2 | p = 18435
+  OG_00355: PFER <= 2.691 | Stable predictors: 39 | Avg selected/fit: 99.6 | p = 18435
+  OG_00430: PFER <= 2.192 | Stable predictors: 38 | Avg selected/fit: 89.9 | p = 18435
+  OG_00460: PFER <= 1.258 | Stable predictors: 20 | Avg selected/fit: 68.1 | p = 18435
+  OG_00514: PFER <= 2.212 | Stable predictors: 27 | Avg selected/fit: 90.3 | p = 18435
+  OG_00572: PFER <= 2.866 | Stable predictors: 52 | Avg selected/fit: 102.8 | p = 18435
+  OG_00807: PFER <= 3.199 | Stable predictors: 69 | Avg selected/fit: 108.6 | p = 18435
+  OG_00843: PFER <= 2.437 | Stable predictors: 33 | Avg selected/fit: 94.8 | p = 18435
+  OG_01023: PFER <= 2.894 | Stable predictors: 42 | Avg selected/fit: 103.3 | p = 18435
+  OG_01117: PFER <= 2.124 | Stable predictors: 46 | Avg selected/fit: 88.5 | p = 18435
+  OG_01121: PFER <= 2.658 | Stable predictors: 49 | Avg selected/fit: 99.0 | p = 18435
+  OG_01155: PFER <= 2.789 | Stable predictors: 41 | Avg selected/fit: 101.4 | p = 18435
+  OG_01177: PFER <= 1.891 | Stable predictors: 33 | Avg selected/fit: 83.5 | p = 18435
+  OG_01317: PFER <= 2.402 | Stable predictors: 45 | Avg selected/fit: 94.1 | p = 18435
+  OG_01353: PFER <= 2.756 | Stable predictors: 37 | Avg selected/fit: 100.8 | p = 18435
+  OG_01354: PFER <= 2.531 | Stable predictors: 43 | Avg selected/fit: 96.6 | p = 18435
+  OG_01486: PFER <= 2.844 | Stable predictors: 42 | Avg selected/fit: 102.4 | p = 18435
+  OG_01489: PFER <= 2.850 | Stable predictors: 31 | Avg selected/fit: 102.5 | p = 18435
+  OG_01579: PFER <= 2.197 | Stable predictors: 27 | Avg selected/fit: 90.0 | p = 18435
+  OG_01608: PFER <= 2.547 | Stable predictors: 49 | Avg selected/fit: 96.9 | p = 18435
+  OG_01611: PFER <= 2.718 | Stable predictors: 40 | Avg selected/fit: 100.1 | p = 18435
+  OG_01630: PFER <= 2.173 | Stable predictors: 39 | Avg selected/fit: 89.5 | p = 18435
+  OG_01727: PFER <= 2.967 | Stable predictors: 60 | Avg selected/fit: 104.6 | p = 18435
+  OG_01747: PFER <= 1.923 | Stable predictors: 32 | Avg selected/fit: 84.2 | p = 18435
+  OG_01999: PFER <= 1.900 | Stable predictors: 40 | Avg selected/fit: 83.7 | p = 18435
+  OG_02000: PFER <= 1.571 | Stable predictors: 36 | Avg selected/fit: 76.1 | p = 18435
+  OG_02012: PFER <= 3.030 | Stable predictors: 50 | Avg selected/fit: 105.7 | p = 18435
+  OG_02090: PFER <= 2.494 | Stable predictors: 48 | Avg selected/fit: 95.9 | p = 18435
+  OG_02102: PFER <= 2.664 | Stable predictors: 50 | Avg selected/fit: 99.1 | p = 18435
+  OG_02124: PFER <= 2.531 | Stable predictors: 39 | Avg selected/fit: 96.6 | p = 18435
+  OG_02149: PFER <= 1.909 | Stable predictors: 20 | Avg selected/fit: 83.9 | p = 18435
+  OG_02184: PFER <= 3.007 | Stable predictors: 53 | Avg selected/fit: 105.3 | p = 18435
+  OG_02190: PFER <= 2.827 | Stable predictors: 54 | Avg selected/fit: 102.1 | p = 18435
+  OG_02219: PFER <= 2.883 | Stable predictors: 44 | Avg selected/fit: 103.1 | p = 18435
+  OG_02220: PFER <= 2.381 | Stable predictors: 47 | Avg selected/fit: 93.7 | p = 18435
+  OG_02260: PFER <= 1.228 | Stable predictors: 26 | Avg selected/fit: 67.3 | p = 18435
+  OG_02358: PFER <= 2.397 | Stable predictors: 40 | Avg selected/fit: 94.0 | p = 18435
+  OG_03267: PFER <= 3.002 | Stable predictors: 47 | Avg selected/fit: 105.2 | p = 18435
+  OG_03298: PFER <= 2.321 | Stable predictors: 41 | Avg selected/fit: 92.5 | p = 18435
+  OG_03330: PFER <= 2.351 | Stable predictors: 40 | Avg selected/fit: 93.1 | p = 18435
+  OG_03628: PFER <= 2.311 | Stable predictors: 32 | Avg selected/fit: 92.3 | p = 18435
+  OG_03780: PFER <= 1.810 | Stable predictors: 35 | Avg selected/fit: 81.7 | p = 18435
+  OG_03850: PFER <= 1.659 | Stable predictors: 20 | Avg selected/fit: 78.2 | p = 18435
+  OG_04209: PFER <= 2.197 | Stable predictors: 38 | Avg selected/fit: 90.0 | p = 18435
+  OG_04238: PFER <= 2.105 | Stable predictors: 56 | Avg selected/fit: 88.1 | p = 18435
+  OG_04243: PFER <= 2.600 | Stable predictors: 40 | Avg selected/fit: 97.9 | p = 18435
+  OG_04247: PFER <= 0.844 | Stable predictors: 19 | Avg selected/fit: 55.8 | p = 18435
+  OG_04327: PFER <= 2.251 | Stable predictors: 30 | Avg selected/fit: 91.1 | p = 18435
+  OG_04538: PFER <= 2.053 | Stable predictors: 39 | Avg selected/fit: 87.0 | p = 18435
+  OG_04547: PFER <= 2.494 | Stable predictors: 51 | Avg selected/fit: 95.9 | p = 18435
+  OG_04560: PFER <= 1.960 | Stable predictors: 51 | Avg selected/fit: 85.0 | p = 18435
+  OG_04723: PFER <= 2.562 | Stable predictors: 32 | Avg selected/fit: 97.2 | p = 18435
+  OG_04756: PFER <= 2.177 | Stable predictors: 26 | Avg selected/fit: 89.6 | p = 18435
+  OG_04789: PFER <= 1.824 | Stable predictors: 22 | Avg selected/fit: 82.0 | p = 18435
+  OG_04799: PFER <= 3.348 | Stable predictors: 55 | Avg selected/fit: 111.1 | p = 18435
+  OG_05121: PFER <= 2.437 | Stable predictors: 45 | Avg selected/fit: 94.8 | p = 18435
+  OG_05308: PFER <= 2.621 | Stable predictors: 42 | Avg selected/fit: 98.3 | p = 18435
+  OG_05366: PFER <= 2.316 | Stable predictors: 37 | Avg selected/fit: 92.4 | p = 18435
+  OG_05367: PFER <= 2.129 | Stable predictors: 40 | Avg selected/fit: 88.6 | p = 18435
+  OG_05498: PFER <= 2.729 | Stable predictors: 32 | Avg selected/fit: 100.3 | p = 18435
+  OG_05514: PFER <= 1.891 | Stable predictors: 27 | Avg selected/fit: 83.5 | p = 18435
+  OG_05637: PFER <= 3.111 | Stable predictors: 38 | Avg selected/fit: 107.1 | p = 18435
+  OG_05713: PFER <= 2.889 | Stable predictors: 49 | Avg selected/fit: 103.2 | p = 18435
+  OG_05718: PFER <= 2.453 | Stable predictors: 46 | Avg selected/fit: 95.1 | p = 18435
+  OG_05749: PFER <= 2.043 | Stable predictors: 35 | Avg selected/fit: 86.8 | p = 18435
+  OG_05856: PFER <= 2.412 | Stable predictors: 42 | Avg selected/fit: 94.3 | p = 18435
+  OG_05874: PFER <= 1.775 | Stable predictors: 40 | Avg selected/fit: 80.9 | p = 18435
+  OG_05875: PFER <= 1.749 | Stable predictors: 39 | Avg selected/fit: 80.3 | p = 18435
+  OG_06152: PFER <= 1.969 | Stable predictors: 41 | Avg selected/fit: 85.2 | p = 18435
+  OG_06181: PFER <= 2.251 | Stable predictors: 49 | Avg selected/fit: 91.1 | p = 18435
+  OG_06198: PFER <= 2.321 | Stable predictors: 41 | Avg selected/fit: 92.5 | p = 18435
+  OG_06279: PFER <= 2.067 | Stable predictors: 38 | Avg selected/fit: 87.3 | p = 18435
+  OG_06599: PFER <= 2.911 | Stable predictors: 54 | Avg selected/fit: 103.6 | p = 18435
+  OG_06607: PFER <= 2.296 | Stable predictors: 36 | Avg selected/fit: 92.0 | p = 18435
+  OG_06616: PFER <= 2.286 | Stable predictors: 39 | Avg selected/fit: 91.8 | p = 18435
+  OG_06670: PFER <= 2.729 | Stable predictors: 43 | Avg selected/fit: 100.3 | p = 18435
+  OG_06717: PFER <= 1.753 | Stable predictors: 32 | Avg selected/fit: 80.4 | p = 18435
+  OG_06719: PFER <= 2.029 | Stable predictors: 28 | Avg selected/fit: 86.5 | p = 18435
+  OG_06754: PFER <= 2.589 | Stable predictors: 48 | Avg selected/fit: 97.7 | p = 18435
+  OG_06998: PFER <= 3.053 | Stable predictors: 54 | Avg selected/fit: 106.1 | p = 18435
+  OG_07000: PFER <= 1.896 | Stable predictors: 50 | Avg selected/fit: 83.6 | p = 18435
+  OG_07183: PFER <= 2.011 | Stable predictors: 40 | Avg selected/fit: 86.1 | p = 18435
+  OG_07252: PFER <= 1.303 | Stable predictors: 20 | Avg selected/fit: 69.3 | p = 18435
+  OG_07331: PFER <= 3.294 | Stable predictors: 52 | Avg selected/fit: 110.2 | p = 18435
+  OG_07389: PFER <= 1.964 | Stable predictors: 28 | Avg selected/fit: 85.1 | p = 18435
+  OG_07620: PFER <= 1.905 | Stable predictors: 31 | Avg selected/fit: 83.8 | p = 18435
+  OG_07641: PFER <= 2.336 | Stable predictors: 35 | Avg selected/fit: 92.8 | p = 18435
+  OG_07807: PFER <= 1.714 | Stable predictors: 25 | Avg selected/fit: 79.5 | p = 18435
+  OG_07892: PFER <= 1.797 | Stable predictors: 47 | Avg selected/fit: 81.4 | p = 18435
+  OG_07958: PFER <= 2.291 | Stable predictors: 30 | Avg selected/fit: 91.9 | p = 18435
+  OG_08143: PFER <= 1.497 | Stable predictors: 22 | Avg selected/fit: 74.3 | p = 18435
+  OG_08144: PFER <= 1.714 | Stable predictors: 31 | Avg selected/fit: 79.5 | p = 18435
+  OG_08347: PFER <= 2.626 | Stable predictors: 41 | Avg selected/fit: 98.4 | p = 18435
+  OG_08432: PFER <= 2.301 | Stable predictors: 45 | Avg selected/fit: 92.1 | p = 18435
+  OG_08497: PFER <= 2.062 | Stable predictors: 34 | Avg selected/fit: 87.2 | p = 18435
+  OG_08528: PFER <= 2.794 | Stable predictors: 40 | Avg selected/fit: 101.5 | p = 18435
+  OG_08622: PFER <= 2.479 | Stable predictors: 48 | Avg selected/fit: 95.6 | p = 18435
+  OG_08793: PFER <= 1.356 | Stable predictors: 21 | Avg selected/fit: 70.7 | p = 18435
+  OG_08842: PFER <= 1.810 | Stable predictors: 30 | Avg selected/fit: 81.7 | p = 18435
+  OG_08856: PFER <= 2.928 | Stable predictors: 42 | Avg selected/fit: 103.9 | p = 18435
+  OG_08920: PFER <= 2.816 | Stable predictors: 49 | Avg selected/fit: 101.9 | p = 18435
+  OG_09247: PFER <= 1.766 | Stable predictors: 21 | Avg selected/fit: 80.7 | p = 18435
+  OG_09310: PFER <= 2.889 | Stable predictors: 45 | Avg selected/fit: 103.2 | p = 18435
+  OG_09423: PFER <= 2.301 | Stable predictors: 44 | Avg selected/fit: 92.1 | p = 18435
+  OG_09597: PFER <= 2.207 | Stable predictors: 48 | Avg selected/fit: 90.2 | p = 18435
+  OG_09598: PFER <= 2.015 | Stable predictors: 34 | Avg selected/fit: 86.2 | p = 18435
+  OG_09806: PFER <= 1.775 | Stable predictors: 33 | Avg selected/fit: 80.9 | p = 18435
+  OG_09896: PFER <= 2.053 | Stable predictors: 41 | Avg selected/fit: 87.0 | p = 18435
+  OG_09969: PFER <= 2.086 | Stable predictors: 54 | Avg selected/fit: 87.7 | p = 18435
+  OG_10002: PFER <= 1.864 | Stable predictors: 40 | Avg selected/fit: 82.9 | p = 18435
+  OG_10007: PFER <= 2.177 | Stable predictors: 54 | Avg selected/fit: 89.6 | p = 18435
+  OG_10008: PFER <= 2.391 | Stable predictors: 51 | Avg selected/fit: 93.9 | p = 18435
+  OG_10121: PFER <= 2.520 | Stable predictors: 33 | Avg selected/fit: 96.4 | p = 18435
+  OG_10183: PFER <= 2.058 | Stable predictors: 56 | Avg selected/fit: 87.1 | p = 18435
+  OG_10205: PFER <= 2.653 | Stable predictors: 28 | Avg selected/fit: 98.9 | p = 18435
+  OG_10265: PFER <= 1.923 | Stable predictors: 16 | Avg selected/fit: 84.2 | p = 18435
+  OG_10332: PFER <= 1.784 | Stable predictors: 39 | Avg selected/fit: 81.1 | p = 18435
+  OG_10509: PFER <= 2.407 | Stable predictors: 53 | Avg selected/fit: 94.2 | p = 18435
+  OG_10516: PFER <= 1.654 | Stable predictors: 30 | Avg selected/fit: 78.1 | p = 18435
+  OG_10522: PFER <= 2.043 | Stable predictors: 30 | Avg selected/fit: 86.8 | p = 18435
+  OG_10675: PFER <= 2.723 | Stable predictors: 41 | Avg selected/fit: 100.2 | p = 18435
+  OG_10758: PFER <= 1.779 | Stable predictors: 38 | Avg selected/fit: 81.0 | p = 18435
+  OG_10759: PFER <= 2.077 | Stable predictors: 33 | Avg selected/fit: 87.5 | p = 18435
+  OG_10936: PFER <= 2.889 | Stable predictors: 38 | Avg selected/fit: 103.2 | p = 18435
+  OG_11038: PFER <= 1.815 | Stable predictors: 37 | Avg selected/fit: 81.8 | p = 18435
+  OG_11215: PFER <= 1.033 | Stable predictors: 27 | Avg selected/fit: 61.7 | p = 18435
+  OG_11245: PFER <= 2.594 | Stable predictors: 50 | Avg selected/fit: 97.8 | p = 18435
+  OG_11379: PFER <= 1.587 | Stable predictors: 24 | Avg selected/fit: 76.5 | p = 18435
+  OG_11429: PFER <= 1.449 | Stable predictors: 30 | Avg selected/fit: 73.1 | p = 18435
+  OG_11642: PFER <= 3.042 | Stable predictors: 56 | Avg selected/fit: 105.9 | p = 18435
+  OG_11813: PFER <= 2.448 | Stable predictors: 37 | Avg selected/fit: 95.0 | p = 18435
+  OG_11831: PFER <= 2.386 | Stable predictors: 30 | Avg selected/fit: 93.8 | p = 18435
+  OG_11957: PFER <= 2.402 | Stable predictors: 38 | Avg selected/fit: 94.1 | p = 18435
+  OG_11984: PFER <= 2.967 | Stable predictors: 49 | Avg selected/fit: 104.6 | p = 18435
+  OG_12031: PFER <= 2.301 | Stable predictors: 34 | Avg selected/fit: 92.1 | p = 18435
+  OG_12107: PFER <= 3.427 | Stable predictors: 60 | Avg selected/fit: 112.4 | p = 18435
+  OG_12108: PFER <= 2.134 | Stable predictors: 50 | Avg selected/fit: 88.7 | p = 18435
+  OG_12109: PFER <= 2.072 | Stable predictors: 38 | Avg selected/fit: 87.4 | p = 18435
+  OG_12162: PFER <= 2.207 | Stable predictors: 37 | Avg selected/fit: 90.2 | p = 18435
+  OG_12165: PFER <= 2.610 | Stable predictors: 41 | Avg selected/fit: 98.1 | p = 18435
+  OG_12166: PFER <= 2.139 | Stable predictors: 57 | Avg selected/fit: 88.8 | p = 18435
+  OG_12242: PFER <= 2.129 | Stable predictors: 42 | Avg selected/fit: 88.6 | p = 18435
+  OG_12248: PFER <= 1.379 | Stable predictors: 23 | Avg selected/fit: 71.3 | p = 18435
+  OG_12318: PFER <= 1.824 | Stable predictors: 32 | Avg selected/fit: 82.0 | p = 18435
+  OG_12331: PFER <= 3.512 | Stable predictors: 60 | Avg selected/fit: 113.8 | p = 18435
+  OG_12424: PFER <= 1.637 | Stable predictors: 25 | Avg selected/fit: 77.7 | p = 18435
+  OG_12447: PFER <= 2.712 | Stable predictors: 57 | Avg selected/fit: 100.0 | p = 18435
+  OG_12496: PFER <= 2.557 | Stable predictors: 43 | Avg selected/fit: 97.1 | p = 18435
+  OG_12518: PFER <= 2.301 | Stable predictors: 40 | Avg selected/fit: 92.1 | p = 18435
+  OG_12568: PFER <= 1.887 | Stable predictors: 43 | Avg selected/fit: 83.4 | p = 18435
+  OG_12722: PFER <= 1.633 | Stable predictors: 23 | Avg selected/fit: 77.6 | p = 18435
+  OG_12785: PFER <= 1.758 | Stable predictors: 25 | Avg selected/fit: 80.5 | p = 18435
+  OG_12880: PFER <= 1.706 | Stable predictors: 38 | Avg selected/fit: 79.3 | p = 18435
+  OG_13013: PFER <= 2.594 | Stable predictors: 49 | Avg selected/fit: 97.8 | p = 18435
+  OG_13016: PFER <= 2.489 | Stable predictors: 52 | Avg selected/fit: 95.8 | p = 18435
+  OG_13050: PFER <= 1.254 | Stable predictors: 17 | Avg selected/fit: 68.0 | p = 18435
+  OG_13066: PFER <= 2.331 | Stable predictors: 38 | Avg selected/fit: 92.7 | p = 18435
+  OG_13197: PFER <= 1.946 | Stable predictors: 45 | Avg selected/fit: 84.7 | p = 18435
+  OG_13201: PFER <= 2.321 | Stable predictors: 55 | Avg selected/fit: 92.5 | p = 18435
+  OG_13239: PFER <= 2.336 | Stable predictors: 48 | Avg selected/fit: 92.8 | p = 18435
+  OG_13334: PFER <= 2.712 | Stable predictors: 36 | Avg selected/fit: 100.0 | p = 18435
+  OG_13428: PFER <= 1.587 | Stable predictors: 33 | Avg selected/fit: 76.5 | p = 18435
+  OG_13451: PFER <= 2.453 | Stable predictors: 34 | Avg selected/fit: 95.1 | p = 18435
+  OG_13466: PFER <= 1.937 | Stable predictors: 34 | Avg selected/fit: 84.5 | p = 18435
+  OG_13481: PFER <= 2.531 | Stable predictors: 45 | Avg selected/fit: 96.6 | p = 18435
+  OG_13484: PFER <= 2.301 | Stable predictors: 44 | Avg selected/fit: 92.1 | p = 18435
+  OG_15738: PFER <= 1.918 | Stable predictors: 34 | Avg selected/fit: 84.1 | p = 18435
+  OG_15796: PFER <= 1.745 | Stable predictors: 34 | Avg selected/fit: 80.2 | p = 18435
+  OG_15816: PFER <= 2.236 | Stable predictors: 37 | Avg selected/fit: 90.8 | p = 18435
+  OG_15877: PFER <= 2.536 | Stable predictors: 40 | Avg selected/fit: 96.7 | p = 18435
+  OG_16000: PFER <= 2.144 | Stable predictors: 34 | Avg selected/fit: 88.9 | p = 18435
+  OG_16145: PFER <= 1.667 | Stable predictors: 29 | Avg selected/fit: 78.4 | p = 18435
+  OG_16159: PFER <= 1.950 | Stable predictors: 23 | Avg selected/fit: 84.8 | p = 18435
+  OG_16192: PFER <= 2.822 | Stable predictors: 50 | Avg selected/fit: 102.0 | p = 18435
+  OG_16380: PFER <= 2.025 | Stable predictors: 34 | Avg selected/fit: 86.4 | p = 18435
+  OG_16489: PFER <= 2.653 | Stable predictors: 53 | Avg selected/fit: 98.9 | p = 18435
+  OG_16592: PFER <= 2.316 | Stable predictors: 47 | Avg selected/fit: 92.4 | p = 18435
+  OG_16654: PFER <= 1.896 | Stable predictors: 36 | Avg selected/fit: 83.6 | p = 18435
+  OG_16665: PFER <= 1.714 | Stable predictors: 35 | Avg selected/fit: 79.5 | p = 18435
+  OG_16747: PFER <= 1.575 | Stable predictors: 30 | Avg selected/fit: 76.2 | p = 18435
+  OG_16856: PFER <= 0.922 | Stable predictors: 19 | Avg selected/fit: 58.3 | p = 18435
+  OG_16944: PFER <= 2.934 | Stable predictors: 43 | Avg selected/fit: 104.0 | p = 18435
+  OG_16980: PFER <= 1.758 | Stable predictors: 37 | Avg selected/fit: 80.5 | p = 18435
+  OG_17058: PFER <= 3.065 | Stable predictors: 44 | Avg selected/fit: 106.3 | p = 18435
+  OG_17106: PFER <= 2.894 | Stable predictors: 48 | Avg selected/fit: 103.3 | p = 18435
+  OG_17176: PFER <= 1.236 | Stable predictors: 27 | Avg selected/fit: 67.5 | p = 18435
+  OG_17479: PFER <= 1.710 | Stable predictors: 22 | Avg selected/fit: 79.4 | p = 18435
+  OG_17483: PFER <= 1.877 | Stable predictors: 46 | Avg selected/fit: 83.2 | p = 18435
+  OG_17556: PFER <= 2.474 | Stable predictors: 24 | Avg selected/fit: 95.5 | p = 18435
+  OG_17666: PFER <= 1.762 | Stable predictors: 33 | Avg selected/fit: 80.6 | p = 18435
+  OG_17751: PFER <= 1.806 | Stable predictors: 36 | Avg selected/fit: 81.6 | p = 18435
+  OG_17800: PFER <= 1.771 | Stable predictors: 32 | Avg selected/fit: 80.8 | p = 18435
+  OG_17961: PFER <= 1.997 | Stable predictors: 28 | Avg selected/fit: 85.8 | p = 18435
+  OG_18057: PFER <= 1.288 | Stable predictors: 25 | Avg selected/fit: 68.9 | p = 18435
+  OG_18285: PFER <= 1.941 | Stable predictors: 27 | Avg selected/fit: 84.6 | p = 18435
+
+=== Stable Predictor Summary (Selection Prob >= 60%) ===
+Number of stable predictor-gene associations: 7555
+Number of genes with at least one stable predictor: 195
+
+Breakdown of EVER-SELECTED predictors by type:
+# A tibble: 3 × 4
+  Predictor_Type N_ever_selected N_stable Pct_stable
+  <chr>                    <int>    <int>      <dbl>
+1 Other                    22670      909       4.01
+2 lncRNA                   52759     6635      12.6 
+3 miRNA                      222       11       4.95
+
+Breakdown of STABLE predictors by type:
+# A tibble: 3 × 5
+  Predictor_Type N_stable N_unique_predictors N_genes_affected
+  <chr>             <int>               <int>            <int>
+1 Other               909                 790              168
+2 lncRNA             6635                3693              195
+3 miRNA                11                   8               11
+# ℹ 1 more variable: Mean_Selection_Prob <dbl>
+
+=== PART 3: Generating Visualizations and Output Files ===
+Creating summary plots...
+Creating per-gene stability selection plots...
+Saving stability selection results...
+Enhancing top predictors table with stability information...
+
+=== PART 3.5: Stacked Bar Charts and Heatmaps ===
+Building composition data (with significance filtering)...
+Building composition data (without significance filtering)...
+
+Generating stacked bar charts (stable predictors only)...
+  Saved: ../output/26.6-ElasticNet-stability-selection-2/Peve/Peve_stacked_bar_alphabetical_sig.png
+  Saved: ../output/26.6-ElasticNet-stability-selection-2/Peve/Peve_stacked_bar_predominant_sig.png
+  Saved: ../output/26.6-ElasticNet-stability-selection-2/Peve/Peve_stacked_bar_r2_sig.png
+Generating stacked bar charts (all non-zero predictors)...
+  Saved: ../output/26.6-ElasticNet-stability-selection-2/Peve/Peve_stacked_bar_alphabetical_nosig.png
+  Saved: ../output/26.6-ElasticNet-stability-selection-2/Peve/Peve_stacked_bar_predominant_nosig.png
+  Saved: ../output/26.6-ElasticNet-stability-selection-2/Peve/Peve_stacked_bar_r2_nosig.png
+
+Generating predictor-type heatmaps...
+  Saved: ../output/26.6-ElasticNet-stability-selection-2/Peve/Peve_predictor_heatmap_sig.png
+  Saved: ../output/26.6-ElasticNet-stability-selection-2/Peve/Peve_predictor_heatmap_nosig.png
+
+=== ANALYSIS COMPLETE ===
+End time:2026-03-04 22:12:31.618657
+
+Timing summary:
+  - Bootstrapping: 7.38 minutes
+  - Stability selection: 2.20 minutes
+  - Total runtime: 9.58 minutes
+
+Output files generated:
+  1. Peve_stabsel_results_full.csv - All predictor-gene selection probabilities
+  2. Peve_stable_predictors.csv - Stable associations only (>= 60%)
+  3. Peve_gene_summary.csv - Summary per gene
+  4. Peve_predictor_type_summary.csv - Summary by predictor type
+  5. Peve_top_predictors_with_stability.csv - Top predictors with stability info
+  6. Peve_R2_round1*.png - R² per gene with error bars (all genes)
+  7. Peve_R2_round2*.png - R² per gene with error bars (well-predicted)
+  8. Peve_stacked_bar_*.png - Predictor type composition (3 orderings x 2 versions)
+  9. Peve_predictor_heatmap_*.png - Predictor type heatmap (2 versions)
+ 10. Various per-gene plots in ../output/26.6-ElasticNet-stability-selection-2/Peve/
+
+Key statistics:
+  - Total genes analyzed: 471
+  - Well-predicted genes (R2 > 0.50): 195
+  - Stable predictor-gene associations: 7555
+  - Bootstrap replicates: 10 (round 1), 10 (round 2)
+  - Subsample iterations: 10 (producing 20 complementary-pair fits)
+  - Selection threshold: 60%
+  - Cores used: 10
+
+Statistical notes:
+  - Predictor reliability assessed via stability selection
+    (Meinshausen & Bühlmann, 2010; Shah & Samworth, 2013)
+  - Error control: PFER bound (expected false selections per gene)
+  - Selection threshold: pi = 0.60
+  - No separate multiple testing correction needed (PFER bound is simultaneous)
+
+Log file saved to: ../output/26.6-ElasticNet-stability-selection-2/Peve/ElasticNet_stabsel_log_20260304_215952.txt
+
+=== END OF SCRIPT ===
+
+=== Log closed: 2026-03-04 22:12:31.627852 ===
