@@ -242,15 +242,27 @@ colnames_list <- lapply(input_dfs, function(df) colnames(df)[-1])
 ref_names <- colnames_list[[1]]
 ref_file <- names(colnames_list)[1]
 
-for (i in seq_along(colnames_list)) {
-  this_names <- colnames_list[[i]]
-  this_file <- names(colnames_list)[i]
-  if (!identical(ref_names, this_names)) {
-    cat("\nFile with different column names:", this_file, "\n")
-    cat("Columns in", this_file, "not in", ref_file, ":\n")
-    print(setdiff(this_names, ref_names))
-    cat("Columns in", ref_file, "not in", this_file, ":\n")
-    print(setdiff(ref_names, this_names))
+for (this_file in names(colnames_list)) {
+  this_names <- colnames_list[[this_file]]
+  
+  diff_this_ref <- setdiff(this_names, ref_names)
+  diff_ref_this <- setdiff(ref_names, this_names)
+  
+  if (length(diff_this_ref) > 0 || length(diff_ref_this) > 0) {
+    cat("\n------------------------------------------------------------\n")
+    cat("Mismatch found for:", this_file, " relative to", ref_file, "\n")
+    
+    if (length(diff_this_ref) > 0) {
+      cat("  - Extra columns in", this_file, ":", paste(diff_this_ref, collapse = ", "), "\n")
+    } else {
+      cat("  - No extra columns in", this_file, "\n")
+    }
+    
+    if (length(diff_ref_this) > 0) {
+      cat("  - Missing columns in", this_file, "(present in", ref_file, "):", paste(diff_ref_this, collapse = ", "), "\n")
+    } else {
+      cat("  - No missing columns in", this_file, "\n")
+    }
   }
 }
 cat("\nColumn name comparison complete.\n")
