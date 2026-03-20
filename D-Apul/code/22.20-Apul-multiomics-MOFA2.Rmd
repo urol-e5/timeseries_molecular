@@ -93,8 +93,8 @@ model_seed <- 42
 # INPUT FILES
 data_files <- list(
   gene_counts = "../data/apul-gene_count_matrix.csv",
-  lncRNA_counts = "../data/lncRNA_counts.clean.filtered.txt",
-  miRNA_counts = "../data/Apul_miRNA_counts_formatted_updated.txt",
+  lncRNA_counts = "../output/31.5-Apul-lncRNA-discovery/lncRNA_counts.clean.filtered.txt",
+  miRNA_counts = "../output/10.1-format-miRNA-counts-updated/Apul_miRNA_counts_formatted_updated.txt",
   methylation_counts = "../data/merged-WGBS-CpG-counts_filtered_n20.csv"
 )
 
@@ -465,6 +465,27 @@ train_opts$seed <- model_seed
 train_opts
 ```
 
+## MEFISTO options (for Time-Series)
+
+MEFISTO (Multi-Omics Factor Analysis with Spatial and Temporal Objects) is a module within MOFA2 that allows modeling of continuous covariates such as time. By incorporating time as a covariate, MOFA can learn factors that vary smoothly across timepoints.
+
+```{r mefisto-options, eval=TRUE}
+# Prepare covariates matrix for MEFISTO
+# Rows = covariates, Columns = samples
+# Extract number from TP1-4
+time_numeric <- as.numeric(gsub("TP", "", sample_metadata$time_point))
+covariates_mat <- matrix(time_numeric, nrow = 1)
+colnames(covariates_mat) <- sample_metadata$sample
+rownames(covariates_mat) <- "time"
+
+# Set covariates in the MOFA object
+MOFAobject <- set_covariates(MOFAobject, covariates_mat)
+
+# Get default MEFISTO options
+mefisto_opts <- get_default_mefisto_options(MOFAobject)
+mefisto_opts
+```
+
 # TRAIN MOFA2 OBJECT
 
 A range from 10 - 15 factors is recommended by the developers.
@@ -504,12 +525,16 @@ for (nf in 10:15) {
   train_opts_i <- get_default_training_options(MOFAobject)
   train_opts_i$convergence_mode <- "fast"
   train_opts_i$seed <- model_seed
+  
+  # Get default MEFISTO options
+  mefisto_opts_i <- get_default_mefisto_options(MOFAobject)
 
-  # Prepare MOFA object (no covariate)
+  # Prepare MOFA object with MEFISTO covariates
   MOFAobject_i <- prepare_mofa(MOFAobject,
     data_options = data_opts,
     model_options = model_opts_i,
-    training_options = train_opts_i
+    training_options = train_opts_i,
+    mefisto_options = mefisto_opts_i
   )
 
   # Output filenames and object name
@@ -554,6 +579,34 @@ Looks like the MOFA object with Factor count of `15` is the most informative, or
 - Factor 8 showing co-variation in only methylation and miRNA, suggesting some level of importance.
 
 - Factor 9 showing co-variation in only methylation lncRNA, suggesting some level of importance.
+
+# FACTOR CHARACTERIZATION
+
+## Variance Explained by Time (MEFISTO)
+
+Since we used MEFISTO to model the time covariate, we can visualize how much of the variation in each factor is explained by the smooth temporal pattern.
+
+```{r plot-variance-explained-by-time, eval=TRUE}
+# Choose the 15-factor model for analysis
+mofa_15 <- mofa_objects[["MOFAobject_factors15"]]
+
+cat("\nVariance explained by the time covariate per factor:\n")
+print(plot_variance_explained_by_covariates(mofa_15))
+```
+
+## Factor Values Across Time
+
+We can plot the factor values against the continuous time covariate to see how they evolve.
+
+```{r plot-factors-vs-time, eval=TRUE}
+# Plot the first few factors against time
+plot_factors_vs_covariate(mofa_15, 
+  factors = 1:4, 
+  covariate = "time",
+  color_by = "time_point",
+  legend = TRUE
+)
+```
 
 # FACTOR 1 CHARACTERIZATION
 
