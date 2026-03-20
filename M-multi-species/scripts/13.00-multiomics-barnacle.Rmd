@@ -26,75 +26,239 @@ citeproc: true
 
 # BACKGROUND
 
-This analysis prepares three-species ortholog expression matrices, normalizes the data, constructs a multi‑omics tensor (genes × combined species-samples × timepoints), and runs a sparse tensor decomposition using the [barnacle](https://github.com/blasks/barnacle) [@blaskowski2024] workflow to discover shared gene/time/species patterns.
+This script performs a comprehensive multi-species comparative transcriptomics analysis using sparse tensor decomposition to identify shared temporal gene expression patterns across three coral species (*Acropora pulchra*, *Porites evermanni*, and *Pocillopora tuahiniensis*). The analysis integrates orthologous gene expression data across species, timepoints, and biological replicates into a unified 3D tensor framework, then applies the [barnacle](https://github.com/blasks/barnacle) [@blaskowski2024] sparse CP (CANDECOMP/PARAFAC) decomposition method to discover latent factors representing coordinated gene expression programs.
 
-## Workflow overview
+## Analysis Overview
 
-1. **Data Preparation** - Extract and normalize ortholog expression data
-2. **Tensor Construction** - Build 3D tensor combining species, samples, and timepoints
-3. **Rank Comparison** - Test multiple ranks systematically to find optimal components
-4. **Interpretation** - Choose best rank and examine factors, visualizations, and biological meaning
+This analysis addresses the challenge of identifying conserved temporal gene expression responses across evolutionarily divergent coral species by:
 
-## Rank selection approach
+1. **Integrating ortholog-mapped expression data** from three species into a common analytical framework
+2. **Filtering for temporal completeness** to ensure all samples have measurements at all four timepoints (TP1-TP4)
+3. **Normalizing count data** using variance-stabilizing transformations (sctransform)
+4. **Constructing a 3D tensor** (genes × species-samples × timepoints) that captures the full data structure
+5. **Optimizing model parameters** using split-half bootstrap cross-validation to balance model complexity, sparsity, and stability
+6. **Decomposing the tensor** to extract biologically interpretable factors representing gene programs, sample/species loadings, and temporal dynamics
+7. **Identifying conserved patterns** across species through factor analysis and visualization
 
-**This analysis uses a systematic rank comparison approach.**
+## Workflow Stages
 
-The workflow:
-1. Configure `ranks_to_test` in the comparison chunk (e.g., `[5, 8, 10, 12, 15, 20]`)
-2. Run decompositions for all specified ranks (10-30 minutes)
-3. Review comparison metrics and elbow plot
-4. Choose optimal rank based on:
-   - Variance explained (aim for >60%)
-   - Diminishing returns in elbow plot
-   - Sparsity patterns
-   - Component interpretability
-5. Use chosen rank for final biological interpretation
+### Stage 1: Data Preparation and Ortholog Mapping
 
-**Key metrics for comparison:**
-- **Variance explained**: How much of data variation is captured
-- **Relative error**: Reconstruction accuracy
-- **Sparsity**: How many genes/samples load strongly per component
-- **Convergence**: Whether optimization completed successfully
-- **Component weights**: Distribution of importance across components
+**Purpose:** Extract and prepare species-specific expression data aligned to ortholog groups
 
-## Key steps performed by this script:
+**Steps:**
+1. Load annotated ortholog groups containing three-way species matches
+2. Load per-species gene count matrices from RNA-seq alignments
+3. Filter ortholog groups to retain only complete three-way matches with available expression data
+4. Clean gene IDs to match between ortholog annotations and count matrices (handle species-specific formatting)
+5. Filter samples to retain only those with complete temporal profiles (all 4 timepoints present)
+6. Extract per-species expression matrices indexed by ortholog group IDs
+7. Export intermediate ortholog expression matrices for validation
 
-- Load annotated ortholog groups and per-species count matrices.
-- Filter ortholog groups to retain complete three‑way matches with available expression data.
-- Extract per‑species expression matrices mapped to ortholog group IDs.
-- Normalize counts (preferred: `sctransform`; fallback: log2(CPM + 1)).
-- Build a 3D tensor combining species/sample and timepoint dimensions.
-- Run [barnacle](https://github.com/blasks/barnacle) [@blaskowski2024] sparse CP decomposition and save factor matrices, metadata and figures.
-- Assess rank appropriateness through multiple metrics and visualizations.
+### Stage 2: Data Normalization
 
-## Input files
+**Purpose:** Apply variance-stabilizing transformations to enable cross-sample comparisons
 
-- `../output/12-ortho-annot/ortholog_groups_annotated.csv` : annotated ortholog groups with columns for `group_id`, `apul`, `peve`, `ptua`, `type`, etc.
-- `../../D-Apul/output/02.20-D-Apul-RNAseq-alignment-HiSat2/apul-gene_count_matrix.csv` : Apul gene count matrix (contains `gene_id` plus sample columns).
-- `../../E-Peve/output/02.20-E-Peve-RNAseq-alignment-HiSat2/peve-gene_count_matrix.csv` : Peve gene count matrix.
-- `../../F-Ptua/output/02.20-F-Ptua-RNAseq-alignment-HiSat2/ptua-gene_count_matrix.csv` : Ptua gene count matrix.
-- (Also referenced) transcript-level matrices: `apul-transcript_count_matrix.csv`, `peve-transcript_count_matrix.csv`, `ptua-transcript_count_matrix.csv` when needed.
+**Methods:**
+- Primary: **sctransform** - regularized negative binomial regression accounting for sequencing depth and gene-specific variation
+- Fallback: **log2(CPM+1)** - simple log-transformed counts per million for robustness
 
-## Output files
+**Outputs:** Normalized expression matrices for each species
 
-- `apul_ortholog_expression.csv`, `peve_ortholog_expression.csv`, `ptua_ortholog_expression.csv` : per‑species expression matrices aligned to ortholog `group_id`.
-- `apul_normalized_expression.csv`, `peve_normalized_expression.csv`, `ptua_normalized_expression.csv` : normalized expression matrices (sctransform or log2(CPM+1)).
-- `multiomics_tensor.npy` : saved NumPy array of the 3D tensor used for decomposition (genes × combined_samples × timepoints).
-- `barnacle_factors/` directory containing:
-    - `gene_factors.csv` : gene loadings per component (genes × components).
-    - `sample_factors.csv` : combined sample (species_sample) loadings per component with `Species` and `Sample_ID` metadata.
-    - `time_factors.csv` : timepoint loadings per component.
-    - `component_weights.csv` : component weights / importance.
-    - `sample_mapping.csv` : mapping of combined sample indices to species and sample IDs.
-    - `metadata.json` : analysis parameters and tensor metadata (shape, rank, lambdas, convergence, etc.).
-    - `figures/` : generated visualizations (component weights, time loadings, sample heatmap, PCA, top ortholog plots).
+### Stage 3: Tensor Construction
 
-## Notes / assumptions:
+**Purpose:** Combine all data into a unified 3D array structure
 
-- Sample column names are parsed expecting a dot-separated format with a `TP#` timepoint token (e.g., `ACR.139.TP1`).
-- Apul ortholog IDs in the ortholog table include transcript suffixes (e.g., `-T1`) which are removed for matching to the gene count matrix.
-- Missing values in the tensor are handled by substitution (current workflow fills NaNs with zeros before decomposition).
-- Samples must have all four timepoints (TP1, TP2, TP3, TP4) to be included in the analysis.
+**Architecture:**
+- **Dimension 1 (Genes):** Ortholog groups present in all three species (n = number of common orthologs)
+- **Dimension 2 (Samples):** Combined species-sample units (n = total samples across all species)
+- **Dimension 3 (Time):** Experimental timepoints (n = 4; TP1, TP2, TP3, TP4)
+
+**Key features:**
+- Samples are concatenated across species with metadata tracking species identity
+- Only samples with complete temporal coverage are included
+- Missing values are handled explicitly (filled with zeros before decomposition)
+
+### Stage 4: Parameter Optimization via Bootstrap Grid Search
+
+**Purpose:** Jointly optimize rank (R) and sparsity (λ) parameters using rigorous cross-validation
+
+**Approach:** Split-half bootstrap grid search [@blaskowski2024] adapted for limited biological replicates
+
+**Key features:**
+- **Split-half cross-validation:** 50/50 random train/test splits (more stable than leave-one-out)
+- **Bootstrap resampling:** Multiple random splits assess parameter stability across data partitions
+- **Stratified splitting:** Ensures balanced species representation in train/test sets
+- **Joint grid search:** Tests all rank × lambda combinations simultaneously
+- **Incremental checkpointing:** Saves results after each bootstrap iteration
+- **Resume capability:** Can continue from last checkpoint if interrupted
+- **Parallel execution:** Uses joblib for multi-core speedup
+
+**Two-stage selection using 1SE rule:**
+
+**Stage 4a - Rank Selection (at λ=0.0):**
+1. Fit models at all candidate ranks with no regularization (λ=0.0)
+2. Calculate mean cross-validation SSE (sum of squared errors) and standard error across bootstrap iterations
+3. Identify minimum mean SSE and compute 1SE threshold: min_SSE + 1×SE
+4. **Select smallest rank with mean SSE ≤ threshold** (parsimony principle)
+5. Rationale: Prefers simpler models when prediction accuracy is statistically equivalent
+
+**Stage 4b - Lambda Selection (at optimal rank):**
+1. At the selected rank, fit models across all lambda values
+2. Calculate mean Factor Match Score (FMS) and standard error across bootstrap iterations
+3. Identify maximum mean FMS and compute 1SE threshold: max_FMS - 1×SE
+4. **Select maximum lambda with mean FMS ≥ threshold** (maximum sparsity)
+5. Rationale: Maximizes interpretability (sparse factors) while maintaining factor stability
+
+**Key metrics:**
+- **Cross-validation SSE:** Prediction error on held-out test data (lower = better generalization)
+- **Factor Match Score (FMS):** Factor recovery consistency across random initializations (higher = more identifiable/stable)
+- **Variance explained:** Proportion of tensor variation captured by the model
+- **Sparsity:** Number of genes/samples with strong loadings per component
+- **Coefficient of variation:** Relative variability across bootstrap iterations
+
+### Stage 5: Final Tensor Decomposition
+
+**Purpose:** Fit final model with optimized parameters on full dataset
+
+**Method:** Sparse CP decomposition with:
+- **Rank:** Optimal value from Stage 4a
+- **Lambda:** Optimal sparsity parameters from Stage 4b applied to gene and time modes
+- **Non-negativity constraint:** Applied to gene mode (ensures biologically interpretable gene loadings)
+- **Normalization:** Factor matrices are normalized for stability
+
+**Outputs:** Three factor matrices representing:
+1. **Gene factors:** Ortholog group loadings per component (which genes contribute to each pattern)
+2. **Sample factors:** Species-sample loadings per component (which species/samples exhibit each pattern)
+3. **Time factors:** Timepoint loadings per component (temporal dynamics of each pattern)
+
+### Stage 6: Interpretation and Visualization
+
+**Purpose:** Examine biological meaning of discovered factors
+
+**Analyses:**
+- Component weights showing relative importance of each factor
+- Temporal dynamics plots showing how patterns change over time
+- Species-sample heatmaps revealing species-specific vs. conserved patterns
+- Top gene identification for functional enrichment analysis
+- Cross-species correlation analysis
+- Variance explained decomposition
+
+## Input Files
+
+**Ortholog annotations:**
+- `../output/12-ortho-annot/ortholog_groups_annotated.csv`
+  - Annotated ortholog groups with columns: `group_id`, `apul`, `peve`, `ptua`, `type`, etc.
+  - Three-way ortholog relationships identified by OrthoFinder
+
+**Species-specific gene count matrices:**
+- `../../D-Apul/output/02.20-D-Apul-RNAseq-alignment-HiSat2/apul-gene_count_matrix.csv`
+  - *Acropora pulchra* raw gene counts from HISAT2 alignment
+  - Format: `gene_id` column + sample columns (e.g., `ACR.139.TP1`, `ACR.139.TP2`, ...)
+  
+- `../../E-Peve/output/02.20-E-Peve-RNAseq-alignment-HiSat2/peve-gene_count_matrix.csv`
+  - *Porites evermanni* raw gene counts from HISAT2 alignment
+  - Format: `gene_id` column (with `gene-` prefix) + sample columns (e.g., `POR.216.TP1`, ...)
+  
+- `../../F-Ptua/output/02.20-F-Ptua-RNAseq-alignment-HiSat2/ptua-gene_count_matrix.csv`
+  - *Pocillopora tuahiniensis* raw gene counts from HISAT2 alignment
+  - Format: `gene_id` column (with `gene-` prefix) + sample columns (e.g., `POC.201.TP1`, ...)
+
+**Note:** Sample column names follow dot-separated format with timepoint suffix: `{PREFIX}.{SAMPLE_ID}.TP{N}`
+
+## Output Files
+
+### Intermediate Data Files (for validation/reproducibility)
+
+**Ortholog-aligned expression matrices (raw counts):**
+- `apul_ortholog_expression.csv` - *A. pulchra* expression indexed by ortholog group_id
+- `peve_ortholog_expression.csv` - *P. evermanni* expression indexed by ortholog group_id
+- `ptua_ortholog_expression.csv` - *P. tuahiniensis* expression indexed by ortholog group_id
+
+**Normalized expression matrices:**
+- `apul_normalized_expression.csv` - sctransform-normalized *A. pulchra* data
+- `peve_normalized_expression.csv` - sctransform-normalized *P. evermanni* data
+- `ptua_normalized_expression.csv` - sctransform-normalized *P. tuahiniensis* data
+
+**Tensor data:**
+- `multiomics_tensor.npy` - 3D NumPy array (genes × combined_samples × timepoints) used for decomposition
+
+### Bootstrap Parameter Selection Results
+
+**Directory:** `bootstrap_grid_search/`
+
+**Files:**
+- `bootstrap_results_summary.csv` - Aggregated statistics across all bootstrap iterations
+  - Columns: rank, lambda, mean_sse, std_sse, se_sse, mean_fms, std_fms, se_fms, n_iterations
+  
+- `bootstrap_results_raw.csv` - Individual results from each bootstrap iteration
+  - Columns: iteration, rank, lambda, train_sse, test_sse, fms, train_indices, test_indices
+  
+- `optimal_parameters.json` - Selected optimal parameters from 1SE rule
+  - Fields: optimal_rank, optimal_lambda, min_sse, max_fms, selection_method, n_bootstrap_iterations, timestamp
+  
+- `checkpoint_bootstrap_iteration_{N}.csv` - Incremental checkpoints saved after each iteration (allows resumption)
+
+**Figures:** `bootstrap_grid_search/figures/`
+- `bootstrap_sse_heatmap.png` - Heatmap of mean SSE across rank × lambda grid
+- `bootstrap_fms_heatmap.png` - Heatmap of mean FMS across rank × lambda grid (where available)
+- `bootstrap_rank_selection_1se.png` - Rank selection plot showing 1SE rule application
+- `bootstrap_lambda_selection.png` - Lambda selection plot at optimal rank
+
+### Final Decomposition Results
+
+**Directory:** `barnacle_factors/` (or similar, name may vary)
+
+**Factor matrices:**
+- `gene_factors.csv` - Gene loadings per component (n_genes × n_components)
+  - Rows: ortholog group_ids
+  - Columns: Component_1, Component_2, ..., Component_R
+  
+- `sample_factors.csv` - Sample loadings per component with metadata (n_samples × [n_components + metadata])
+  - Columns: Species, Sample_ID, Component_1, Component_2, ..., Component_R
+  
+- `time_factors.csv` - Timepoint loadings per component (n_timepoints × n_components)
+  - Rows: TP1, TP2, TP3, TP4
+  - Columns: Component_1, Component_2, ..., Component_R
+
+**Metadata and mappings:**
+- `component_weights.csv` - Component importance/weights
+- `sample_mapping.csv` - Mapping of combined sample indices to species and sample IDs
+- `metadata.json` - Complete analysis parameters and diagnostics
+  - Fields: tensor_shape, rank, lambdas, n_iterations, convergence_status, variance_explained, timestamp, etc.
+
+**Visualizations:** `figures/` (subdirectory)
+- Component weights bar plots
+- Temporal dynamics line plots (time factors)
+- Species-sample heatmaps (sample factors)
+- PCA projections of factors
+- Top gene loadings per component
+- Variance explained plots
+
+## Technical Notes and Assumptions
+
+### Gene ID Handling
+- **Apul:** Ortholog annotations include transcript suffixes (e.g., `FUN_000185-T1`) which are removed to match gene-level count matrix IDs
+- **Peve/Ptua:** Count matrices have `gene-` prefix (e.g., `gene-Peve_00000032`) which is removed for matching
+
+### Sample Filtering Criteria
+- **Temporal completeness:** Only samples with all four timepoints (TP1, TP2, TP3, TP4) are retained
+- **Species balance:** Stratified cross-validation maintains species representation in train/test splits
+
+### Missing Value Handling
+- Missing values in the final tensor are filled with zeros before decomposition
+- Samples without complete temporal profiles are excluded during data preparation (upstream of tensor construction)
+
+### Column Name Parsing
+- Sample columns expected format: `{SPECIES_PREFIX}.{SAMPLE_NUMBER}.TP{TIMEPOINT}`
+- Examples: `ACR.139.TP1`, `POR.216.TP3`, `POC.201.TP4`
+- Parsing splits on dots (`.`) and extracts timepoint from final token
+
+### Statistical Considerations
+- **1SE rule:** Conservative selection criterion that balances model performance with parsimony/interpretability
+- **Bootstrap iterations:** Typically 20-100 iterations recommended for stable parameter estimates
+- **Cross-validation:** Split-half approach preferred over LOOCV for datasets with limited replicates
+- **FMS threshold:** Values > 0.9 indicate highly identifiable/stable factors; values < 0.7 suggest instability
 
 
 # SETUP
@@ -633,9 +797,14 @@ if(total_incomplete == 0) {
 cat("\n")
 ```
 
-### Diagnostic analysis
+### Verify three-way ortholog filtering and gene coverage
 
-```{r diagnostic-analysis, eval=TRUE}
+This section verifies that:
+1. All ortholog groups are complete three-way orthologs
+2. Gene counts are identical across all three species
+3. Expression data contains 100% of the expected ortholog genes
+
+```{r verify-ortho-filtering, eval=TRUE}
 cat("\n=== VERIFICATION: THREE-WAY ORTHOLOG COUNTS ===\n")
 cat("After filtering, all species should have identical three_way ortholog counts.\n\n")
 
@@ -682,11 +851,19 @@ cat("\n\n")
 
 This workflow focuses on comparing multiple ranks to find the optimal number of components.
 
-Based on the barnacle workflow, we: 1. Normalize count data with `sctransform` 2. Create tensors for multiomics analysis 3. Compare multiple ranks systematically 4. Choose optimal rank based on metrics
+Based on the barnacle workflow, we:
+
+1. Normalize count data with `sctransform`
+
+2. Create tensors for multiomics analysis
+
+3. Compare multiple ranks systematically
+
+4. Choose optimal rank based on metrics
 
 ## Load expression data
 
-```{r load-normalized-data, eval=TRUE}
+```{r load-ortholog-expression-data, eval=TRUE}
 # Read the exported ortholog expression data
 apul_expr <- read.csv(file.path(output_dir, "apul_ortholog_expression.csv"))
 peve_expr <- read.csv(file.path(output_dir, "peve_ortholog_expression.csv"))  
@@ -735,27 +912,23 @@ normalize_with_sctransform <- function(count_data, species_name) {
   cat("  - Infinite values:", sum(is.infinite(count_matrix)), "\n")
   cat("  - Min value:", min(count_matrix, na.rm = TRUE), "\n")
   cat("  - Max value:", max(count_matrix, na.rm = TRUE), "\n")
+  cat("  - Total ortholog groups:", nrow(count_matrix), "\n")
   
-  # Remove genes with all zeros or very low expression
-  gene_sums <- rowSums(count_matrix)
-  keep_genes <- gene_sums > 10  # Keep genes with total counts > 10
-  count_matrix_filtered <- count_matrix[keep_genes, , drop = FALSE]
-  
-  cat("  - Filtered to", nrow(count_matrix_filtered), "ortholog groups (from", nrow(count_matrix), ")\n")
-  
-  # Ensure data is numeric and handle any potential issues
-  count_matrix_filtered <- apply(count_matrix_filtered, c(1,2), function(x) {
+  # Ensure data is numeric and handle any potential issues (NA/infinite values)
+  # Note: We do NOT filter low-count genes here - sctransform handles them appropriately
+  # Filtering would remove species-specific expression patterns that are biologically interesting
+  count_matrix_cleaned <- apply(count_matrix, c(1,2), function(x) {
     if(is.na(x) || !is.finite(x)) return(0)
     return(as.numeric(x))
   })
   
   # Ensure row and column names are character strings (not factors)
-  rownames(count_matrix_filtered) <- as.character(rownames(count_matrix_filtered))
-  colnames(count_matrix_filtered) <- as.character(colnames(count_matrix_filtered))
+  rownames(count_matrix_cleaned) <- as.character(rownames(count_matrix))
+  colnames(count_matrix_cleaned) <- as.character(colnames(count_matrix))
   
   # sctransform expects genes as rows and cells (samples) as columns —
   # our matrix is already genes x samples (rows=genes, cols=samples), so do NOT transpose.
-  count_matrix_for_vst <- count_matrix_filtered
+  count_matrix_for_vst <- count_matrix_cleaned
   
   # Apply sctransform normalization with bulk RNA-seq appropriate parameters
   normalized_df <- tryCatch({
@@ -770,17 +943,10 @@ normalize_with_sctransform <- function(count_data, species_name) {
     # Extract normalized data (should be genes x samples)
     normalized_data <- normalized$y
     
-    # Create output data frame with original gene set (fill missing with zeros)
-    full_normalized_data <- matrix(0, nrow = nrow(count_matrix), ncol = ncol(count_matrix))
-    rownames(full_normalized_data) <- rownames(count_matrix)
-    colnames(full_normalized_data) <- colnames(count_matrix)
-    
-    # Fill in normalized values for kept genes
-    full_normalized_data[rownames(normalized_data), ] <- normalized_data
-    
+    # Create output data frame
     result_df <- data.frame(
-      group_id = rownames(full_normalized_data),
-      full_normalized_data,
+      group_id = rownames(normalized_data),
+      normalized_data,
       stringsAsFactors = FALSE
     )
     
@@ -822,25 +988,7 @@ normalize_with_sctransform <- function(count_data, species_name) {
       return(result_df)
       
     }, error = function(e2) {
-      cat("sctransform failed for", species_name, ":", e2$message, "\n")
-      cat("Falling back to log2(CPM + 1) normalization...\n")
-      
-  # Fallback: log2(CPM + 1) normalization
-  # Calculate CPM (Counts Per Million) using the filtered count matrix
-  lib_sizes <- colSums(count_matrix_filtered)
-  cpm_matrix <- sweep(count_matrix_filtered, 2, lib_sizes/1e6, FUN = "/")
-      
-      # Log2 transform with pseudocount
-      normalized_data <- log2(cpm_matrix + 1)
-      
-      result_df <- data.frame(
-        group_id = rownames(normalized_data),
-        normalized_data,
-        stringsAsFactors = FALSE
-      )
-      
-      cat("Log2(CPM + 1) normalization complete for", species_name, "\n")
-      return(result_df)
+      stop("sctransform failed for ", species_name, ": ", e2$message)
     })
   })
   
@@ -880,6 +1028,7 @@ cat("Ptua:", ptua_norm_file, "\n\n")
 
 Now we'll switch to Python to create the multiomics tensor and run barnacle analysis.
 
+### Setup logging
 ```{python setup-logging, eval=TRUE}
 import sys
 import os
@@ -916,6 +1065,8 @@ print("="*60)
 print()
 ```
 
+
+### Create multiomics tensor
 ```{python create-multiomics-tensor, eval=TRUE}
 import pandas as pd
 import numpy as np
@@ -1032,10 +1183,10 @@ for species, info in species_info.items():
 ## Create 3D tensor (genes × species_samples × timepoints)
 
 ```{python create-3d-tensor, eval=TRUE}
-# Create a 3D tensor: genes × (species_samples) × timepoints
-# This flattens species and samples into a single dimension that Barnacle can handle
+# Create a 3D tensor: genes × samples × timepoints
+# Samples are identified by their names which include species information (e.g., apul-A1, peve-P1)
 
-print("Creating 3D tensor by combining species and samples...")
+print("Creating 3D tensor with samples as the second dimension...")
 print("Note: R-level filtering has already removed samples without all 4 timepoints")
 
 # First, collect all actual sample-timepoint combinations that have data
@@ -1137,2012 +1288,1717 @@ sample_mapping = pd.DataFrame([
 ])
 print(f"\nSample mapping:")
 print(sample_mapping.head(10))
+
+# Save tensor and metadata for later use
+print(f"\n=== SAVING TENSOR DATA ===")
+tensor_file = os.path.join(output_dir, 'multiomics_tensor.npy')
+sample_mapping_file = os.path.join(output_dir, 'sample_mapping.csv')
+gene_list_file = os.path.join(output_dir, 'gene_list.csv')
+
+# Save tensor as numpy array
+np.save(tensor_file, tensor_3d)
+print(f"✓ Tensor saved: {tensor_file}")
+print(f"  Shape: {tensor_3d.shape}")
+
+# Save sample mapping (contains all species info)
+sample_mapping.to_csv(sample_mapping_file, index=False)
+print(f"✓ Sample mapping saved: {sample_mapping_file}")
+print(f"  (species_sample_map can be reconstructed from this CSV)")
+
+# Save gene list
+gene_list_df = pd.DataFrame({'gene_id': common_genes_list})
+gene_list_df.to_csv(gene_list_file, index=False)
+print(f"✓ Gene list saved: {gene_list_file}")
+
+# Save timepoints list
+timepoints_df = pd.DataFrame({'timepoint': common_timepoints})
+timepoints_df.to_csv(os.path.join(output_dir, 'timepoints.csv'), index=False)
+print(f"✓ Timepoints saved: timepoints.csv")
+
+print(f"\nAll tensor data saved. Can be loaded later to skip preprocessing.")
+print("="*80)
 ```
 
+## Dissertation-Validated Parameter Selection
 
+**RECOMMENDED APPROACH**: Split-Half Bootstrap Grid Search
 
-## Rank Comparison
+This analysis uses the split-half bootstrap grid search approach recommended by the dissertation author [@blaskowski2024] for datasets with limited biological replicates.
 
-**This workflow systematically compares multiple ranks to find the optimal number of components.**
+**Key features:**
+- **Split-half cross-validation** (50/50 train/test split)
+- **Bootstrap resampling** with repeated random splits
+- **Joint rank × lambda grid search** tests all parameter combinations
+- **Two-stage selection** using 1SE rule for both rank and lambda
 
-The comparison runs decompositions for each specified rank and generates:
-1. Metrics comparison table
-2. Elbow plot (variance explained vs rank)
-3. Multi-panel summary plots
-4. Automated recommendation
+**Dissertation Reference:** Blaskowski (2024), Section 1.2.3
 
-**Results:** Each rank is saved to `rank_XX/` directory with complete factor matrices.
+### Set up split-half bootstrap grid search functions
 
-### Define helper functions for rank comparison
-
-```{python rank-comparison-functions, eval=TRUE}
-def run_single_rank_decomposition(tensor, rank, lambdas, n_iter_max, random_state=42):
-    """
-    Run sparse CP decomposition for a given rank.
-    Returns dict with results and metrics.
-    """
-    from barnacle.decomposition import SparseCP
-    
-    print(f"\n{'='*60}")
-    print(f"Running decomposition with rank = {rank}")
-    print(f"{'='*60}")
-    
-    # Handle missing values
-    tensor_filled = np.nan_to_num(tensor, nan=0.0)
-    
-    # Create model
-    model = SparseCP(
-        rank=rank,
-        lambdas=lambdas,
-        nonneg_modes=[0],
-        norm_constraint=True,
-        init='random',
-        tol=1e-5,
-        n_iter_max=n_iter_max,
-        random_state=random_state,
-        n_initializations=1
-    )
-    
-    # Fit model
-    try:
-        decomposition = model.fit_transform(tensor_filled, verbose=0)
-        
-        # Calculate metrics
-        metrics = calculate_decomposition_metrics(tensor_filled, decomposition, model)
-        
-        results = {
-            'rank': rank,
-            'decomposition': decomposition,
-            'model': model,
-            'metrics': metrics,
-            'success': True
-        }
-        
-        print(f"✓ Rank {rank} complete")
-        print(f"  Final loss: {metrics['final_loss']:.6f}")
-        print(f"  Variance explained: {metrics['variance_explained']*100:.2f}%")
-        print(f"  Converged: {metrics['converged']}")
-        
-        return results
-        
-    except Exception as e:
-        print(f"✗ Rank {rank} failed: {e}")
-        return {
-            'rank': rank,
-            'success': False,
-            'error': str(e)
-        }
-
-
-def calculate_decomposition_metrics(tensor, decomposition, model):
-    """
-    Calculate reconstruction quality and other metrics.
-    """
-    # Reconstruct tensor
-    gene_factors = decomposition.factors[0]
-    sample_factors = decomposition.factors[1]
-    time_factors = decomposition.factors[2]
-    weights = decomposition.weights
-    
-    rank = len(weights)
-    reconstructed = np.zeros_like(tensor)
-    
-    for r in range(rank):
-        outer_prod = np.outer(gene_factors[:, r], sample_factors[:, r])
-        outer_prod = np.outer(outer_prod.flatten(), time_factors[:, r])
-        outer_prod = outer_prod.reshape(tensor.shape)
-        reconstructed += weights[r] * outer_prod
-    
-    # Calculate errors
-    mse = np.mean((tensor - reconstructed) ** 2)
-    rmse = np.sqrt(mse)
-    
-    # Relative error
-    tensor_norm = np.linalg.norm(tensor)
-    error_norm = np.linalg.norm(tensor - reconstructed)
-    relative_error = error_norm / tensor_norm if tensor_norm > 0 else np.inf
-    
-    # Variance explained
-    total_var = np.var(tensor)
-    residual_var = np.var(tensor - reconstructed)
-    variance_explained = 1 - (residual_var / total_var) if total_var > 0 else 0
-    
-    # Sparsity metrics
-    gene_sparsity = np.mean(np.abs(gene_factors) < 0.1)
-    sample_sparsity = np.mean(np.abs(sample_factors) < 0.1)
-    time_sparsity = np.mean(np.abs(time_factors) < 0.1)
-    
-    # Component weight statistics
-    weight_max = np.max(weights)
-    weight_min = np.min(weights)
-    weight_ratio = weight_max / weight_min if weight_min > 0 else np.inf
-    weight_cv = np.std(weights) / np.mean(weights) if np.mean(weights) > 0 else np.inf
-    
-    # Convergence info
-    # Note: Barnacle's SparseCP class does not have a converged_ attribute
-    # We determine convergence by checking if iterations < max_iter
-    n_iterations = len(model.loss_) if hasattr(model, 'loss_') and model.loss_ is not None else 0
-    final_loss = model.loss_[-1] if hasattr(model, 'loss_') and model.loss_ is not None else np.nan
-    # Converged if stopped before reaching max iterations (met tolerance criterion)
-    converged = (n_iterations < model.n_iter_max) if n_iterations > 0 else False
-    
-    return {
-        'mse': mse,
-        'rmse': rmse,
-        'relative_error': relative_error,
-        'variance_explained': variance_explained,
-        'gene_sparsity': gene_sparsity,
-        'sample_sparsity': sample_sparsity,
-        'time_sparsity': time_sparsity,
-        'weight_max': weight_max,
-        'weight_min': weight_min,
-        'weight_ratio': weight_ratio,
-        'weight_cv': weight_cv,
-        'converged': converged,
-        'n_iterations': n_iterations,
-        'final_loss': final_loss
-    }
-
-
-def save_rank_results(results, output_dir, gene_ids, sample_labels, timepoint_labels, species_sample_map):
-    """
-    Save decomposition results for a specific rank.
-    """
-    rank = results['rank']
-    rank_dir = os.path.join(output_dir, f'rank_{rank:02d}')
-    os.makedirs(rank_dir, exist_ok=True)
-    
-    decomposition = results['decomposition']
-    metrics = results['metrics']
-    
-    # Save factor matrices
-    gene_factors = pd.DataFrame(
-        decomposition.factors[0],
-        index=gene_ids,
-        columns=[f'Component_{i+1}' for i in range(rank)]
-    )
-    gene_factors.to_csv(os.path.join(rank_dir, 'gene_factors.csv'))
-    
-    sample_factors = pd.DataFrame(
-        decomposition.factors[1],
-        index=sample_labels,
-        columns=[f'Component_{i+1}' for i in range(rank)]
-    )
-    sample_factors['Species'] = [species_sample_map[i]['species'] for i in range(len(sample_labels))]
-    sample_factors['Sample_ID'] = [species_sample_map[i]['sample_id'] for i in range(len(sample_labels))]
-    sample_factors.to_csv(os.path.join(rank_dir, 'sample_factors.csv'))
-    
-    time_factors = pd.DataFrame(
-        decomposition.factors[2],
-        index=timepoint_labels,
-        columns=[f'Component_{i+1}' for i in range(rank)]
-    )
-    time_factors.to_csv(os.path.join(rank_dir, 'time_factors.csv'))
-    
-    # Save weights
-    weights_df = pd.DataFrame({
-        'Component': [f'Component_{i+1}' for i in range(rank)],
-        'Weight': decomposition.weights
-    })
-    weights_df.to_csv(os.path.join(rank_dir, 'component_weights.csv'), index=False)
-    
-    # Save loss history
-    if hasattr(results['model'], 'loss_') and results['model'].loss_ is not None:
-        loss_df = pd.DataFrame({
-            'Iteration': list(range(1, len(results['model'].loss_) + 1)),
-            'Loss': results['model'].loss_
-        })
-        loss_df.to_csv(os.path.join(rank_dir, 'loss_history.csv'), index=False)
-    
-    # Save metadata
-    metadata = {
-        'rank': rank,
-        'metrics': {k: float(v) if not isinstance(v, bool) else v for k, v in metrics.items()},
-        'tensor_shape': list(decomposition.factors[0].shape[0:1]) + 
-                       [decomposition.factors[1].shape[0]] + 
-                       [decomposition.factors[2].shape[0]]
-    }
-    
-    import json
-    with open(os.path.join(rank_dir, 'metadata.json'), 'w') as f:
-        json.dump(metadata, f, indent=2)
-    
-    print(f"  Saved results to: {rank_dir}")
-
-
-print("Rank comparison helper functions loaded")
-```
-
-### Run barnacle
-
-```{python barnacle-multiple-ranks, eval=TRUE}
+```{python dissertation-grid-search-functions, eval=TRUE}
 # ===========================================
-# CONFIGURE RANKS TO TEST
+# SPLIT-HALF BOOTSTRAP GRID SEARCH
+# Implementation of Blaskowski (2024) Section 1.2.3
+# Modified with dissertation author's recommendation
 # ===========================================
-# NOTE: This chunk creates a machine-readable log file
-# (rank_comparison_log.json) that subsequent chunks will use.
-# This allows you to skip re-running this chunk if you've
-# already generated results.
-# ===========================================
-ranks_to_test = [5, 8, 10, 12, 15, 20, 25, 35, 45, 55, 65, 75]  # Modify this list as needed
+# Original: Leave-one-dataset-out CV with 3 datasets
+# Modified: Split-half CV with bootstrap resampling
+# 
+# Rationale: With limited replicates (27 colonies, 3 species),
+# split-half provides more stable train/test sets than LOOCV.
+# Bootstrap iterations assess model training consistency.
 # ===========================================
 
-import os
-import json
-import datetime
-
-print("="*60)
-print("COMPARING MULTIPLE RANKS")
-print("="*60)
-print(f"Ranks to test: {ranks_to_test}")
-print(f"This will run {len(ranks_to_test)} decompositions")
-print(f"Estimated time: {len(ranks_to_test) * 2}-{len(ranks_to_test) * 5} minutes")
-print("="*60)
-
-# Run decompositions for each rank
-all_rank_results = []
-
-for test_rank in sorted(ranks_to_test):
-    result = run_single_rank_decomposition(
-        tensor=tensor_3d,
-        rank=test_rank,
-        lambdas=[0.1, 0.0, 0.1],
-        n_iter_max=10000,
-        random_state=41
-    )
-    all_rank_results.append(result)
-    
-    # Save individual results
-    if result['success']:
-        save_rank_results(
-            result,
-            output_dir,
-            common_genes_list,
-            sample_labels,
-            [f'TP{tp}' for tp in common_timepoints],
-            species_sample_map
-        )
-
-print(f"\n{'='*60}")
-print(f"ALL RANKS COMPLETE")
-print(f"{'='*60}")
-print(f"Successful: {sum(1 for r in all_rank_results if r['success'])}/{len(all_rank_results)}")
-
-# ===========================================
-# SAVE COMPREHENSIVE LOG FILE
-# ===========================================
-import json
-import datetime
-
-log_file = os.path.join(output_dir, 'rank_comparison_log.json')
-
-log_data = {
-    'timestamp': datetime.datetime.now().isoformat(),
-    'ranks_tested': ranks_to_test,
-    'total_runs': len(all_rank_results),
-    'successful_runs': sum(1 for r in all_rank_results if r['success']),
-    'failed_runs': sum(1 for r in all_rank_results if not r['success']),
-    'results': []
-}
-
-for result in all_rank_results:
-    rank_info = {
-        'rank': result['rank'],
-        'success': result['success']
-    }
-    
-    if result['success']:
-        rank_info['metrics'] = {
-            k: float(v) if isinstance(v, (int, float, np.number)) else bool(v) if isinstance(v, (bool, np.bool_)) else v
-            for k, v in result['metrics'].items()
-        }
-        rank_info['output_dir'] = os.path.join(output_dir, f'rank_{result["rank"]:02d}')
-        rank_info['has_loss_history'] = hasattr(result['model'], 'loss_') and result['model'].loss_ is not None
-    else:
-        rank_info['error'] = result.get('error', 'Unknown error')
-    
-    log_data['results'].append(rank_info)
-
-with open(log_file, 'w') as f:
-    json.dump(log_data, f, indent=2)
-
-print(f"\nLog file saved to: {log_file}")
-print("This log can be used by subsequent chunks to avoid re-running decompositions")
-```
-
-### Run barnacle with zero regularization (lambda = 0.0)
-
-This chunk runs barnacle decomposition with all lambdas set to 0.0 (no regularization) to test how the model performs without sparsity constraints. Results are saved to a separate subdirectory for comparison.
-
-```{python barnacle-zero-lambda, eval=TRUE}
-# ===========================================
-# CONFIGURE RANKS TO TEST - ZERO LAMBDA
-# ===========================================
-# This chunk tests decomposition with NO regularization
-# All lambda values are set to 0.0
-# ===========================================
-ranks_to_test_zero_lambda = [10, 20, 35, 40]  # Specific ranks to test
-# ===========================================
-
-import os
-import json
-import datetime
-
-# Create separate output directory for zero-lambda results
-zero_lambda_output_dir = os.path.join(output_dir, 'zero_lambda_results')
-os.makedirs(zero_lambda_output_dir, exist_ok=True)
-
-print("="*60)
-print("BARNACLE DECOMPOSITION - ZERO REGULARIZATION")
-print("="*60)
-print(f"Ranks to test: {ranks_to_test_zero_lambda}")
-print(f"Lambda values: [0.0, 0.0, 0.0] (no regularization)")
-print(f"Output directory: {zero_lambda_output_dir}")
-print(f"This will run {len(ranks_to_test_zero_lambda)} decompositions")
-print(f"Estimated time: {len(ranks_to_test_zero_lambda) * 2}-{len(ranks_to_test_zero_lambda) * 5} minutes")
-print("="*60)
-
-# Run decompositions for each rank with zero lambda
-all_rank_results_zero_lambda = []
-
-for test_rank in sorted(ranks_to_test_zero_lambda):
-    result = run_single_rank_decomposition(
-        tensor=tensor_3d,
-        rank=test_rank,
-        lambdas=[0.0, 0.0, 0.0],  # All lambdas set to 0.0
-        n_iter_max=10000,
-        random_state=41
-    )
-    all_rank_results_zero_lambda.append(result)
-    
-    # Save individual results
-    if result['success']:
-        save_rank_results(
-            result,
-            zero_lambda_output_dir,
-            common_genes_list,
-            sample_labels,
-            [f'TP{tp}' for tp in common_timepoints],
-            species_sample_map
-        )
-
-print(f"\n{'='*60}")
-print(f"ZERO LAMBDA RANKS COMPLETE")
-print(f"{'='*60}")
-print(f"Successful: {sum(1 for r in all_rank_results_zero_lambda if r['success'])}/{len(all_rank_results_zero_lambda)}")
-
-# ===========================================
-# SAVE COMPREHENSIVE LOG FILE FOR ZERO LAMBDA
-# ===========================================
-import json
-import datetime
-
-log_file_zero_lambda = os.path.join(zero_lambda_output_dir, 'rank_comparison_log_zero_lambda.json')
-
-log_data_zero_lambda = {
-    'timestamp': datetime.datetime.now().isoformat(),
-    'lambda_values': [0.0, 0.0, 0.0],
-    'ranks_tested': ranks_to_test_zero_lambda,
-    'total_runs': len(all_rank_results_zero_lambda),
-    'successful_runs': sum(1 for r in all_rank_results_zero_lambda if r['success']),
-    'failed_runs': sum(1 for r in all_rank_results_zero_lambda if not r['success']),
-    'results': []
-}
-
-for result in all_rank_results_zero_lambda:
-    rank_info = {
-        'rank': result['rank'],
-        'success': result['success']
-    }
-    
-    if result['success']:
-        rank_info['metrics'] = {
-            k: float(v) if isinstance(v, (int, float, np.number)) else bool(v) if isinstance(v, (bool, np.bool_)) else v
-            for k, v in result['metrics'].items()
-        }
-        rank_info['output_dir'] = os.path.join(zero_lambda_output_dir, f'rank_{result["rank"]:02d}')
-        rank_info['has_loss_history'] = hasattr(result['model'], 'loss_') and result['model'].loss_ is not None
-    else:
-        rank_info['error'] = result.get('error', 'Unknown error')
-    
-    log_data_zero_lambda['results'].append(rank_info)
-
-with open(log_file_zero_lambda, 'w') as f:
-    json.dump(log_data_zero_lambda, f, indent=2)
-
-print(f"\nLog file saved to: {log_file_zero_lambda}")
-print(f"Results directory: {zero_lambda_output_dir}")
-print("This log can be used to compare zero-lambda results with regularized decompositions")
-```
-
-### Plot Ranks vs Variance Explained (Zero Lambda Results)
-
-This chunk creates a visualization showing the relationship between rank and variance explained for the zero-lambda decompositions, helping to identify the optimal rank based on the variance explained metric.
-
-```{python plot-ranks-vs-variance-zero-lambda, eval=TRUE}
-# ===========================================
-# PLOT RANKS VS VARIANCE EXPLAINED - ZERO LAMBDA
-# ===========================================
-import matplotlib.pyplot as plt
+from barnacle.decomposition import SparseCP
+from tlviz.factor_tools import factor_match_score
 import numpy as np
 import pandas as pd
+from itertools import combinations
 
-print(f"\n{'='*60}")
-print("PLOTTING RANKS VS VARIANCE EXPLAINED (ZERO LAMBDA)")
-print(f"{'='*60}")
 
-# Extract data from zero-lambda results
-ranks_zero_lambda = []
-variance_explained_zero_lambda = []
-successful_results = []
-
-for result in all_rank_results_zero_lambda:
-    if result['success'] and 'metrics' in result:
-        ranks_zero_lambda.append(result['rank'])
-        variance_explained_zero_lambda.append(result['metrics']['variance_explained'])
-        successful_results.append(result)
-
-if len(successful_results) == 0:
-    print("WARNING: No successful decompositions found for zero-lambda results!")
-    print("Cannot create variance plot.")
-else:
-    # Sort by rank for plotting
-    sorted_data = sorted(zip(ranks_zero_lambda, variance_explained_zero_lambda))
-    ranks_zero_lambda, variance_explained_zero_lambda = zip(*sorted_data)
-    
-    # Create the plot
-    plt.figure(figsize=(10, 6))
-    plt.plot(ranks_zero_lambda, [v*100 for v in variance_explained_zero_lambda], 
-             'o-', linewidth=2.5, markersize=8, color='steelblue', markerfacecolor='lightblue', markeredgecolor='steelblue', markeredgewidth=2)
-    
-    # Customize the plot
-    plt.xlabel('Rank', fontsize=12, fontweight='bold')
-    plt.ylabel('Variance Explained (%)', fontsize=12, fontweight='bold')
-    plt.title('Variance Explained vs Rank', fontsize=14, fontweight='bold')
-    plt.grid(True, alpha=0.3)
-    plt.xticks(ranks_zero_lambda)
-    
-    # Add value labels on points
-    for rank, var_exp in zip(ranks_zero_lambda, variance_explained_zero_lambda):
-        plt.annotate(f'{var_exp*100:.1f}%', 
-                    (rank, var_exp*100), 
-                    textcoords="offset points", 
-                    xytext=(0,10), 
-                    ha='center',
-                    fontsize=10,
-                    fontweight='bold')
-    
-    # Formatting
-    plt.ylim(bottom=0)
-    plt.tight_layout()
-    
-    # Save the plot
-    plot_file = os.path.join(zero_lambda_output_dir, 'ranks_vs_variance_explained_zero_lambda.png')
-    plt.savefig(plot_file, dpi=300, bbox_inches='tight')
-    print(f"Plot saved to: {plot_file}")
-    
-    plt.show()
-    
-    # Print summary statistics
-    print(f"\nSUMMARY - Zero Lambda Results:")
-    print(f"{'='*50}")
-    print(f"Number of successful decompositions: {len(successful_results)}")
-    print(f"Ranks tested: {sorted(ranks_zero_lambda)}")
-    print(f"Variance explained range: {min(variance_explained_zero_lambda)*100:.1f}% - {max(variance_explained_zero_lambda)*100:.1f}%")
-    
-    # Find best rank
-    best_idx = np.argmax(variance_explained_zero_lambda)
-    best_rank = ranks_zero_lambda[best_idx]
-    best_variance = variance_explained_zero_lambda[best_idx]
-    
-    print(f"Best performing rank: {best_rank} (variance explained: {best_variance*100:.1f}%)")
-    
-    # Create a DataFrame for easy inspection
-    results_df = pd.DataFrame({
-        'Rank': ranks_zero_lambda,
-        'Variance_Explained_Percent': [v*100 for v in variance_explained_zero_lambda]
-    })
-    
-    print(f"\nDetailed Results:")
-    print(results_df.to_string(index=False))
-
-print(f"{'='*60}")
-```
-
-### Factor Match Score evaluation
-
-This section evaluates each rank's decomposition quality using multiple Factor Match Score (FMS) metrics:
-
-1. **TLViz FMS** (self-comparison): Sanity check only, not useful for rank selection
-2. **Reconstruction FMS** (fast): Quick approximation based on tensor reconstruction correlation
-3. **Synthetic FMS** (RECOMMENDED): Most rigorous - tests factor recovery from noisy data
-
-The Synthetic FMS is the most reliable metric for determining optimal rank as it validates robustness.
-
-```{python factor-match-score-evaluation, eval=TRUE}
-# ===========================================
-# FACTOR MATCH SCORE EVALUATION
-# ===========================================
-import numpy as np
-import pandas as pd
-import os
-
-print(f"\n{'='*60}")
-print("FACTOR MATCH SCORE (FMS) EVALUATION")
-print(f"{'='*60}")
-print("This analysis evaluates decomposition quality using multiple FMS metrics:")
-print("  1. TLViz FMS: Self-comparison (sanity check only)")
-print("  2. Reconstruction FMS: Fast approximation (correlation-based)")
-print("  3. Synthetic FMS: RECOMMENDED (tests factor recovery robustness)")
-print(f"{'='*60}")
-
-def calculate_factor_match_score(tensor, decomposition, rank):
+def create_stratified_split(species_sample_map, test_fraction=0.5, random_state=None):
     """
-    Calculate Factor Match Score using tlviz library.
+    Create stratified train/test split ensuring species representation.
     
-    WARNING: This implementation compares the decomposition against itself,
-    which will always yield FMS ≈ 1.0. This is only useful as a sanity check
-    to verify the decomposition is internally consistent.
+    Parameters:
+    -----------
+    species_sample_map : dict
+        Mapping of sample indices to species and sample_id
+    test_fraction : float
+        Fraction of samples to hold out for testing (default: 0.5 for split-half)
+    random_state : int or None
+        Random seed for reproducibility
     
-    For actual rank selection, use calculate_reconstruction_fms() instead,
-    which compares the reconstruction against the original tensor.
-    
-    NOTE: May fail with scipy >= 1.14 due to _lazywhere removal.
+    Returns:
+    --------
+    train_indices : list
+        Sample indices for training
+    test_indices : list
+        Sample indices for testing
     """
-    try:
-        # Import required libraries
-        import tensorly as tl
-        import tlviz.factor_tools
-        
-        # IMPORTANT: This creates a "reference" from the decomposition itself
-        # This means we're comparing the decomposition to itself, which will
-        # always give a perfect or near-perfect score (~1.0).
-        # This is NOT a meaningful metric for rank selection!
-        # It only validates that the decomposition object is internally consistent.
-        reference_cp = tl.cp_tensor.CPTensor((decomposition.weights, decomposition.factors))
-        
-        # Calculate factor match score between decomposition and itself
-        # Expected result: FMS ≈ 1.0 for all ranks (self-comparison)
-        fms, perm = tlviz.factor_tools.factor_match_score(
-            reference_cp,
-            decomposition,
-            return_permutation=True,
-            allow_smaller_rank=True
-        )
-        
-        return {
-            'fms': float(fms),
-            'permutation': perm,
-            'success': True,
-            'method': 'tlviz_self_consistency',
-            'warning': 'Self-comparison: FMS ≈ 1.0 expected (not useful for rank selection)'
-        }
-        
-    except ImportError as e:
-        # Skip silently - this is expected with newer scipy versions
-        error_msg = "SciPy/TLViz compatibility issue (expected with scipy >= 1.14)"
-        if '_lazywhere' in str(e):
-            error_msg = "SciPy version incompatibility (_lazywhere removed in scipy >= 1.14)"
-        return {
-            'fms': np.nan,
-            'permutation': None,
-            'success': False,
-            'error': error_msg,
-            'method': 'scipy_incompatibility'
-        }
-    except Exception as e:
-        return {
-            'fms': np.nan,
-            'permutation': None,
-            'success': False,
-            'error': str(e),
-            'method': 'failed'
-        }
-
-def calculate_proper_factor_match_score(tensor, decomposition, rank, noise_level=0.1, random_state=42):
-    """
-    RECOMMENDED METRIC: Synthetic validation approach for FMS.
-    
-    This creates a synthetic tensor from the decomposition, adds noise,
-    re-decomposes it, then measures how well we recover the original factors.
-    
-    This is the most rigorous validation of decomposition quality because it tests
-    the method's ability to recover known factors in the presence of noise.
-    
-    Higher scores indicate:
-    - Better factor recovery from noisy data
-    - More robust decomposition
-    - Less sensitivity to noise
-    - Better rank selection
-    
-    NOTE: Computationally expensive (requires additional decomposition per rank).
-          
-    """
-    try:
-        import tensorly as tl
-        import tlviz.factor_tools
-        from barnacle.decomposition import SparseCP
-        
-        # Step 1: Create synthetic "ground truth" tensor from current decomposition
-        gene_factors = decomposition.factors[0]
-        sample_factors = decomposition.factors[1]
-        time_factors = decomposition.factors[2]
-        weights = decomposition.weights
-        
-        # Reconstruct clean synthetic tensor
-        synthetic_clean = np.zeros(tensor.shape)
-        for r in range(len(weights)):
-            outer_prod = np.outer(gene_factors[:, r], sample_factors[:, r])
-            outer_prod = np.outer(outer_prod.flatten(), time_factors[:, r])
-            outer_prod = outer_prod.reshape(tensor.shape)
-            synthetic_clean += weights[r] * outer_prod
-        
-        # Step 2: Add realistic noise
+    if random_state is not None:
         np.random.seed(random_state)
-        noise_std = noise_level * np.std(synthetic_clean)
-        noise = np.random.normal(0, noise_std, synthetic_clean.shape)
-        synthetic_noisy = synthetic_clean + noise
+    
+    # Group samples by species
+    species_samples = {}
+    for idx, info in species_sample_map.items():
+        species = info['species']
+        if species not in species_samples:
+            species_samples[species] = []
+        species_samples[species].append(idx)
+    
+    train_indices = []
+    test_indices = []
+    
+    # Split each species proportionally
+    for species, indices in species_samples.items():
+        indices = list(indices)
+        np.random.shuffle(indices)
         
-        # Step 3: Decompose the noisy synthetic tensor
-        # This tests: "Can we recover the factors from noisy data?"
-        model_synthetic = SparseCP(
-            rank=rank,
-            lambdas=[0.1, 0.0, 0.1],
+        n_test = max(1, int(len(indices) * test_fraction))  # At least 1 per species
+        test_indices.extend(indices[:n_test])
+        train_indices.extend(indices[n_test:])
+    
+    return sorted(train_indices), sorted(test_indices)
+
+def calculate_cv_sse(tensor, decomposition, train_indices, test_indices):
+    """
+    Calculate Sum of Squared Errors on test data using tensorly's built-in functions.
+    
+    This reconstructs the tensor using factors learned from training data
+    and evaluates SSE on held-out test data.
+    
+    Approach:
+    - Use gene and time factors from training decomposition (fixed)
+    - Fit sample factors for test set using least-squares (optimal projection)
+    - Reconstruct test tensor using tensorly's cp_to_tensor
+    - Calculate SSE using standard formula
+    
+    Parameters:
+    -----------
+    tensor : 3D array
+        Full tensor (genes × samples × timepoints)
+    decomposition : barnacle decomposition object
+        Fitted decomposition from training data
+    train_indices : list
+        Sample indices used for training
+    test_indices : list
+        Sample indices for test set
+    
+    Returns:
+    --------
+    sse : float
+        Sum of squared errors on test data
+    """
+    import tensorly as tl
+    from tensorly.tenalg import multi_mode_dot
+    
+    # Extract factors from training
+    gene_factors = decomposition.factors[0]  # genes × rank
+    sample_factors_train = decomposition.factors[1]  # train_samples × rank  
+    time_factors = decomposition.factors[2]  # timepoints × rank
+    weights = decomposition.weights  # rank
+    
+    # Get test tensor
+    test_tensor = tensor[:, test_indices, :]
+    n_genes, n_test_samples, n_timepoints = test_tensor.shape
+    rank = len(weights)
+    
+    # Fit sample factors for test set using least-squares
+    # This finds optimal sample factors given fixed gene and time factors
+    # Solve: test_tensor ≈ gene_factors × sample_factors_test^T × time_factors
+    # Using tensorly's contraction: unfold along sample mode and solve
+    
+    # Unfold test tensor along sample mode (mode 1)
+    test_unfolded = tl.unfold(test_tensor, mode=1)  # n_test_samples × (n_genes * n_timepoints)
+    
+    # Compute Khatri-Rao product of gene and time factors
+    # This represents the "design matrix" for sample factors
+    kr_product = tl.tenalg.khatri_rao([gene_factors, time_factors])  # (n_genes * n_timepoints) × rank
+    
+    # Apply weights to Khatri-Rao product
+    kr_weighted = kr_product * weights[np.newaxis, :]  # Broadcast weights
+    
+    # Solve least-squares: sample_factors_test = test_unfolded @ kr_weighted @ (kr_weighted^T @ kr_weighted)^-1
+    # Simplified: use lstsq for numerical stability
+    sample_factors_test, residuals, rank_kr, s = np.linalg.lstsq(
+        kr_weighted, 
+        test_unfolded.T,  # Transpose to solve for each sample
+        rcond=None
+    )
+    sample_factors_test = sample_factors_test.T  # n_test_samples × rank
+    
+    # Reconstruct test tensor using tensorly's cp_to_tensor
+    # This is the standard, validated reconstruction method
+    cp_tensor_test = tl.cp_tensor.CPTensor(
+        (weights, [gene_factors, sample_factors_test, time_factors])
+    )
+    reconstructed = tl.cp_to_tensor(cp_tensor_test)
+    
+    # Calculate SSE using standard formula
+    # SSE = sum of squared differences between observed and reconstructed
+    sse = tl.norm(test_tensor - reconstructed, 2) ** 2
+    
+    return sse
+
+
+def _fit_single_model_combination(
+    R, lambda_val, train_tensor, test_tensor, tensor_filled,
+    train_indices, test_indices, boot_idx, boot_seed, n_iter_max
+):
+    """
+    Helper function to fit a single rank×lambda combination.
+    Used for parallel execution within bootstrap iterations.
+    
+    Parameters are intentionally simplified to avoid pickling issues.
+    """
+    try:
+        # Fit model on TRAINING data
+        model_train = SparseCP(
+            rank=R,
+            lambdas=[lambda_val, 0.0, lambda_val],
             nonneg_modes=[0],
             norm_constraint=True,
             init='random',
             tol=1e-5,
-            n_iter_max=5000,  # Fewer iterations for speed
-            random_state=random_state + 1,
+            n_iter_max=n_iter_max,
+            random_state=boot_seed,
             n_initializations=1
         )
+        decomp_train = model_train.fit_transform(train_tensor, verbose=0)
         
-        recovered_decomposition = model_synthetic.fit_transform(synthetic_noisy, verbose=0)
+        # Calculate SSE on TEST data
+        sse_test = calculate_cv_sse(tensor_filled, decomp_train, 
+                                   train_indices, test_indices)
         
-        # Step 4: Compare recovered factors to ground truth (original decomposition)
-        # Create proper CPTensor objects
-        ground_truth_cp = tl.cp_tensor.CPTensor((weights, [gene_factors, sample_factors, time_factors]))
-        
-        # MockDecomposition for recovered (same structure as before)
-        class MockDecomposition:
-            def __init__(self, weights, factors):
-                self.weights = weights
-                self.factors = factors
-                self._tuple = (weights, factors)
-            def __getitem__(self, index):
-                return self._tuple[index]
-            def __len__(self):
-                return 2
-        
-        recovered_mock = MockDecomposition(recovered_decomposition.weights, recovered_decomposition.factors)
-        
-        # Calculate FMS between ground truth and recovered
-        fms, perm = tlviz.factor_tools.factor_match_score(
-            ground_truth_cp,
-            recovered_mock,
-            return_permutation=True,
-            allow_smaller_rank=True
+        # Fit model on TEST data (for FMS calculation)
+        model_test = SparseCP(
+            rank=R,
+            lambdas=[lambda_val, 0.0, lambda_val],
+            nonneg_modes=[0],
+            norm_constraint=True,
+            init='random',
+            tol=1e-5,
+            n_iter_max=n_iter_max,
+            random_state=boot_seed + 1000,  # Different seed
+            n_initializations=1
         )
+        decomp_test = model_test.fit_transform(test_tensor, verbose=0)
+        
+        # Calculate FMS between train and test models
+        try:
+            cp_train = (
+                decomp_train.weights,
+                [decomp_train.factors[0],  # genes
+                 decomp_train.factors[2]]  # time
+            )
+            cp_test = (
+                decomp_test.weights,
+                [decomp_test.factors[0],  # genes
+                 decomp_test.factors[2]]  # time
+            )
+            
+            fms = factor_match_score(cp_train, cp_test, return_permutation=False)
+        except Exception as e:
+            fms = np.nan
         
         return {
-            'fms': float(fms),
-            'permutation': perm,
-            'success': True,
-            'method': 'synthetic_validation',
-            'noise_level': noise_level,
-            'recovery_quality': 'excellent' if fms > 0.9 else 'good' if fms > 0.7 else 'fair' if fms > 0.5 else 'poor'
-        }
-        
-    except ImportError as e:
-        error_msg = "TLViz not available (scipy incompatibility)"
-        if '_lazywhere' in str(e):
-            error_msg = "SciPy version incompatibility (_lazywhere removed in scipy >= 1.14)"
-        return {
-            'fms': np.nan,
-            'success': False,
-            'error': error_msg,
-            'method': 'import_failed'
-        }
-    except Exception as e:
-        return {
-            'fms': np.nan,
-            'success': False,
-            'error': str(e),
-            'method': 'failed'
-        }
-
-def calculate_reconstruction_fms(tensor, decomposition, rank):
-    """
-    Calculate FMS based on reconstruction quality.
-    
-    This compares the original tensor to its reconstruction from the decomposition,
-    providing a measure of how well the decomposition captures the data.
-    
-    Higher scores indicate better reconstruction:
-    - 1.0 = perfect reconstruction
-    - 0.5 = no correlation
-    - 0.0 = perfect negative correlation
-    
-    Note: This is a fast approximation. For more rigorous validation, use
-    synthetic validation FMS (calculate_proper_factor_match_score).
-    """
-    try:
-        # Create reconstructed tensor
-        gene_factors = decomposition.factors[0]
-        sample_factors = decomposition.factors[1] 
-        time_factors = decomposition.factors[2]
-        weights = decomposition.weights
-        
-        # Reconstruct tensor
-        reconstructed = np.zeros_like(tensor)
-        for r in range(len(weights)):
-            outer_prod = np.outer(gene_factors[:, r], sample_factors[:, r])
-            outer_prod = np.outer(outer_prod.flatten(), time_factors[:, r])
-            outer_prod = outer_prod.reshape(tensor.shape)
-            reconstructed += weights[r] * outer_prod
-        
-        # Calculate correlation-based FMS
-        # Flatten tensors and calculate correlation
-        orig_flat = tensor.flatten()
-        recon_flat = reconstructed.flatten()
-        
-        # Remove NaN values for correlation calculation
-        valid_mask = np.isfinite(orig_flat) & np.isfinite(recon_flat)
-        orig_valid = orig_flat[valid_mask]
-        recon_valid = recon_flat[valid_mask]
-        
-        if len(orig_valid) > 0:
-            correlation = np.corrcoef(orig_valid, recon_valid)[0, 1]
-            # Convert correlation to FMS-like score (0-1 scale)
-            fms_score = (correlation + 1) / 2  # Map [-1,1] to [0,1]
-        else:
-            fms_score = 0.0
-        
-        return {
-            'fms': float(fms_score),
-            'correlation': float(correlation) if len(orig_valid) > 0 else np.nan,
-            'success': True,
-            'method': 'reconstruction_correlation',
-            'valid_elements': len(orig_valid)
+            'bootstrap_iter': boot_idx,
+            'boot_seed': boot_seed,
+            'rank': R,
+            'lambda': lambda_val,
+            'sse_test': sse_test,
+            'fms': fms,
+            'n_train': len(train_indices),
+            'n_test': len(test_indices),
+            'converged': True,
+            'error': None
         }
         
     except Exception as e:
-        print(f"  Error calculating reconstruction FMS for rank {rank}: {e}")
         return {
+            'bootstrap_iter': boot_idx,
+            'boot_seed': boot_seed,
+            'rank': R,
+            'lambda': lambda_val,
+            'sse_test': np.inf,
             'fms': np.nan,
-            'success': False,
-            'error': str(e),
-            'method': 'failed'
+            'n_train': len(train_indices),
+            'n_test': len(test_indices),
+            'converged': False,
+            'error': str(e)
         }
 
-def evaluate_fms_for_rank(rank, output_dir, tensor, use_synthetic_validation=False):
+
+def split_half_bootstrap_grid_search(
+    tensor,
+    species_sample_map,
+    rank_range=[5, 10, 15, 20, 25, 30, 35, 40],
+    lambda_values=[0.0, 0.01, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0],
+    n_bootstrap=10,
+    test_fraction=0.5,
+    n_iter_max=10000,
+    random_state=42,
+    output_dir=None,
+    resume=True,
+    n_jobs=-1
+):
     """
-    Evaluate Factor Match Score for a specific rank.
+    Split-half bootstrap grid search with repeated random splits.
+    
+    INCREMENTAL SAVING: Results saved after each bootstrap iteration.
+    RESUME CAPABILITY: Can load existing results and continue from last iteration.
+    PARALLEL EXECUTION: Uses joblib to parallelize grid search within each bootstrap iteration.
+    
+    Recommended by dissertation author when you don't have enough replicates
+    for separate training/test tensors.
+    
+    Approach:
+    1. For each bootstrap iteration:
+       - Create stratified 50/50 train/test split (species-balanced)
+       - Fit models at all rank × lambda combinations ON PARALLEL (using joblib)
+       - Evaluate on test set
+       - SAVE RESULTS IMMEDIATELY to checkpoint file
+    2. Aggregate results across bootstrap iterations
+    3. Two-stage selection:
+       - Stage 1: Select rank at minimum mean CV-SSE (λ=0.0 only)
+       - Stage 2: Select lambda using FMS at optimal rank
     
     Parameters:
     -----------
-    rank : int
-        Rank to evaluate
-    output_dir : str
-        Directory containing rank results
-    tensor : np.ndarray
-        Original tensor
-    use_synthetic_validation : bool, default=False
-        If True, calculate synthetic validation FMS (RECOMMENDED but computationally expensive).
-        If False, only calculate reconstruction FMS (fast approximation).
+    tensor : 3D array
+        Full tensor (genes × samples × timepoints)
+    species_sample_map : dict
+        Mapping of sample indices to species/sample metadata
+    rank_range : list
+        Ranks to test
+    lambda_values : list
+        Lambda values to test
+    n_bootstrap : int
+        Number of random train/test splits (default: 10)
+    test_fraction : float
+        Fraction of samples for testing (default: 0.5 for split-half)
+    n_iter_max : int
+        Maximum iterations for optimization
+    random_state : int
+        Base random seed (each bootstrap uses seed + iteration)
+    output_dir : str or None
+        Directory to save incremental checkpoint files.
+        If None, results stored in memory only (no saving/resume).
+    resume : bool
+        If True and output_dir exists, load completed iterations and continue.
+        If False, delete existing checkpoints and start fresh.
+    n_jobs : int
+        Number of parallel jobs for grid search within each bootstrap iteration.
+        -1 uses all available cores. 1 disables parallelization.
+    
+    Returns:
+    --------
+    optimal_rank : int
+        Selected rank (minimum mean CV-SSE at λ=0.0)
+    optimal_lambda : float
+        Selected lambda (maximum λ with FMS ≥ max_FMS - 1SE)
+    results_df : DataFrame
+        Full results with bootstrap statistics
+    bootstrap_results : list
+        Raw results from each bootstrap iteration
     """
-    print(f"\n--- Evaluating FMS for Rank {rank} ---")
+    import os
+    from joblib import Parallel, delayed
     
-    rank_dir = os.path.join(output_dir, f'rank_{rank:02d}')
+    print("="*80)
+    print("SPLIT-HALF BOOTSTRAP GRID SEARCH")
+    print("="*80)
+    print(f"Bootstrap iterations: {n_bootstrap}")
+    print(f"Train/test split: {int((1-test_fraction)*100)}/{int(test_fraction*100)}")
+    print(f"Ranks to test: {rank_range}")
+    print(f"Lambdas to test: {lambda_values}")
+    print(f"Total combinations: {len(rank_range)} × {len(lambda_values)} = {len(rank_range) * len(lambda_values)}")
+    print(f"Total models to fit: {len(rank_range) * len(lambda_values) * n_bootstrap * 2}")
+    print(f"  ({n_bootstrap} bootstrap × 2 models per split × {len(rank_range) * len(lambda_values)} combinations)")
     
-    # Check if rank directory exists
-    if not os.path.exists(rank_dir):
-        print(f"  Rank directory not found: {rank_dir}")
-        return None
-    
-    # Load factor matrices
-    try:
-        gene_factors = pd.read_csv(os.path.join(rank_dir, 'gene_factors.csv'), index_col=0)
-        sample_factors = pd.read_csv(os.path.join(rank_dir, 'sample_factors.csv'), index_col=0)
-        time_factors = pd.read_csv(os.path.join(rank_dir, 'time_factors.csv'), index_col=0)
-        weights_df = pd.read_csv(os.path.join(rank_dir, 'component_weights.csv'))
-        
-        # Remove metadata columns from sample_factors if present
-        factor_cols = [col for col in sample_factors.columns if col.startswith('Component_')]
-        sample_factor_values = sample_factors[factor_cols]
-        
-        print(f"  Loaded factor matrices - Genes: {gene_factors.shape}, Samples: {sample_factor_values.shape}, Time: {time_factors.shape}")
-        
-    except Exception as e:
-        print(f"  Error loading factor matrices: {e}")
-        return None
-    
-    # Create mock decomposition object that mimics tensorly CPTensor structure
-    # TensorLy expects a tuple-like object: (weights, factors)
-    # We'll create a simple class that supports both attribute and subscript access
-    class MockDecomposition:
-        def __init__(self, weights, factors):
-            self.weights = weights
-            self.factors = factors
-            # Make it subscriptable for tensorly compatibility
-            self._tuple = (weights, factors)
-        
-        def __getitem__(self, index):
-            """Support subscript access like a tuple"""
-            return self._tuple[index]
-        
-        def __len__(self):
-            """Support len() for tuple-like behavior"""
-            return 2
-    
-    weights = weights_df['Weight'].values
-    factors = [gene_factors.values, sample_factor_values.values, time_factors.values]
-    mock_decomposition = MockDecomposition(weights, factors)
-    
-    # Calculate FMS metrics
-    # 1. TLViz FMS (self-comparison - sanity check only, not useful for rank selection)
-    fms_result1 = calculate_factor_match_score(tensor, mock_decomposition, rank)
-    
-    # 2. Reconstruction FMS (fast approximation - useful for quick comparison)
-    fms_result2 = calculate_reconstruction_fms(tensor, mock_decomposition, rank)
-    
-    # 3. Synthetic validation FMS (RECOMMENDED - most rigorous but computationally expensive)
-    if use_synthetic_validation:
-        print(f"  Running synthetic validation (this will take a long time)...")
-        fms_result3 = calculate_proper_factor_match_score(tensor, mock_decomposition, rank)
+    # Parallel execution setup
+    if n_jobs == -1:
+        import multiprocessing
+        n_jobs_actual = multiprocessing.cpu_count()
+        print(f"Parallel execution: ENABLED ({n_jobs_actual} cores)")
+    elif n_jobs == 1:
+        n_jobs_actual = 1
+        print(f"Parallel execution: DISABLED (sequential)")
     else:
-        fms_result3 = {'success': False, 'method': 'skipped', 'fms': np.nan}
+        n_jobs_actual = n_jobs
+        print(f"Parallel execution: ENABLED ({n_jobs_actual} cores)")
     
-    # Combine results
-    result = {
-        'rank': rank,
-        'fms_tlviz': fms_result1['fms'] if fms_result1['success'] else np.nan,
-        'fms_reconstruction': fms_result2['fms'] if fms_result2['success'] else np.nan,
-        'fms_synthetic': fms_result3['fms'] if fms_result3['success'] else np.nan,
-        'reconstruction_correlation': fms_result2.get('correlation', np.nan),
-        'tlviz_success': fms_result1['success'],
-        'reconstruction_success': fms_result2['success'],
-        'synthetic_success': fms_result3['success'],
-        'tlviz_method': fms_result1.get('method', 'unknown'),
-        'reconstruction_method': fms_result2.get('method', 'unknown'),
-        'synthetic_method': fms_result3.get('method', 'unknown'),
-        'valid_elements': fms_result2.get('valid_elements', 0)
-    }
+    # Setup incremental saving
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
+        print(f"Output directory: {output_dir}")
+        print(f"Incremental saving: ENABLED")
+    else:
+        print(f"Incremental saving: DISABLED (results in memory only)")
     
-    # Print results
-    # TLViz FMS note: This compares decomposition to itself (always ~1.0)
-    if fms_result1['success']:
-        warning_note = fms_result1.get('warning', '')
-        if warning_note:
-            print(f"  TLViz FMS: {fms_result1['fms']:.4f} ⚠️  (self-consistency check only)")
+    print("="*80)
+    
+    # Handle missing values
+    tensor_filled = np.nan_to_num(tensor, nan=0.0)
+    
+    # Storage for all bootstrap iterations
+    all_bootstrap_results = []
+    
+    # Check for existing checkpoint files (resume capability)
+    start_iter = 0
+    if output_dir and resume:
+        print("\nChecking for existing checkpoint files...")
+        completed_iters = []
+        for boot_idx in range(n_bootstrap):
+            checkpoint_file = os.path.join(output_dir, f'bootstrap_checkpoint_iter{boot_idx:03d}.csv')
+            if os.path.exists(checkpoint_file):
+                completed_iters.append(boot_idx)
+                # Load completed results
+                iter_df = pd.read_csv(checkpoint_file)
+                all_bootstrap_results.extend(iter_df.to_dict('records'))
+        
+        if completed_iters:
+            start_iter = max(completed_iters) + 1
+            print(f"  ✓ Found {len(completed_iters)} completed iterations: {completed_iters}")
+            print(f"  → Resuming from iteration {start_iter}")
         else:
-            print(f"  TLViz FMS: {fms_result1['fms']:.4f} ✅")
-    elif 'scipy_incompatibility' not in fms_result1.get('method', ''):
-        # Only print if it's a real error (not the expected scipy issue)
-        print(f"  TLViz FMS: Failed - {fms_result1.get('error', 'unknown')} (method: {fms_result1.get('method', 'unknown')})")
+            print(f"  No existing checkpoints found. Starting from beginning.")
+    elif output_dir and not resume:
+        print("\nResume disabled. Deleting existing checkpoints...")
+        for boot_idx in range(n_bootstrap):
+            checkpoint_file = os.path.join(output_dir, f'bootstrap_checkpoint_iter{boot_idx:03d}.csv')
+            if os.path.exists(checkpoint_file):
+                os.remove(checkpoint_file)
+                print(f"  ✗ Deleted: {checkpoint_file}")
     
-    # Reconstruction FMS (fast approximation)
-    if fms_result2['success']:
-        print(f"  📊 RECONSTRUCTION FMS: {fms_result2['fms']:.4f} (correlation: {fms_result2.get('correlation', 'N/A'):.4f})")
-        print(f"     ↳ Fast approximation for quick comparison")
-        print(f"     ↳ Valid elements used: {fms_result2.get('valid_elements', 0):,}")
+    # Check if all iterations already complete
+    if start_iter >= n_bootstrap:
+        print(f"\n✓ All {n_bootstrap} bootstrap iterations already completed!")
+        print(f"  Loaded {len(all_bootstrap_results)} results from checkpoints.")
+        print(f"  Proceeding to aggregation...")
     else:
-        print(f"  Reconstruction FMS: Failed ({fms_result2.get('error', 'unknown error')})")
+        print(f"\nRunning bootstrap iterations {start_iter} to {n_bootstrap-1}...")
     
-    # Synthetic validation FMS (RECOMMENDED for rank selection)
-    if use_synthetic_validation and fms_result3['success']:
-        recovery = fms_result3.get('recovery_quality', 'unknown')
-        noise = fms_result3.get('noise_level', 0.1)
-        print(f"  ⭐ SYNTHETIC FMS: {fms_result3['fms']:.4f} ({recovery} recovery with {noise*100:.0f}% noise) ⭐")
-        print(f"     ↳ RECOMMENDED metric for rank selection")
-        print(f"     ↳ Tests factor recovery robustness with noise")
-    elif use_synthetic_validation and not fms_result3['success']:
-        print(f"  Synthetic FMS: Failed ({fms_result3.get('error', 'unknown error')})")
-    
-    # Save individual rank FMS results
-    fms_file = os.path.join(rank_dir, 'factor_match_score.json')
-    import json
-    with open(fms_file, 'w') as f:
-        json.dump({
-            'rank': rank,
-            'tlviz_fms': fms_result1,
-            'reconstruction_fms': fms_result2,
-            'synthetic_fms': fms_result3,
-            'summary': result
-        }, f, indent=2, default=str)
-    
-    print(f"  Saved FMS results to: factor_match_score.json")
-    
-    return result
-
-# ===========================================
-# EVALUATE FMS FOR ALL RANKS
-# ===========================================
-
-# Get output directory if not available
-if 'output_dir' not in globals():
-    output_dir = r.output_dir
-
-# Get tensor if not available
-if 'tensor_3d' not in globals():
-    print("ERROR: tensor_3d not found in memory!")
-    print("Please run the tensor creation chunks first.")
-    tensor_3d = None
-
-if tensor_3d is not None:
-    # Load log file to get successful ranks
-    log_file = os.path.join(output_dir, 'rank_comparison_log.json')
-    
-    if os.path.exists(log_file):
-        import json
-        with open(log_file, 'r') as f:
-            log_data = json.load(f)
+    # Run bootstrap iterations
+    for boot_idx in range(start_iter, n_bootstrap):
+        boot_seed = random_state + boot_idx
+        print(f"\n{'='*80}")
+        print(f"BOOTSTRAP ITERATION {boot_idx + 1}/{n_bootstrap} (seed={boot_seed})")
+        print("="*80)
         
-        successful_ranks = [r['rank'] for r in log_data['results'] if r['success']]
-        print(f"Found {len(successful_ranks)} successful ranks to evaluate: {successful_ranks}")
+        # Store results for this iteration
+        iter_results = []
         
-    else:
-        # Fallback: find rank directories
-        import glob
-        rank_dirs = sorted(glob.glob(os.path.join(output_dir, 'rank_*')))
-        successful_ranks = []
-        for rank_dir in rank_dirs:
-            try:
-                rank_num = int(os.path.basename(rank_dir).split('_')[1])
-                successful_ranks.append(rank_num)
-            except:
-                pass
-        print(f"Found {len(successful_ranks)} rank directories: {successful_ranks}")
-    
-    # ===========================================
-    # CONFIGURATION: Synthetic Validation FMS
-    # ===========================================
-    # Set to True to enable the RECOMMENDED synthetic validation FMS metric.
-    # This is the most rigorous method for rank selection as it tests factor
-    # recovery from noisy data, providing the best indication of optimal rank.
-    # 
-    # COMPUTATION TIME: Adds ~1-2 minutes per rank
-    # For 12 ranks, expect ~15-30 minutes additional runtime
-    # 
-    # If False, only reconstruction FMS will be calculated (faster but less rigorous)
-    # ===========================================
-    USE_SYNTHETIC_VALIDATION = True  # Change to False for faster (but less rigorous) analysis
-    # ===========================================
-    
-    if USE_SYNTHETIC_VALIDATION:
-        print("\n" + "="*60)
-        print("⭐ SYNTHETIC VALIDATION ENABLED (RECOMMENDED)")
-        print("="*60)
-        print("This will test factor recovery robustness by:")
-        print("  1. Creating synthetic tensor from each decomposition")
-        print("  2. Adding noise to test robustness")
-        print("  3. Re-decomposing to see if factors are recovered")
-        print("  4. Comparing recovered factors to originals")
-        print(f"\nExpected additional time: {len(successful_ranks) * 1.5:.0f}-{len(successful_ranks) * 2:.0f} minutes")
-        print("This provides the most reliable metric for rank selection.")
-        print("="*60 + "\n")
-    
-    # Evaluate FMS for each rank
-    all_fms_results = []
-    
-    for rank in sorted(successful_ranks):
-        fms_result = evaluate_fms_for_rank(rank, output_dir, tensor_3d, 
-                                          use_synthetic_validation=USE_SYNTHETIC_VALIDATION)
-        if fms_result is not None:
-            all_fms_results.append(fms_result)
-    
-    # ===========================================
-    # CREATE FMS COMPARISON TABLE AND PLOTS
-    # ===========================================
-    if len(all_fms_results) > 0:
-        print(f"\n{'='*60}")
-        print("FMS RESULTS SUMMARY")
-        print(f"{'='*60}")
+        # Create stratified train/test split
+        train_indices, test_indices = create_stratified_split(
+            species_sample_map, 
+            test_fraction=test_fraction,
+            random_state=boot_seed
+        )
         
-        # Create comparison dataframe
-        fms_df = pd.DataFrame(all_fms_results)
+        print(f"Train samples: {len(train_indices)}, Test samples: {len(test_indices)}")
         
-        # Save comprehensive FMS results
-        comparison_dir = os.path.join(output_dir, 'rank_comparison')
-        os.makedirs(comparison_dir, exist_ok=True)
+        # Count species in each split
+        train_species = {}
+        test_species = {}
+        for idx in train_indices:
+            sp = species_sample_map[idx]['species']
+            train_species[sp] = train_species.get(sp, 0) + 1
+        for idx in test_indices:
+            sp = species_sample_map[idx]['species']
+            test_species[sp] = test_species.get(sp, 0) + 1
         
-        fms_output_file = os.path.join(comparison_dir, 'factor_match_scores.csv')
-        fms_df.to_csv(fms_output_file, index=False)
-        print(f"Saved FMS comparison table to: {fms_output_file}")
+        print(f"Train species: {train_species}")
+        print(f"Test species: {test_species}")
         
-        # Display results
-        # Determine which columns to display based on what was calculated
-        display_cols = ['rank', 'fms_tlviz', 'fms_reconstruction', 'reconstruction_correlation']
-        if 'fms_synthetic' in fms_df.columns and fms_df['synthetic_success'].any():
-            display_cols.append('fms_synthetic')
+        train_tensor = tensor_filled[:, train_indices, :]
+        test_tensor = tensor_filled[:, test_indices, :]
         
-        print("\n" + "="*60)
-        print("FACTOR MATCH SCORE RESULTS")
-        print("="*60)
-        print("⚠️  TLViz FMS: Self-comparison only (always ~1.0, not useful)")
-        print("📊 Reconstruction FMS: Fast approximation (useful for quick comparison)")
-        if 'fms_synthetic' in display_cols:
-            print("⭐ SYNTHETIC FMS: RECOMMENDED for rank selection (tests robustness)")
-        print("="*60)
-        print(fms_df[display_cols].to_string(index=False, float_format='%.4f'))
+        # Grid search over all rank × lambda combinations (PARALLEL)
+        print(f"\nRunning grid search with {n_jobs_actual} parallel job(s)...")
         
-        # Check if TLViz worked for any ranks
-        tlviz_working = fms_df['tlviz_success'].any()
-        if not tlviz_working:
-            print("\n" + "="*60)
-            print("NOTE: TLViz FMS unavailable (scipy version incompatibility)")
-            print("="*60)
-            print("This is expected with scipy >= 1.14.")
-            print("Use Reconstruction FMS (fast) or Synthetic FMS (recommended).")
-            print("="*60)
-        elif tlviz_working and fms_df.loc[fms_df['tlviz_success'], 'fms_tlviz'].min() > 0.95:
-            print("\n" + "="*60)
-            print("⚠️  WARNING: TLViz FMS shows all values near 1.0")
-            print("="*60)
-            print("This indicates self-comparison (not useful for rank selection).")
-            print("→ Use Synthetic FMS (recommended) or Reconstruction FMS (fast)")
-            print("="*60)
+        # Create list of all combinations to process
+        combinations_to_process = [
+            (R, lambda_val)
+            for R in rank_range
+            for lambda_val in lambda_values
+        ]
         
-        # Create visualization
-        import matplotlib.pyplot as plt
+        # Parallel execution of all rank×lambda combinations
+        iter_results = Parallel(n_jobs=n_jobs_actual, verbose=10)(
+            delayed(_fit_single_model_combination)(
+                R, lambda_val, train_tensor, test_tensor, tensor_filled,
+                train_indices, test_indices, boot_idx, boot_seed, n_iter_max
+            )
+            for R, lambda_val in combinations_to_process
+        )
         
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
+        # Print summary of results
+        n_converged = sum(1 for r in iter_results if r['converged'])
+        n_failed = len(iter_results) - n_converged
+        print(f"\nCompleted {len(iter_results)} model fits:")
+        print(f"  ✓ Converged: {n_converged}")
+        if n_failed > 0:
+            print(f"  ✗ Failed: {n_failed}")
         
-        # Plot 1: Both FMS measures (but emphasize reconstruction if TLViz failed)
-        valid_tlviz = fms_df['tlviz_success']
-        valid_recon = fms_df['reconstruction_success']
+        # SAVE CHECKPOINT after completing this bootstrap iteration
+        all_bootstrap_results.extend(iter_results)
         
-        if valid_tlviz.any():
-            ax1.plot(fms_df.loc[valid_tlviz, 'rank'], 
-                    fms_df.loc[valid_tlviz, 'fms_tlviz'], 
-                    'o-', linewidth=2, markersize=8, label='TLViz FMS', color='steelblue')
+        if output_dir:
+            checkpoint_file = os.path.join(output_dir, f'bootstrap_checkpoint_iter{boot_idx:03d}.csv')
+            iter_df = pd.DataFrame(iter_results)
+            iter_df.to_csv(checkpoint_file, index=False)
+            print(f"\n✓ Saved checkpoint: {checkpoint_file}")
+            print(f"  ({len(iter_results)} results for iteration {boot_idx + 1})")
+    
+    # Convert to DataFrame
+    bootstrap_df = pd.DataFrame(all_bootstrap_results)
+    
+    # Calculate aggregate statistics across bootstrap iterations
+    print(f"\n{'='*80}")
+    print("AGGREGATING BOOTSTRAP RESULTS")
+    print("="*80)
+    
+    agg_results = []
+    for (R, lambda_val), group in bootstrap_df.groupby(['rank', 'lambda']):
+        valid_sse = group[group['converged']]['sse_test']
+        valid_fms = group[group['converged']]['fms'].dropna()
         
-        if valid_recon.any():
-            ax1.plot(fms_df.loc[valid_recon, 'rank'], 
-                    fms_df.loc[valid_recon, 'fms_reconstruction'], 
-                    's-', linewidth=2, markersize=8, label='Reconstruction FMS', color='coral')
-        
-        # Adjust title based on whether TLViz worked
-        if not tlviz_working:
-            title = 'Factor Match Score vs Rank\n(Reconstruction FMS: Fast Approximation)'
-        else:
-            title = 'Factor Match Score vs Rank\n(Higher = Better Factor Recovery)'
-        
-        ax1.set_xlabel('Rank (Number of Components)', fontsize=11)
-        ax1.set_ylabel('Factor Match Score', fontsize=11)
-        ax1.set_title(title, fontweight='bold')
-        ax1.grid(True, alpha=0.3)
-        ax1.legend()
-        ax1.set_ylim([0, 1.05])
-        
-        # Plot 2: Reconstruction correlation
-        if valid_recon.any():
-            ax2.plot(fms_df.loc[valid_recon, 'rank'], 
-                    fms_df.loc[valid_recon, 'reconstruction_correlation'], 
-                    'o-', linewidth=2, markersize=8, color='green')
-            ax2.axhline(y=0.8, color='orange', linestyle='--', alpha=0.5, label='80% correlation')
-            ax2.axhline(y=0.9, color='red', linestyle='--', alpha=0.5, label='90% correlation')
-        
-        ax2.set_xlabel('Rank (Number of Components)', fontsize=11)
-        ax2.set_ylabel('Reconstruction Correlation', fontsize=11)
-        ax2.set_title('Tensor Reconstruction Quality vs Rank\n(Correlation between original and reconstructed)', fontweight='bold')
-        ax2.grid(True, alpha=0.3)
-        ax2.legend()
-        ax2.set_ylim([-1.05, 1.05])
-        
-        plt.tight_layout()
-        fms_plot_file = os.path.join(comparison_dir, 'factor_match_scores_plot.png')
-        plt.savefig(fms_plot_file, dpi=150, bbox_inches='tight')
-        print(f"Saved FMS plot to: {fms_plot_file}")
-        plt.close()
-        
-        # ===========================================
-        # FMS-BASED RANK RECOMMENDATION
-        # ===========================================
-        print(f"\n{'='*60}")
-        print("FMS-BASED RANK RECOMMENDATION")
-        print(f"{'='*60}")
-        
-        # Find best ranks based on different criteria
-        valid_df = fms_df[fms_df['reconstruction_success']]
-        
-        if len(valid_df) > 0:
-            # Check for synthetic FMS results (RECOMMENDED metric)
-            synthetic_valid = fms_df[fms_df['synthetic_success']]
-            
-            if len(synthetic_valid) > 0:
-                # Synthetic FMS is available - use it as PRIMARY recommendation
-                best_synthetic_idx = synthetic_valid['fms_synthetic'].idxmax()
-                best_synthetic_rank = synthetic_valid.iloc[best_synthetic_idx]['rank']
-                best_synthetic_score = synthetic_valid.iloc[best_synthetic_idx]['fms_synthetic']
-                
-                print(f"⭐ RECOMMENDED: Rank {int(best_synthetic_rank)} (Synthetic FMS: {best_synthetic_score:.4f})")
-                print(f"   ↳ Based on factor recovery robustness with noise")
-                
-                # Show top 3 ranks by synthetic FMS
-                top_synthetic = synthetic_valid.nlargest(3, 'fms_synthetic')[['rank', 'fms_synthetic']]
-                print(f"\nTop 3 ranks by Synthetic FMS:")
-                for idx, row in top_synthetic.iterrows():
-                    print(f"  Rank {int(row['rank'])}: {row['fms_synthetic']:.4f}")
-            else:
-                print(f"⚠️  Synthetic FMS not calculated (set USE_SYNTHETIC_VALIDATION=True)")
-                print(f"   ↳ Using Reconstruction FMS for recommendation (less rigorous)")
-                
-                # Fall back to reconstruction FMS
-                best_recon_idx = valid_df['fms_reconstruction'].idxmax()
-                best_recon_rank = valid_df.iloc[best_recon_idx]['rank']
-                best_recon_score = valid_df.iloc[best_recon_idx]['fms_reconstruction']
-                
-                print(f"\n📊 Rank {int(best_recon_rank)} (Reconstruction FMS: {best_recon_score:.4f})")
-                print(f"   ↳ Based on reconstruction correlation (fast approximation)")
-            
-            # Additional metrics for context
-            print(f"\n--- Additional Metrics ---")
-            
-            # Best reconstruction correlation
-            best_corr_idx = valid_df['reconstruction_correlation'].idxmax()
-            best_corr_rank = valid_df.iloc[best_corr_idx]['rank']
-            best_corr_score = valid_df.iloc[best_corr_idx]['reconstruction_correlation']
-            print(f"Best Reconstruction Correlation: Rank {int(best_corr_rank)} ({best_corr_score:.4f})")
-            
-            # Check for TLViz results (informational only)
-            tlviz_valid = fms_df[fms_df['tlviz_success']]
-            if len(tlviz_valid) > 0:
-                best_tlviz_idx = tlviz_valid['fms_tlviz'].idxmax()
-                best_tlviz_rank = tlviz_valid.iloc[best_tlviz_idx]['rank']
-                best_tlviz_score = tlviz_valid.iloc[best_tlviz_idx]['fms_tlviz']
-                print(f"TLViz FMS (informational): Rank {int(best_tlviz_rank)} ({best_tlviz_score:.4f})")
-            
-            # Provide interpretation
-            print(f"\n--- FMS Metrics Explained ---")
-            if len(synthetic_valid) > 0:
-                print(f"⭐ Synthetic FMS (RECOMMENDED):")
-                print(f"   • Tests factor recovery from noisy data")
-                print(f"   • Most rigorous validation of decomposition quality")
-                print(f"   • Best metric for determining optimal rank")
-                print(f"   • Values > 0.9 = excellent, > 0.7 = good, > 0.5 = fair")
-            print(f"📊 Reconstruction FMS (fast approximation):")
-            print(f"   • Based on correlation with original tensor")
-            print(f"   • Useful for quick comparison")
-            print(f"   • Less rigorous than synthetic validation")
-            print(f"⚠️  TLViz FMS (self-comparison only):")
-            print(f"   • Not useful for rank selection (always ~1.0)")
-            print(f"   • Only validates internal consistency")
-            
-        else:
-            print("No valid FMS results available for recommendation.")
-    
-    else:
-        print("No FMS results to analyze.")
-
-else:
-    print("Skipping FMS evaluation - tensor not available.")
-
-print(f"\n{'='*60}")
-print("FACTOR MATCH SCORE EVALUATION COMPLETE")
-print(f"{'='*60}")
-if 'all_fms_results' in locals() and len(all_fms_results) > 0:
-    working_recon = sum(1 for r in all_fms_results if r['reconstruction_success'])
-    working_tlviz = sum(1 for r in all_fms_results if r['tlviz_success'])
-    print(f"Summary: {working_recon}/{len(all_fms_results)} ranks have valid Reconstruction FMS")
-    print(f"         {working_tlviz}/{len(all_fms_results)} ranks have valid TLViz FMS")
-    if working_recon > 0:
-        print(f"→ Use Reconstruction FMS and correlation for rank selection")
-    else:
-        print(f"→ No valid FMS results - check tensor and factor matrices")
-```
-
-
-
-
-# VISUALIZATION
-
-## Plot rank comparisons
-
-### Plot Synthetic FMS Elbow (Standalone)
-
-This chunk can be run independently to generate the synthetic FMS elbow plot without re-running the expensive Factor Match Score evaluation. It loads the saved FMS results from the CSV file.
-
-```{python plot-synthetic-fms-elbow-standalone, eval=TRUE}
-# ===========================================
-# STANDALONE SYNTHETIC FMS ELBOW PLOT
-# ===========================================
-# This chunk loads saved FMS results and creates the elbow plot
-# Can be run independently without re-running FMS evaluation
-# ===========================================
-
-import os
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-
-# Get output directory
-output_dir = r.output_dir if 'r' in dir() else '../output/13.00-multiomics-barnacle'
-comparison_dir = os.path.join(output_dir, 'rank_comparison')
-fms_csv_file = os.path.join(comparison_dir, 'factor_match_scores.csv')
-
-print(f"\n{'='*60}")
-print("SYNTHETIC FMS ELBOW PLOT (STANDALONE)")
-print(f"{'='*60}")
-print(f"Loading FMS results from: {fms_csv_file}")
-
-# Check if FMS results file exists
-if not os.path.exists(fms_csv_file):
-    print(f"\nERROR: FMS results file not found!")
-    print(f"Expected location: {fms_csv_file}")
-    print(f"\nPlease run the Factor Match Score evaluation chunk first.")
-    print(f"It should create: {comparison_dir}/factor_match_scores.csv")
-else:
-    # Load FMS results
-    fms_df = pd.read_csv(fms_csv_file)
-    
-    print(f"Loaded FMS data for {len(fms_df)} ranks")
-    print(f"Columns available: {list(fms_df.columns)}")
-    
-    # Check if synthetic FMS data is available
-    if 'fms_synthetic' not in fms_df.columns:
-        print(f"\nERROR: No 'fms_synthetic' column found in FMS results!")
-        print(f"Synthetic validation was not performed.")
-        print(f"\nTo generate synthetic FMS data:")
-        print(f"1. Set USE_SYNTHETIC_VALIDATION = True in the FMS evaluation chunk")
-        print(f"2. Re-run the Factor Match Score evaluation chunk")
-    else:
-        # Check if any ranks have valid synthetic FMS
-        valid_synthetic = fms_df['synthetic_success'].fillna(False)
-        
-        if not valid_synthetic.any():
-            print(f"\nERROR: No valid synthetic FMS values found!")
-            print(f"All synthetic validation attempts failed or were skipped.")
-            print(f"\nTo generate synthetic FMS data:")
-            print(f"1. Set USE_SYNTHETIC_VALIDATION = True in the FMS evaluation chunk")
-            print(f"2. Re-run the Factor Match Score evaluation chunk")
-        else:
-            print(f"Found {valid_synthetic.sum()} ranks with valid synthetic FMS")
-            
-            # ===========================================
-            # CREATE SYNTHETIC FMS ELBOW PLOT
-            # ===========================================
-            
-            fig, ax = plt.subplots(1, 1, figsize=(10, 7))
-            
-            # Get data for plotting
-            valid_tlviz = fms_df['tlviz_success'].fillna(False)
-            valid_recon = fms_df['reconstruction_success'].fillna(False)
-            
-            # Synthetic FMS (RECOMMENDED - should show elbow)
-            synthetic_data = fms_df.loc[valid_synthetic].sort_values('rank')
-            ax.plot(synthetic_data['rank'], synthetic_data['fms_synthetic'], 
-                    'o-', linewidth=3, markersize=10, label='⭐ Synthetic Validation FMS (RECOMMENDED)', 
-                    color='#2ecc71', zorder=3)
-            
-            # Mark the peak (optimal rank)
-            max_synthetic_idx = synthetic_data['fms_synthetic'].idxmax()
-            optimal_rank = synthetic_data.loc[max_synthetic_idx, 'rank']
-            optimal_score = synthetic_data.loc[max_synthetic_idx, 'fms_synthetic']
-            ax.plot(optimal_rank, optimal_score, 'r*', markersize=20, 
-                    label=f'★ Optimal: Rank {int(optimal_rank)} (FMS={optimal_score:.4f})',
-                    zorder=4)
-            
-            # Reconstruction FMS (fast approximation - typically increases monotonically)
-            if valid_recon.any():
-                recon_data = fms_df.loc[valid_recon].sort_values('rank')
-                ax.plot(recon_data['rank'], recon_data['fms_reconstruction'], 
-                        's--', linewidth=2, markersize=8, label='📊 Reconstruction FMS (fast)', 
-                        color='#3498db', alpha=0.7, zorder=2)
-            
-            # TLViz FMS (if available - self-comparison, typically near 1.0)
-            if valid_tlviz.any():
-                tlviz_data = fms_df.loc[valid_tlviz].sort_values('rank')
-                ax.plot(tlviz_data['rank'], tlviz_data['fms_tlviz'], 
-                        '^:', linewidth=1.5, markersize=6, label='⚠️  TLViz FMS (sanity check only)', 
-                        color='#95a5a6', alpha=0.5, zorder=1)
-            
-            ax.set_xlabel('Rank (Number of Components)', fontsize=12, fontweight='bold')
-            ax.set_ylabel('Factor Match Score', fontsize=12, fontweight='bold')
-            ax.set_title('Factor Match Score Comparison: Finding Optimal Rank\n' +
-                         'Synthetic FMS (RECOMMENDED): Peaks at optimal rank, then declines with overfitting',
-                         fontsize=13, fontweight='bold')
-            ax.grid(True, alpha=0.3, linestyle='--')
-            ax.legend(loc='best', fontsize=10)
-            ax.set_ylim([0, 1.05])
-            
-            # Add quality threshold lines
-            ax.axhline(y=0.9, color='green', linestyle='--', alpha=0.3, linewidth=1)
-            ax.text(ax.get_xlim()[1]*0.95, 0.91, 'Excellent (>0.9)', 
-                    ha='right', va='bottom', fontsize=9, color='green', alpha=0.7)
-            ax.axhline(y=0.7, color='orange', linestyle='--', alpha=0.3, linewidth=1)
-            ax.text(ax.get_xlim()[1]*0.95, 0.71, 'Good (>0.7)', 
-                    ha='right', va='bottom', fontsize=9, color='orange', alpha=0.7)
-            ax.axhline(y=0.5, color='red', linestyle='--', alpha=0.3, linewidth=1)
-            ax.text(ax.get_xlim()[1]*0.95, 0.51, 'Fair (>0.5)', 
-                    ha='right', va='bottom', fontsize=9, color='red', alpha=0.7)
-            
-            plt.tight_layout()
-            synthetic_plot_file = os.path.join(comparison_dir, 'synthetic_fms_elbow_plot.png')
-            plt.savefig(synthetic_plot_file, dpi=150, bbox_inches='tight')
-            print(f"\n✓ Saved Synthetic FMS elbow plot to: {synthetic_plot_file}")
-            plt.close()
-            
-            # Print summary
-            print(f"\n{'='*60}")
-            print("SYNTHETIC FMS ELBOW ANALYSIS")
-            print(f"{'='*60}")
-            print(f"Optimal Rank: {int(optimal_rank)} (FMS = {optimal_score:.4f})")
-            
-            # Show all ranks with their scores
-            print(f"\nComplete Synthetic FMS Results:")
-            print(f"{'Rank':<8} {'Synthetic FMS':<15} {'Quality':<12} {'Status'}")
-            print(f"{'-'*8} {'-'*15} {'-'*12} {'-'*20}")
-            for idx, row in synthetic_data.iterrows():
-                rank_val = int(row['rank'])
-                fms_val = row['fms_synthetic']
-                
-                if fms_val > 0.9:
-                    quality = "Excellent"
-                elif fms_val > 0.7:
-                    quality = "Good"
-                elif fms_val > 0.5:
-                    quality = "Fair"
-                else:
-                    quality = "Poor"
-                
-                status = "★ OPTIMAL" if rank_val == optimal_rank else ""
-                print(f"{rank_val:<8} {fms_val:<15.4f} {quality:<12} {status}")
-            
-            print(f"\nInterpretation:")
-            print(f"  • Synthetic FMS tests factor recovery from noisy data")
-            print(f"  • Peak at rank {int(optimal_rank)} indicates best balance:")
-            print(f"    - Sufficient complexity to capture patterns")
-            print(f"    - Robust enough to avoid overfitting noise")
-            print(f"  • Higher ranks show declining FMS (overfitting)")
-            print(f"  • Lower ranks show lower FMS (underfitting)")
-            
-            # Additional statistics
-            if len(synthetic_data) > 1:
-                decline_after_optimal = after_optimal['fms_synthetic'].mean() if len(after_optimal) > 0 else np.nan
-                improvement_to_optimal = optimal_score - before_optimal['fms_synthetic'].max() if len(before_optimal) > 0 else np.nan
-                
-                print(f"\nStatistics:")
-                if not np.isnan(improvement_to_optimal):
-                    print(f"  • Improvement to optimal: +{improvement_to_optimal:.4f}")
-                if not np.isnan(decline_after_optimal):
-                    print(f"  • Average FMS after optimal: {decline_after_optimal:.4f}")
-                    print(f"  • Decline from peak: -{(optimal_score - decline_after_optimal):.4f}")
-            
-            print(f"\n{'='*60}")
-
-print(f"\nSYNTHETIC FMS ELBOW PLOT GENERATION COMPLETE")
-print(f"{'='*60}")
-```
-
-### 1. Comparison Plots
-
-Located in `barnacle_factors/rank_comparison/`:
-
-- **`elbow_plot.png`** - Shows variance explained vs rank (MOST IMPORTANT)
-  - Look for the "elbow" where gains diminish
-  - Marginal gains are annotated on the plot
-  
-- **`rank_comparison_summary.png`** - 6-panel overview
-- **`loss_trajectories.png`** - Convergence speed comparison
-
-### 2. Metrics Table
-
-File: `barnacle_factors/rank_comparison/rank_comparison_metrics.csv`
-
-Contains all quantitative metrics for comparison.
-
-### 3. Individual Rank Results
-
-Each rank gets its own directory (`rank_05/`, `rank_10/`, etc.) with full factor matrices.
-
-```{python plot-rank-comparison, eval=TRUE}
-# ===========================================
-# This chunk reads from rank_comparison_log.json
-# and does NOT require variables from previous chunks
-# ===========================================
-import matplotlib.pyplot as plt
-import seaborn as sns
-import json
-import glob
-import os
-import pandas as pd
-import numpy as np
-
-print(f"\n{'='*60}")
-print("Creating rank comparison visualizations")
-print(f"{'='*60}")
-
-# Check if output_dir exists, if not get it from R
-if 'output_dir' not in globals():
-    print("Getting output_dir from R environment...")
-    output_dir = r.output_dir
-    print(f"  output_dir = {output_dir}")
-
-comparison_dir = os.path.join(output_dir, 'rank_comparison')
-os.makedirs(comparison_dir, exist_ok=True)
-
-# ===========================================
-# LOAD RESULTS FROM LOG FILE
-# ===========================================
-log_file = os.path.join(output_dir, 'rank_comparison_log.json')
-
-if os.path.exists(log_file):
-    print(f"Loading results from log file: {log_file}")
-    with open(log_file, 'r') as f:
-        log_data = json.load(f)
-    
-    print(f"  Log timestamp: {log_data['timestamp']}")
-    print(f"  Total runs: {log_data['total_runs']}")
-    print(f"  Successful: {log_data['successful_runs']}")
-    print(f"  Failed: {log_data['failed_runs']}")
-    
-    # Reconstruct all_rank_results from log
-    all_rank_results = []
-    for result_info in log_data['results']:
-        if result_info['success']:
-            all_rank_results.append({
-                'rank': result_info['rank'],
-                'metrics': result_info['metrics'],
-                'success': True
-            })
-        else:
-            all_rank_results.append({
-                'rank': result_info['rank'],
-                'success': False,
-                'error': result_info.get('error', 'Unknown error')
-            })
-    
-    print(f"  Loaded {len(all_rank_results)} results from log file")
-    
-elif 'all_rank_results' not in globals():
-    # Fallback: Load from individual metadata files
-    print("Log file not found. Loading from individual rank directories...")
-    all_rank_results = []
-    
-    # Find all rank_* directories
-    rank_dirs = sorted(glob.glob(os.path.join(output_dir, 'rank_*')))
-    print(f"  Found {len(rank_dirs)} rank directories")
-    
-    for rank_dir in rank_dirs:
-        metadata_file = os.path.join(rank_dir, 'metadata.json')
-        if os.path.exists(metadata_file):
-            with open(metadata_file, 'r') as f:
-                metadata = json.load(f)
-                all_rank_results.append({
-                    'rank': metadata['rank'],
-                    'metrics': metadata['metrics'],
-                    'success': True
-                })
-    
-    print(f"  Loaded {len(all_rank_results)} results from disk")
-else:
-    print("Using all_rank_results from memory")
-
-# Extract successful results
-successful = [r for r in all_rank_results if r['success']]
-if len(successful) == 0:
-    print("No successful decompositions to compare!")
-else:
-    ranks = [r['rank'] for r in successful]
-    
-    # Create comparison dataframe
-    comparison_df = pd.DataFrame([
-        {
-            'Rank': r['rank'],
-            **r['metrics']
-        }
-        for r in successful
-    ])
-    
-    # Save comparison table
-    comparison_df.to_csv(os.path.join(comparison_dir, 'rank_comparison_metrics.csv'), index=False)
-    print(f"  Saved metrics table")
-    
-    # Create multi-panel comparison plot
-    fig, axes = plt.subplots(2, 3, figsize=(18, 10))
-    fig.suptitle('Rank Comparison: Key Metrics', fontsize=16, fontweight='bold')
-    
-    # 1. Variance Explained
-    ax = axes[0, 0]
-    ax.plot(ranks, comparison_df['variance_explained'], 'o-', linewidth=2, markersize=8, color='steelblue')
-    ax.axhline(y=0.8, color='green', linestyle='--', alpha=0.5, label='80% threshold')
-    ax.axhline(y=0.6, color='orange', linestyle='--', alpha=0.5, label='60% threshold')
-    ax.set_xlabel('Rank (Number of Components)', fontsize=11)
-    ax.set_ylabel('Variance Explained', fontsize=11)
-    ax.set_title('Variance Explained vs Rank', fontweight='bold')
-    ax.grid(True, alpha=0.3)
-    ax.legend()
-    ax.set_ylim([0, 1.05])
-    
-    # 2. Relative Error
-    ax = axes[0, 1]
-    ax.plot(ranks, comparison_df['relative_error'], 'o-', linewidth=2, markersize=8, color='coral')
-    ax.set_xlabel('Rank (Number of Components)', fontsize=11)
-    ax.set_ylabel('Relative Reconstruction Error', fontsize=11)
-    ax.set_title('Reconstruction Error vs Rank', fontweight='bold')
-    ax.grid(True, alpha=0.3)
-    
-    # 3. Final Loss
-    ax = axes[0, 2]
-    ax.plot(ranks, comparison_df['final_loss'], 'o-', linewidth=2, markersize=8, color='purple')
-    ax.set_xlabel('Rank (Number of Components)', fontsize=11)
-    ax.set_ylabel('Final Loss', fontsize=11)
-    ax.set_title('Final Loss vs Rank', fontweight='bold')
-    ax.grid(True, alpha=0.3)
-    
-    # 4. Gene Sparsity
-    ax = axes[1, 0]
-    ax.plot(ranks, comparison_df['gene_sparsity'], 'o-', linewidth=2, markersize=8, color='green')
-    ax.axhline(y=0.9, color='red', linestyle='--', alpha=0.5, label='90% sparse')
-    ax.set_xlabel('Rank (Number of Components)', fontsize=11)
-    ax.set_ylabel('Gene Factor Sparsity', fontsize=11)
-    ax.set_title('Gene Sparsity vs Rank', fontweight='bold')
-    ax.grid(True, alpha=0.3)
-    ax.legend()
-    ax.set_ylim([0, 1.05])
-    
-    # 5. Weight Distribution (CV)
-    ax = axes[1, 1]
-    ax.plot(ranks, comparison_df['weight_cv'], 'o-', linewidth=2, markersize=8, color='darkorange')
-    ax.set_xlabel('Rank (Number of Components)', fontsize=11)
-    ax.set_ylabel('Weight Coefficient of Variation', fontsize=11)
-    ax.set_title('Component Weight Variability vs Rank', fontweight='bold')
-    ax.grid(True, alpha=0.3)
-    
-    # 6. Iterations to Convergence
-    ax = axes[1, 2]
-    colors = ['green' if c else 'red' for c in comparison_df['converged']]
-    ax.bar(ranks, comparison_df['n_iterations'], color=colors, alpha=0.7)
-    ax.set_xlabel('Rank (Number of Components)', fontsize=11)
-    ax.set_ylabel('Iterations to Convergence', fontsize=11)
-    ax.set_title('Convergence Speed vs Rank\n(Green=Converged, Red=Max Iterations)', fontweight='bold')
-    ax.grid(True, alpha=0.3, axis='y')
-    
-    plt.tight_layout()
-    output_path = os.path.join(comparison_dir, 'rank_comparison_summary.png')
-    plt.savefig(output_path, dpi=150, bbox_inches='tight')
-    print(f"  Saved: rank_comparison_summary.png")
-    plt.close()
-    
-    # Create elbow plot
-    fig, ax = plt.subplots(figsize=(10, 6))
-    
-    var_exp = comparison_df['variance_explained'].values
-    ax.plot(ranks, var_exp, 'o-', linewidth=3, markersize=10, color='steelblue', label='Variance Explained')
-    
-    # Calculate marginal gains
-    if len(ranks) > 1:
-        marginal_gains = np.diff(var_exp)
-        for i in range(len(marginal_gains)):
-            ax.annotate(f'+{marginal_gains[i]*100:.1f}%',
-                       xy=(ranks[i+1], var_exp[i+1]),
-                       xytext=(10, -10),
-                       textcoords='offset points',
-                       fontsize=9,
-                       color='darkgreen',
-                       bbox=dict(boxstyle='round,pad=0.3', facecolor='yellow', alpha=0.3))
-    
-    ax.axhline(y=0.8, color='green', linestyle='--', alpha=0.5, linewidth=2, label='80% threshold (excellent)')
-    ax.axhline(y=0.6, color='orange', linestyle='--', alpha=0.5, linewidth=2, label='60% threshold (good)')
-    ax.set_xlabel('Rank (Number of Components)', fontsize=13, fontweight='bold')
-    ax.set_ylabel('Variance Explained', fontsize=13, fontweight='bold')
-    ax.set_title('Elbow Plot: Finding Optimal Rank\n(Look for diminishing returns)', 
-                fontsize=14, fontweight='bold')
-    ax.grid(True, alpha=0.3)
-    ax.legend(fontsize=11)
-    ax.set_ylim([0, 1.05])
-    ax.set_xticks(ranks)
-    
-    plt.tight_layout()
-    output_path = os.path.join(comparison_dir, 'elbow_plot.png')
-    plt.savefig(output_path, dpi=150, bbox_inches='tight')
-    print(f"  Saved: elbow_plot.png")
-    plt.close()
-    
-    # Loss trajectories
-    fig, ax = plt.subplots(figsize=(10, 6))
-    
-    loss_plotted = False
-    for r in successful:
-        # Try to get loss from model object first
-        if 'model' in r and hasattr(r['model'], 'loss_') and r['model'].loss_ is not None:
-            loss = r['model'].loss_
-            ax.plot(range(1, len(loss)+1), loss, linewidth=2, label=f'Rank {r["rank"]}', alpha=0.8)
-            loss_plotted = True
-        else:
-            # Load from disk
-            rank_dir = os.path.join(output_dir, f'rank_{r["rank"]:02d}')
-            loss_file = os.path.join(rank_dir, 'loss_history.csv')
-            if os.path.exists(loss_file):
-                loss_df = pd.read_csv(loss_file)
-                ax.plot(loss_df['Iteration'], loss_df['Loss'], linewidth=2, label=f'Rank {r["rank"]}', alpha=0.8)
-                loss_plotted = True
-    
-    if loss_plotted:
-        ax.set_xlabel('Iteration', fontsize=12)
-        ax.set_ylabel('Loss', fontsize=12)
-        ax.set_title('Loss Convergence Trajectories by Rank', fontsize=14, fontweight='bold')
-        ax.grid(True, alpha=0.3)
-        ax.legend(fontsize=10)
-        ax.set_yscale('log')
-        
-        plt.tight_layout()
-        output_path = os.path.join(comparison_dir, 'loss_trajectories.png')
-        plt.savefig(output_path, dpi=150, bbox_inches='tight')
-        print(f"  Saved: loss_trajectories.png")
-    else:
-        print(f"  Skipped loss_trajectories.png (no loss history available)")
-    
-    plt.close()
-    
-    print(f"\nAll comparison plots saved to: {comparison_dir}")
-```
-
-
-
-# INDIVIDUAL RANK VISUALIZATIONS
-
-## Detailed plots for Rank 10
-
-This section creates comprehensive visualizations for rank 10 (the optimal rank determined from previous analysis).
-
-```{python individual-rank-visualizations, eval=TRUE}
-# ===========================================
-# CREATE DETAILED VISUALIZATIONS FOR RANK 10
-# ===========================================
-import os
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-
-print(f"\n{'='*60}")
-print("CREATING RANK 10 VISUALIZATIONS")
-print(f"{'='*60}")
-
-# Get output directory
-if 'output_dir' not in globals():
-    output_dir = r.output_dir
-
-# Set rank to analyze
-SELECTED_RANK = 10
-TOP_GENES_HEATMAP = 50  # Number of top genes to show in heatmap
-
-# Process only rank 10
-rank = SELECTED_RANK
-print(f"\n--- Rank {rank} ---")
-rank_dir = os.path.join(output_dir, f'rank_{rank:02d}')
-
-# Load factor matrices
-gene_factors_file = os.path.join(rank_dir, 'gene_factors.csv')
-time_factors_file = os.path.join(rank_dir, 'time_factors.csv')
-weights_file = os.path.join(rank_dir, 'component_weights.csv')
-
-if not all([os.path.exists(f) for f in [gene_factors_file, time_factors_file, weights_file]]):
-    print(f"ERROR: Missing factor files for rank {rank}")
-    print(f"Please ensure barnacle decomposition has been run for rank {rank}")
-else:
-    gene_factors = pd.read_csv(gene_factors_file, index_col=0)
-    time_factors = pd.read_csv(time_factors_file, index_col=0)
-    weights = pd.read_csv(weights_file)
-    
-    # ===========================================
-    # PLOT 1: GENE HEATMAPS (Multiple selection criteria)
-    # ===========================================
-    print(f"  Creating gene-component heatmaps with different selection criteria...")
-    
-    # ===========================================
-    # 1A: Sum of absolute loadings (broadly active genes)
-    # ===========================================
-    print(f"    1A: Sum of absolute loadings (broadly active genes)...")
-    gene_importance_sum = gene_factors.abs().sum(axis=1)
-    top_genes_sum = gene_importance_sum.nlargest(TOP_GENES_HEATMAP).index
-    top_gene_factors_sum = gene_factors.loc[top_genes_sum]
-    
-    # Save data to CSV
-    csv_path = os.path.join(rank_dir, f'gene_heatmap_1A_sum_top{TOP_GENES_HEATMAP}_data.csv')
-    top_gene_factors_sum.to_csv(csv_path)
-    print(f"      Saved data: gene_heatmap_1A_sum_top{TOP_GENES_HEATMAP}_data.csv")
-    
-    fig, ax = plt.subplots(figsize=(max(12, rank*0.5), 10))
-    sns.heatmap(
-        top_gene_factors_sum,
-        cmap='RdBu_r',
-        center=0,
-        cbar_kws={'label': 'Component Loading'},
-        xticklabels=True,
-        yticklabels=True,
-        ax=ax
-    )
-    ax.set_xlabel('Components', fontsize=12, fontweight='bold')
-    ax.set_ylabel('Gene ID', fontsize=12, fontweight='bold')
-    ax.set_title(f'Rank {rank}: Top {TOP_GENES_HEATMAP} Genes by Sum of Absolute Loadings\n' + 
-                f'(Genes that participate across multiple components)',
-                fontsize=13, fontweight='bold', pad=15)
-    plt.tight_layout()
-    output_path = os.path.join(rank_dir, f'gene_heatmap_1A_sum_top{TOP_GENES_HEATMAP}.png')
-    plt.savefig(output_path, dpi=150, bbox_inches='tight')
-    plt.close()
-    print(f"      Saved plot: gene_heatmap_1A_sum_top{TOP_GENES_HEATMAP}.png")
-    
-    # ===========================================
-    # 1B: Maximum absolute loading (component-specific genes)
-    # ===========================================
-    print(f"    1B: Maximum absolute loading (component-specific genes)...")
-    gene_importance_max = gene_factors.abs().max(axis=1)
-    top_genes_max = gene_importance_max.nlargest(TOP_GENES_HEATMAP).index
-    top_gene_factors_max = gene_factors.loc[top_genes_max]
-    
-    # Save data to CSV
-    csv_path = os.path.join(rank_dir, f'gene_heatmap_1B_max_top{TOP_GENES_HEATMAP}_data.csv')
-    top_gene_factors_max.to_csv(csv_path)
-    print(f"      Saved data: gene_heatmap_1B_max_top{TOP_GENES_HEATMAP}_data.csv")
-    
-    fig, ax = plt.subplots(figsize=(max(12, rank*0.5), 10))
-    sns.heatmap(
-        top_gene_factors_max,
-        cmap='RdBu_r',
-        center=0,
-        cbar_kws={'label': 'Component Loading'},
-        xticklabels=True,
-        yticklabels=True,
-        ax=ax
-    )
-    ax.set_xlabel('Components', fontsize=12, fontweight='bold')
-    ax.set_ylabel('Gene ID', fontsize=12, fontweight='bold')
-    ax.set_title(f'Rank {rank}: Top {TOP_GENES_HEATMAP} Genes by Maximum Loading\n' + 
-                f'(Genes highly specific to individual components)',
-                fontsize=13, fontweight='bold', pad=15)
-    plt.tight_layout()
-    output_path = os.path.join(rank_dir, f'gene_heatmap_1B_max_top{TOP_GENES_HEATMAP}.png')
-    plt.savefig(output_path, dpi=150, bbox_inches='tight')
-    plt.close()
-    print(f"      Saved plot: gene_heatmap_1B_max_top{TOP_GENES_HEATMAP}.png")
-    
-    # ===========================================
-    # 1C: Mean absolute loading (consistently active genes)
-    # ===========================================
-    print(f"    1C: Mean absolute loading (consistently active genes)...")
-    gene_importance_mean = gene_factors.abs().mean(axis=1)
-    top_genes_mean = gene_importance_mean.nlargest(TOP_GENES_HEATMAP).index
-    top_gene_factors_mean = gene_factors.loc[top_genes_mean]
-    
-    # Save data to CSV
-    csv_path = os.path.join(rank_dir, f'gene_heatmap_1C_mean_top{TOP_GENES_HEATMAP}_data.csv')
-    top_gene_factors_mean.to_csv(csv_path)
-    print(f"      Saved data: gene_heatmap_1C_mean_top{TOP_GENES_HEATMAP}_data.csv")
-    
-    fig, ax = plt.subplots(figsize=(max(12, rank*0.5), 10))
-    sns.heatmap(
-        top_gene_factors_mean,
-        cmap='RdBu_r',
-        center=0,
-        cbar_kws={'label': 'Component Loading'},
-        xticklabels=True,
-        yticklabels=True,
-        ax=ax
-    )
-    ax.set_xlabel('Components', fontsize=12, fontweight='bold')
-    ax.set_ylabel('Gene ID', fontsize=12, fontweight='bold')
-    ax.set_title(f'Rank {rank}: Top {TOP_GENES_HEATMAP} Genes by Mean Absolute Loading\n' + 
-                f'(Genes with consistent moderate activity across components)',
-                fontsize=13, fontweight='bold', pad=15)
-    plt.tight_layout()
-    output_path = os.path.join(rank_dir, f'gene_heatmap_1C_mean_top{TOP_GENES_HEATMAP}.png')
-    plt.savefig(output_path, dpi=150, bbox_inches='tight')
-    plt.close()
-    print(f"      Saved plot: gene_heatmap_1C_mean_top{TOP_GENES_HEATMAP}.png")
-    
-    # ===========================================
-    # 1D: Variance of loadings (genes with high specificity)
-    # ===========================================
-    print(f"    1D: Variance of loadings (component-specific markers)...")
-    gene_variance = gene_factors.var(axis=1)
-    top_genes_var = gene_variance.nlargest(TOP_GENES_HEATMAP).index
-    top_gene_factors_var = gene_factors.loc[top_genes_var]
-    
-    # Save data to CSV
-    csv_path = os.path.join(rank_dir, f'gene_heatmap_1D_variance_top{TOP_GENES_HEATMAP}_data.csv')
-    top_gene_factors_var.to_csv(csv_path)
-    print(f"      Saved data: gene_heatmap_1D_variance_top{TOP_GENES_HEATMAP}_data.csv")
-    
-    fig, ax = plt.subplots(figsize=(max(12, rank*0.5), 10))
-    sns.heatmap(
-        top_gene_factors_var,
-        cmap='RdBu_r',
-        center=0,
-        cbar_kws={'label': 'Component Loading'},
-        xticklabels=True,
-        yticklabels=True,
-        ax=ax
-    )
-    ax.set_xlabel('Components', fontsize=12, fontweight='bold')
-    ax.set_ylabel('Gene ID', fontsize=12, fontweight='bold')
-    ax.set_title(f'Rank {rank}: Top {TOP_GENES_HEATMAP} Genes by Loading Variance\n' + 
-                f'(Genes with high specificity - strong in some components, weak in others)',
-                fontsize=13, fontweight='bold', pad=15)
-    plt.tight_layout()
-    output_path = os.path.join(rank_dir, f'gene_heatmap_1D_variance_top{TOP_GENES_HEATMAP}.png')
-    plt.savefig(output_path, dpi=150, bbox_inches='tight')
-    plt.close()
-    print(f"      Saved plot: gene_heatmap_1D_variance_top{TOP_GENES_HEATMAP}.png")
-    
-    # ===========================================
-    # Summary comparison
-    # ===========================================
-    print(f"\n    Gene selection summary:")
-    print(f"      Sum method:      Favors genes active across many components")
-    print(f"      Max method:      Favors genes strongly specific to one component")
-    print(f"      Mean method:     Favors genes with consistent moderate activity")
-    print(f"      Variance method: Favors genes with high component specificity")
-    
-    # Check overlap between methods
-    overlap_sum_max = len(set(top_genes_sum) & set(top_genes_max))
-    overlap_sum_mean = len(set(top_genes_sum) & set(top_genes_mean))
-    overlap_max_var = len(set(top_genes_max) & set(top_genes_var))
-    
-    print(f"\n    Gene overlap between methods:")
-    print(f"      Sum & Max:      {overlap_sum_max}/{TOP_GENES_HEATMAP} genes in common")
-    print(f"      Sum & Mean:     {overlap_sum_mean}/{TOP_GENES_HEATMAP} genes in common")
-    print(f"      Max & Variance: {overlap_max_var}/{TOP_GENES_HEATMAP} genes in common")
-    
-    # ===========================================
-    # EXPORT TOP 500 GENES PER COMPONENT
-    # ===========================================
-    print(f"\n    Exporting top 500 genes per component...")
-    TOP_GENES_PER_COMPONENT = 500
-    
-    for component in gene_factors.columns:
-        # Get top genes by absolute loading for this component
-        component_loadings = gene_factors[component].abs().sort_values(ascending=False)
-        top_genes_for_component = component_loadings.head(TOP_GENES_PER_COMPONENT)
-        
-        # Create dataframe with gene ID and loading value (both absolute and signed)
-        top_genes_df = pd.DataFrame({
-            'gene_id': top_genes_for_component.index,
-            'absolute_loading': top_genes_for_component.values,
-            'signed_loading': gene_factors.loc[top_genes_for_component.index, component].values
+        agg_results.append({
+            'rank': R,
+            'lambda': lambda_val,
+            'mean_sse': valid_sse.mean() if len(valid_sse) > 0 else np.inf,
+            'std_sse': valid_sse.std() if len(valid_sse) > 0 else np.inf,
+            'se_sse': valid_sse.sem() if len(valid_sse) > 0 else np.inf,
+            'mean_fms': valid_fms.mean() if len(valid_fms) > 0 else np.nan,
+            'std_fms': valid_fms.std() if len(valid_fms) > 0 else np.nan,
+            'se_fms': valid_fms.sem() if len(valid_fms) > 0 else np.nan,
+            'n_converged': group['converged'].sum(),
+            'n_total': len(group)
         })
-        
-        # Save to CSV
-        csv_filename = f'top_{TOP_GENES_PER_COMPONENT}_genes_{component}.csv'
-        csv_path = os.path.join(rank_dir, csv_filename)
-        top_genes_df.to_csv(csv_path, index=False)
-        
-    print(f"      Saved top {TOP_GENES_PER_COMPONENT} genes for each of {len(gene_factors.columns)} components")
-    print(f"      Files: top_{TOP_GENES_PER_COMPONENT}_genes_Component_X.csv")
+    
+    results_df = pd.DataFrame(agg_results)
     
     # ===========================================
-    # PLOT 2: TIME COMPONENT LINE PLOT
+    # STAGE 1: SELECT RANK (λ=0.0 models only)
     # ===========================================
-    print(f"  Creating time-component line plot...")
+    print(f"\n{'='*80}")
+    print("STAGE 1: RANK SELECTION (1SE RULE)")
+    print("Criterion: Smallest rank within 1SE of minimum SSE at λ=0.0")
+    print("="*80)
     
+    lambda_zero_df = results_df[results_df['lambda'] == 0.0].copy()
+    
+    if len(lambda_zero_df) == 0:
+        print("ERROR: No λ=0.0 models found")
+        return None, None, results_df, all_bootstrap_results
+    
+    # Find minimum SSE and its SE
+    min_sse_idx = lambda_zero_df['mean_sse'].idxmin()
+    min_sse = lambda_zero_df.loc[min_sse_idx, 'mean_sse']
+    min_sse_se = lambda_zero_df.loc[min_sse_idx, 'se_sse']
+    min_sse_rank = int(lambda_zero_df.loc[min_sse_idx, 'rank'])
+    
+    # Calculate 1SE threshold (minimum SSE + 1 standard error)
+    sse_1se_threshold = min_sse + min_sse_se
+    
+    print(f"\nMinimum SSE: {min_sse:.2e} ± {min_sse_se:.2e} (at rank={min_sse_rank})")
+    print(f"1SE Threshold: {sse_1se_threshold:.2e}")
+    print(f"\nApplying 1SE rule (parsimony principle):")
+    print(f"  Select smallest rank where SSE ≤ {sse_1se_threshold:.2e}")
+    
+    # Find all ranks within 1SE of minimum
+    within_1se = lambda_zero_df[lambda_zero_df['mean_sse'] <= sse_1se_threshold].copy()
+    within_1se = within_1se.sort_values('rank')
+    
+    if len(within_1se) > 0:
+        # Select SMALLEST rank (most parsimonious) within 1SE
+        optimal_rank = int(within_1se.iloc[0]['rank'])
+        optimal_rank_sse = within_1se.iloc[0]['mean_sse']
+        optimal_rank_se = within_1se.iloc[0]['se_sse']
+        
+        print(f"\n✓ OPTIMAL RANK (1SE rule): {optimal_rank}")
+        print(f"  Mean SSE: {optimal_rank_sse:.2e} ± {optimal_rank_se:.2e}")
+        print(f"  (smallest rank with SSE within 1SE of minimum)")
+        
+        if optimal_rank != min_sse_rank:
+            print(f"\n  Note: Rank {min_sse_rank} had absolute minimum SSE,")
+            print(f"        but rank {optimal_rank} selected by 1SE rule (more parsimonious)")
+        
+        print(f"\nRanks within 1SE of minimum:")
+        display_df = within_1se[['rank', 'mean_sse', 'se_sse', 'n_converged']].copy()
+        print(display_df.to_string(index=False))
+    else:
+        # Fallback: use minimum SSE rank
+        optimal_rank = min_sse_rank
+        optimal_rank_sse = min_sse
+        optimal_rank_se = min_sse_se
+        print(f"\n✓ OPTIMAL RANK (minimum SSE): {optimal_rank}")
+        print(f"  Mean SSE: {optimal_rank_sse:.2e} ± {optimal_rank_se:.2e}")
+        print(f"  (no other ranks within 1SE)")
+    
+    print(f"\nAll λ=0.0 results (for reference):")
+    display_all = lambda_zero_df[['rank', 'mean_sse', 'se_sse', 'n_converged']].copy()
+    display_all = display_all.sort_values('rank')
+    display_all['within_1se'] = display_all['mean_sse'] <= sse_1se_threshold
+    print(display_all.to_string(index=False))
+    
+    # ===========================================
+    # STAGE 2: SELECT LAMBDA (fixed rank)
+    # ===========================================
+    print(f"\n{'='*80}")
+    print("STAGE 2: LAMBDA SELECTION (1SE RULE)")
+    print("Criterion: Maximum λ where FMS ≥ (max_FMS - 1SE)")
+    print("="*80)
+    
+    fixed_rank_df = results_df[results_df['rank'] == optimal_rank].copy()
+    fixed_rank_df = fixed_rank_df[~fixed_rank_df['mean_fms'].isna()]
+    
+    if len(fixed_rank_df) == 0:
+        print("WARNING: No valid FMS scores at optimal rank")
+        optimal_lambda = 0.0
+    else:
+        max_fms_idx = fixed_rank_df['mean_fms'].idxmax()
+        max_fms = fixed_rank_df.loc[max_fms_idx, 'mean_fms']
+        max_fms_se = fixed_rank_df.loc[max_fms_idx, 'se_fms']
+        
+        threshold = max_fms - max_fms_se
+        
+        print(f"\nMax FMS: {max_fms:.4f} ± {max_fms_se:.4f}")
+        print(f"1SE Threshold: {threshold:.4f}")
+        
+        within_1se = fixed_rank_df[fixed_rank_df['mean_fms'] >= threshold]
+        
+        if len(within_1se) > 0:
+            optimal_lambda_idx = within_1se['lambda'].idxmax()
+            optimal_lambda = float(within_1se.loc[optimal_lambda_idx, 'lambda'])
+            optimal_fms = within_1se.loc[optimal_lambda_idx, 'mean_fms']
+            
+            print(f"\n✓ OPTIMAL LAMBDA: {optimal_lambda}")
+            print(f"  Mean FMS: {optimal_fms:.4f}")
+        else:
+            optimal_lambda = 0.0
+            print(f"\nWARNING: No lambda within 1SE, defaulting to 0.0")
+    
+    print(f"\n{'='*80}")
+    print("BOOTSTRAP STABILITY ASSESSMENT")
+    print("="*80)
+    
+    # Check coefficient of variation for optimal parameters
+    optimal_combo = bootstrap_df[
+        (bootstrap_df['rank'] == optimal_rank) & 
+        (bootstrap_df['lambda'] == optimal_lambda) &
+        (bootstrap_df['converged'])
+    ]
+    
+    if len(optimal_combo) > 0:
+        cv_sse = optimal_combo['sse_test'].std() / optimal_combo['sse_test'].mean()
+        cv_fms = optimal_combo['fms'].std() / optimal_combo['fms'].mean() if optimal_combo['fms'].notna().sum() > 0 else np.nan
+        
+        print(f"Optimal rank={optimal_rank}, lambda={optimal_lambda}:")
+        print(f"  SSE coefficient of variation: {cv_sse:.3f}")
+        print(f"  FMS coefficient of variation: {cv_fms:.3f}")
+        print(f"  Convergence rate: {len(optimal_combo)}/{n_bootstrap} ({len(optimal_combo)/n_bootstrap*100:.1f}%)")
+        
+        if cv_sse < 0.1:
+            print(f"  ✓ Excellent stability (CV < 0.1)")
+        elif cv_sse < 0.2:
+            print(f"  ✓ Good stability (CV < 0.2)")
+        else:
+            print(f"  ⚠ Variable results (CV > 0.2) - consider more bootstrap iterations")
+    
+    print(f"\n{'='*80}")
+    print("FINAL SELECTED PARAMETERS")
+    print("="*80)
+    print(f"✓ Rank: {optimal_rank}")
+    print(f"✓ Lambda: {optimal_lambda}")
+    print(f"  Based on {n_bootstrap} bootstrap iterations")
+    print("="*80)
+    
+    return optimal_rank, optimal_lambda, results_df, all_bootstrap_results
+
+
+print("="*80)
+print("PARAMETER SELECTION FUNCTIONS LOADED")
+print("="*80)
+print("✓ split_half_bootstrap_grid_search()")
+print("    → Split-half CV with bootstrap resampling")
+print("    → Incremental checkpointing & resume capability")
+print("    → Parallel execution support via joblib")
+print("    → Recommended by dissertation author for limited replicates")
+print("    → Assesses model training consistency")
+print("="*80)
+```
+
+### Run Split-Half Bootstrap Grid Search (RECOMMENDED)
+
+**RECOMMENDED APPROACH** based on consultation with dissertation author.
+
+**Why split-half with bootstrap?**
+- You don't have enough replicates to create independent train/test tensors
+- Split-half provides stable train/test sets (unlike leave-one-out)
+- Bootstrap iterations assess model training consistency
+- Validates that results are reproducible regardless of which samples are used
+
+**Parallel Execution:**
+- Grid search within each bootstrap iteration runs in parallel using `joblib`
+- Set `n_jobs=-1` to use all available CPU cores (default)
+- Set `n_jobs=1` to disable parallelization (sequential execution)
+- Significantly reduces runtime on multi-core systems
+- Example: 56 models with 8 cores = ~7x faster than sequential
+
+**Incremental Saving:**
+- Results saved after each bootstrap iteration completes
+- If interrupted, can resume from last completed iteration
+- Checkpoint files: `bootstrap_checkpoint_iter000.csv`, `bootstrap_checkpoint_iter001.csv`, etc.
+- Set `resume=True` (default) to continue from existing checkpoints
+- Set `resume=False` to delete checkpoints and start fresh
+
+**Workflow:**
+1. Run this chunk (runtime depends on cores available and n_bootstrap)
+2. If interrupted, re-run to resume from last checkpoint
+3. Final results automatically saved to aggregated files
+4. Visualization chunk loads from files independently
+
+```{python run-split-half-bootstrap, eval=FALSE}
+# ===========================================
+# RUN SPLIT-HALF BOOTSTRAP GRID SEARCH
+# ===========================================
+# Recommended by dissertation author for limited replicate scenarios
+# ===========================================
+
+print("="*80)
+print("SPLIT-HALF BOOTSTRAP PARAMETER SELECTION")
+print("="*80)
+
+# ============================================
+# CONFIGURE PARAMETERS
+# ============================================
+
+# Rank range to test
+BOOTSTRAP_RANK_RANGE = [5, 10, 15, 20, 25, 30, 35, 40]
+
+# Lambda values to test
+BOOTSTRAP_LAMBDA_VALUES = [0.0, 0.01, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0]
+
+# Bootstrap parameters
+BOOTSTRAP_N_ITERATIONS = 10  # Number of random train/test splits
+BOOTSTRAP_TEST_FRACTION = 0.5  # 50/50 split
+BOOTSTRAP_N_ITER_MAX = 10000
+BOOTSTRAP_RANDOM_STATE = 42
+BOOTSTRAP_N_JOBS = -1  # Use all available cores (-1), or set to specific number (1 = sequential)
+
+print(f"\nConfiguration:")
+print(f"  Ranks: {BOOTSTRAP_RANK_RANGE}")
+print(f"  Lambdas: {BOOTSTRAP_LAMBDA_VALUES}")
+print(f"  Bootstrap iterations: {BOOTSTRAP_N_ITERATIONS}")
+print(f"  Train/test split: {int((1-BOOTSTRAP_TEST_FRACTION)*100)}/{int(BOOTSTRAP_TEST_FRACTION*100)}")
+print(f"  Parallel jobs: {BOOTSTRAP_N_JOBS} ({'all cores' if BOOTSTRAP_N_JOBS == -1 else 'cores' if BOOTSTRAP_N_JOBS > 1 else 'sequential'})")
+print("="*80)
+
+# Estimate runtime
+total_models = len(BOOTSTRAP_RANK_RANGE) * len(BOOTSTRAP_LAMBDA_VALUES) * BOOTSTRAP_N_ITERATIONS * 2
+print(f"\nEstimated workload:")
+print(f"  Total model fits: {total_models}")
+print(f"  ({len(BOOTSTRAP_RANK_RANGE)} ranks × {len(BOOTSTRAP_LAMBDA_VALUES)} lambdas × {BOOTSTRAP_N_ITERATIONS} bootstrap × 2 models per split)")
+if BOOTSTRAP_N_JOBS == -1 or BOOTSTRAP_N_JOBS > 1:
+    import multiprocessing
+    n_cores = multiprocessing.cpu_count() if BOOTSTRAP_N_JOBS == -1 else BOOTSTRAP_N_JOBS
+    print(f"  Estimated time with {n_cores} cores: ~{total_models * 2 / 60 / n_cores:.1f}-{total_models * 5 / 60 / n_cores:.1f} minutes")
+    print(f"    (assuming 2-5 min per model, parallelized)")
+else:
+    print(f"  Estimated time (sequential): ~{total_models * 2 / 60:.1f}-{total_models * 5 / 60:.1f} minutes")
+    print(f"    (assuming 2-5 min per model)")
+print("="*80)
+print("\n⚠ NOTE: Set eval=TRUE above when ready to run")
+print("="*80)
+
+import time
+start_time = time.time()
+
+# Create output directory for checkpoints
+bootstrap_dir = os.path.join(output_dir, 'bootstrap_grid_search')
+os.makedirs(bootstrap_dir, exist_ok=True)
+
+# Run split-half bootstrap grid search with incremental saving and parallel execution
+optimal_rank_boot, optimal_lambda_boot, results_df_boot, bootstrap_raw = split_half_bootstrap_grid_search(
+    tensor=tensor_3d,
+    species_sample_map=species_sample_map,
+    rank_range=BOOTSTRAP_RANK_RANGE,
+    lambda_values=BOOTSTRAP_LAMBDA_VALUES,
+    n_bootstrap=BOOTSTRAP_N_ITERATIONS,
+    test_fraction=BOOTSTRAP_TEST_FRACTION,
+    n_iter_max=BOOTSTRAP_N_ITER_MAX,
+    random_state=BOOTSTRAP_RANDOM_STATE,
+    output_dir=bootstrap_dir,  # Enable incremental saving
+    resume=True,  # Resume from existing checkpoints if interrupted
+    n_jobs=BOOTSTRAP_N_JOBS  # Parallel execution
+)
+
+elapsed_time = time.time() - start_time
+
+print(f"\n{'='*80}")
+print("BOOTSTRAP GRID SEARCH COMPLETE")
+print("="*80)
+print(f"Total time: {elapsed_time / 60:.1f} minutes")
+print(f"Time per model: {elapsed_time / total_models:.1f} seconds")
+print("="*80)
+
+# Save results (final aggregated files)
+# Note: Individual iteration checkpoints already saved incrementally
+
+# Save aggregated results
+results_df_boot.to_csv(
+    os.path.join(bootstrap_dir, 'bootstrap_aggregated_results.csv'),
+    index=False
+)
+print(f"\n✓ Aggregated results saved to: bootstrap_aggregated_results.csv")
+
+# Save raw bootstrap data
+pd.DataFrame(bootstrap_raw).to_csv(
+    os.path.join(bootstrap_dir, 'bootstrap_raw_iterations.csv'),
+    index=False
+)
+print(f"✓ Raw bootstrap data saved to: bootstrap_raw_iterations.csv")
+
+# Save optimal parameters
+import json
+with open(os.path.join(bootstrap_dir, 'optimal_parameters.json'), 'w') as f:
+    json.dump({
+        'method': 'split_half_bootstrap',
+        'reference': 'Blaskowski 2024 (modified with author consultation)',
+        'optimal_rank': int(optimal_rank_boot) if optimal_rank_boot is not None else None,
+        'optimal_lambda': float(optimal_lambda_boot) if optimal_lambda_boot is not None else None,
+        'rank_range_tested': BOOTSTRAP_RANK_RANGE,
+        'lambda_values_tested': BOOTSTRAP_LAMBDA_VALUES,
+        'n_bootstrap_iterations': BOOTSTRAP_N_ITERATIONS,
+        'test_fraction': BOOTSTRAP_TEST_FRACTION,
+        'random_state': BOOTSTRAP_RANDOM_STATE,
+        'timestamp': pd.Timestamp.now().isoformat(),
+        'elapsed_minutes': elapsed_time / 60
+    }, f, indent=2)
+
+print(f"✓ Optimal parameters saved to: optimal_parameters.json")
+print(f"\n✓ All results saved to: {bootstrap_dir}/")
+print("="*80)
+```
+
+### Visualize Bootstrap Results
+
+```{python visualize-bootstrap-results, eval=FALSE}
+# ===========================================
+# VISUALIZE BOOTSTRAP GRID SEARCH RESULTS
+# ===========================================
+# This chunk loads from files, so can run independently
+# ===========================================
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
+import numpy as np
+import os
+import json
+
+bootstrap_dir = os.path.join(output_dir, 'bootstrap_grid_search')
+
+# Check if results exist
+results_file = os.path.join(bootstrap_dir, 'bootstrap_aggregated_results.csv')
+if not os.path.exists(results_file):
+    print("ERROR: Bootstrap results not found. Run the bootstrap grid search first.")
+else:
+    # Load results
+    results_df = pd.read_csv(results_file)
+    
+    # Load optimal parameters (if exists, otherwise calculate with 1SE rule)
+    params_file = os.path.join(bootstrap_dir, 'optimal_parameters.json')
+    if os.path.exists(params_file):
+        with open(params_file, 'r') as f:
+            optimal_params = json.load(f)
+        optimal_rank = optimal_params['optimal_rank']
+        optimal_lambda = optimal_params['optimal_lambda']
+        n_bootstrap = optimal_params['n_bootstrap_iterations']
+    else:
+        # Calculate optimal rank using 1SE rule
+        lambda_zero = results_df[results_df['lambda'] == 0.0].copy()
+        min_idx = lambda_zero['mean_sse'].idxmin()
+        min_sse = lambda_zero.loc[min_idx, 'mean_sse']
+        min_se = lambda_zero.loc[min_idx, 'se_sse']
+        threshold = min_sse + min_se
+        within_1se = lambda_zero[lambda_zero['mean_sse'] <= threshold].sort_values('rank')
+        optimal_rank = int(within_1se.iloc[0]['rank'])
+        
+        # Calculate optimal lambda using 1SE rule
+        fixed_rank = results_df[results_df['rank'] == optimal_rank].copy()
+        fixed_rank = fixed_rank[~fixed_rank['mean_fms'].isna()]
+        if len(fixed_rank) > 0:
+            max_idx = fixed_rank['mean_fms'].idxmax()
+            max_fms = fixed_rank.loc[max_idx, 'mean_fms']
+            max_se = fixed_rank.loc[max_idx, 'se_fms']
+            fms_threshold = max_fms - max_se
+            within_1se_fms = fixed_rank[fixed_rank['mean_fms'] >= fms_threshold]
+            optimal_lambda = float(within_1se_fms['lambda'].max())
+        else:
+            optimal_lambda = 0.0
+        
+        n_bootstrap = 10  # Default if not in file
+    
+    print(f"Loaded bootstrap results:")
+    print(f"  Optimal rank (1SE rule): {optimal_rank_1se}")
+    print(f"  Optimal lambda (1SE rule): {optimal_lambda}")
+    print(f"  Bootstrap iterations: {n_bootstrap}")
+    
+    # Create visualization directory
+    fig_dir = os.path.join(bootstrap_dir, 'figures')
+    os.makedirs(fig_dir, exist_ok=True)
+    
+    # ========================================
+    # FIGURE 1: SSE Heatmap
+    # ========================================
     fig, ax = plt.subplots(figsize=(12, 8))
     
-    # Define different marker shapes for each component
-    markers = ['o', 's', '^', 'D', 'v', '<', '>', 'p', '*', 'h', '+', 'x', '8', 'H', 'd', '|', '_']
+    plot_df = results_df.pivot(index='rank', columns='lambda', values='mean_sse')
     
-    # Plot each component
-    for i, col in enumerate(time_factors.columns):
-        marker_style = markers[i % len(markers)]  # Cycle through markers if more components than markers
-        ax.plot(time_factors.index, time_factors[col], 
-               marker=marker_style, linewidth=2, markersize=8,
-               label=f'{col}', alpha=0.8)
+    sns.heatmap(plot_df, annot=True, fmt='.2e', cmap='YlOrRd_r',
+                cbar_kws={'label': 'Mean SSE'}, ax=ax)
     
-    ax.set_xlabel('Timepoint', fontsize=12, fontweight='bold')
-    ax.set_ylabel('Component Loading', fontsize=12, fontweight='bold')
-    ax.set_title(f'Rank {rank}: Component Loadings Across Timepoints',
-                fontsize=13, fontweight='bold', pad=15)
-    ax.grid(True, alpha=0.3)
-    ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=9)
-    ax.axhline(y=0, color='black', linestyle='-', linewidth=0.5, alpha=0.3)
+    # Mark optimal
+    if optimal_rank_1se is not None and optimal_lambda is not None:
+        rank_pos = list(plot_df.index).index(optimal_rank_1se)
+        lambda_pos = list(plot_df.columns).index(optimal_lambda)
+        ax.plot(lambda_pos + 0.5, rank_pos + 0.5, 'b*', markersize=20, 
+                markeredgewidth=2, markeredgecolor='white')
     
-    plt.tight_layout()
-    output_path = os.path.join(rank_dir, 'time_component_lineplot.png')
-    plt.savefig(output_path, dpi=150, bbox_inches='tight')
-    plt.close()
-    print(f"    Saved: time_component_lineplot.png")
-    
-    # ===========================================
-    # PLOT 3: SAMPLE HEATMAP (Samples x Components)
-    # ===========================================
-    print(f"  Creating sample-component heatmap...")
-    
-    # Load sample factors with metadata
-    sample_factors_file = os.path.join(rank_dir, 'sample_factors.csv')
-    sample_factors = pd.read_csv(sample_factors_file, index_col=0)
-    
-    # Extract only the component columns
-    component_cols = [col for col in sample_factors.columns if col.startswith('Component_')]
-    sample_component_data = sample_factors[component_cols]
-    
-    # Create labels that include species and sample info
-    sample_labels = [f"{row['Species']}_{row['Sample_ID']}" for idx, row in sample_factors.iterrows()]
-    
-    # Add sample labels as index for clustering
-    sample_component_data.index = sample_labels
-    
-    # Create clustered heatmap using seaborn's clustermap
-    # This performs hierarchical clustering on samples (rows) based on their component loadings
-    print(f"    Performing hierarchical clustering on samples...")
-    
-    g = sns.clustermap(
-        sample_component_data,
-        cmap='RdBu_r',
-        center=0,
-        figsize=(max(12, rank*0.5), max(10, len(sample_labels)*0.3)),
-        cbar_kws={'label': 'Component Loading'},
-        row_cluster=True,   # Cluster samples (rows)
-        col_cluster=False,  # Don't cluster components (columns) - keep original order
-        xticklabels=True,
-        yticklabels=True,
-        dendrogram_ratio=0.15,
-        cbar_pos=(0.02, 0.8, 0.03, 0.15),
-        linewidths=0,
-        method='average',  # Linkage method for hierarchical clustering
-        metric='euclidean'  # Distance metric
-    )
-    
-    # Adjust labels and title
-    g.ax_heatmap.set_xlabel('Components', fontsize=12, fontweight='bold')
-    g.ax_heatmap.set_ylabel('Sample (Species_SampleID)', fontsize=12, fontweight='bold')
-    g.fig.suptitle(f'Rank {rank}: Sample Loadings Across Components\n' + 
-                   f'(Hierarchically clustered by component loading similarity)',
-                   fontsize=13, fontweight='bold', y=0.98)
+    ax.set_title('Bootstrap Grid Search: Mean SSE across Rank × Lambda', 
+                fontsize=14, fontweight='bold')
+    ax.set_xlabel('Lambda (Regularization)', fontsize=12)
+    ax.set_ylabel('Rank', fontsize=12)
     
     plt.tight_layout()
-    output_path = os.path.join(rank_dir, 'sample_component_heatmap.png')
-    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    plt.savefig(os.path.join(fig_dir, 'bootstrap_sse_heatmap.png'),
+                dpi=300, bbox_inches='tight')
+    plt.show()
     plt.close()
-    print(f"    Saved: sample_component_heatmap.png")
     
-    # ===========================================
-    # PLOT 4: COMPONENT CORRELATION HEATMAP
-    # ===========================================
-    print(f"  Creating component correlation heatmap...")
+    print("✓ Figure 1 saved: bootstrap_sse_heatmap.png")
     
-    # Calculate correlation between components based on gene loadings
-    component_corr = gene_factors.corr()
+    # ========================================
+    # FIGURE 2: FMS Heatmap
+    # ========================================
+    fig, ax = plt.subplots(figsize=(12, 8))
     
-    fig, ax = plt.subplots(figsize=(max(10, rank*0.4), max(8, rank*0.35)))
+    plot_df_fms = results_df.pivot(index='rank', columns='lambda', values='mean_fms')
     
-    sns.heatmap(
-        component_corr,
-        annot=True if rank <= 20 else False,
-        fmt='.2f' if rank <= 20 else '.1f',
-        cmap='coolwarm',
-        center=0,
-        square=True,
-        cbar_kws={'label': 'Correlation'},
-        ax=ax
-    )
+    sns.heatmap(plot_df_fms, annot=True, fmt='.3f', cmap='RdYlGn',
+                vmin=0, vmax=1, cbar_kws={'label': 'Mean FMS'}, ax=ax)
     
-    ax.set_title(f'Rank {rank}: Component Correlation Matrix\n' +
-                '(Based on gene loadings - low correlation = good separation)',
-                fontsize=13, fontweight='bold', pad=15)
+    # Mark optimal
+    if optimal_rank_1se is not None and optimal_lambda is not None:
+        if optimal_lambda in plot_df_fms.columns:
+            rank_pos = list(plot_df_fms.index).index(optimal_rank_1se)
+            lambda_pos = list(plot_df_fms.columns).index(optimal_lambda)
+            ax.plot(lambda_pos + 0.5, rank_pos + 0.5, 'b*', markersize=20,
+                   markeredgewidth=2, markeredgecolor='white')
+    
+    ax.set_title('Bootstrap Grid Search: Mean FMS across Rank × Lambda',
+                fontsize=14, fontweight='bold')
+    ax.set_xlabel('Lambda (Regularization)', fontsize=12)
+    ax.set_ylabel('Rank', fontsize=12)
     
     plt.tight_layout()
-    output_path = os.path.join(rank_dir, 'component_correlation_heatmap.png')
-    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    plt.savefig(os.path.join(fig_dir, 'bootstrap_fms_heatmap.png'),
+                dpi=300, bbox_inches='tight')
+    plt.show()
     plt.close()
-    print(f"    Saved: component_correlation_heatmap.png")
     
-    print(f"\n{'='*60}")
-    print("RANK 10 VISUALIZATIONS COMPLETE")
-    print(f"{'='*60}")
-    print(f"\nThe following plots were created in rank_{rank:02d}/ directory:")
-    print(f"  1A. gene_heatmap_1A_sum_top{TOP_GENES_HEATMAP}.png - Broadly active genes (sum)")
-    print(f"  1B. gene_heatmap_1B_max_top{TOP_GENES_HEATMAP}.png - Component-specific genes (max)")
-    print(f"  1C. gene_heatmap_1C_mean_top{TOP_GENES_HEATMAP}.png - Consistently active genes (mean)")
-    print(f"  1D. gene_heatmap_1D_variance_top{TOP_GENES_HEATMAP}.png - High specificity genes (variance)")
-    print(f"  2. time_component_lineplot.png - Component patterns over time")
-    print(f"  3. sample_component_heatmap.png - Individual samples across components")
-    print(f"  4. component_correlation_heatmap.png - Component independence check")
+    print("✓ Figure 2 saved: bootstrap_fms_heatmap.png")
+    
+    # ========================================
+    # FIGURE 3: Rank Selection (λ=0.0) with 1SE Rule
+    # ========================================
+    print("\nGenerating Figure 3: Rank selection with 1SE rule...")
+    
+    lambda_zero = results_df[results_df['lambda'] == 0.0].copy()
+    lambda_zero = lambda_zero.sort_values('rank')
+    
+    # Calculate 1SE threshold for rank selection
+    min_sse_idx = lambda_zero['mean_sse'].idxmin()
+    min_sse = lambda_zero.loc[min_sse_idx, 'mean_sse']
+    min_sse_se = lambda_zero.loc[min_sse_idx, 'se_sse']
+    min_sse_rank = int(lambda_zero.loc[min_sse_idx, 'rank'])
+    sse_1se_threshold = min_sse + min_sse_se
+    
+    print(f"  Minimum SSE: {min_sse:.2e} ± {min_sse_se:.2e} (at rank={min_sse_rank})")
+    print(f"  1SE Threshold: {sse_1se_threshold:.2e}")
+    
+    # Identify which ranks are within 1SE
+    lambda_zero['within_1se'] = lambda_zero['mean_sse'] <= sse_1se_threshold
+    
+    # Find optimal rank by 1SE rule (smallest rank within 1SE)
+    within_1se_df = lambda_zero[lambda_zero['within_1se']].sort_values('rank')
+    if len(within_1se_df) > 0:
+        optimal_rank_1se = int(within_1se_df.iloc[0]['rank'])
+        print(f"  Optimal rank (1SE rule): {optimal_rank_1se}")
+        print(f"  Ranks within 1SE: {list(within_1se_df['rank'])}")
+    else:
+        optimal_rank_1se = min_sse_rank
+        print(f"  Optimal rank (minimum SSE): {optimal_rank_1se}")
+    
+    # Calculate coefficient of variation (relative variability)
+    lambda_zero['cv'] = lambda_zero['std_sse'] / lambda_zero['mean_sse']
+    
+    fig, axes = plt.subplots(2, 1, figsize=(12, 10), height_ratios=[2, 1])
+    
+    # Panel A: Mean SSE with 1SE threshold
+    ax1 = axes[0]
+    
+    # Plot all points
+    ax1.errorbar(lambda_zero['rank'], lambda_zero['mean_sse'],
+               yerr=lambda_zero['se_sse'],
+               marker='o', markersize=10, linewidth=2.5,
+               capsize=5, capthick=2,
+               color='darkviolet', ecolor='plum',
+               label='Mean SSE ± SE', zorder=2)
+    
+    # Highlight points within 1SE
+    within_1se_df = lambda_zero[lambda_zero['within_1se']]
+    ax1.scatter(within_1se_df['rank'], within_1se_df['mean_sse'],
+               s=200, marker='o', facecolors='none', 
+               edgecolors='green', linewidths=3,
+               label='Within 1SE of minimum', zorder=3)
+    
+    # Draw 1SE threshold line
+    ax1.axhline(y=sse_1se_threshold, color='orange', linestyle='--',
+              linewidth=2.5, alpha=0.8,
+              label=f'1SE Threshold = {sse_1se_threshold:.2e}')
+    
+    # Mark minimum SSE rank
+    ax1.axvline(x=min_sse_rank, color='blue', linestyle=':',
+              linewidth=2, alpha=0.6,
+              label=f'Min SSE at rank={min_sse_rank}')
+    
+    # Mark optimal rank (1SE rule) - use calculated value, not loaded parameter
+    ax1.axvline(x=optimal_rank_1se, color='red', linestyle='--',
+              linewidth=2.5, alpha=0.8,
+              label=f'Selected Rank = {optimal_rank_1se} (1SE rule)')
+    
+    ax1.set_xlabel('Rank', fontsize=12)
+    ax1.set_ylabel('Mean SSE', fontsize=12)
+    ax1.set_title('Stage 1: Rank Selection at λ=0.0 (1SE Rule)\n' +
+                f'Based on {n_bootstrap} Bootstrap Iterations',
+                fontsize=13, fontweight='bold')
+    ax1.legend(fontsize=10, loc='upper right')
+    ax1.grid(alpha=0.3)
+    ax1.ticklabel_format(style='scientific', axis='y', scilimits=(0,0))
+    
+    # Panel B: Coefficient of Variation
+    ax2 = axes[1]
+    
+    # Color code by within 1SE
+    colors = ['green' if w else 'teal' for w in lambda_zero['within_1se']]
+    ax2.scatter(lambda_zero['rank'], lambda_zero['cv'] * 100,
+               s=100, c=colors, marker='s', alpha=0.7, edgecolors='black', linewidths=1.5)
+    ax2.plot(lambda_zero['rank'], lambda_zero['cv'] * 100,
+            linewidth=2, color='gray', alpha=0.5, linestyle=':')
+    
+    ax2.axvline(x=optimal_rank_1se, color='red', linestyle='--',
+              linewidth=2, alpha=0.7)
+    
+    # Add horizontal line for mean CV
+    mean_cv = lambda_zero['cv'].mean() * 100
+    ax2.axhline(y=mean_cv, color='gray', linestyle=':', 
+               linewidth=1.5, alpha=0.7,
+               label=f'Mean CV = {mean_cv:.2f}%')
+    
+    ax2.set_xlabel('Rank', fontsize=12)
+    ax2.set_ylabel('Coefficient of Variation (%)', fontsize=12)
+    ax2.set_title('Bootstrap Stability',
+                fontsize=11, fontweight='bold')
+    ax2.legend(fontsize=10, loc='upper right')
+    ax2.grid(alpha=0.3)
+    
+    plt.tight_layout()
+    plt.savefig(os.path.join(fig_dir, 'bootstrap_rank_selection_1se.png'),
+                dpi=300, bbox_inches='tight')
+    plt.show()
+    plt.close()
+    
+    print("✓ Figure 3 saved: bootstrap_rank_selection_1se.png")
+    
+    # ========================================
+    # FIGURE 4: Lambda Selection at Optimal Rank
+    # ========================================
+    print(f"\nGenerating Figure 4: Lambda selection at rank={optimal_rank_1se}...")
+    
+    if optimal_rank_1se is not None:
+        optimal_rank_data = results_df[results_df['rank'] == optimal_rank_1se].copy()
+        optimal_rank_data = optimal_rank_data.sort_values('lambda')
+        
+        fig, axes = plt.subplots(2, 1, figsize=(12, 10))
+        
+        # SSE vs Lambda
+        ax1 = axes[0]
+        ax1.errorbar(optimal_rank_data['lambda'], optimal_rank_data['mean_sse'],
+                    yerr=optimal_rank_data['se_sse'],
+                    marker='o', markersize=10, linewidth=2.5,
+                    capsize=5, capthick=2,
+                    color='steelblue', ecolor='lightblue')
+        
+        if optimal_lambda is not None:
+            ax1.axvline(x=optimal_lambda, color='red', linestyle='--',
+                       linewidth=2, alpha=0.7,
+                       label=f'Optimal λ = {optimal_lambda}')
+        
+        ax1.set_xlabel('Lambda', fontsize=12)
+        ax1.set_ylabel('Mean SSE (± SE)', fontsize=12)
+        ax1.set_title(f'SSE vs Lambda at Optimal Rank (R={optimal_rank_1se})',
+                     fontsize=13, fontweight='bold')
+        ax1.legend(fontsize=11)
+        ax1.grid(alpha=0.3)
+        
+        # FMS vs Lambda
+        ax2 = axes[1]
+        fms_data = optimal_rank_data[~optimal_rank_data['mean_fms'].isna()]
+        
+        if len(fms_data) > 0:
+            ax2.errorbar(fms_data['lambda'], fms_data['mean_fms'],
+                        yerr=fms_data['se_fms'],
+                        marker='o', markersize=10, linewidth=2.5,
+                        capsize=5, capthick=2,
+                        color='forestgreen', ecolor='lightgreen')
+            
+            # 1SE threshold
+            max_fms = fms_data['mean_fms'].max()
+            max_fms_row = fms_data[fms_data['mean_fms'] == max_fms].iloc[0]
+            threshold = max_fms - max_fms_row['se_fms']
+            
+            ax2.axhline(y=threshold, color='orange', linestyle='--',
+                       linewidth=2, alpha=0.7,
+                       label=f'1SE Threshold = {threshold:.3f}')
+            
+            if optimal_lambda is not None:
+                ax2.axvline(x=optimal_lambda, color='red', linestyle='--',
+                           linewidth=2, alpha=0.7,
+                           label=f'Optimal λ = {optimal_lambda}')
+            
+            ax2.set_xlabel('Lambda', fontsize=12)
+            ax2.set_ylabel('Mean FMS (± SE)', fontsize=12)
+            ax2.set_title(f'Stage 2: Lambda Selection at Optimal Rank (R={optimal_rank_1se})\n' +
+                         'Criterion: Maximum λ where FMS ≥ (max_FMS - 1SE)',
+                         fontsize=13, fontweight='bold')
+            ax2.legend(fontsize=11)
+            ax2.grid(alpha=0.3)
+            ax2.set_ylim(0, 1.05)
+        
+        plt.tight_layout()
+        plt.savefig(os.path.join(fig_dir, 'bootstrap_lambda_selection.png'),
+                    dpi=300, bbox_inches='tight')
+        plt.show()
+        plt.close()
+    
+    print(f"\n✓ All figures saved to: {fig_dir}/")
 ```
 
 
+# FINAL BARNACLE ANALYSIS WITH OPTIMAL PARAMETERS
 
+Now we run the final Barnacle decomposition using the optimal rank and lambda values determined from the bootstrap cross-validation.
+
+## Run Final Barnacle Decomposition
+
+```{python run-final-barnacle, eval=TRUE}
+import pickle
+import time
+from datetime import datetime
+from barnacle.decomposition import SparseCP
+import tensorly as tl
+
+print("="*80)
+print("FINAL BARNACLE DECOMPOSITION WITH OPTIMAL PARAMETERS")
+print("="*80)
+
+# Load tensor and metadata from saved files
+print("\nLoading tensor data from saved files...")
+tensor_file = os.path.join(output_dir, 'multiomics_tensor.npy')
+sample_mapping_file = os.path.join(output_dir, 'sample_mapping.csv')
+gene_list_file = os.path.join(output_dir, 'gene_list.csv')
+timepoints_file = os.path.join(output_dir, 'timepoints.csv')
+
+# Check if tensor files exist
+if not os.path.exists(tensor_file):
+    raise FileNotFoundError(f"Tensor file not found: {tensor_file}\n"
+                          "Please run the tensor creation chunk first.")
+
+# Load tensor
+tensor_3d = np.load(tensor_file)
+print(f"✓ Loaded tensor from: {tensor_file}")
+print(f"  Shape: {tensor_3d.shape}")
+
+# Load sample mapping
+sample_mapping = pd.read_csv(sample_mapping_file)
+sample_labels = sample_mapping['sample_label'].tolist()
+print(f"✓ Loaded sample mapping: {len(sample_labels)} samples")
+
+# Reconstruct species_sample_map dictionary from sample_mapping DataFrame
+species_sample_map = {}
+for _, row in sample_mapping.iterrows():
+    species_sample_map[int(row['combined_index'])] = {
+        'species': row['species'],
+        'sample_id': row['sample_id']
+    }
+print(f"✓ Reconstructed species sample map from CSV")
+
+# Load gene list
+gene_list_df = pd.read_csv(gene_list_file)
+common_genes_list = gene_list_df['gene_id'].tolist()
+print(f"✓ Loaded gene list: {len(common_genes_list)} genes")
+
+# Load timepoints
+timepoints_df = pd.read_csv(timepoints_file)
+common_timepoints = timepoints_df['timepoint'].tolist()
+print(f"✓ Loaded timepoints: {common_timepoints}")
+
+print("\n" + "="*80)
+
+# Load optimal parameters if they exist, otherwise use the variables from bootstrap
+optimal_params_file = os.path.join(output_dir, 'bootstrap_grid_search', 'optimal_parameters.json')
+if os.path.exists(optimal_params_file):
+    import json
+    with open(optimal_params_file, 'r') as f:
+        optimal_params = json.load(f)
+    final_rank = optimal_params['optimal_rank']
+    final_lambda = optimal_params['optimal_lambda']
+    print(f"Loaded optimal parameters from: {optimal_params_file}")
+else:
+    # Use variables from bootstrap analysis
+    final_rank = optimal_rank_1se if 'optimal_rank_1se' in dir() else optimal_rank_boot
+    final_lambda = optimal_lambda if 'optimal_lambda' in dir() else optimal_lambda_boot
+    print(f"Using optimal parameters from bootstrap analysis")
+
+print(f"\nOptimal Parameters:")
+print(f"  Rank (R): {final_rank}")
+print(f"  Lambda (λ): {final_lambda}")
+print(f"\nTensor shape: {tensor_3d.shape}")
+print(f"  Genes: {tensor_3d.shape[0]}")
+print(f"  Samples: {tensor_3d.shape[1]} (combined across species)")
+print(f"  Timepoints: {tensor_3d.shape[2]}")
+print("="*80)
+
+# Handle missing values (replace NaN with 0)
+tensor_filled = np.nan_to_num(tensor_3d, nan=0.0)
+
+# Set up lambda parameters for each mode
+# Apply regularization to gene mode (mode 0) and time mode (mode 2)
+# No regularization on sample mode (mode 1) for interpretability
+lambda_params = [final_lambda, 0.0, final_lambda]
+
+print(f"\nRegularization configuration:")
+print(f"  Gene mode (0): λ = {lambda_params[0]}")
+print(f"  Sample mode (1): λ = {lambda_params[1]}")
+print(f"  Time mode (2): λ = {lambda_params[2]}")
+
+# Set up decomposition parameters
+max_iter = 500
+tol = 1e-6
+verbose = 2  # Show progress
+random_state = 42  # Set random seed for reproducibility
+
+print(f"\nDecomposition parameters:")
+print(f"  Maximum iterations: {max_iter}")
+print(f"  Convergence tolerance: {tol}")
+print(f"  Verbose: {verbose}")
+print(f"  Random state: {random_state}")
+
+# Initialize barnacle decomposition with multi-threading
+print(f"\n{'='*80}")
+print("Initializing Barnacle SparseCP decomposition...")
+print("Using multi-threading for FISTA optimization")
+print("="*80)
+
+barnacle_final = SparseCP(
+    rank=final_rank,
+    lmbda=lambda_params,
+    non_negative=[0],  # Non-negativity constraint on gene mode only
+    max_iter=max_iter,
+    tol=tol,
+    verbose=verbose,
+    n_iter_max=100,  # FISTA inner iterations
+    random_state=random_state  # Reproducible initialization
+)
+
+# Fit the decomposition
+print(f"\nStarting decomposition at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}...")
+start_time = time.time()
+
+try:
+    barnacle_final.fit(tensor_filled)
+    elapsed_time = time.time() - start_time
+    
+    print(f"\n{'='*80}")
+    print("✓ DECOMPOSITION COMPLETE")
+    print("="*80)
+    print(f"Time elapsed: {elapsed_time / 60:.2f} minutes ({elapsed_time:.1f} seconds)")
+    print(f"Converged: {barnacle_final.converged}")
+    print(f"Final reconstruction error: {barnacle_final.rec_errors[-1]:.6e}")
+    print(f"Number of iterations: {len(barnacle_final.rec_errors)}")
+    print("="*80)
+    
+except Exception as e:
+    print(f"\n{'='*80}")
+    print("✗ ERROR DURING DECOMPOSITION")
+    print("="*80)
+    print(f"Error: {str(e)}")
+    import traceback
+    traceback.print_exc()
+    print("="*80)
+    raise
+
+# Save the final decomposition
+print(f"\nSaving final decomposition results...")
+
+# Create final output directory
+final_dir = os.path.join(output_dir, 'final_barnacle_decomposition')
+os.makedirs(final_dir, exist_ok=True)
+
+# Save full decomposition object (for complete reproducibility)
+decomp_file = os.path.join(final_dir, 'barnacle_decomposition.pkl')
+with open(decomp_file, 'wb') as f:
+    pickle.dump(barnacle_final, f)
+print(f"✓ Decomposition object saved: {decomp_file}")
+
+# Extract and save factor matrices
+gene_factors = barnacle_final.factors[0]  # Genes × Rank
+sample_factors = barnacle_final.factors[1]  # Samples × Rank
+time_factors = barnacle_final.factors[2]  # Timepoints × Rank
+weights = barnacle_final.weights  # Component weights
+
+# Save factor matrices as CSV for easy access
+gene_factors_df = pd.DataFrame(
+    gene_factors,
+    index=common_genes_list,
+    columns=[f'Component_{i+1}' for i in range(final_rank)]
+)
+gene_factors_df.to_csv(os.path.join(final_dir, 'gene_factors.csv'))
+print(f"✓ Gene factors saved: gene_factors.csv ({gene_factors.shape})")
+
+sample_factors_df = pd.DataFrame(
+    sample_factors,
+    index=sample_labels,
+    columns=[f'Component_{i+1}' for i in range(final_rank)]
+)
+sample_factors_df.to_csv(os.path.join(final_dir, 'sample_factors.csv'))
+print(f"✓ Sample factors saved: sample_factors.csv ({sample_factors.shape})")
+
+time_factors_df = pd.DataFrame(
+    time_factors,
+    index=[f'TP{tp}' for tp in common_timepoints],
+    columns=[f'Component_{i+1}' for i in range(final_rank)]
+)
+time_factors_df.to_csv(os.path.join(final_dir, 'time_factors.csv'))
+print(f"✓ Time factors saved: time_factors.csv ({time_factors.shape})")
+
+weights_df = pd.DataFrame({
+    'Component': [f'Component_{i+1}' for i in range(final_rank)],
+    'Weight': weights
+})
+weights_df.to_csv(os.path.join(final_dir, 'component_weights.csv'), index=False)
+print(f"✓ Component weights saved: component_weights.csv")
+
+# Save convergence information
+convergence_df = pd.DataFrame({
+    'iteration': range(len(barnacle_final.rec_errors)),
+    'reconstruction_error': barnacle_final.rec_errors
+})
+convergence_df.to_csv(os.path.join(final_dir, 'convergence.csv'), index=False)
+print(f"✓ Convergence history saved: convergence.csv")
+
+# Save metadata
+import json
+metadata = {
+    'analysis_date': datetime.now().isoformat(),
+    'optimal_rank': int(final_rank),
+    'optimal_lambda': float(final_lambda),
+    'lambda_configuration': {
+        'gene_mode': float(lambda_params[0]),
+        'sample_mode': float(lambda_params[1]),
+        'time_mode': float(lambda_params[2])
+    },
+    'tensor_shape': {
+        'genes': int(tensor_3d.shape[0]),
+        'samples': int(tensor_3d.shape[1]),
+        'timepoints': int(tensor_3d.shape[2])
+    },
+    'convergence': {
+        'converged': bool(barnacle_final.converged),
+        'iterations': int(len(barnacle_final.rec_errors)),
+        'final_error': float(barnacle_final.rec_errors[-1])
+    },
+    'runtime_minutes': float(elapsed_time / 60)
+}
+
+with open(os.path.join(final_dir, 'metadata.json'), 'w') as f:
+    json.dump(metadata, f, indent=2)
+print(f"✓ Metadata saved: metadata.json")
+
+print(f"\n✓ All results saved to: {final_dir}/")
+print("="*80)
+```
+
+## Visualize Final Decomposition Components
+
+```{python visualize-final-decomposition, eval=TRUE}
+import matplotlib.pyplot as plt
+import seaborn as sns
+from matplotlib.gridspec import GridSpec
+
+print("="*80)
+print("GENERATING VISUALIZATION OF FINAL DECOMPOSITION")
+print("="*80)
+
+# Create figure directory
+fig_dir = os.path.join(final_dir, 'figures')
+os.makedirs(fig_dir, exist_ok=True)
+
+# Set plotting style
+sns.set_style("whitegrid")
+plt.rcParams['figure.dpi'] = 300
+plt.rcParams['savefig.dpi'] = 300
+
+# ========================================
+# FIGURE 1: Component Weights
+# ========================================
+print("\nGenerating Figure 1: Component weights...")
+
+fig, ax = plt.subplots(figsize=(10, 6))
+
+components = [f'C{i+1}' for i in range(final_rank)]
+ax.bar(components, weights, color='steelblue', edgecolor='black', linewidth=1.5, alpha=0.8)
+
+ax.set_xlabel('Component', fontsize=14, fontweight='bold')
+ax.set_ylabel('Weight', fontsize=14, fontweight='bold')
+ax.set_title(f'Component Weights (Rank={final_rank})', fontsize=16, fontweight='bold')
+ax.grid(axis='y', alpha=0.3)
+
+# Add value labels on bars
+for i, (comp, w) in enumerate(zip(components, weights)):
+    ax.text(i, w, f'{w:.3f}', ha='center', va='bottom', fontsize=10, fontweight='bold')
+
+plt.tight_layout()
+plt.savefig(os.path.join(fig_dir, '01_component_weights.png'), bbox_inches='tight')
+plt.show()
+plt.close()
+
+print("✓ Figure 1 saved: 01_component_weights.png")
+
+# ========================================
+# FIGURE 2: Temporal Dynamics (Time Factors)
+# ========================================
+print("\nGenerating Figure 2: Temporal dynamics...")
+
+fig, ax = plt.subplots(figsize=(12, 7))
+
+# Plot each component's temporal profile
+colors = plt.cm.Set2(np.linspace(0, 1, final_rank))
+for i in range(final_rank):
+    ax.plot(common_timepoints, time_factors[:, i], 
+           marker='o', markersize=10, linewidth=3, 
+           label=f'Component {i+1}', color=colors[i], alpha=0.8)
+
+ax.set_xlabel('Timepoint', fontsize=14, fontweight='bold')
+ax.set_ylabel('Loading', fontsize=14, fontweight='bold')
+ax.set_title('Temporal Dynamics of Components', fontsize=16, fontweight='bold')
+ax.set_xticks(common_timepoints)
+ax.set_xticklabels([f'TP{tp}' for tp in common_timepoints])
+ax.legend(fontsize=11, loc='best', frameon=True, shadow=True)
+ax.grid(alpha=0.3)
+
+plt.tight_layout()
+plt.savefig(os.path.join(fig_dir, '02_temporal_dynamics.png'), bbox_inches='tight')
+plt.show()
+plt.close()
+
+print("✓ Figure 2 saved: 02_temporal_dynamics.png")
+
+# ========================================
+# FIGURE 3: Sample Loadings Heatmap
+# ========================================
+print("\nGenerating Figure 3: Sample loadings heatmap...")
+
+# Add species information to sample labels for better visualization
+sample_labels_annotated = []
+species_colors_map = {'apul': 'red', 'peve': 'green', 'ptua': 'blue'}
+species_color_list = []
+
+for idx, label in enumerate(sample_labels):
+    species = species_sample_map[idx]['species']
+    sample_id = species_sample_map[idx]['sample_id']
+    sample_labels_annotated.append(f"{species.upper()}_{sample_id}")
+    species_color_list.append(species_colors_map[species])
+
+# Create heatmap
+fig = plt.figure(figsize=(14, max(8, final_rank * 1.5)))
+gs = GridSpec(1, 20, figure=fig, wspace=0.3)
+
+# Main heatmap
+ax_heat = fig.add_subplot(gs[0, :18])
+im = ax_heat.imshow(sample_factors.T, aspect='auto', cmap='RdYlBu_r', 
+                     interpolation='nearest')
+
+# Customize heatmap
+ax_heat.set_yticks(range(final_rank))
+ax_heat.set_yticklabels([f'Component {i+1}' for i in range(final_rank)], fontsize=11)
+ax_heat.set_xticks(range(len(sample_labels_annotated)))
+ax_heat.set_xticklabels(sample_labels_annotated, rotation=90, fontsize=8)
+ax_heat.set_xlabel('Samples', fontsize=13, fontweight='bold')
+ax_heat.set_ylabel('Components', fontsize=13, fontweight='bold')
+ax_heat.set_title('Sample Loadings Across Components', fontsize=15, fontweight='bold', pad=20)
+
+# Add colorbar
+cbar_ax = fig.add_subplot(gs[0, 19])
+cbar = plt.colorbar(im, cax=cbar_ax)
+cbar.set_label('Loading', fontsize=12, fontweight='bold')
+
+# Add species color bar at bottom
+for idx, color in enumerate(species_color_list):
+    ax_heat.add_patch(plt.Rectangle((idx-0.5, -0.5), 1, 0.3, 
+                                    color=color, alpha=0.6, 
+                                    clip_on=False, transform=ax_heat.transData))
+
+plt.tight_layout()
+plt.savefig(os.path.join(fig_dir, '03_sample_loadings_heatmap.png'), bbox_inches='tight')
+plt.show()
+plt.close()
+
+print("✓ Figure 3 saved: 03_sample_loadings_heatmap.png")
+
+# ========================================
+# FIGURE 4: Top Gene Loadings per Component
+# ========================================
+print("\nGenerating Figure 4: Top gene loadings per component...")
+
+n_top_genes = 20  # Top genes to show per component
+
+fig, axes = plt.subplots(1, final_rank, figsize=(5*final_rank, 8))
+if final_rank == 1:
+    axes = [axes]
+
+for comp_idx in range(final_rank):
+    ax = axes[comp_idx]
+    
+    # Get top genes for this component
+    gene_loadings = gene_factors[:, comp_idx]
+    top_indices = np.argsort(gene_loadings)[-n_top_genes:][::-1]
+    top_genes = [common_genes_list[i] for i in top_indices]
+    top_values = gene_loadings[top_indices]
+    
+    # Create horizontal bar plot
+    y_pos = np.arange(len(top_genes))
+    ax.barh(y_pos, top_values, color='coral', edgecolor='black', linewidth=0.5)
+    
+    ax.set_yticks(y_pos)
+    ax.set_yticklabels(top_genes, fontsize=8)
+    ax.set_xlabel('Loading', fontsize=11, fontweight='bold')
+    ax.set_title(f'Component {comp_idx+1}\nTop {n_top_genes} Genes', 
+                fontsize=12, fontweight='bold')
+    ax.grid(axis='x', alpha=0.3)
+    ax.invert_yaxis()
+
+plt.tight_layout()
+plt.savefig(os.path.join(fig_dir, '04_top_gene_loadings.png'), bbox_inches='tight')
+plt.show()
+plt.close()
+
+print("✓ Figure 4 saved: 04_top_gene_loadings.png")
+
+# ========================================
+# FIGURE 5: Gene Loading Sparsity
+# ========================================
+print("\nGenerating Figure 5: Gene loading sparsity...")
+
+fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+
+# Panel A: Distribution of gene loadings
+ax1 = axes[0]
+for comp_idx in range(final_rank):
+    gene_loadings = gene_factors[:, comp_idx]
+    ax1.hist(gene_loadings, bins=50, alpha=0.6, label=f'Component {comp_idx+1}', edgecolor='black')
+
+ax1.set_xlabel('Gene Loading', fontsize=12, fontweight='bold')
+ax1.set_ylabel('Frequency', fontsize=12, fontweight='bold')
+ax1.set_title('Distribution of Gene Loadings', fontsize=13, fontweight='bold')
+ax1.legend(fontsize=10)
+ax1.grid(alpha=0.3)
+
+# Panel B: Number of non-zero genes per component
+ax2 = axes[1]
+threshold = 0.01  # Consider loadings > 0.01 as "active"
+n_active_genes = []
+for comp_idx in range(final_rank):
+    gene_loadings = gene_factors[:, comp_idx]
+    n_active = np.sum(gene_loadings > threshold)
+    n_active_genes.append(n_active)
+
+components = [f'C{i+1}' for i in range(final_rank)]
+ax2.bar(components, n_active_genes, color='teal', edgecolor='black', linewidth=1.5, alpha=0.8)
+
+ax2.set_xlabel('Component', fontsize=12, fontweight='bold')
+ax2.set_ylabel(f'Number of Active Genes (>{threshold})', fontsize=12, fontweight='bold')
+ax2.set_title(f'Gene Sparsity per Component', fontsize=13, fontweight='bold')
+ax2.grid(axis='y', alpha=0.3)
+
+# Add value labels
+for i, (comp, n) in enumerate(zip(components, n_active_genes)):
+    ax2.text(i, n, str(n), ha='center', va='bottom', fontsize=10, fontweight='bold')
+
+plt.tight_layout()
+plt.savefig(os.path.join(fig_dir, '05_gene_sparsity.png'), bbox_inches='tight')
+plt.show()
+plt.close()
+
+print("✓ Figure 5 saved: 05_gene_sparsity.png")
+
+# ========================================
+# FIGURE 6: Sample Loadings by Species
+# ========================================
+print("\nGenerating Figure 6: Sample loadings by species...")
+
+fig, axes = plt.subplots(final_rank, 1, figsize=(12, 4*final_rank))
+if final_rank == 1:
+    axes = [axes]
+
+for comp_idx in range(final_rank):
+    ax = axes[comp_idx]
+    
+    # Group samples by species
+    species_groups = {'apul': [], 'peve': [], 'ptua': []}
+    species_loadings = {'apul': [], 'peve': [], 'ptua': []}
+    
+    for sample_idx, label in enumerate(sample_labels):
+        species = species_sample_map[sample_idx]['species']
+        loading = sample_factors[sample_idx, comp_idx]
+        species_groups[species].append(label)
+        species_loadings[species].append(loading)
+    
+    # Create grouped bar plot
+    x_pos = 0
+    colors_species = {'apul': 'red', 'peve': 'green', 'ptua': 'blue'}
+    
+    for species in ['apul', 'peve', 'ptua']:
+        loadings = species_loadings[species]
+        positions = range(x_pos, x_pos + len(loadings))
+        ax.bar(positions, loadings, color=colors_species[species], 
+              alpha=0.7, label=species.upper(), edgecolor='black', linewidth=0.5)
+        x_pos += len(loadings) + 1  # Add gap between species
+    
+    ax.set_ylabel('Loading', fontsize=11, fontweight='bold')
+    ax.set_title(f'Component {comp_idx+1}: Sample Loadings by Species', 
+                fontsize=12, fontweight='bold')
+    ax.legend(fontsize=10)
+    ax.grid(axis='y', alpha=0.3)
+    ax.set_xticks([])
+
+plt.tight_layout()
+plt.savefig(os.path.join(fig_dir, '06_sample_loadings_by_species.png'), bbox_inches='tight')
+plt.show()
+plt.close()
+
+print("✓ Figure 6 saved: 06_sample_loadings_by_species.png")
+
+# ========================================
+# FIGURE 7: Convergence Plot
+# ========================================
+print("\nGenerating Figure 7: Convergence plot...")
+
+fig, ax = plt.subplots(figsize=(10, 6))
+
+iterations = range(len(barnacle_final.rec_errors))
+ax.plot(iterations, barnacle_final.rec_errors, linewidth=2.5, 
+       color='darkviolet', marker='o', markersize=4, alpha=0.8)
+
+ax.set_xlabel('Iteration', fontsize=13, fontweight='bold')
+ax.set_ylabel('Reconstruction Error', fontsize=13, fontweight='bold')
+ax.set_title('Convergence of Barnacle Decomposition', fontsize=15, fontweight='bold')
+ax.grid(alpha=0.3)
+ax.set_yscale('log')  # Log scale for better visualization
+
+# Add text box with convergence info
+textstr = f"Converged: {barnacle_final.converged}\n"
+textstr += f"Iterations: {len(barnacle_final.rec_errors)}\n"
+textstr += f"Final error: {barnacle_final.rec_errors[-1]:.6e}"
+props = dict(boxstyle='round', facecolor='wheat', alpha=0.8)
+ax.text(0.05, 0.95, textstr, transform=ax.transAxes, fontsize=11,
+       verticalalignment='top', bbox=props)
+
+plt.tight_layout()
+plt.savefig(os.path.join(fig_dir, '07_convergence.png'), bbox_inches='tight')
+plt.show()
+plt.close()
+
+print("✓ Figure 7 saved: 07_convergence.png")
+
+# ========================================
+# Summary Statistics
+# ========================================
+print("\n" + "="*80)
+print("DECOMPOSITION SUMMARY")
+print("="*80)
+
+print(f"\nComponent Statistics:")
+for comp_idx in range(final_rank):
+    weight = weights[comp_idx]
+    n_active_genes = np.sum(gene_factors[:, comp_idx] > 0.01)
+    mean_sample_loading = np.mean(sample_factors[:, comp_idx])
+    max_time_loading = np.max(time_factors[:, comp_idx])
+    
+    print(f"\nComponent {comp_idx+1}:")
+    print(f"  Weight: {weight:.4f}")
+    print(f"  Active genes (>0.01): {n_active_genes}/{len(common_genes_list)} ({n_active_genes/len(common_genes_list)*100:.1f}%)")
+    print(f"  Mean sample loading: {mean_sample_loading:.4f}")
+    print(f"  Max time loading: {max_time_loading:.4f}")
+
+print(f"\n✓ All figures saved to: {fig_dir}/")
+print("="*80)
+```
 
 
 ## Close log file
@@ -3164,657 +3020,7 @@ if hasattr(sys.stdout, 'log'):
     sys.stdout = sys.stdout.terminal
 ```
 
-# GOSLIM ANNOTATION ANALYSIS
 
-This section annotates the top 500 genes for components 5, 6, 7, and 9 with GOslim Biological Process terms from the rank_10 directory.
-
-**Note:** Only Biological Process (BP) GOslim terms are included in this analysis. Cellular Component and Molecular Function GOslim terms are excluded.
-
-## Setup and load annotations
-
-```{r goslim-setup, eval=TRUE}
-library(tidyverse)
-library(ggplot2)
-
-# Define paths
-rank_10_dir <- file.path(output_dir, "rank_10")
-goslim_output_dir <- file.path(output_dir, "rank_10", "goslim_analysis")
-dir.create(goslim_output_dir, showWarnings = FALSE, recursive = TRUE)
-
-# Path to goslim_generic.obo file
-goslim_obo_file <- "../output/12-ortho-annot/run_20250831_172744/goslim_generic.obo"
-
-# Load the ortholog groups annotation file
-ortho_annot <- read.csv(ortholog_groups_file, stringsAsFactors = FALSE)
-
-cat(strrep("=", 60), "\n")
-cat("GOSLIM ANNOTATION SETUP\n")
-cat(strrep("=", 60), "\n\n")
-cat("Rank 10 directory:", rank_10_dir, "\n")
-cat("GOslim output directory:", goslim_output_dir, "\n")
-cat("Loaded ortholog annotations:", nrow(ortho_annot), "ortholog groups\n\n")
-```
-
-## Extract Biological Process GOslim IDs
-
-```{r extract-bp-goslims, eval=TRUE}
-# Function to parse OBO file and extract Biological Process GOslim IDs
-extract_bp_goslim_ids <- function(obo_file) {
-  if (!file.exists(obo_file)) {
-    cat("WARNING: GOslim OBO file not found:", obo_file, "\n")
-    cat("Proceeding without BP filtering (all GOslims will be included)\n")
-    return(NULL)
-  }
-  
-  # Read OBO file
-  obo_lines <- readLines(obo_file)
-  
-  # Parse OBO file
-  bp_goslim_ids <- c()
-  current_term <- list(id = NULL, namespace = NULL, is_goslim = FALSE)
-  
-  for (line in obo_lines) {
-    line <- trimws(line)
-    
-    if (line == "[Term]") {
-      # Save previous term if it's a BP GOslim
-      if (!is.null(current_term$id) && 
-          current_term$namespace == "biological_process" && 
-          current_term$is_goslim) {
-        bp_goslim_ids <- c(bp_goslim_ids, current_term$id)
-      }
-      # Reset for new term
-      current_term <- list(id = NULL, namespace = NULL, is_goslim = FALSE)
-      
-    } else if (grepl("^id:", line)) {
-      current_term$id <- sub("^id:\\s*", "", line)
-      
-    } else if (grepl("^namespace:", line)) {
-      current_term$namespace <- sub("^namespace:\\s*", "", line)
-      
-    } else if (grepl("^subset:\\s*goslim_generic", line)) {
-      current_term$is_goslim <- TRUE
-    }
-  }
-  
-  # Don't forget the last term
-  if (!is.null(current_term$id) && 
-      current_term$namespace == "biological_process" && 
-      current_term$is_goslim) {
-    bp_goslim_ids <- c(bp_goslim_ids, current_term$id)
-  }
-  
-  return(unique(bp_goslim_ids))
-}
-
-# Extract BP GOslim IDs
-bp_goslim_ids <- extract_bp_goslim_ids(goslim_obo_file)
-
-if (!is.null(bp_goslim_ids)) {
-  cat("Extracted Biological Process GOslim terms:", length(bp_goslim_ids), "\n")
-  cat("First 10 BP GOslim IDs:", paste(head(bp_goslim_ids, 10), collapse = ", "), "\n\n")
-} else {
-  cat("NOTE: BP filtering disabled - all GOslim terms will be used\n\n")
-}
-```
-
-## Load top 500 genes for components 5, 6, 7, and 9
-
-```{r load-top-genes, eval=TRUE}
-# Components to analyze
-components_to_analyze <- c(5, 6, 7, 9)
-
-# Load top 500 genes for each component
-top_genes_list <- list()
-
-cat(strrep("=", 60), "\n")
-cat("LOADING TOP 500 GENES\n")
-cat(strrep("=", 60), "\n\n")
-
-for (comp_num in components_to_analyze) {
-  file_path <- file.path(rank_10_dir, 
-                         paste0("top_500_genes_Component_", comp_num, ".csv"))
-  
-  if (!file.exists(file_path)) {
-    cat("WARNING: File not found:", file_path, "\n")
-    next
-  }
-  
-  # Load the top genes file
-  top_genes_df <- read.csv(file_path, stringsAsFactors = FALSE)
-  
-  # Rename gene_id column to group_id for consistency with annotation file
-  if ("gene_id" %in% colnames(top_genes_df)) {
-    top_genes_df <- top_genes_df %>%
-      rename(group_id = gene_id)
-  }
-  
-  top_genes_list[[paste0("Component_", comp_num)]] <- top_genes_df
-  
-  cat("Component", comp_num, ":\n")
-  cat("  Loaded", nrow(top_genes_df), "genes\n")
-  cat("  Loading range:", 
-      round(min(top_genes_df$absolute_loading), 4), "to", 
-      round(max(top_genes_df$absolute_loading), 4), "\n")
-  cat("  Top 3 genes:", paste(head(top_genes_df$group_id, 3), collapse = ", "), "\n\n")
-}
-
-cat("Total components loaded:", length(top_genes_list), "\n\n")
-```
-
-## Annotate with GOslim terms
-
-```{r annotate-goslim, eval=TRUE}
-# Function to parse GOslim IDs and names, filtering for BP terms only
-parse_goslim <- function(goslim_ids_str, goslim_names_str, bp_filter_ids = NULL) {
-  if (is.na(goslim_ids_str) || goslim_ids_str == "" || 
-      is.na(goslim_names_str) || goslim_names_str == "") {
-    return(NULL)
-  }
-  
-  # Split GOslim IDs and names
-  ids <- strsplit(goslim_ids_str, ";\\s*")[[1]]
-  names <- strsplit(goslim_names_str, ";\\s*")[[1]]
-  
-  # Clean up whitespace
-  ids <- trimws(ids)
-  names <- trimws(names)
-  
-  # Return data frame if lengths match
-  if (length(ids) == length(names) && length(ids) > 0) {
-    result_df <- data.frame(
-      goslim_id = ids,
-      goslim_name = names,
-      stringsAsFactors = FALSE
-    )
-    
-    # Filter for Biological Process GOslims if bp_filter_ids is provided
-    if (!is.null(bp_filter_ids)) {
-      result_df <- result_df %>%
-        filter(goslim_id %in% bp_filter_ids)
-      
-      # Return NULL if no BP terms remain after filtering
-      if (nrow(result_df) == 0) {
-        return(NULL)
-      }
-    }
-    
-    return(result_df)
-  }
-  
-  return(NULL)
-}
-
-# Annotate each component's top genes
-annotated_components <- list()
-
-cat(strrep("=", 60), "\n")
-cat("ANNOTATING WITH GOSLIM TERMS (Biological Process only)\n")
-cat(strrep("=", 60), "\n\n")
-
-for (comp_num in components_to_analyze) {
-  comp_col <- paste0("Component_", comp_num)
-  
-  if (!comp_col %in% names(top_genes_list)) {
-    cat("Component", comp_num, ": Skipping (not loaded)\n\n")
-    next
-  }
-  
-  top_genes_df <- top_genes_list[[comp_col]]
-  
-  cat("Component", comp_num, ":\n")
-  
-  # Merge with annotation data
-  annotated_df <- top_genes_df %>%
-    left_join(ortho_annot %>% 
-                select(group_id, goslim_ids, goslim_names),
-              by = "group_id")
-  
-  # Expand GOslim terms (one row per GOslim term)
-  # Filter for Biological Process terms only
-  goslim_expanded <- list()
-  
-  for (i in seq_len(nrow(annotated_df))) {
-    row <- annotated_df[i, ]
-    # Pass bp_goslim_ids to filter for BP terms only
-    goslim_data <- parse_goslim(row$goslim_ids, row$goslim_names, bp_goslim_ids)
-    
-    if (!is.null(goslim_data)) {
-      goslim_data$group_id <- row$group_id
-      goslim_data$loading <- row$absolute_loading
-      goslim_expanded[[i]] <- goslim_data
-    }
-  }
-  
-  # Combine all GOslim annotations
-  if (length(goslim_expanded) > 0) {
-    goslim_all <- bind_rows(goslim_expanded)
-    
-    # Count occurrences of each GOslim term
-    goslim_counts <- goslim_all %>%
-      group_by(goslim_id, goslim_name) %>%
-      summarize(
-        count = n(),
-        mean_loading = mean(loading),
-        .groups = "drop"
-      ) %>%
-      arrange(desc(count))
-    
-    annotated_components[[comp_col]] <- list(
-      top_genes = annotated_df,
-      goslim_counts = goslim_counts
-    )
-    
-    cat("  Genes with BP GOslim:", 
-        length(unique(goslim_all$group_id)), "/", nrow(top_genes_df), "\n")
-    cat("  Unique BP GOslim terms:", nrow(goslim_counts), "\n")
-    cat("  Top 5 BP GOslim terms:\n")
-    top5 <- head(goslim_counts, 5)
-    for (j in seq_len(nrow(top5))) {
-      cat("    ", j, ". ", top5$goslim_name[j], " (", top5$goslim_id[j], ", n=", top5$count[j], ")\n", sep = "")
-    }
-  } else {
-    cat("  WARNING: No BP GOslim annotations found!\n")
-    annotated_components[[comp_col]] <- list(
-      top_genes = annotated_df,
-      goslim_counts = data.frame()
-    )
-  }
-  cat("\n")
-}
-```
-
-## Save GOslim annotation tables
-
-```{r save-goslim-tables, eval=TRUE}
-cat(strrep("=", 60), "\n")
-cat("SAVING GOSLIM TABLES (Biological Process only)\n")
-cat(strrep("=", 60), "\n\n")
-
-for (comp_num in components_to_analyze) {
-  comp_col <- paste0("Component_", comp_num)
-  
-  if (!comp_col %in% names(annotated_components)) {
-    next
-  }
-  
-  # Save top genes with annotations
-  top_genes_file <- file.path(goslim_output_dir, 
-                               paste0("component_", comp_num, "_top500_genes_goslim_BP_annotated.csv"))
-  write.csv(annotated_components[[comp_col]]$top_genes, 
-            top_genes_file, 
-            row.names = FALSE)
-  cat("Saved:", basename(top_genes_file), "\n")
-  
-  # Save GOslim counts
-  if (nrow(annotated_components[[comp_col]]$goslim_counts) > 0) {
-    goslim_counts_file <- file.path(goslim_output_dir, 
-                                    paste0("component_", comp_num, "_goslim_BP_counts.csv"))
-    write.csv(annotated_components[[comp_col]]$goslim_counts, 
-              goslim_counts_file, 
-              row.names = FALSE)
-    cat("Saved:", basename(goslim_counts_file), "\n")
-  }
-}
-
-cat("\nAll tables saved to:", goslim_output_dir, "\n\n")
-```
-
-## Create GOslim bar charts
-
-```{r plot-goslim-barcharts, eval=TRUE, fig.width=10, fig.height=8}
-cat(strrep("=", 60), "\n")
-cat("CREATING GOSLIM BAR CHARTS (Biological Process only)\n")
-cat(strrep("=", 60), "\n\n")
-
-# Color palette for components
-component_colors <- c(
-  "5" = "#E64B35",
-  "6" = "#4DBBD5", 
-  "7" = "#00A087",
-  "9" = "#F39B7F"
-)
-
-for (comp_num in components_to_analyze) {
-  comp_col <- paste0("Component_", comp_num)
-  
-  if (!comp_col %in% names(annotated_components)) {
-    next
-  }
-  
-  goslim_counts <- annotated_components[[comp_col]]$goslim_counts
-  
-  if (nrow(goslim_counts) == 0) {
-    cat("Component", comp_num, ": No BP GOslim data to plot\n")
-    next
-  }
-  
-  # Take top 20 GOslim terms for visualization
-  top_goslim <- goslim_counts %>%
-    head(20) %>%
-    mutate(goslim_name = reorder(goslim_name, count))
-  
-  # Get total number of genes for subtitle
-  top_genes <- annotated_components[[comp_col]]$top_genes
-  total_genes <- nrow(top_genes)
-  
-  # Create bar chart
-  p <- ggplot(top_goslim, aes(x = goslim_name, y = count)) +
-    geom_bar(stat = "identity", fill = component_colors[as.character(comp_num)], 
-             alpha = 0.8) +
-    geom_text(aes(label = count), hjust = -0.2, size = 3.5) +
-    coord_flip() +
-    labs(
-      title = paste0("Component ", comp_num, ": Top 20 GOslim Biological Process Terms"),
-      subtitle = paste0("Top 500 genes (genes can have multiple BP GOslim annotations)"),
-      x = "GOslim Biological Process Term",
-      y = "Number of Ortholog Groups"
-    ) +
-    theme_bw() +
-    theme(
-      plot.title = element_text(size = 14, face = "bold"),
-      plot.subtitle = element_text(size = 11, color = "gray30"),
-      axis.text.y = element_text(size = 10),
-      axis.text.x = element_text(size = 10),
-      axis.title = element_text(size = 11, face = "bold"),
-      panel.grid.major.y = element_blank(),
-      panel.grid.minor = element_blank()
-    ) +
-    scale_y_continuous(expand = expansion(mult = c(0, 0.15)))
-  
-  # Save plot
-  plot_file <- file.path(goslim_output_dir, 
-                         paste0("component_", comp_num, "_goslim_BP_barchart.png"))
-  ggsave(plot_file, p, width = 10, height = 8, dpi = 300)
-  cat("Saved:", basename(plot_file), "\n")
-}
-
-cat("\nAll bar charts saved to:", goslim_output_dir, "\n\n")
-```
-
-## Create GOslim percentage bar charts
-
-```{r plot-goslim-percentage-barcharts, eval=TRUE, fig.width=10, fig.height=8}
-cat(strrep("=", 60), "\n")
-cat("CREATING GOSLIM PERCENTAGE BAR CHARTS (Biological Process only)\n")
-cat(strrep("=", 60), "\n\n")
-
-# Color palette for components
-component_colors <- c(
-  "5" = "#E64B35",
-  "6" = "#4DBBD5", 
-  "7" = "#00A087",
-  "9" = "#F39B7F"
-)
-
-for (comp_num in components_to_analyze) {
-  comp_col <- paste0("Component_", comp_num)
-  
-  if (!comp_col %in% names(annotated_components)) {
-    next
-  }
-  
-  goslim_counts <- annotated_components[[comp_col]]$goslim_counts
-  
-  if (nrow(goslim_counts) == 0) {
-    cat("Component", comp_num, ": No BP GOslim data to plot\n")
-    next
-  }
-  
-  # Calculate total genes with BP GOslim annotations
-  # Note: We're using the full top 500 genes as the denominator
-  top_genes <- annotated_components[[comp_col]]$top_genes
-  total_genes <- nrow(top_genes)
-  
-  # Calculate percentage for each GOslim term
-  # (genes can have multiple GOslim terms, so percentages may sum to >100%)
-  goslim_percentages <- goslim_counts %>%
-    mutate(percentage = (count / total_genes) * 100) %>%
-    head(20) %>%
-    mutate(goslim_name = reorder(goslim_name, percentage))
-  
-  # Create percentage bar chart
-  p <- ggplot(goslim_percentages, aes(x = goslim_name, y = percentage)) +
-    geom_bar(stat = "identity", fill = component_colors[as.character(comp_num)], 
-             alpha = 0.8) +
-    geom_text(aes(label = sprintf("%.1f%%", percentage)), hjust = -0.2, size = 3.5) +
-    coord_flip() +
-    labs(
-      title = paste0("Component ", comp_num, ": Top 20 GOslim Biological Process Terms (%)"),
-      subtitle = paste0("Percentage of 500 genes with each BP GOslim (genes can have multiple annotations)"),
-      x = "GOslim Biological Process Term",
-      y = "Percentage of Ortholog Groups (%)"
-    ) +
-    theme_bw() +
-    theme(
-      plot.title = element_text(size = 14, face = "bold"),
-      plot.subtitle = element_text(size = 11, color = "gray30"),
-      axis.text.y = element_text(size = 10),
-      axis.text.x = element_text(size = 10),
-      axis.title = element_text(size = 11, face = "bold"),
-      panel.grid.major.y = element_blank(),
-      panel.grid.minor = element_blank()
-    ) +
-    scale_y_continuous(expand = expansion(mult = c(0, 0.15)))
-  
-  # Save plot
-  plot_file <- file.path(goslim_output_dir, 
-                         paste0("component_", comp_num, "_goslim_BP_barchart_percentage.png"))
-  ggsave(plot_file, p, width = 10, height = 8, dpi = 300)
-  cat("Saved:", basename(plot_file), "\n")
-  
-  # Also save the percentage data
-  percentage_file <- file.path(goslim_output_dir, 
-                               paste0("component_", comp_num, "_goslim_BP_percentages.csv"))
-  goslim_percentages_full <- goslim_counts %>%
-    mutate(percentage = (count / total_genes) * 100) %>%
-    arrange(desc(percentage))
-  write.csv(goslim_percentages_full, percentage_file, row.names = FALSE)
-  cat("Saved:", basename(percentage_file), "\n\n")
-}
-
-cat("All percentage bar charts saved to:", goslim_output_dir, "\n\n")
-```
-
-## Create comprehensive GOslim percentage bar charts (all 72 BP terms)
-
-```{r plot-goslim-all-percentage-barcharts, eval=TRUE, fig.width=12, fig.height=22}
-cat(strrep("=", 60), "\n")
-cat("CREATING COMPREHENSIVE GOSLIM PERCENTAGE BAR CHARTS (All 72 BP GOslim terms)\n")
-cat(strrep("=", 60), "\n\n")
-
-# Color palette for components
-component_colors <- c(
-  "5" = "#E64B35",
-  "6" = "#4DBBD5", 
-  "7" = "#00A087",
-  "9" = "#F39B7F"
-)
-
-# Create a reference dataframe with ALL 72 BP GOslim terms
-# Use the bp_goslim_ids that were already extracted, and get names from OBO file
-extract_bp_goslim_names <- function(obo_file, bp_ids) {
-  if (!file.exists(obo_file)) {
-    return(data.frame(goslim_id = bp_ids, goslim_name = bp_ids, stringsAsFactors = FALSE))
-  }
-  
-  obo_lines <- readLines(obo_file)
-  id_to_name <- list()
-  current_id <- NULL
-  current_name <- NULL
-  
-  for (line in obo_lines) {
-    line <- trimws(line)
-    
-    if (line == "[Term]") {
-      # Save previous term
-      if (!is.null(current_id) && !is.null(current_name)) {
-        id_to_name[[current_id]] <- current_name
-      }
-      current_id <- NULL
-      current_name <- NULL
-      
-    } else if (grepl("^id:", line)) {
-      current_id <- sub("^id:\\s*", "", line)
-      
-    } else if (grepl("^name:", line)) {
-      current_name <- sub("^name:\\s*", "", line)
-    }
-  }
-  
-  # Don't forget the last term
-  if (!is.null(current_id) && !is.null(current_name)) {
-    id_to_name[[current_id]] <- current_name
-  }
-  
-  # Create dataframe with all BP GOslim IDs and their names
-  data.frame(
-    goslim_id = bp_ids,
-    goslim_name = sapply(bp_ids, function(id) {
-      if (id %in% names(id_to_name)) {
-        id_to_name[[id]]
-      } else {
-        id  # Use ID as name if name not found
-      }
-    }, USE.NAMES = FALSE),
-    stringsAsFactors = FALSE
-  )
-}
-
-# Get names for all 72 BP GOslim IDs
-all_bp_goslim_ref <- extract_bp_goslim_names(goslim_obo_file, bp_goslim_ids)
-
-cat("BP GOslim reference table created with", nrow(all_bp_goslim_ref), "terms\n\n")
-
-for (comp_num in components_to_analyze) {
-  comp_col <- paste0("Component_", comp_num)
-  
-  if (!comp_col %in% names(annotated_components)) {
-    next
-  }
-  
-  goslim_counts <- annotated_components[[comp_col]]$goslim_counts
-  
-  # Get total number of genes
-  top_genes <- annotated_components[[comp_col]]$top_genes
-  total_genes <- nrow(top_genes)
-  
-  # Create complete dataframe with ALL 72 BP GOslim terms
-  # Join with actual counts, filling missing terms with 0
-  goslim_all_percentages <- all_bp_goslim_ref %>%
-    left_join(goslim_counts, by = c("goslim_id", "goslim_name")) %>%
-    mutate(
-      count = replace_na(count, 0),
-      percentage = (count / total_genes) * 100
-    ) %>%
-    arrange(desc(percentage)) %>%
-    mutate(goslim_name = reorder(goslim_name, percentage))
-  
-  # Count how many terms have representation
-  terms_with_data <- sum(goslim_all_percentages$count > 0)
-  
-  # Create comprehensive percentage bar chart with all 72 terms
-  p <- ggplot(goslim_all_percentages, aes(x = goslim_name, y = percentage)) +
-    geom_bar(stat = "identity", fill = component_colors[as.character(comp_num)], 
-             alpha = 0.8) +
-    geom_text(data = subset(goslim_all_percentages, percentage > 0),
-              aes(label = sprintf("%.1f%%", percentage)), hjust = -0.2, size = 2.5) +
-    coord_flip() +
-    labs(
-      title = paste0("Component ", comp_num, ": All 72 GOslim Biological Process Terms (%)"),
-      subtitle = paste0(terms_with_data, " of 72 BP GOslim terms found in top 500 genes (genes can have multiple annotations)"),
-      x = "GOslim Biological Process Term",
-      y = "Percentage of Ortholog Groups (%)"
-    ) +
-    theme_bw() +
-    theme(
-      plot.title = element_text(size = 14, face = "bold"),
-      plot.subtitle = element_text(size = 11, color = "gray30"),
-      axis.text.y = element_text(size = 8),
-      axis.text.x = element_text(size = 10),
-      axis.title = element_text(size = 11, face = "bold"),
-      panel.grid.major.y = element_blank(),
-      panel.grid.minor = element_blank()
-    ) +
-    scale_y_continuous(expand = expansion(mult = c(0, 0.15)))
-  
-  # Save plot with fixed height for 72 terms
-  plot_file <- file.path(goslim_output_dir, 
-                         paste0("component_", comp_num, "_goslim_BP_barchart_all_percentage.png"))
-  ggsave(plot_file, p, width = 12, height = 22, dpi = 300)
-  cat("Saved:", basename(plot_file), "(", terms_with_data, "of 72 BP GOslim terms represented)\n")
-}
-
-cat("\nAll comprehensive percentage bar charts saved to:", goslim_output_dir, "\n\n")
-```
-
-## Summary statistics
-
-```{r goslim-summary, eval=TRUE}
-cat(strrep("=", 60), "\n")
-cat("GOSLIM ANNOTATION SUMMARY (Biological Process only)\n")
-cat(strrep("=", 60), "\n\n")
-
-summary_data <- list()
-
-for (comp_num in components_to_analyze) {
-  comp_col <- paste0("Component_", comp_num)
-  
-  if (!comp_col %in% names(annotated_components)) {
-    next
-  }
-  
-  top_genes <- annotated_components[[comp_col]]$top_genes
-  goslim_counts <- annotated_components[[comp_col]]$goslim_counts
-  
-  genes_with_goslim <- sum(!is.na(top_genes$goslim_ids) & top_genes$goslim_ids != "")
-  
-  if (nrow(goslim_counts) > 0) {
-    top_term <- goslim_counts$goslim_name[1]
-    top_term_id <- goslim_counts$goslim_id[1]
-    top_count <- goslim_counts$count[1]
-  } else {
-    top_term <- NA
-    top_term_id <- NA
-    top_count <- NA
-  }
-  
-  summary_data[[comp_col]] <- data.frame(
-    Component = comp_num,
-    Total_Genes = nrow(top_genes),
-    Genes_With_BP_GOslim = length(unique(top_genes$group_id[!is.na(top_genes$goslim_ids) & top_genes$goslim_ids != ""])),
-    Percent_Annotated = round(genes_with_goslim / nrow(top_genes) * 100, 1),
-    Unique_BP_GOslim_Terms = nrow(goslim_counts),
-    Top_BP_GOslim_Term = top_term,
-    Top_BP_GOslim_ID = top_term_id,
-    Top_BP_GOslim_Count = top_count,
-    stringsAsFactors = FALSE
-  )
-}
-
-summary_df <- bind_rows(summary_data)
-
-print(summary_df)
-
-# Save summary table
-summary_file <- file.path(goslim_output_dir, "goslim_BP_annotation_summary.csv")
-write.csv(summary_df, summary_file, row.names = FALSE)
-cat("\nSaved summary table:", basename(summary_file), "\n")
-
-cat("\n", strrep("=", 60), "\n")
-cat("GOSLIM ANNOTATION ANALYSIS COMPLETE\n")
-cat("Output directory:", goslim_output_dir, "\n")
-cat(strrep("=", 60), "\n\n")
-
-cat("Output files created:\n")
-cat("  - component_[5,6,7,9]_top500_genes_goslim_BP_annotated.csv\n")
-cat("  - component_[5,6,7,9]_goslim_BP_counts.csv\n")
-cat("  - component_[5,6,7,9]_goslim_BP_percentages.csv\n")
-cat("  - component_[5,6,7,9]_goslim_BP_barchart.png (counts)\n")
-cat("  - component_[5,6,7,9]_goslim_BP_barchart_percentage.png (percentages)\n")
-cat("  - goslim_BP_annotation_summary.csv\n")
-cat("\nNote: Only Biological Process GOslim terms are included in this analysis.\n\n")
-```
 
 # SYSTEM INFO
 

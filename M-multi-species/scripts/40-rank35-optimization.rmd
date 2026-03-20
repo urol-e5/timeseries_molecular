@@ -1,0 +1,36 @@
+---
+title: "40-rank35-optimization"
+output: html_document
+date: "2025-11-04"
+---
+
+
+```{bash}
+LAMBDAS_GENE="0.00 0.1 0.2 0.4 0.8 1.0 10 40 100 1000"
+LAMBDA_SAMPLE=0.1
+LAMBDA_TIME=0.05
+RANK=35
+
+mkdir -p ../output/40-rank35-optimization
+
+OUTDIR_BASE=../output/40-rank35-optimization
+
+for LG in $LAMBDAS_GENE; do
+  OUTDIR=${OUTDIR_BASE}/lambda_gene_${LG}
+  mkdir -p "$OUTDIR"
+
+  uv run python ../scripts/14.1-barnacle/build_tensor_and_run.py \
+    --input-file ../output/14-pca-orthologs/vst_counts_matrix.csv \
+    --output-dir "$OUTDIR" \
+    --rank $RANK \
+    --lambda-gene $LG \
+    --lambda-sample $LAMBDA_SAMPLE \
+    --lambda-time $LAMBDA_TIME \
+    --max-iter 1000 \
+    --tol 1e-5 \
+    --seed 92
+done
+
+
+```
+

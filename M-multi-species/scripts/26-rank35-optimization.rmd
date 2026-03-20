@@ -30,6 +30,9 @@ for LG in $LAMBDAS_GENE; do
     --seed 81
 done
 ```
+
+
+
 ```{r}
 library(tidyverse)
 
@@ -74,6 +77,310 @@ print(summary_df)
 	•	~50 % of genes belong to a single component
 	•	mean overlap ≈ 1–1.5
 	•	sparsity high (0.95–0.97) but not total collapse.
+	
+```{r}
+thr <- 1.0  # threshold for "high" loading
+
+
+# Use absolute or correctly relative path
+base_dir <- "../output/26-rank35-optimization"
+lambda_values <- c("0.00", "0.01", "0.05", "0.1", "0.2", "0.4", "0.8")
+
+
+analyze_lambda <- function(lambda) {
+  # 1. Construct file path
+  f <- file.path(base_dir, paste0("lambda_gene_", lambda), "barnacle_factors", "gene_factors.csv")
+  
+  # 2. Check file exists
+  if (!file.exists(f)) {
+    stop(paste("Missing file:", f))
+  }
+  
+  # 3. Load matrix
+  df <- readr::read_csv(f)
+  mat <- df %>%
+    tibble::column_to_rownames(var = colnames(df)[1]) %>%
+    as.matrix()
+  
+  # 4. Compute magnitude matrix
+  amat <- abs(mat)
+  
+  # 5. Compute sparsity and overlap
+  sparsity <- mean(amat <= thr)
+  overlap <- rowSums(amat > thr)
+  
+  # 6. Derive summary statistics
+  overlap_mean <- mean(overlap)
+  overlap_median <- median(overlap)
+  frac_single_component <- mean(overlap == 1)
+  frac_multi_component <- mean(overlap > 1)
+  
+  # 7. Optionally visualize
+  hist(overlap, breaks = 50, main = paste("Gene Overlap for lambda =", lambda),
+       xlab = "Number of components with high loading", col = "lightblue", border = "gray")
+  
+  # 8. Return summary as a list
+  return(list(
+    lambda = lambda,
+    n_genes = nrow(amat),
+    n_components = ncol(amat),
+    sparsity = sparsity,
+    overlap_mean = overlap_mean,
+    overlap_median = overlap_median,
+    frac_single_component = frac_single_component,
+    frac_multi_component = frac_multi_component
+  ))
+}
+```
+	
+	
+	# Visualizing
+	
+	
+	
+```{r,echo=FALSE, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(pheatmap)
+```
+
+```{bash}
+head ../output/13.00-multiomics-barnacle/rank_35/gene_factors.csv
+```
+
+```{bash}
+head ../output/26-rank35-optimization/lambda_gene_0.2/barnacle_factors/gene_factors.csv
+```
+
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+# -----------------------------------------
+
+  gene_factors <- read.csv("../output/26-rank35-optimization/lambda_gene_0.2/barnacle_factors/gene_factors.csv")
+
+# Rename columns (skipping the first, assuming it's row IDs or gene names)
+colnames(gene_factors)[-1] <- paste0("Component_", seq_along(colnames(gene_factors)[-1]))
+
+
+  # Matrix for heatmap
+ df_mat <- gene_factors %>%
+  column_to_rownames(var = "X") %>%
+  as.matrix()
+
+  # Long format for histograms
+  df_long <- gene_factors %>%
+    pivot_longer(cols = starts_with("Component_"),
+                 names_to = "Component",
+                 values_to = "Value")
+
+  # Row stats
+  df_stats <- gene_factors %>%
+    mutate(
+      mean_val = rowMeans(select(., starts_with("Component_")), na.rm = TRUE),
+      max_val  = do.call(pmax, c(select(., starts_with("Component_")), na.rm = TRUE)),
+      diff_val = max_val - mean_val
+    )
+
+## 1) Start from your matrix
+df_mat2 <- df_mat
+
+## 2) Replace non-finite values (Inf, -Inf, NaN) with NA
+df_mat2[!is.finite(df_mat2)] <- NA
+
+## 3) Drop any rows with NA
+df_mat2 <- df_mat2[complete.cases(df_mat2), , drop = FALSE]
+
+## 4) Drop rows with zero variance (would give NaN when scaling by row)
+row_var <- apply(df_mat2, 1, var, na.rm = TRUE)
+keep    <- which(row_var > 0 & !is.na(row_var))
+
+df_mat2 <- df_mat2[keep, , drop = FALSE]
+row_var <- row_var[keep]
+
+## 5) Select top variable rows (respect actual number of rows)
+top_n <- 10000
+top_n_use <- min(top_n, nrow(df_mat2))
+
+ord    <- order(row_var, decreasing = TRUE)
+df_top <- df_mat2[ord[seq_len(top_n_use)], , drop = FALSE]
+
+  # ---- PLOTS ----
+
+
+rank_label <- "Rank_opt"
+  # 1) Heatmap of top variance rows
+  pheatmap(df_top,
+           scale = "row",
+           color = colorRampPalette(c("navy","white","firebrick3"))(100),
+           clustering_method = "ward.D2",
+           show_rownames = FALSE
+
+  
+    # 1) Heatmap of- raw
+  pheatmap(df_top,
+           scale = "none",
+           color = colorRampPalette(c("lightblue","black","orange"))(100),
+           clustering_method = "ward.D2",
+           show_rownames = FALSE,
+           main = paste0(rank, " — Top ", top_n, " RAW"))
+  
+  
+  
+  # 2) Histogram per Component
+  print(
+    ggplot(df_long, aes(x = Value)) +
+      geom_histogram(bins = 50) +
+      facet_wrap(~ Component, scales = "fixed") +
+      theme_minimal() +
+      labs(x = "Value", y = "Count",
+           title = paste0("Distribution of Values per Component — ", rank))
+  )
+
+  # 3) Distribution of (max - mean)
+  print(
+    ggplot(df_stats, aes(x = diff_val)) +
+      geom_histogram(bins = 50) +
+      theme_minimal() +
+      labs(
+        title = paste0("Difference (max - mean) — ", rank),
+        x = "max - mean",
+        y = "Count"
+      )
+  )
+
+  # 4) 500 largest differences
+  print(
+    df_stats %>%
+      arrange(desc(diff_val)) %>%
+      slice(1:500) %>%
+      ggplot(aes(x = reorder(...1, diff_val), y = diff_val)) +
+      geom_segment(aes(xend = ...1, y = mean_val, yend = max_val),
+                   color="grey40") +
+      geom_point(aes(y = mean_val), color="blue", size=2) +
+      geom_point(aes(y = max_val),  color="red", size=2) +
+      coord_flip() +
+      theme_minimal() +
+      labs(x = "OG", y = "Value",
+           title = paste0("Top 500 by (max - mean) — ", rank),
+           subtitle = "blue = mean, red = max")
+  )
+
+  # 5) 500 smallest differences
+  df_smallest <- df_stats %>%
+    arrange(diff_val) %>%
+    slice(1:500)
+
+  print(
+    df_smallest %>%
+      slice(1:500) %>%
+      ggplot(aes(x = reorder(...1, diff_val))) +
+        geom_segment(aes(xend = ...1, y = mean_val, yend = max_val),
+                     color = "grey50") +
+        geom_point(aes(y = mean_val), color = "blue", size = 2) +
+        geom_point(aes(y = max_val),  color = "red", size = 2) +
+        coord_flip() +
+        theme_minimal() +
+        labs(x = "OG", y = "value",
+             title = paste0("500 most uniform — ", rank))
+  )
+
+}
+```
+	
+	
+```{r}
+# Load required libraries
+library(readr)
+library(pheatmap)
+
+# Read the CSV (adjust the filename if needed)
+df <- read_csv("../output/26-rank35-optimization/lambda_gene_0.4/barnacle_factors/sample_factors.csv")
+
+# Make the first column row names
+df_mat <- df |> 
+  column_to_rownames(var = colnames(df)[1]) |> 
+  as.matrix()
+
+# Optional: scale rows or columns for better contrast
+df_scaled <- scale(df_mat)
+
+# Plot heatmap
+pheatmap(df_scaled,
+         color = colorRampPalette(c("navy","white","firebrick3"))(100),
+         clustering_method = "ward.D2",
+         show_rownames = TRUE,
+         show_colnames = TRUE,
+         main = "Heatmap of Samples vs Features")
+```
+
+
+
+
+```{r}
+# Load required libraries
+library(readr)
+library(pheatmap)
+
+# Read the CSV (adjust the filename if needed)
+df <- read_csv("../output/26-rank35-optimization/lambda_gene_0.2/barnacle_factors/sample_factors.csv")
+
+# Make the first column row names
+df_mat <- df |> 
+  column_to_rownames(var = colnames(df)[1]) |> 
+  as.matrix()
+
+# Optional: scale rows or columns for better contrast
+df_scaled <- scale(df_mat)
+
+# Plot heatmap
+pheatmap(df_scaled,
+         color = colorRampPalette(c("navy","white","firebrick3"))(100),
+         clustering_method = "ward.D2",
+         show_rownames = TRUE,
+         show_colnames = TRUE,
+         main = "Heatmap of Samples vs Features")
+```
+
+
+```{r}
+# Load required libraries
+library(readr)
+library(pheatmap)
+
+# Read the CSV (adjust the filename if needed)
+df <- read_csv("../output/13.00-multiomics-barnacle/rank_05/sample_factors.csv")
+
+# Make the first column row names
+df_mat <- df |> 
+  column_to_rownames(var = colnames(df)[1]) |> 
+  as.matrix()
+
+# 1️⃣ Move the first column to rownames
+df <- df %>%
+  column_to_rownames(var = colnames(df)[1])
+
+# 2️⃣ Convert all remaining columns to numeric (forces any lingering text to NA)
+df_mat <- df %>%
+  mutate(across(everything(), as.numeric)) %>%
+  as.matrix()
+
+# 3️⃣ Optionally drop rows with any NA values
+df_mat <- df_mat[complete.cases(df_mat), ]
+
+# Optional: scale rows or columns for better contrast
+df_scaled <- scale(df_mat)
+
+# Plot heatmap
+pheatmap(df_scaled,
+         color = colorRampPalette(c("navy","white","firebrick3"))(100),
+         clustering_method = "ward.D2",
+         show_rownames = TRUE,
+         show_colnames = TRUE,
+         main = "Heatmap of Samples vs Features")
+```
+	
+	
+	
+	
 	
 ```{r}
 library(tidyverse)
@@ -137,4 +444,73 @@ library(jsonlite)
 meta <- fromJSON("../output/26-rank35-optimization/lambda_gene_0.2/barnacle_factors/metadata.json")
 str(meta, max.level = 2)
 ```
+
+# time
+
+
+```{r}
+library(tidyverse)
+
+# Read in data
+df <- read_csv("../output/26-rank35-optimization/lambda_gene_0.2/barnacle_factors/time_factors.csv") %>%
+  rename(TP = 1)   # rename the first column to TP
+
+# Reshape from wide to long
+df_long <- df %>%
+  pivot_longer(
+    cols = -TP,               # everything except TP
+    names_to = "Component",
+    values_to = "Loading"
+  )
+
+
+
+top_components <- df_long %>%
+  group_by(Component) %>%
+  summarize(var_loading = var(Loading)) %>%
+  slice_max(var_loading, n = 10) %>%
+  pull(Component)
+
+ggplot(df_long %>% filter(Component %in% top_components),
+       aes(x = TP, y = Loading, group = Component, color = Component)) +
+  geom_line(linewidth = 1.2) +
+  geom_point(size = 3) +
+  theme_classic(base_size = 14) +
+  labs(title = "Top 10 Most Variable Components Across Time Points",
+       x = "Time Point", y = "Loading Value")
+```
+# top 100 genes
+
+```{r}
+library(readr)
+library(dplyr)
+
+# Path to file
+file_path <- "../output/26-rank35-optimization/lambda_gene_0.2/barnacle_factors/gene_factors.csv"
+
+# Load data
+df <- read_csv(file_path)
+
+# Rename numeric columns to Component_1 ... Component_35
+colnames(df) <- c("OG_ID", paste0("Component_", 1:(ncol(df)-1)))
+
+# Create output directory
+outdir <- "../output/26-rank35-optimization/lambda_gene_0.2/top_genes_per_component"
+dir.create(outdir, showWarnings = FALSE, recursive = TRUE)
+
+# Loop over components
+for (comp in paste0("Component_", 1:(ncol(df) - 1))) {
+  top_genes <- df %>%
+    arrange(desc(.data[[comp]])) %>%
+    slice_head(n = 100) %>%
+    select(OG_ID, all_of(comp))
+  
+  # Write to CSV per component
+  write_csv(top_genes, file.path(outdir, paste0(comp, "_top100.csv")))
+}
+```
+
+
+
+
 

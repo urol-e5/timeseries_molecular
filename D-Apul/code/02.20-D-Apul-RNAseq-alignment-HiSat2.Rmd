@@ -40,7 +40,7 @@ This notebook will align trimmed *A.pulchra* RNA-seq data to the *A.pulchra* gen
 
 Since the BAM files produced by this notebook are too large for GitHub, they can be accessed on our server here:
 
-[https://gannet.fish.washington.edu/Atumefaciens/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/02.20-D-Apul-RNAseq-alignment-HiSat2/](https://gannet.fish.washington.edu/Atumefaciens/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/02.20-D-Apul-RNAseq-alignment-HiSat2/)
+<https://gannet.fish.washington.edu/Atumefaciens/gitrepos/urol-e5/timeseries_molecular/D-Apul/output/02.20-D-Apul-RNAseq-alignment-HiSat2/>
 
 Input(s)
 
@@ -51,51 +51,49 @@ Input(s)
 
 Outputs:
 
-- Primary:
-  
-  - `checksums.md5`: MD5 checksum for all files in this directory. Excludes subdirectories.
-  
-  - `apul-gene_count_matrix.csv`: Gene count matrix for use in [DESeq2](https://github.com/thelovelab/DESeq2).
-  
-  - `apul-transcript_count_matrix.csv`: Transcript count matrix for use in [DESeq2](https://github.com/thelovelab/DESeq2).
-  
-  - `apul-transcript_count_matrix_with_gene_ids.csv`: Transcript count matrix which includes corresponding gene IDs.
-  
-  - `prepDE-sample_list.txt`: Sample file list provided as input to StringTie for DESeq2 count matrix generation. Also serves as documentation of which files were used   for this step. 
-  
-  - `Apulchra-genome.stringtie.gtf`: Canonical StringTie GTF file compiled from all individual sample GTFs. 
-  
-  - `sorted-bams-merged.bam`: Merged (and sorted) BAM consisting of all individual sample BAMs. 
-  
-  - `sorted-bams-merged.bam.bai`: BAM index file. Useful for visualizing assemblies in IGV. 
-  
-  - `sorted_bams.list`: List file needed for merging of BAMS with samtools. Also serves as documentation of which files were used for this step. 
-  
-  - `multiqc_report.html`: MultiQC report aggregating all individual HISAT2 alignment stats and samtools flagstats. 
-  
-  
-  - `gtf_list.txt`: List file needed for merging of GTF files with StringTie. Also serves as documentation of which files were used for this step. 
-- Individuals:
+-   Primary:
 
-Each subdirectory is labelled based on sample name and each contains individual HISAT2 alignment and StringTie output files. 
-  
-  - `<sample_name>_checksums.md5`: MD5 checksums for all files in the directory. 
-  
-  - `*.ctab`: Data tables formatted for import into Ballgown. 
-  
-  - `<sample_name>.cov_refs.gtf`: StringTie genome reference sequnce coverage GTF. 
-  
-  - `<sample_name>.gtf`: StringTie GTF. 
-  
-  - `<sample_name>.sorted.bam`: HISAT2 assembly BAM. 
-  
-  - `<sample_name>.sorted.bam.bai`: BAM index file. Useful for visualizing assemblies in IGV. 
-  
-  - `<sample_name>-hisat2_output.flagstat`: samtools flagstat output file. 
-  
-  - `<sample_name>_hisat2.stats`: HISAT2 assembly stats. 
-  
-  - `input_fastqs_checksums.md5`: MD5 checksums of files used as input for assembly. Primarily serves as documentation to track/verify which files were actually used.
+    -   `checksums.md5`: MD5 checksum for all files in this directory. Excludes subdirectories.
+
+    -   `apul-gene_count_matrix.csv`: Gene count matrix for use in [DESeq2](https://github.com/thelovelab/DESeq2).
+
+    -   `apul-transcript_count_matrix.csv`: Transcript count matrix for use in [DESeq2](https://github.com/thelovelab/DESeq2).
+
+    -   `prepDE-sample_list.txt`: Sample file list provided as input to StringTie for DESeq2 count matrix generation. Also serves as documentation of which files were used for this step.
+
+    -   `Apulchra-genome.stringtie.gtf`: Canonical StringTie GTF file compiled from all individual sample GTFs.
+
+    -   `sorted-bams-merged.bam`: Merged (and sorted) BAM consisting of all individual sample BAMs.
+
+    -   `sorted-bams-merged.bam.bai`: BAM index file. Useful for visualizing assemblies in IGV.
+
+    -   `sorted_bams.list`: List file needed for merging of BAMS with samtools. Also serves as documentation of which files were used for this step.
+
+    -   `multiqc_report.html`: MultiQC report aggregating all individual HISAT2 alignment stats and samtools flagstats.
+
+    -   `gtf_list.txt`: List file needed for merging of GTF files with StringTie. Also serves as documentation of which files were used for this step.
+
+-   Individuals:
+
+Each subdirectory is labelled based on sample name and each contains individual HISAT2 alignment and StringTie output files.
+
+-   `<sample_name>_checksums.md5`: MD5 checksums for all files in the directory.
+
+-   `*.ctab`: Data tables formatted for import into Ballgown.
+
+-   `<sample_name>.cov_refs.gtf`: StringTie genome reference sequnce coverage GTF.
+
+-   `<sample_name>.gtf`: StringTie GTF.
+
+-   `<sample_name>.sorted.bam`: HISAT2 assembly BAM.
+
+-   `<sample_name>.sorted.bam.bai`: BAM index file. Useful for visualizing assemblies in IGV.
+
+-   `<sample_name>-hisat2_output.flagstat`: samtools flagstat output file.
+
+-   `<sample_name>_hisat2.stats`: HISAT2 assembly stats.
+
+-   `input_fastqs_checksums.md5`: MD5 checksums of files used as input for assembly. Primarily serves as documentation to track/verify which files were actually used.
 
 # Create a Bash variables file
 
@@ -107,7 +105,7 @@ echo "#### Assign Variables ####"
 echo ""
 
 echo "# Data directories"
-echo 'export timeseries_dir=/home/shared/16TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular'
+echo 'export timeseries_dir=/home/shared/8TB_HDD_01/sam/gitrepos/urol-e5/timeseries_molecular'
 echo 'export genome_dir="${timeseries_dir}/D-Apul/data"'
 echo 'export genome_index_dir="${timeseries_dir}/D-Apul/output/02.10-D-Apul-RNAseq-genome-index-HiSat2"'
 echo 'export output_dir_top="${timeseries_dir}/D-Apul/output/02.20-D-Apul-RNAseq-alignment-HiSat2"'
@@ -240,11 +238,11 @@ This requires usage of the `rna_metadata.csv`
 
 This step has a lengthy, semi-complex workflow:
 
-1. Parse `rna_metadata.csv` for _A.pulchra_ sample names and time point. This info will be used for downstream file naming and to assign the time point to the read group (`SM:`) in the alignment file.
-2. Loop through all samples and perform individual alignments using HISAT2.
-3. HISAT2 output is piped to through multiple samtools tools: flagstat (stats aggregation), sort (creates/sorts BAM), index (creates BAM index). Piping saves time and disk space, by avoiding the generation of large SAM files.
-4. Loop continues and runs StringTie on sorted BAM file to produce individual GTF file.
-5. Loop continues and adds GTF path/filename to a list file, which will be used downstream.
+1.  Parse `rna_metadata.csv` for *A.pulchra* sample names and time point. This info will be used for downstream file naming and to assign the time point to the read group (`SM:`) in the alignment file.
+2.  Loop through all samples and perform individual alignments using HISAT2.
+3.  HISAT2 output is piped to through multiple samtools tools: flagstat (stats aggregation), sort (creates/sorts BAM), index (creates BAM index). Piping saves time and disk space, by avoiding the generation of large SAM files.
+4.  Loop continues and runs StringTie on sorted BAM file to produce individual GTF file.
+5.  Loop continues and adds GTF path/filename to a list file, which will be used downstream.
 
 ```{bash hisat2-alignments, engine='bash', eval=FALSE}
 # Load bash variables into memory
@@ -433,7 +431,7 @@ cd "${output_dir_top}"
 
 # Create DESeq2 Count Matrices
 
-```{r DESeq2-matrices, engine='bash', eval=TRUE}
+```{r DESeq2-matrices, engine='bash', eval=FALSE}
 # Load bash variables into memory
 source .bashvars
 
@@ -473,94 +471,6 @@ python3 "${programs_array[prepDE]}" \
 -g apul-gene_count_matrix.csv \
 -t apul-transcript_count_matrix.csv \
 --length=${read_length}
-```
-
-# Add Gene IDs to Transcript Count Matrix
-
-Create an enhanced version of the transcript count matrix that includes the corresponding gene ID for each transcript.
-
-```{bash add-gene-ids-to-transcript-matrix, engine='bash', eval=TRUE}
-# Load bash variables into memory
-source .bashvars
-
-# Change to output directory
-cd "${output_dir_top}"
-
-# Extract transcript_id to ref_gene_id mapping from GTF file
-echo "Extracting transcript to gene ID mappings from GTF file..."
-
-grep -E $'\ttranscript\t' "${genome_dir}/Apulchra-genome.stringtie.gtf" | \
-awk -F'\t' '{
-    # Extract transcript_id
-    match($9, /transcript_id "([^"]+)"/, transcript_arr)
-    transcript_id = transcript_arr[1]
-    
-    # Extract ref_gene_id
-    match($9, /ref_gene_id "([^"]+)"/, gene_arr)
-    ref_gene_id = gene_arr[1]
-    
-    # Print mapping if both IDs found
-    if (transcript_id && ref_gene_id) {
-        print transcript_id "\t" ref_gene_id
-    }
-}' > transcript_gene_mapping.txt
-
-# Check if mapping file was created successfully
-if [ ! -s transcript_gene_mapping.txt ]; then
-    echo "Error: Failed to create transcript-gene mapping file"
-    exit 1
-fi
-
-echo "Found $(wc -l < transcript_gene_mapping.txt) transcript-gene mappings"
-
-# Create enhanced transcript count matrix with gene IDs
-echo "Creating enhanced transcript count matrix with gene IDs..."
-
-# Read header from original transcript count matrix
-head -1 apul-transcript_count_matrix.csv > temp_header.txt
-
-# Add ref_gene_id to header (insert after transcript_id column)
-sed 's/transcript_id,/transcript_id,ref_gene_id,/' temp_header.txt > apul-transcript_count_matrix_with_gene_ids.csv
-
-# Process data rows
-tail -n +2 apul-transcript_count_matrix.csv | while IFS=',' read -r transcript_id rest_of_line; do
-    # Look up gene ID for this transcript
-    gene_id=$(grep "^${transcript_id}[[:space:]]" transcript_gene_mapping.txt | cut -f2)
-    
-    # If no gene ID found, use empty field
-    if [ -z "$gene_id" ]; then
-        gene_id=""
-    fi
-    
-    # Output line with gene ID inserted after transcript ID
-    echo "${transcript_id},${gene_id},${rest_of_line}"
-done >> apul-transcript_count_matrix_with_gene_ids.csv
-
-# Generate summary statistics
-echo ""
-echo "Summary of enhanced transcript count matrix:"
-original_lines=$(wc -l < apul-transcript_count_matrix.csv)
-enhanced_lines=$(wc -l < apul-transcript_count_matrix_with_gene_ids.csv)
-echo "Original transcript count matrix lines: $original_lines"
-echo "Enhanced transcript count matrix lines: $enhanced_lines"
-
-# Count transcripts with and without gene ID mappings
-transcripts_with_genes=$(tail -n +2 apul-transcript_count_matrix_with_gene_ids.csv | awk -F',' '$2 != ""' | wc -l)
-transcripts_without_genes=$(tail -n +2 apul-transcript_count_matrix_with_gene_ids.csv | awk -F',' '$2 == ""' | wc -l)
-
-echo "Number of transcripts with gene ID mappings: $transcripts_with_genes"
-echo "Number of transcripts without gene ID mappings: $transcripts_without_genes"
-
-# Display first few lines of enhanced matrix
-echo ""
-echo "First 5 rows of enhanced transcript count matrix (first 5 columns):"
-head -6 apul-transcript_count_matrix_with_gene_ids.csv | cut -d',' -f1-5
-
-# Clean up temporary files
-rm temp_header.txt transcript_gene_mapping.txt
-
-echo ""
-echo "Enhanced transcript count matrix saved as: apul-transcript_count_matrix_with_gene_ids.csv"
 ```
 
 # Generate checksums

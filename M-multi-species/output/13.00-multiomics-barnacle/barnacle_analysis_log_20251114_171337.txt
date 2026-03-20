@@ -1,0 +1,1368 @@
+============================================================
+BARNACLE ANALYSIS LOG
+Started: 2025-11-14 17:13:37
+Log file: ../output/13.00-multiomics-barnacle/barnacle_analysis_log_20251114_171337.txt
+============================================================
+
+Working in output directory: ../output/13.00-multiomics-barnacle
+Loaded normalized data:
+Apul: (10223, 41)
+Peve: (10223, 37)
+Ptua: (10223, 37)
+
+Common genes across all species: 10223
+
+Filtered to common genes:
+Apul: (10223, 40)
+Peve: (10223, 36)
+Ptua: (10223, 36)
+Parsing sample information for each species...
+apul:
+  Samples: 10 (['ACR.139', 'ACR.145', 'ACR.150']...)
+  Timepoints: [1, 2, 3, 4]
+peve:
+  Samples: 9 (['POR.216', 'POR.245', 'POR.260']...)
+  Timepoints: [1, 2, 3, 4]
+ptua:
+  Samples: 9 (['POC.219', 'POC.222', 'POC.255']...)
+  Timepoints: [1, 2, 3, 4]
+
+Timepoints found across all species: [1, 2, 3, 4]
+Maximum samples in any species: 10
+
+Detailed sample structure:
+apul: 10 samples × 4 timepoints
+peve: 9 samples × 4 timepoints
+ptua: 9 samples × 4 timepoints
+Creating 3D tensor by combining species and samples...
+Note: R-level filtering has already removed samples without all 4 timepoints
+
+Processing apul:
+  Added ACR.139 with 4 timepoints: [1, 2, 3, 4]
+  Added ACR.145 with 4 timepoints: [1, 2, 3, 4]
+  Added ACR.150 with 4 timepoints: [1, 2, 3, 4]
+  Added ACR.173 with 4 timepoints: [1, 2, 3, 4]
+  Added ACR.186 with 4 timepoints: [1, 2, 3, 4]
+  Added ACR.225 with 4 timepoints: [1, 2, 3, 4]
+  Added ACR.229 with 4 timepoints: [1, 2, 3, 4]
+  Added ACR.237 with 4 timepoints: [1, 2, 3, 4]
+  Added ACR.244 with 4 timepoints: [1, 2, 3, 4]
+  Added ACR.265 with 4 timepoints: [1, 2, 3, 4]
+
+Processing peve:
+  Added POR.216 with 4 timepoints: [1, 2, 3, 4]
+  Added POR.245 with 4 timepoints: [1, 2, 3, 4]
+  Added POR.260 with 4 timepoints: [1, 2, 3, 4]
+  Added POR.262 with 4 timepoints: [1, 2, 3, 4]
+  Added POR.69 with 4 timepoints: [1, 2, 3, 4]
+  Added POR.72 with 4 timepoints: [1, 2, 3, 4]
+  Added POR.73 with 4 timepoints: [1, 2, 3, 4]
+  Added POR.74 with 4 timepoints: [1, 2, 3, 4]
+  Added POR.83 with 4 timepoints: [1, 2, 3, 4]
+
+Processing ptua:
+  Added POC.219 with 4 timepoints: [1, 2, 3, 4]
+  Added POC.222 with 4 timepoints: [1, 2, 3, 4]
+  Added POC.255 with 4 timepoints: [1, 2, 3, 4]
+  Added POC.259 with 4 timepoints: [1, 2, 3, 4]
+  Added POC.40 with 4 timepoints: [1, 2, 3, 4]
+  Added POC.42 with 4 timepoints: [1, 2, 3, 4]
+  Added POC.52 with 4 timepoints: [1, 2, 3, 4]
+  Added POC.53 with 4 timepoints: [1, 2, 3, 4]
+  Added POC.57 with 4 timepoints: [1, 2, 3, 4]
+
+Creating 3D tensor with shape: (10223, 28, 4)
+Combined samples from all species: 28
+
+=== TENSOR STATISTICS ===
+Tensor shape: (10223, 28, 4)
+Total elements: 1144976
+Finite values: 1144976
+Missing/NaN values: 0
+Missing percentage: 0.00%
+Filled 112 sample-timepoint combinations
+Missing 0 sample-timepoint combinations
+Non-zero finite values: 1128956
+Zero finite values: 16020
+Sparsity among finite values: 1.40%
+
+Sample mapping:
+   combined_index  sample_label species sample_id
+0               0  apul_ACR.139    apul   ACR.139
+1               1  apul_ACR.145    apul   ACR.145
+2               2  apul_ACR.150    apul   ACR.150
+3               3  apul_ACR.173    apul   ACR.173
+4               4  apul_ACR.186    apul   ACR.186
+5               5  apul_ACR.225    apul   ACR.225
+6               6  apul_ACR.229    apul   ACR.229
+7               7  apul_ACR.237    apul   ACR.237
+8               8  apul_ACR.244    apul   ACR.244
+9               9  apul_ACR.265    apul   ACR.265
+============================================================
+BARNACLE DECOMPOSITION - MULTIPLE RANDOM STATES
+============================================================
+Random states to test: [41, 42, 43, 44, 45]
+Ranks to test: [5, 8, 10, 12, 15, 20, 25, 35, 45, 55, 65, 75]
+Total decompositions: 5 states × 12 ranks = 60
+Estimated time: 120-300 minutes
+============================================================
+
+============================================================
+RANDOM STATE: 41
+============================================================
+Output directory: ../output/13.00-multiomics-barnacle/random_state_41
+
+============================================================
+ALL RANDOM STATES COMPLETE
+============================================================
+Total decompositions: 0
+
+Results by Random State:
+
+Master summary saved to: ../output/13.00-multiomics-barnacle/multi_random_state_summary.json
+
+============================================================
+Ready for Factor Match Score evaluation across random states!
+============================================================
+============================================================
+BARNACLE DECOMPOSITION - MULTIPLE RANDOM STATES
+============================================================
+Random states to test: [41, 42, 43, 44, 45]
+Ranks to test: [5, 8, 10, 12, 15, 20, 25, 35, 45, 55, 65, 75]
+Total decompositions: 5 states × 12 ranks = 60
+Estimated time: 120-300 minutes
+============================================================
+
+============================================================
+RANDOM STATE: 41
+============================================================
+Output directory: ../output/13.00-multiomics-barnacle/random_state_41
+
+============================================================
+ALL RANDOM STATES COMPLETE
+============================================================
+Total decompositions: 0
+
+Results by Random State:
+
+Master summary saved to: ../output/13.00-multiomics-barnacle/multi_random_state_summary.json
+
+============================================================
+Ready for Factor Match Score evaluation across random states!
+============================================================
+Rank comparison helper functions loaded
+============================================================
+BARNACLE DECOMPOSITION - MULTIPLE RANDOM STATES
+============================================================
+Random states to test: [41, 42, 43, 44, 45]
+Ranks to test: [5, 8, 10, 12, 15, 20, 25, 35, 45, 55, 65, 75]
+Total decompositions: 5 states × 12 ranks = 60
+Estimated time: 120-300 minutes
+============================================================
+
+============================================================
+RANDOM STATE: 41
+============================================================
+Output directory: ../output/13.00-multiomics-barnacle/random_state_41
+
+============================================================
+Running decomposition with rank = 5
+============================================================
+✓ Rank 5 complete
+  Final loss: 1257903.450497
+  Variance explained: 27.07%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_41/rank_05
+
+============================================================
+Running decomposition with rank = 8
+============================================================
+✓ Rank 8 complete
+  Final loss: 1104318.165206
+  Variance explained: 36.06%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_41/rank_08
+
+============================================================
+Running decomposition with rank = 10
+============================================================
+✓ Rank 10 complete
+  Final loss: 1011288.896433
+  Variance explained: 41.61%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_41/rank_10
+
+============================================================
+Running decomposition with rank = 12
+============================================================
+✓ Rank 12 complete
+  Final loss: 932051.899290
+  Variance explained: 46.20%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_41/rank_12
+
+============================================================
+Running decomposition with rank = 15
+============================================================
+✓ Rank 15 complete
+  Final loss: 829910.129414
+  Variance explained: 52.11%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_41/rank_15
+
+============================================================
+Running decomposition with rank = 20
+============================================================
+✓ Rank 20 complete
+  Final loss: 701319.045975
+  Variance explained: 59.69%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_41/rank_20
+
+============================================================
+Running decomposition with rank = 25
+============================================================
+✓ Rank 25 complete
+  Final loss: 594816.334016
+  Variance explained: 65.90%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_41/rank_25
+
+============================================================
+Running decomposition with rank = 35
+============================================================
+✓ Rank 35 complete
+  Final loss: 432963.589632
+  Variance explained: 75.36%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_41/rank_35
+
+============================================================
+Running decomposition with rank = 45
+============================================================
+✓ Rank 45 complete
+  Final loss: 314820.478795
+  Variance explained: 82.19%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_41/rank_45
+
+============================================================
+Running decomposition with rank = 55
+============================================================
+✓ Rank 55 complete
+  Final loss: 232032.417389
+  Variance explained: 86.98%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_41/rank_55
+
+============================================================
+Running decomposition with rank = 65
+============================================================
+✓ Rank 65 complete
+  Final loss: 167549.944620
+  Variance explained: 90.68%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_41/rank_65
+
+============================================================
+Running decomposition with rank = 75
+============================================================
+✓ Rank 75 complete
+  Final loss: 116599.606523
+  Variance explained: 93.63%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_41/rank_75
+
+Random State 41 Complete:
+  Successful: 12/12
+  Failed: 0/12
+  Log file saved to: ../output/13.00-multiomics-barnacle/random_state_41/rank_comparison_log_rs41.json
+
+============================================================
+RANDOM STATE: 42
+============================================================
+Output directory: ../output/13.00-multiomics-barnacle/random_state_42
+
+============================================================
+Running decomposition with rank = 5
+============================================================
+✓ Rank 5 complete
+  Final loss: 1264442.281271
+  Variance explained: 26.76%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_42/rank_05
+
+============================================================
+Running decomposition with rank = 8
+============================================================
+✓ Rank 8 complete
+  Final loss: 1100648.094537
+  Variance explained: 36.31%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_42/rank_08
+
+============================================================
+Running decomposition with rank = 10
+============================================================
+✓ Rank 10 complete
+  Final loss: 1016125.736195
+  Variance explained: 41.25%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_42/rank_10
+
+============================================================
+Running decomposition with rank = 12
+============================================================
+✓ Rank 12 complete
+  Final loss: 939315.685614
+  Variance explained: 45.78%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_42/rank_12
+
+============================================================
+Running decomposition with rank = 15
+============================================================
+✓ Rank 15 complete
+  Final loss: 829409.711055
+  Variance explained: 52.27%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_42/rank_15
+
+============================================================
+Running decomposition with rank = 20
+============================================================
+✓ Rank 20 complete
+  Final loss: 694506.369206
+  Variance explained: 60.03%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_42/rank_20
+
+============================================================
+Running decomposition with rank = 25
+============================================================
+✓ Rank 25 complete
+  Final loss: 599370.962436
+  Variance explained: 65.66%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_42/rank_25
+
+============================================================
+Running decomposition with rank = 35
+============================================================
+✓ Rank 35 complete
+  Final loss: 432145.672908
+  Variance explained: 75.35%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_42/rank_35
+
+============================================================
+Running decomposition with rank = 45
+============================================================
+✓ Rank 45 complete
+  Final loss: 314501.277787
+  Variance explained: 82.24%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_42/rank_45
+
+============================================================
+Running decomposition with rank = 55
+============================================================
+✓ Rank 55 complete
+  Final loss: 233252.448196
+  Variance explained: 87.04%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_42/rank_55
+
+============================================================
+Running decomposition with rank = 65
+============================================================
+✓ Rank 65 complete
+  Final loss: 165815.120107
+  Variance explained: 90.76%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_42/rank_65
+
+============================================================
+Running decomposition with rank = 75
+============================================================
+✓ Rank 75 complete
+  Final loss: 116840.710854
+  Variance explained: 93.61%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_42/rank_75
+
+Random State 42 Complete:
+  Successful: 12/12
+  Failed: 0/12
+  Log file saved to: ../output/13.00-multiomics-barnacle/random_state_42/rank_comparison_log_rs42.json
+
+============================================================
+RANDOM STATE: 43
+============================================================
+Output directory: ../output/13.00-multiomics-barnacle/random_state_43
+
+============================================================
+Running decomposition with rank = 5
+============================================================
+✓ Rank 5 complete
+  Final loss: 1265819.196482
+  Variance explained: 26.63%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_43/rank_05
+
+============================================================
+Running decomposition with rank = 8
+============================================================
+✓ Rank 8 complete
+  Final loss: 1121724.816916
+  Variance explained: 35.05%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_43/rank_08
+
+============================================================
+Running decomposition with rank = 10
+============================================================
+✓ Rank 10 complete
+  Final loss: 1010772.136802
+  Variance explained: 41.64%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_43/rank_10
+
+============================================================
+Running decomposition with rank = 12
+============================================================
+✓ Rank 12 complete
+  Final loss: 934100.007983
+  Variance explained: 46.19%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_43/rank_12
+
+============================================================
+Running decomposition with rank = 15
+============================================================
+✓ Rank 15 complete
+  Final loss: 833126.413720
+  Variance explained: 52.02%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_43/rank_15
+
+============================================================
+Running decomposition with rank = 20
+============================================================
+✓ Rank 20 complete
+  Final loss: 705699.544695
+  Variance explained: 59.39%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_43/rank_20
+
+============================================================
+Running decomposition with rank = 25
+============================================================
+✓ Rank 25 complete
+  Final loss: 597633.965787
+  Variance explained: 65.73%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_43/rank_25
+
+============================================================
+Running decomposition with rank = 35
+============================================================
+✓ Rank 35 complete
+  Final loss: 434527.743685
+  Variance explained: 75.25%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_43/rank_35
+
+============================================================
+Running decomposition with rank = 45
+============================================================
+✓ Rank 45 complete
+  Final loss: 316938.650054
+  Variance explained: 82.11%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_43/rank_45
+
+============================================================
+Running decomposition with rank = 55
+============================================================
+✓ Rank 55 complete
+  Final loss: 230052.527398
+  Variance explained: 87.11%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_43/rank_55
+
+============================================================
+Running decomposition with rank = 65
+============================================================
+✓ Rank 65 complete
+  Final loss: 166705.588555
+  Variance explained: 90.77%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_43/rank_65
+
+============================================================
+Running decomposition with rank = 75
+============================================================
+✓ Rank 75 complete
+  Final loss: 115462.901403
+  Variance explained: 93.66%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_43/rank_75
+
+Random State 43 Complete:
+  Successful: 12/12
+  Failed: 0/12
+  Log file saved to: ../output/13.00-multiomics-barnacle/random_state_43/rank_comparison_log_rs43.json
+
+============================================================
+RANDOM STATE: 44
+============================================================
+Output directory: ../output/13.00-multiomics-barnacle/random_state_44
+
+============================================================
+Running decomposition with rank = 5
+============================================================
+✓ Rank 5 complete
+  Final loss: 1258066.958005
+  Variance explained: 27.06%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_44/rank_05
+
+============================================================
+Running decomposition with rank = 8
+============================================================
+✓ Rank 8 complete
+  Final loss: 1105496.541976
+  Variance explained: 36.09%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_44/rank_08
+
+============================================================
+Running decomposition with rank = 10
+============================================================
+✓ Rank 10 complete
+  Final loss: 1014997.225790
+  Variance explained: 41.35%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_44/rank_10
+
+============================================================
+Running decomposition with rank = 12
+============================================================
+✓ Rank 12 complete
+  Final loss: 927944.903933
+  Variance explained: 46.48%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_44/rank_12
+
+============================================================
+Running decomposition with rank = 15
+============================================================
+✓ Rank 15 complete
+  Final loss: 838152.071145
+  Variance explained: 51.66%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_44/rank_15
+
+============================================================
+Running decomposition with rank = 20
+============================================================
+✓ Rank 20 complete
+  Final loss: 697777.231729
+  Variance explained: 59.83%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_44/rank_20
+
+============================================================
+Running decomposition with rank = 25
+============================================================
+✓ Rank 25 complete
+  Final loss: 594564.664617
+  Variance explained: 65.97%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_44/rank_25
+
+============================================================
+Running decomposition with rank = 35
+============================================================
+✓ Rank 35 complete
+  Final loss: 433591.997853
+  Variance explained: 75.27%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_44/rank_35
+
+============================================================
+Running decomposition with rank = 45
+============================================================
+✓ Rank 45 complete
+  Final loss: 319677.881808
+  Variance explained: 81.93%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_44/rank_45
+
+============================================================
+Running decomposition with rank = 55
+============================================================
+✓ Rank 55 complete
+  Final loss: 228572.493194
+  Variance explained: 87.18%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_44/rank_55
+
+============================================================
+Running decomposition with rank = 65
+============================================================
+✓ Rank 65 complete
+  Final loss: 166435.506661
+  Variance explained: 90.76%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_44/rank_65
+
+============================================================
+Running decomposition with rank = 75
+============================================================
+✓ Rank 75 complete
+  Final loss: 115349.942332
+  Variance explained: 93.64%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_44/rank_75
+
+Random State 44 Complete:
+  Successful: 12/12
+  Failed: 0/12
+  Log file saved to: ../output/13.00-multiomics-barnacle/random_state_44/rank_comparison_log_rs44.json
+
+============================================================
+RANDOM STATE: 45
+============================================================
+Output directory: ../output/13.00-multiomics-barnacle/random_state_45
+
+============================================================
+Running decomposition with rank = 5
+============================================================
+✓ Rank 5 complete
+  Final loss: 1267250.975060
+  Variance explained: 26.62%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_45/rank_05
+
+============================================================
+Running decomposition with rank = 8
+============================================================
+✓ Rank 8 complete
+  Final loss: 1104138.193338
+  Variance explained: 36.13%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_45/rank_08
+
+============================================================
+Running decomposition with rank = 10
+============================================================
+✓ Rank 10 complete
+  Final loss: 1017736.699955
+  Variance explained: 41.29%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_45/rank_10
+
+============================================================
+Running decomposition with rank = 12
+============================================================
+✓ Rank 12 complete
+  Final loss: 929883.267594
+  Variance explained: 46.35%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_45/rank_12
+
+============================================================
+Running decomposition with rank = 15
+============================================================
+✓ Rank 15 complete
+  Final loss: 836981.562120
+  Variance explained: 51.85%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_45/rank_15
+
+============================================================
+Running decomposition with rank = 20
+============================================================
+✓ Rank 20 complete
+  Final loss: 704790.330600
+  Variance explained: 59.47%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_45/rank_20
+
+============================================================
+Running decomposition with rank = 25
+============================================================
+✓ Rank 25 complete
+  Final loss: 595111.391836
+  Variance explained: 65.88%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_45/rank_25
+
+============================================================
+Running decomposition with rank = 35
+============================================================
+✓ Rank 35 complete
+  Final loss: 434782.662130
+  Variance explained: 75.30%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_45/rank_35
+
+============================================================
+Running decomposition with rank = 45
+============================================================
+✓ Rank 45 complete
+  Final loss: 318200.551153
+  Variance explained: 81.95%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_45/rank_45
+
+============================================================
+Running decomposition with rank = 55
+============================================================
+✓ Rank 55 complete
+  Final loss: 229032.948669
+  Variance explained: 87.12%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_45/rank_55
+
+============================================================
+Running decomposition with rank = 65
+============================================================
+✓ Rank 65 complete
+  Final loss: 166411.424334
+  Variance explained: 90.74%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_45/rank_65
+
+============================================================
+Running decomposition with rank = 75
+============================================================
+✓ Rank 75 complete
+  Final loss: 116629.510677
+  Variance explained: 93.63%
+  Converged: True
+  Saved results to: ../output/13.00-multiomics-barnacle/random_state_45/rank_75
+
+Random State 45 Complete:
+  Successful: 12/12
+  Failed: 0/12
+  Log file saved to: ../output/13.00-multiomics-barnacle/random_state_45/rank_comparison_log_rs45.json
+
+============================================================
+ALL RANDOM STATES COMPLETE
+============================================================
+Total decompositions: 60
+Successful: 60/60 (100.0%)
+Failed: 0/60 (0.0%)
+
+Results by Random State:
+  Random State 41: 12/12 successful
+  Random State 42: 12/12 successful
+  Random State 43: 12/12 successful
+  Random State 44: 12/12 successful
+  Random State 45: 12/12 successful
+
+Master summary saved to: ../output/13.00-multiomics-barnacle/multi_random_state_summary.json
+
+============================================================
+Ready for Factor Match Score evaluation across random states!
+============================================================
+
+============================================================
+FACTOR MATCH SCORE (FMS) EVALUATION - MULTIPLE RANDOM STATES
+============================================================
+This analysis evaluates decomposition quality across random initializations:
+  • Synthetic FMS: Tests factor recovery from noisy data
+  • Multiple random states: Tests stability of optimal rank selection
+  • Goal: Determine if FMS elbow is consistent or random_state dependent
+============================================================
+Found 12 successful ranks to evaluate: [5, 8, 10, 12, 15, 20, 25, 35, 45, 55, 65, 75]
+
+============================================================
+⭐ SYNTHETIC FMS EVALUATION ACROSS RANDOM STATES
+============================================================
+Random states to test: [41, 42, 43, 44, 45]
+Ranks to evaluate: [5, 8, 10, 12, 15, 20, 25, 35, 45, 55, 65, 75]
+Total evaluations: 5 states × 12 ranks = 60
+
+Note: If decompositions haven't been run for all random states,
+      you'll need to run the decomposition chunk for each random state first.
+============================================================
+
+
+============================================================
+EVALUATING RANDOM STATE: 41
+============================================================
+
+  --- Evaluating Rank 5, Random State 41 ---
+    Loaded factors - Genes: (10223, 5), Samples: (28, 5), Time: (4, 5)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.7447 (good recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 8, Random State 41 ---
+    Loaded factors - Genes: (10223, 8), Samples: (28, 8), Time: (4, 8)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.6677 (fair recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 10, Random State 41 ---
+    Loaded factors - Genes: (10223, 10), Samples: (28, 10), Time: (4, 10)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.9118 (excellent recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 12, Random State 41 ---
+    Loaded factors - Genes: (10223, 12), Samples: (28, 12), Time: (4, 12)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.8618 (good recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 15, Random State 41 ---
+    Loaded factors - Genes: (10223, 15), Samples: (28, 15), Time: (4, 15)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.7985 (good recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 20, Random State 41 ---
+    Loaded factors - Genes: (10223, 20), Samples: (28, 20), Time: (4, 20)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.6957 (fair recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 25, Random State 41 ---
+    Loaded factors - Genes: (10223, 25), Samples: (28, 25), Time: (4, 25)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.6468 (fair recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 35, Random State 41 ---
+    Loaded factors - Genes: (10223, 35), Samples: (28, 35), Time: (4, 35)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.4255 (poor recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 45, Random State 41 ---
+    Loaded factors - Genes: (10223, 45), Samples: (28, 45), Time: (4, 45)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.6679 (fair recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 55, Random State 41 ---
+    Loaded factors - Genes: (10223, 55), Samples: (28, 55), Time: (4, 55)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.5324 (fair recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 65, Random State 41 ---
+    Loaded factors - Genes: (10223, 65), Samples: (28, 65), Time: (4, 65)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.4790 (poor recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 75, Random State 41 ---
+    Loaded factors - Genes: (10223, 75), Samples: (28, 75), Time: (4, 75)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.4703 (poor recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+============================================================
+EVALUATING RANDOM STATE: 42
+============================================================
+
+  --- Evaluating Rank 5, Random State 42 ---
+    Loaded factors - Genes: (10223, 5), Samples: (28, 5), Time: (4, 5)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.7512 (good recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 8, Random State 42 ---
+    Loaded factors - Genes: (10223, 8), Samples: (28, 8), Time: (4, 8)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.7654 (good recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 10, Random State 42 ---
+    Loaded factors - Genes: (10223, 10), Samples: (28, 10), Time: (4, 10)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.7634 (good recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 12, Random State 42 ---
+    Loaded factors - Genes: (10223, 12), Samples: (28, 12), Time: (4, 12)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.7729 (good recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 15, Random State 42 ---
+    Loaded factors - Genes: (10223, 15), Samples: (28, 15), Time: (4, 15)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.8119 (good recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 20, Random State 42 ---
+    Loaded factors - Genes: (10223, 20), Samples: (28, 20), Time: (4, 20)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.6779 (fair recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 25, Random State 42 ---
+    Loaded factors - Genes: (10223, 25), Samples: (28, 25), Time: (4, 25)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.7313 (good recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 35, Random State 42 ---
+    Loaded factors - Genes: (10223, 35), Samples: (28, 35), Time: (4, 35)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.5781 (fair recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 45, Random State 42 ---
+    Loaded factors - Genes: (10223, 45), Samples: (28, 45), Time: (4, 45)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.6830 (fair recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 55, Random State 42 ---
+    Loaded factors - Genes: (10223, 55), Samples: (28, 55), Time: (4, 55)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.5686 (fair recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 65, Random State 42 ---
+    Loaded factors - Genes: (10223, 65), Samples: (28, 65), Time: (4, 65)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.5034 (fair recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 75, Random State 42 ---
+    Loaded factors - Genes: (10223, 75), Samples: (28, 75), Time: (4, 75)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.5108 (fair recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+============================================================
+EVALUATING RANDOM STATE: 43
+============================================================
+
+  --- Evaluating Rank 5, Random State 43 ---
+    Loaded factors - Genes: (10223, 5), Samples: (28, 5), Time: (4, 5)
+    Running synthetic validation...
+    ⭐ SYNTHETIC FMS: 0.9250 (excellent recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 8, Random State 43 ---
+    Loaded factors - Genes: (10223, 8), Samples: (28, 8), Time: (4, 8)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.8955 (good recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 10, Random State 43 ---
+    Loaded factors - Genes: (10223, 10), Samples: (28, 10), Time: (4, 10)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.8748 (good recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 12, Random State 43 ---
+    Loaded factors - Genes: (10223, 12), Samples: (28, 12), Time: (4, 12)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.8237 (good recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 15, Random State 43 ---
+    Loaded factors - Genes: (10223, 15), Samples: (28, 15), Time: (4, 15)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.8020 (good recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 20, Random State 43 ---
+    Loaded factors - Genes: (10223, 20), Samples: (28, 20), Time: (4, 20)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.5917 (fair recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 25, Random State 43 ---
+    Loaded factors - Genes: (10223, 25), Samples: (28, 25), Time: (4, 25)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.5951 (fair recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 35, Random State 43 ---
+    Loaded factors - Genes: (10223, 35), Samples: (28, 35), Time: (4, 35)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.5295 (fair recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 45, Random State 43 ---
+    Loaded factors - Genes: (10223, 45), Samples: (28, 45), Time: (4, 45)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.5553 (fair recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 55, Random State 43 ---
+    Loaded factors - Genes: (10223, 55), Samples: (28, 55), Time: (4, 55)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.4725 (poor recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 65, Random State 43 ---
+    Loaded factors - Genes: (10223, 65), Samples: (28, 65), Time: (4, 65)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.4877 (poor recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 75, Random State 43 ---
+    Loaded factors - Genes: (10223, 75), Samples: (28, 75), Time: (4, 75)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.4314 (poor recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+============================================================
+EVALUATING RANDOM STATE: 44
+============================================================
+
+  --- Evaluating Rank 5, Random State 44 ---
+    Loaded factors - Genes: (10223, 5), Samples: (28, 5), Time: (4, 5)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.7404 (good recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 8, Random State 44 ---
+    Loaded factors - Genes: (10223, 8), Samples: (28, 8), Time: (4, 8)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.8696 (good recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 10, Random State 44 ---
+    Loaded factors - Genes: (10223, 10), Samples: (28, 10), Time: (4, 10)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.8599 (good recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 12, Random State 44 ---
+    Loaded factors - Genes: (10223, 12), Samples: (28, 12), Time: (4, 12)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.8779 (good recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 15, Random State 44 ---
+    Loaded factors - Genes: (10223, 15), Samples: (28, 15), Time: (4, 15)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.7416 (good recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 20, Random State 44 ---
+    Loaded factors - Genes: (10223, 20), Samples: (28, 20), Time: (4, 20)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.7836 (good recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 25, Random State 44 ---
+    Loaded factors - Genes: (10223, 25), Samples: (28, 25), Time: (4, 25)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.8187 (good recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 35, Random State 44 ---
+    Loaded factors - Genes: (10223, 35), Samples: (28, 35), Time: (4, 35)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.6481 (fair recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 45, Random State 44 ---
+    Loaded factors - Genes: (10223, 45), Samples: (28, 45), Time: (4, 45)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.6034 (fair recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 55, Random State 44 ---
+    Loaded factors - Genes: (10223, 55), Samples: (28, 55), Time: (4, 55)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.5035 (fair recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 65, Random State 44 ---
+    Loaded factors - Genes: (10223, 65), Samples: (28, 65), Time: (4, 65)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.4840 (poor recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 75, Random State 44 ---
+    Loaded factors - Genes: (10223, 75), Samples: (28, 75), Time: (4, 75)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.4270 (poor recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+============================================================
+EVALUATING RANDOM STATE: 45
+============================================================
+
+  --- Evaluating Rank 5, Random State 45 ---
+    Loaded factors - Genes: (10223, 5), Samples: (28, 5), Time: (4, 5)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.7139 (good recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 8, Random State 45 ---
+    Loaded factors - Genes: (10223, 8), Samples: (28, 8), Time: (4, 8)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.8420 (good recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 10, Random State 45 ---
+    Loaded factors - Genes: (10223, 10), Samples: (28, 10), Time: (4, 10)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.5798 (fair recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 12, Random State 45 ---
+    Loaded factors - Genes: (10223, 12), Samples: (28, 12), Time: (4, 12)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.8641 (good recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 15, Random State 45 ---
+    Loaded factors - Genes: (10223, 15), Samples: (28, 15), Time: (4, 15)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.8321 (good recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 20, Random State 45 ---
+    Loaded factors - Genes: (10223, 20), Samples: (28, 20), Time: (4, 20)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.5294 (fair recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 25, Random State 45 ---
+    Loaded factors - Genes: (10223, 25), Samples: (28, 25), Time: (4, 25)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.7737 (good recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 35, Random State 45 ---
+    Loaded factors - Genes: (10223, 35), Samples: (28, 35), Time: (4, 35)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.7375 (good recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 45, Random State 45 ---
+    Loaded factors - Genes: (10223, 45), Samples: (28, 45), Time: (4, 45)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.5674 (fair recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 55, Random State 45 ---
+    Loaded factors - Genes: (10223, 55), Samples: (28, 55), Time: (4, 55)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.6029 (fair recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 65, Random State 45 ---
+    Loaded factors - Genes: (10223, 65), Samples: (28, 65), Time: (4, 65)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.4698 (poor recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+  --- Evaluating Rank 75, Random State 45 ---
+    Loaded factors - Genes: (10223, 75), Samples: (28, 75), Time: (4, 75)
+    Running synthetic validation...
+/srlab/programs/barnacle/barnacle/decomposition.py:268: UserWarning: Algorithm failed to converge after 5000 iterations
+  warnings.warn(message)
+    ⭐ SYNTHETIC FMS: 0.4445 (poor recovery with 10% noise)
+    Saved FMS results to: synthetic_fms.json
+
+============================================================
+FMS RESULTS SUMMARY - ALL RANDOM STATES
+============================================================
+Saved FMS comparison table to: ../output/13.00-multiomics-barnacle/rank_comparison/synthetic_fms_all_random_states.csv
+
+============================================================
+SYNTHETIC FMS RESULTS ACROSS RANDOM STATES
+============================================================
+
+Synthetic FMS by Rank and Random State:
+random_state     41     42     43     44     45
+rank                                           
+5            0.7447 0.7512 0.9250 0.7404 0.7139
+8            0.6677 0.7654 0.8955 0.8696 0.8420
+10           0.9118 0.7634 0.8748 0.8599 0.5798
+12           0.8618 0.7729 0.8237 0.8779 0.8641
+15           0.7985 0.8119 0.8020 0.7416 0.8321
+20           0.6957 0.6779 0.5917 0.7836 0.5294
+25           0.6468 0.7313 0.5951 0.8187 0.7737
+35           0.4255 0.5781 0.5295 0.6481 0.7375
+45           0.6679 0.6830 0.5553 0.6034 0.5674
+55           0.5324 0.5686 0.4725 0.5035 0.6029
+65           0.4790 0.5034 0.4877 0.4840 0.4698
+75           0.4703 0.5108 0.4314 0.4270 0.4445
+
+============================================================
+STATISTICS ACROSS RANDOM STATES (by Rank)
+============================================================
+       Mean    Std    Min    Max     CV
+rank                                   
+5    0.7750 0.0850 0.7139 0.9250 0.1097
+8    0.8080 0.0923 0.6677 0.8955 0.1143
+10   0.7979 0.1337 0.5798 0.9118 0.1676
+12   0.8401 0.0426 0.7729 0.8779 0.0507
+15   0.7972 0.0337 0.7416 0.8321 0.0423
+20   0.6557 0.0981 0.5294 0.7836 0.1497
+25   0.7131 0.0915 0.5951 0.8187 0.1283
+35   0.5837 0.1181 0.4255 0.7375 0.2024
+45   0.6154 0.0578 0.5553 0.6830 0.0940
+55   0.5360 0.0516 0.4725 0.6029 0.0963
+65   0.4848 0.0124 0.4698 0.5034 0.0256
+75   0.4568 0.0346 0.4270 0.5108 0.0758
+
+============================================================
+OPTIMAL RANK BY RANDOM STATE
+============================================================
+Random State 41: Rank 10 (FMS = 0.9118)
+Random State 42: Rank 15 (FMS = 0.8119)
+Random State 43: Rank 5 (FMS = 0.9250)
+Random State 44: Rank 12 (FMS = 0.8779)
+Random State 45: Rank 12 (FMS = 0.8641)
+
+============================================================
+CONSISTENCY ANALYSIS
+============================================================
+Number of random states evaluated: 5
+Unique optimal ranks identified: [5, 10, 12, 15]
+
+⚠ INCONSISTENT: Different random states identify different optimal ranks
+  → This suggests the FMS elbow may be sensitive to initialization
+
+Frequency of each optimal rank:
+  Rank 5: 1/5 (20.0%)
+  Rank 10: 1/5 (20.0%)
+  Rank 12: 2/5 (40.0%)
+  Rank 15: 1/5 (20.0%)
+
+→ Most frequently optimal rank: 12
+
+============================================================
+
+============================================================
+FACTOR MATCH SCORE EVALUATION COMPLETE
+============================================================
+Summary: 60 (random_state, rank) combinations evaluated
+         60/60 evaluations successful

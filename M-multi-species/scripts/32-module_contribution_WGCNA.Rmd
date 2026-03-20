@@ -1,0 +1,303 @@
+---
+title: "orthologs WGCNA module contribution"
+author: "Javier Rodriguez Casariego, E5 RoL Team"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+```{r}
+
+suppressPackageStartupMessages({
+  library(DESeq2)
+  library(WGCNA)      # allowWGCNAThreads()
+  library(tidyverse)
+  library(lmerTest) 
+  library(lme4)       
+  library(broom.mixed) 
+  library(ggplot2)
+  library(RColorBrewer)
+  library(cowplot)
+  library(ComplexHeatmap)
+  library(circlize)
+})
+
+options(stringsAsFactors = FALSE)
+
+```
+
+```{r}
+load(file = "M-multi-species/output/18-ortholog-wgcna/wgcna_ortho.rda")
+load(file = "M-multi-species/output/18-ortholog-wgcna/wgcna_mod_trait.rda")
+
+metadata<-read_csv("master-molecular-metadata.csv")%>%dplyr::select(colony, timepoint, site, species)
+str(metadata)
+
+orthos<-read_csv("M-multi-species/output/14-pca-orthologs/vst_counts_matrix.csv")
+str(orthos)
+
+metadata <- metadata %>%
+  as.data.frame() %>%                        # drop tibble/S4 wrappers
+  mutate(across(everything(), as.character)) %>% 
+  mutate(sample_id = paste(colony, timepoint, sep = "-"))
+
+metadata <- tibble(sample_id = setdiff(names(orthos), "group_id")) %>%
+  left_join(metadata, by = "sample_id")
+
+```
+
+#Get hubs
+```{r get hubs}
+softPower = 16 # from 18-ortholog-wgcna.Rmd
+top_hubs_vec <- chooseTopHubInEachModule(
+  expr_mat,
+  color      = module_colors,
+  power      = softPower,
+  type       = "signed",
+  corFnc     = "bicor",
+  corOptions = "use = 'p'"
+)
+MEColors = labels2colors(as.numeric(substring(names(MEs), 3)));
+MEColorNames = paste("ME", MEColors, sep="");
+annot <- read_csv(file = "M-multi-species/output/12-ortho-annot/ortholog_groups_annotated.csv")
+hubs <- data.frame(module = names(top_hubs_vec), ortho_id = top_hubs_vec, stringsAsFactors = FALSE) %>%
+  left_join(., annot %>%
+              dplyr::select(group_id, accession, id, protein_name), by = c("ortho_id"="group_id")) %>%
+  unique() %>%
+  inner_join(., t(expr_mat) %>% as.data.frame() %>% tibble::rownames_to_column(var = "ortho_id")) %>%
+  inner_join(.,
+             data.frame(traitCor = mod_trait_cor, 
+                        pval = round(mod_trait_pval, digits = 3), 
+                        module = MEColorNames %>% stringr::str_replace(string = ., pattern = "ME(.*)","\\1"),
+                        stringsAsFactors = FALSE)
+  )
+
+#write.csv(x = hubs, file = "GeneExpression/output/concensus_hubs_annotated.csv", quote = FALSE)
+  
+```
+#Visualize hubs vs traits
+```{r}
+library(tidyverse)
+
+# ---- 1) Select and prepare metadata ----
+samples <- metadata %>%
+  dplyr::select(sample_id, timepoint, species, site)
+
+# ---- 2) Match sample columns in hubs ----
+sample_cols <- intersect(colnames(hubs), samples$sample_id)
+if (length(sample_cols) == 0) stop("No sample columns matched between 'hubs' and metadata.")
+
+# ---- 3) Scale expression per gene across samples ----
+scaled_hubs <- hubs
+scaled_hubs[, sample_cols] <- t(scale(t(as.matrix(hubs[, sample_cols]))))
+
+# ---- 4) Define trait of interest ----
+trait_of_interest <- "calc.umol.cm2.hr"
+cor_col  <- paste0("traitCor.", trait_of_interest)
+pval_col <- paste0("pval.",     trait_of_interest)
+
+# Confirm those columns exist
+if (!all(c(cor_col, pval_col) %in% colnames(hubs))) {
+  stop("Missing trait correlation columns: ", cor_col, " or ", pval_col)
+}
+
+# ---- 5) Add helper text column ----
+name_col <- if ("ortho_id" %in% colnames(hubs)) "ortho_id" else "id"
+
+scaled_hubs <- scaled_hubs %>%
+  mutate(datText = paste0(.data[[name_col]], "\n",
+                          signif(.data[[cor_col]],  2), "\n",
+                          signif(.data[[pval_col]], 2)))
+
+# ---- 6) Convert to long format and join metadata ----
+scaled_hubs_long <- scaled_hubs %>%
+  pivot_longer(cols = all_of(sample_cols), names_to = "sample_id", values_to = "expr") %>%
+  inner_join(samples, by = "sample_id") %>%
+  mutate(
+    timepoint = factor(timepoint, levels = unique(timepoint)),
+    species   = as.factor(species),
+    site      = as.factor(site),
+    module    = as.factor(module)
+  )
+
+# ---- 7) Filter significant hub genes ----
+sig_hubs_tbl <- scaled_hubs %>%
+  dplyr::select(module, ortho_id, id, accession, all_of(c(cor_col, pval_col))) %>%
+  filter(!is.na(.data[[pval_col]]), .data[[pval_col]] < 0.05) %>%
+  arrange(module, .data[[pval_col]])
+
+# Optional view
+knitr::kable(sig_hubs_tbl,
+  format  = "html",
+  caption = paste0("Significant hub genes for trait '", trait_of_interest, "' (p < 0.05)")
+)
+
+# ---- 8) Plot expression by timepoint/species/site for sig hubs of modules linked with calcification ----
+
+dir.create("M-multi-species/output/32-module_contribution_WGCNA/MM", recursive = TRUE, showWarnings = FALSE)
+
+pdf(file = "M-multi-species/output/32-module_contribution_WGCNA/calcification_hubGenes_expression.pdf", width = 9, height = 8)
+ggplot(scaled_hubs_long %>%
+         filter(.data[[pval_col]] < 0.05) %>%
+         mutate(gene_label = ifelse(!is.na(id), id, ortho_id)) %>%
+         mutate(hub = paste0(gene_label, " (", module, ")")) %>%
+         distinct(module, hub, species, timepoint, site, expr),
+       aes(x = timepoint, y = expr, fill = species)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(aes(color = site), width = 0.15, alpha = 0.6) +
+  facet_wrap(~ hub, scales = "free_y") +
+  labs(
+    x = "Timepoint", y = "Scaled Expression (Z-score)",
+    fill = "Species", color = "Site"
+  ) +
+  theme_bw(base_size = 12) +
+  theme(legend.position = "bottom")
+
+dev.off()
+```
+
+# Compute GS and MM for calc.umol.cm2.hr
+```{r}
+trait_name <- "calc.umol.cm2.hr"
+trait_vec <- trait_mat_plus[,trait_name]
+nSamples <- nrow(expr_mat)
+
+# Clean module names
+modNames <- labels2colors(gsub("^ME", "", colnames(MEs)))
+
+# Compute MM (module membership)
+geneModuleMembership <- cor(expr_mat, MEs, use = "pairwise.complete.obs") %>%
+  as.data.frame() %>%
+  setNames(paste0("MM", modNames))
+
+MMPvalue <- WGCNA::corPvalueStudent(as.matrix(geneModuleMembership), nSamples) %>%
+  as.data.frame() %>%
+  setNames(paste0("p.MM", modNames))
+
+# Compute GS (gene significance to trait) and p-values
+geneTraitSignificance <- cor(expr_mat, trait_vec, use = "pairwise.complete.obs") %>%
+  as.data.frame()
+colnames(geneTraitSignificance) <- paste0("GS.", trait_name)
+
+GSPvalue <- WGCNA::corPvalueStudent(as.matrix(geneTraitSignificance), nSamples) %>%
+  as.data.frame()
+colnames(GSPvalue) <- paste0("p.GS.", trait_name)
+
+```
+
+# Export Per-Module Tables with Top Genes
+```{r}
+
+lapply(modNames, function(mod) {
+  genes_in_mod <- module_colors== mod
+  if (!any(genes_in_mod) || mod == "grey") return(NULL)
+
+  df <- tibble(
+    ortho_id = colnames(expr_mat)[genes_in_mod],
+    module  = mod,
+    MM      = abs(geneModuleMembership[genes_in_mod, paste0("MM", mod)]),
+    GS      = abs(geneTraitSignificance[genes_in_mod, 1]),
+    MM_p    = MMPvalue[genes_in_mod, paste0("p.MM", mod)],
+    GS_p    = GSPvalue[genes_in_mod, 1]
+  )
+
+  if (exists("annot")) {
+    df <- left_join(df, annot %>%
+              dplyr::select(group_id, accession, id, protein_name), by = c("ortho_id"="group_id")) %>%
+      mutate(label = coalesce(id, ortho_id))
+  } else {
+    df <- mutate(df, label = ortho_id)
+  }
+
+  # Top 10% by |kME|
+  top_kme <- df %>% filter(abs(MM) > quantile(abs(MM), 0.9, na.rm = TRUE))
+
+  # Export
+  write.csv(df, file = sprintf("M-multi-species/output/32-module_contribution_WGCNA/MM/moduleMembership_%s.csv", mod), row.names = FALSE)
+  write.csv(top_kme, file = sprintf("M-multi-species/output/32-module_contribution_WGCNA/MM/moduleMembership_%s_topTenPct.csv", mod), row.names = FALSE)
+})
+```
+
+# Visualize MM vs GS for Significant Modules
+```{r}
+
+# Build merged data frame across modules
+per_module <- bind_rows(lapply(modNames, function(mod) {
+  genes_in_mod <- module_colors== mod
+  if (!any(genes_in_mod) || mod == "grey") return(NULL)
+
+  df <- tibble(
+    ortho_id = colnames(expr_mat)[genes_in_mod],
+    module  = mod,
+    MM      = abs(geneModuleMembership[genes_in_mod, paste0("MM", mod)]),
+    GS      = abs(geneTraitSignificance[genes_in_mod, 1]),
+    MM_p    = MMPvalue[genes_in_mod, paste0("p.MM", mod)],
+    GS_p    = GSPvalue[genes_in_mod, 1]
+  )
+
+  if (exists("annot")) {
+    df <- left_join(df, annot %>%
+              dplyr::select(group_id, accession, id, protein_name), by = c("ortho_id"="group_id")) %>%
+      mutate(label = coalesce(id, ortho_id))
+  } else {
+    df <- mutate(df, label = ortho_id)
+  }
+
+  # Top 3 by p-value
+  idx_gs <- order(df$GS_p, na.last = NA)[1:min(3, sum(!is.na(df$GS_p)))]
+  idx_mm <- order(df$MM_p, na.last = NA)[1:min(3, sum(!is.na(df$MM_p)))]
+
+  df$label_group <- NA_character_
+  df$label_group[idx_gs] <- "GS top 3"
+  df$label_group[idx_mm] <- ifelse(is.na(df$label_group[idx_mm]), "MM top 3", "Both")
+
+  return(df)
+}))
+
+# Determine which modules have significant GS–MM relationships
+mod_stats <- per_module %>%
+  group_by(module) %>%
+  summarise(
+    r     = cor(GS, MM, use = "pairwise.complete.obs"),
+    n     = sum(!is.na(GS) & !is.na(MM)),
+    p_raw = corPvalueStudent(r, n),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    p_adj = p.adjust(p_raw, method = "BH"),
+    keep  = p_adj < 0.05,
+    facet_label = paste0(module, ", n=", n, "\nr=", signif(r, 2), ", q=", signif(p_adj, 2))
+  )
+
+keep_modules <- mod_stats %>% filter(keep, module != "grey") %>% pull(module)
+
+# Final plot
+library(ggrepel)
+
+pdf(file = "M-multi-species/output/32-module_contribution_WGCNA/calcificationSig_MM.pdf", width = 9, height = 8)
+ggplot(per_module %>% filter(module %in% keep_modules),
+       aes(x = MM, y = GS, color = module)) +
+  geom_point(alpha = 0.8, size = 1.5) +
+  geom_smooth(method = "lm", color = "black", se = FALSE, linewidth = 1.1) +
+  facet_wrap(~ module, labeller = labeller(module = setNames(mod_stats$facet_label, mod_stats$module))) +
+  scale_color_manual(values = keep_modules) +
+  ggrepel::geom_label_repel(
+    data = ~ subset(., !is.na(label_group)),
+    aes(label = label, fontface = ifelse(label_group == "Both", 2, 1)),
+    size = 3, max.overlaps = 100
+  ) +
+  labs(
+    x = "Module Membership (|kME|)",
+    y = "Gene Significance (|cor with calc.umol.cm2.hr|)"
+  ) +
+  theme_bw(base_size = 14) +
+  theme(
+    strip.background = element_rect(fill = "white", color = "black"),
+    strip.text = element_text(face = "bold"),
+    legend.position = "none"
+  )
+dev.off()
+```
+

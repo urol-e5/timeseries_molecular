@@ -1,0 +1,1353 @@
+============================================================
+BARNACLE ANALYSIS LOG
+Started: 2025-11-24 11:02:41
+Log file: ../output/13.00-multiomics-barnacle/barnacle_analysis_log_20251124_110241.txt
+============================================================
+
+Working in output directory: ../output/13.00-multiomics-barnacle
+Loaded normalized data:
+Apul: (10223, 41)
+Peve: (10223, 37)
+Ptua: (10223, 37)
+
+Common genes across all species: 10223
+
+Filtered to common genes:
+Apul: (10223, 40)
+Peve: (10223, 36)
+Ptua: (10223, 36)
+Parsing sample information for each species...
+apul:
+  Samples: 10 (['ACR.139', 'ACR.145', 'ACR.150']...)
+  Timepoints: [1, 2, 3, 4]
+peve:
+  Samples: 9 (['POR.216', 'POR.245', 'POR.260']...)
+  Timepoints: [1, 2, 3, 4]
+ptua:
+  Samples: 9 (['POC.219', 'POC.222', 'POC.255']...)
+  Timepoints: [1, 2, 3, 4]
+
+Timepoints found across all species: [1, 2, 3, 4]
+Maximum samples in any species: 10
+
+Detailed sample structure:
+apul: 10 samples × 4 timepoints
+peve: 9 samples × 4 timepoints
+ptua: 9 samples × 4 timepoints
+Creating 3D tensor by combining species and samples...
+Note: R-level filtering has already removed samples without all 4 timepoints
+
+Processing apul:
+  Added ACR.139 with 4 timepoints: [1, 2, 3, 4]
+  Added ACR.145 with 4 timepoints: [1, 2, 3, 4]
+  Added ACR.150 with 4 timepoints: [1, 2, 3, 4]
+  Added ACR.173 with 4 timepoints: [1, 2, 3, 4]
+  Added ACR.186 with 4 timepoints: [1, 2, 3, 4]
+  Added ACR.225 with 4 timepoints: [1, 2, 3, 4]
+  Added ACR.229 with 4 timepoints: [1, 2, 3, 4]
+  Added ACR.237 with 4 timepoints: [1, 2, 3, 4]
+  Added ACR.244 with 4 timepoints: [1, 2, 3, 4]
+  Added ACR.265 with 4 timepoints: [1, 2, 3, 4]
+
+Processing peve:
+  Added POR.216 with 4 timepoints: [1, 2, 3, 4]
+  Added POR.245 with 4 timepoints: [1, 2, 3, 4]
+  Added POR.260 with 4 timepoints: [1, 2, 3, 4]
+  Added POR.262 with 4 timepoints: [1, 2, 3, 4]
+  Added POR.69 with 4 timepoints: [1, 2, 3, 4]
+  Added POR.72 with 4 timepoints: [1, 2, 3, 4]
+  Added POR.73 with 4 timepoints: [1, 2, 3, 4]
+  Added POR.74 with 4 timepoints: [1, 2, 3, 4]
+  Added POR.83 with 4 timepoints: [1, 2, 3, 4]
+
+Processing ptua:
+  Added POC.219 with 4 timepoints: [1, 2, 3, 4]
+  Added POC.222 with 4 timepoints: [1, 2, 3, 4]
+  Added POC.255 with 4 timepoints: [1, 2, 3, 4]
+  Added POC.259 with 4 timepoints: [1, 2, 3, 4]
+  Added POC.40 with 4 timepoints: [1, 2, 3, 4]
+  Added POC.42 with 4 timepoints: [1, 2, 3, 4]
+  Added POC.52 with 4 timepoints: [1, 2, 3, 4]
+  Added POC.53 with 4 timepoints: [1, 2, 3, 4]
+  Added POC.57 with 4 timepoints: [1, 2, 3, 4]
+
+Creating 3D tensor with shape: (10223, 28, 4)
+Combined samples from all species: 28
+
+=== TENSOR STATISTICS ===
+Tensor shape: (10223, 28, 4)
+Total elements: 1144976
+Finite values: 1144976
+Missing/NaN values: 0
+Missing percentage: 0.00%
+Filled 112 sample-timepoint combinations
+Missing 0 sample-timepoint combinations
+Non-zero finite values: 1128956
+Zero finite values: 16020
+Sparsity among finite values: 1.40%
+
+Sample mapping:
+   combined_index  sample_label species sample_id
+0               0  apul_ACR.139    apul   ACR.139
+1               1  apul_ACR.145    apul   ACR.145
+2               2  apul_ACR.150    apul   ACR.150
+3               3  apul_ACR.173    apul   ACR.173
+4               4  apul_ACR.186    apul   ACR.186
+5               5  apul_ACR.225    apul   ACR.225
+6               6  apul_ACR.229    apul   ACR.229
+7               7  apul_ACR.237    apul   ACR.237
+8               8  apul_ACR.244    apul   ACR.244
+9               9  apul_ACR.265    apul   ACR.265
+================================================================================
+CROSS-VALIDATION STRUCTURE FOR TIMESERIES TENSOR
+================================================================================
+Tensor structure: genes × samples × timepoints
+  - Total samples: 28
+  - Timepoints per sample: 4
+
+HOW THE TENSOR IS ORGANIZED:
+  • Each sample dimension = one COLONY (e.g., ACR-139)
+  • That colony's data at each timepoint is in the 3rd dimension
+  • Example: tensor[:, 0, :] contains all 4 timepoints for colony #0
+  • Example: tensor[:, 0, 2] is colony #0 at timepoint TP3
+
+CV approach: Leave-one-COLONY-out
+  • Train on: N-1 colonies (all their timepoints)
+  • Test on: 1 held-out colony (all its timepoints)
+
+IMPORTANT CLARIFICATION:
+  • Biological reality: Each sample is collected at ONE timepoint
+  • Tensor organization: Timepoints grouped by colony
+  • CV tests: Can model predict a NEW colony's timeseries?
+
+CV Groups (one per colony):
+  apul: 10 colonies
+    apul_ACR.139, apul_ACR.145, apul_ACR.150, apul_ACR.173, apul_ACR.186...
+  peve: 9 colonies
+    peve_POR.216, peve_POR.245, peve_POR.260, peve_POR.262, peve_POR.69...
+  ptua: 9 colonies
+    ptua_POC.219, ptua_POC.222, ptua_POC.255, ptua_POC.259, ptua_POC.40...
+
+Total CV folds: 28
+CV method: Leave-one-colony-out (train on N-1 colonies, test on 1)
+
+WARNING: This is computationally expensive!
+  - Each rank tested will require 28 model fits
+  - Consider subsetting to fewer colonies or using species-level CV
+================================================================================
+
+Replicate groups stored for cross-validation
+Available for dissertation-validated rank selection
+No Python documentation found for '# - Tests species generalization: can model learn patterns that work across species'.
+Use help() to get the interactive help utility.
+Use help(str) for help on the str class.
+
+================================================================================
+SPECIES-LEVEL CV GROUPS (ALTERNATIVE APPROACH)
+================================================================================
+CV approach: Leave-one-SPECIES-out
+  - Train on 2 species
+  - Test on 1 held-out species
+
+This tests: Can the decomposition generalize to a NEW SPECIES?
+
+Species groups:
+  apul: 10 colonies
+    Colonies: ACR.139, ACR.145, ACR.150, ACR.173, ACR.186...
+  peve: 9 colonies
+    Colonies: POR.216, POR.245, POR.260, POR.262, POR.69...
+  ptua: 9 colonies
+    Colonies: POC.219, POC.222, POC.255, POC.259, POC.40...
+
+Total CV folds: 3
+This is MUCH faster than colony-level CV
+================================================================================
+
+================================================================================
+RECOMMENDATION FOR CV APPROACH:
+================================================================================
+1. SPECIES-LEVEL CV (species_groups):
+   → Use this for PRACTICAL rank selection
+   → Fast: only 3 folds
+   → Tests: Does model work on new species?
+   → Similar to dissertation's leave-one-dataset-out approach
+
+2. COLONY-LEVEL CV (replicate_groups):
+   → Use for COMPREHENSIVE validation
+   → Slow: ~30-40 folds
+   → Tests: Does model work on new colony within same species?
+   → More traditional biological replicate CV
+
+SUGGESTED: Start with species-level CV for initial rank selection
+================================================================================
+Full dissertation grid search functions loaded
+Ready to run complete rank × lambda grid search
+================================================================================
+STARTING FULL DISSERTATION GRID SEARCH
+Blaskowski (2024) Section 1.2.3
+================================================================================
+
+Grid search configuration:
+  Ranks to test (7): [5, 10, 15, 20, 25, 30, 35]
+  Lambdas to test (8): [0.0, 0.01, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0]
+  Total combinations: 7 × 8 = 56
+  CV folds: 3
+  Max iterations: 10000
+  Random state: 42
+================================================================================
+
+Estimated workload:
+  Models to fit: 168
+  (7 ranks × 8 lambdas × 3 CV folds)
+  Estimated time: ~5.6-14.0 minutes
+    (assuming 2-5 min per model)
+================================================================================
+
+================================================================================
+STARTING GRID SEARCH...
+================================================================================
+================================================================================
+FULL DISSERTATION GRID SEARCH
+Blaskowski (2024) Section 1.2.3
+================================================================================
+Testing 7 ranks: [5, 10, 15, 20, 25, 30, 35]
+Testing 8 lambdas: [0.0, 0.01, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0]
+Total combinations: 56
+Cross-validation: Leave-one-group-out (3 folds)
+Random state: 42
+================================================================================
+
+For each (R, λ) combination, calculating:
+  • 3 × 2 = 6 SSE scores
+    (each model evaluated on 2 held-out groups)
+  • 3 FMS scores
+    (pairwise comparisons between 3 models)
+================================================================================
+
+================================================================================
+Combination 1/56: Rank=5, Lambda=0.0
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.23e+05
+      SSE on others: 5.06e+05 ± 4.88e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.65e+05
+      SSE on others: 5.22e+05 ± 5.70e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.94e+05
+      SSE on others: 5.01e+05 ± 4.17e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 5.10e+05 ± 4.19e+04 (6 scores)
+    CV-FMS: 0.3631 ± 0.0539 (3 scores)
+
+================================================================================
+Combination 2/56: Rank=5, Lambda=0.01
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.18e+05
+      SSE on others: 5.16e+05 ± 4.70e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.63e+05
+      SSE on others: 5.11e+05 ± 5.58e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.99e+05
+      SSE on others: 4.93e+05 ± 4.89e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 5.07e+05 ± 4.40e+04 (6 scores)
+    CV-FMS: 0.4108 ± 0.0418 (3 scores)
+
+================================================================================
+Combination 3/56: Rank=5, Lambda=0.05
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.18e+05
+      SSE on others: 5.16e+05 ± 4.90e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.63e+05
+      SSE on others: 5.12e+05 ± 5.56e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.99e+05
+      SSE on others: 4.93e+05 ± 4.91e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 5.07e+05 ± 4.41e+04 (6 scores)
+    CV-FMS: 0.4224 ± 0.0484 (3 scores)
+
+================================================================================
+Combination 4/56: Rank=5, Lambda=0.1
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.18e+05
+      SSE on others: 5.16e+05 ± 5.01e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.63e+05
+      SSE on others: 5.13e+05 ± 5.54e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.99e+05
+      SSE on others: 4.93e+05 ± 4.93e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 5.08e+05 ± 4.41e+04 (6 scores)
+    CV-FMS: 0.4504 ± 0.0674 (3 scores)
+
+================================================================================
+Combination 5/56: Rank=5, Lambda=0.5
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.18e+05
+      SSE on others: 5.16e+05 ± 5.23e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.66e+05
+      SSE on others: 5.19e+05 ± 5.51e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.99e+05
+      SSE on others: 4.94e+05 ± 5.06e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 5.10e+05 ± 4.48e+04 (6 scores)
+    CV-FMS: 0.4499 ± 0.0707 (3 scores)
+
+================================================================================
+Combination 6/56: Rank=5, Lambda=1.0
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.18e+05
+      SSE on others: 5.17e+05 ± 5.32e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.67e+05
+      SSE on others: 5.18e+05 ± 5.44e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.99e+05
+      SSE on others: 4.94e+05 ± 5.09e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 5.10e+05 ± 4.44e+04 (6 scores)
+    CV-FMS: 0.4185 ± 0.0666 (3 scores)
+
+================================================================================
+Combination 7/56: Rank=5, Lambda=2.0
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.18e+05
+      SSE on others: 5.17e+05 ± 5.45e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.65e+05
+      SSE on others: 5.19e+05 ± 5.81e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.98e+05
+      SSE on others: 4.94e+05 ± 5.04e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 5.10e+05 ± 4.59e+04 (6 scores)
+    CV-FMS: 0.4161 ± 0.0762 (3 scores)
+
+================================================================================
+Combination 8/56: Rank=5, Lambda=5.0
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.25e+05
+      SSE on others: 5.08e+05 ± 3.55e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.63e+05
+      SSE on others: 5.20e+05 ± 5.35e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.93e+05
+      SSE on others: 5.01e+05 ± 4.27e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 5.10e+05 ± 4.04e+04 (6 scores)
+    CV-FMS: 0.3870 ± 0.0821 (3 scores)
+
+================================================================================
+Combination 9/56: Rank=10, Lambda=0.0
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.25e+05
+      SSE on others: 4.98e+05 ± 4.08e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.71e+05
+      SSE on others: 5.00e+05 ± 3.62e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.98e+05
+      SSE on others: 4.87e+05 ± 3.55e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 4.95e+05 ± 2.99e+04 (6 scores)
+    CV-FMS: 0.4850 ± 0.0350 (3 scores)
+
+================================================================================
+Combination 10/56: Rank=10, Lambda=0.01
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.27e+05
+      SSE on others: 5.00e+05 ± 4.63e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.69e+05
+      SSE on others: 5.01e+05 ± 4.53e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.95e+05
+      SSE on others: 4.88e+05 ± 3.46e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 4.96e+05 ± 3.35e+04 (6 scores)
+    CV-FMS: 0.4862 ± 0.0118 (3 scores)
+
+================================================================================
+Combination 11/56: Rank=10, Lambda=0.05
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.27e+05
+      SSE on others: 5.00e+05 ± 4.03e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.68e+05
+      SSE on others: 5.01e+05 ± 4.52e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.96e+05
+      SSE on others: 4.88e+05 ± 3.58e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 4.96e+05 ± 3.39e+04 (6 scores)
+    CV-FMS: 0.4807 ± 0.0059 (3 scores)
+
+================================================================================
+Combination 12/56: Rank=10, Lambda=0.1
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.27e+05
+      SSE on others: 5.00e+05 ± 3.61e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.69e+05
+      SSE on others: 5.01e+05 ± 4.48e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.96e+05
+      SSE on others: 4.88e+05 ± 3.58e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 4.96e+05 ± 3.37e+04 (6 scores)
+    CV-FMS: 0.4742 ± 0.0026 (3 scores)
+
+================================================================================
+Combination 13/56: Rank=10, Lambda=0.5
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.26e+05
+      SSE on others: 5.01e+05 ± 3.63e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.67e+05
+      SSE on others: 5.02e+05 ± 3.72e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.94e+05
+      SSE on others: 4.88e+05 ± 3.54e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 4.97e+05 ± 3.04e+04 (6 scores)
+    CV-FMS: 0.4556 ± 0.0232 (3 scores)
+
+================================================================================
+Combination 14/56: Rank=10, Lambda=1.0
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.25e+05
+      SSE on others: 4.99e+05 ± 7.75e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.67e+05
+      SSE on others: 5.03e+05 ± 3.70e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.95e+05
+      SSE on others: 4.88e+05 ± 3.57e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 4.97e+05 ± 3.06e+04 (6 scores)
+    CV-FMS: 0.4791 ± 0.0469 (3 scores)
+
+================================================================================
+Combination 15/56: Rank=10, Lambda=2.0
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.24e+05
+      SSE on others: 4.99e+05 ± 8.69e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.66e+05
+      SSE on others: 5.03e+05 ± 3.75e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.93e+05
+      SSE on others: 4.90e+05 ± 3.45e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 4.97e+05 ± 3.04e+04 (6 scores)
+    CV-FMS: 0.4588 ± 0.0017 (3 scores)
+
+================================================================================
+Combination 16/56: Rank=10, Lambda=5.0
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.20e+05
+      SSE on others: 5.01e+05 ± 4.55e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.66e+05
+      SSE on others: 5.03e+05 ± 3.80e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.94e+05
+      SSE on others: 4.90e+05 ± 3.41e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 4.98e+05 ± 3.02e+04 (6 scores)
+    CV-FMS: 0.4475 ± 0.0191 (3 scores)
+
+================================================================================
+Combination 17/56: Rank=15, Lambda=0.0
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.22e+05
+      SSE on others: 4.94e+05 ± 5.50e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.73e+05
+      SSE on others: 4.95e+05 ± 3.97e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.97e+05
+      SSE on others: 4.87e+05 ± 3.35e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 4.92e+05 ± 3.04e+04 (6 scores)
+    CV-FMS: 0.5651 ± 0.0325 (3 scores)
+
+================================================================================
+Combination 18/56: Rank=15, Lambda=0.01
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.20e+05
+      SSE on others: 4.95e+05 ± 5.17e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.72e+05
+      SSE on others: 4.96e+05 ± 4.07e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.97e+05
+      SSE on others: 4.87e+05 ± 3.29e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 4.93e+05 ± 3.06e+04 (6 scores)
+    CV-FMS: 0.4889 ± 0.0399 (3 scores)
+
+================================================================================
+Combination 19/56: Rank=15, Lambda=0.05
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.20e+05
+      SSE on others: 4.95e+05 ± 5.19e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.72e+05
+      SSE on others: 4.96e+05 ± 4.08e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.97e+05
+      SSE on others: 4.87e+05 ± 3.31e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 4.93e+05 ± 3.08e+04 (6 scores)
+    CV-FMS: 0.4991 ± 0.0231 (3 scores)
+
+================================================================================
+Combination 20/56: Rank=15, Lambda=0.1
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.20e+05
+      SSE on others: 4.95e+05 ± 5.24e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.71e+05
+      SSE on others: 4.96e+05 ± 4.01e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.98e+05
+      SSE on others: 4.87e+05 ± 3.39e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 4.93e+05 ± 3.08e+04 (6 scores)
+    CV-FMS: 0.5013 ± 0.0371 (3 scores)
+
+================================================================================
+Combination 21/56: Rank=15, Lambda=0.5
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.22e+05
+      SSE on others: 4.95e+05 ± 2.30e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.71e+05
+      SSE on others: 4.97e+05 ± 3.69e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.97e+05
+      SSE on others: 4.87e+05 ± 3.37e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 4.93e+05 ± 2.92e+04 (6 scores)
+    CV-FMS: 0.4479 ± 0.0466 (3 scores)
+
+================================================================================
+Combination 22/56: Rank=15, Lambda=1.0
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.24e+05
+      SSE on others: 4.96e+05 ± 1.92e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.71e+05
+      SSE on others: 4.95e+05 ± 3.86e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.96e+05
+      SSE on others: 4.87e+05 ± 3.47e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 4.93e+05 ± 3.02e+04 (6 scores)
+    CV-FMS: 0.4654 ± 0.0736 (3 scores)
+
+================================================================================
+Combination 23/56: Rank=15, Lambda=2.0
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.21e+05
+      SSE on others: 4.94e+05 ± 2.87e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.68e+05
+      SSE on others: 4.99e+05 ± 4.24e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.97e+05
+      SSE on others: 4.87e+05 ± 3.46e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 4.93e+05 ± 3.20e+04 (6 scores)
+    CV-FMS: 0.5105 ± 0.0240 (3 scores)
+
+================================================================================
+Combination 24/56: Rank=15, Lambda=5.0
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.20e+05
+      SSE on others: 4.96e+05 ± 4.98e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.69e+05
+      SSE on others: 4.97e+05 ± 4.04e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.96e+05
+      SSE on others: 4.88e+05 ± 3.24e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 4.93e+05 ± 3.03e+04 (6 scores)
+    CV-FMS: 0.5285 ± 0.0124 (3 scores)
+
+================================================================================
+Combination 25/56: Rank=20, Lambda=0.0
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.22e+05
+      SSE on others: 4.92e+05 ± 1.50e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.72e+05
+      SSE on others: 4.95e+05 ± 3.95e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.94e+05
+      SSE on others: 4.87e+05 ± 3.07e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 4.92e+05 ± 2.91e+04 (6 scores)
+    CV-FMS: 0.5554 ± 0.0412 (3 scores)
+
+================================================================================
+Combination 26/56: Rank=20, Lambda=0.01
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.19e+05
+      SSE on others: 4.93e+05 ± 4.84e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.73e+05
+      SSE on others: 4.95e+05 ± 3.82e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.98e+05
+      SSE on others: 4.86e+05 ± 3.42e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 4.91e+05 ± 3.00e+04 (6 scores)
+    CV-FMS: 0.5714 ± 0.0235 (3 scores)
+
+================================================================================
+Combination 27/56: Rank=20, Lambda=0.05
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.19e+05
+      SSE on others: 4.93e+05 ± 4.95e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.73e+05
+      SSE on others: 4.95e+05 ± 3.89e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.97e+05
+      SSE on others: 4.86e+05 ± 3.45e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 4.91e+05 ± 3.04e+04 (6 scores)
+    CV-FMS: 0.5711 ± 0.0428 (3 scores)
+
+================================================================================
+Combination 28/56: Rank=20, Lambda=0.1
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.19e+05
+      SSE on others: 4.93e+05 ± 5.01e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.72e+05
+      SSE on others: 4.96e+05 ± 3.84e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.97e+05
+      SSE on others: 4.86e+05 ± 3.47e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 4.92e+05 ± 3.03e+04 (6 scores)
+    CV-FMS: 0.5690 ± 0.0409 (3 scores)
+
+================================================================================
+Combination 29/56: Rank=20, Lambda=0.5
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.19e+05
+      SSE on others: 4.93e+05 ± 5.67e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.72e+05
+      SSE on others: 4.95e+05 ± 3.91e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.96e+05
+      SSE on others: 4.85e+05 ± 3.49e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 4.91e+05 ± 3.08e+04 (6 scores)
+    CV-FMS: 0.5530 ± 0.0057 (3 scores)
+
+================================================================================
+Combination 30/56: Rank=20, Lambda=1.0
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.19e+05
+      SSE on others: 4.93e+05 ± 5.97e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.73e+05
+      SSE on others: 4.94e+05 ± 3.94e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.96e+05
+      SSE on others: 4.86e+05 ± 3.64e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 4.91e+05 ± 3.14e+04 (6 scores)
+    CV-FMS: 0.5185 ± 0.0073 (3 scores)
+
+================================================================================
+Combination 31/56: Rank=20, Lambda=2.0
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.20e+05
+      SSE on others: 4.93e+05 ± 2.69e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.72e+05
+      SSE on others: 4.94e+05 ± 3.93e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.95e+05
+      SSE on others: 4.87e+05 ± 3.48e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 4.91e+05 ± 3.06e+04 (6 scores)
+    CV-FMS: 0.5336 ± 0.0355 (3 scores)
+
+================================================================================
+Combination 32/56: Rank=20, Lambda=5.0
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.19e+05
+      SSE on others: 4.94e+05 ± 5.14e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.71e+05
+      SSE on others: 4.96e+05 ± 3.73e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.95e+05
+      SSE on others: 4.87e+05 ± 3.42e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 4.92e+05 ± 2.97e+04 (6 scores)
+    CV-FMS: 0.5730 ± 0.0301 (3 scores)
+
+================================================================================
+Combination 33/56: Rank=25, Lambda=0.0
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.24e+05
+      SSE on others: 4.92e+05 ± 3.59e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.73e+05
+      SSE on others: 4.94e+05 ± 3.92e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.97e+05
+      SSE on others: 4.84e+05 ± 3.29e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 4.90e+05 ± 2.99e+04 (6 scores)
+    CV-FMS: 0.5889 ± 0.0118 (3 scores)
+
+================================================================================
+Combination 34/56: Rank=25, Lambda=0.01
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.22e+05
+      SSE on others: 4.92e+05 ± 4.27e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.73e+05
+      SSE on others: 4.94e+05 ± 3.76e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.96e+05
+      SSE on others: 4.84e+05 ± 3.51e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 4.90e+05 ± 3.01e+04 (6 scores)
+    CV-FMS: 0.5521 ± 0.0397 (3 scores)
+
+================================================================================
+Combination 35/56: Rank=25, Lambda=0.05
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.22e+05
+      SSE on others: 4.92e+05 ± 4.02e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.73e+05
+      SSE on others: 4.94e+05 ± 3.82e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.96e+05
+      SSE on others: 4.85e+05 ± 3.57e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 4.91e+05 ± 3.05e+04 (6 scores)
+    CV-FMS: 0.5274 ± 0.0203 (3 scores)
+
+================================================================================
+Combination 36/56: Rank=25, Lambda=0.1
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.22e+05
+      SSE on others: 4.92e+05 ± 4.02e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.73e+05
+      SSE on others: 4.94e+05 ± 3.81e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.96e+05
+      SSE on others: 4.85e+05 ± 3.54e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 4.90e+05 ± 3.04e+04 (6 scores)
+    CV-FMS: 0.5136 ± 0.0185 (3 scores)
+
+================================================================================
+Combination 37/56: Rank=25, Lambda=0.5
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.22e+05
+      SSE on others: 4.92e+05 ± 4.15e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.74e+05
+      SSE on others: 4.94e+05 ± 3.88e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.96e+05
+      SSE on others: 4.85e+05 ± 3.52e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 4.90e+05 ± 3.06e+04 (6 scores)
+    CV-FMS: 0.5324 ± 0.0227 (3 scores)
+
+================================================================================
+Combination 38/56: Rank=25, Lambda=1.0
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.22e+05
+      SSE on others: 4.92e+05 ± 2.65e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.73e+05
+      SSE on others: 4.94e+05 ± 3.92e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.96e+05
+      SSE on others: 4.85e+05 ± 3.50e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 4.90e+05 ± 3.07e+04 (6 scores)
+    CV-FMS: 0.5521 ± 0.0214 (3 scores)
+
+================================================================================
+Combination 39/56: Rank=25, Lambda=2.0
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.22e+05
+      SSE on others: 4.92e+05 ± 3.61e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.73e+05
+      SSE on others: 4.94e+05 ± 3.92e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.95e+05
+      SSE on others: 4.85e+05 ± 3.58e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 4.90e+05 ± 3.09e+04 (6 scores)
+    CV-FMS: 0.6152 ± 0.0251 (3 scores)
+
+================================================================================
+Combination 40/56: Rank=25, Lambda=5.0
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.23e+05
+      SSE on others: 4.92e+05 ± 4.35e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.71e+05
+      SSE on others: 4.94e+05 ± 3.87e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.95e+05
+      SSE on others: 4.84e+05 ± 3.37e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 4.90e+05 ± 3.00e+04 (6 scores)
+    CV-FMS: 0.5974 ± 0.0182 (3 scores)
+
+================================================================================
+Combination 41/56: Rank=30, Lambda=0.0
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.24e+05
+      SSE on others: 4.91e+05 ± 2.84e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.73e+05
+      SSE on others: 4.94e+05 ± 3.80e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.97e+05
+      SSE on others: 4.83e+05 ± 3.18e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 4.89e+05 ± 2.90e+04 (6 scores)
+    CV-FMS: 0.6081 ± 0.0251 (3 scores)
+
+================================================================================
+Combination 42/56: Rank=30, Lambda=0.01
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.24e+05
+      SSE on others: 4.90e+05 ± 5.22e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.74e+05
+      SSE on others: 4.93e+05 ± 3.87e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.97e+05
+      SSE on others: 4.84e+05 ± 3.36e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 4.89e+05 ± 3.00e+04 (6 scores)
+    CV-FMS: 0.5654 ± 0.0223 (3 scores)
+
+================================================================================
+Combination 43/56: Rank=30, Lambda=0.05
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.24e+05
+      SSE on others: 4.90e+05 ± 5.32e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.74e+05
+      SSE on others: 4.93e+05 ± 3.87e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.97e+05
+      SSE on others: 4.84e+05 ± 3.32e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 4.89e+05 ± 2.99e+04 (6 scores)
+    CV-FMS: 0.5136 ± 0.0477 (3 scores)
+
+================================================================================
+Combination 44/56: Rank=30, Lambda=0.1
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.24e+05
+      SSE on others: 4.90e+05 ± 5.20e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.74e+05
+      SSE on others: 4.93e+05 ± 3.85e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.97e+05
+      SSE on others: 4.83e+05 ± 3.32e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 4.89e+05 ± 2.97e+04 (6 scores)
+    CV-FMS: 0.5344 ± 0.0455 (3 scores)
+
+================================================================================
+Combination 45/56: Rank=30, Lambda=0.5
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.24e+05
+      SSE on others: 4.91e+05 ± 4.77e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.74e+05
+      SSE on others: 4.93e+05 ± 3.89e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.97e+05
+      SSE on others: 4.84e+05 ± 3.39e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 4.89e+05 ± 3.02e+04 (6 scores)
+    CV-FMS: 0.5815 ± 0.0217 (3 scores)
+
+================================================================================
+Combination 46/56: Rank=30, Lambda=1.0
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.23e+05
+      SSE on others: 4.91e+05 ± 4.17e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.74e+05
+      SSE on others: 4.93e+05 ± 3.83e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.97e+05
+      SSE on others: 4.83e+05 ± 3.24e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 4.89e+05 ± 2.94e+04 (6 scores)
+    CV-FMS: 0.5984 ± 0.0179 (3 scores)
+
+================================================================================
+Combination 47/56: Rank=30, Lambda=2.0
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.23e+05
+      SSE on others: 4.91e+05 ± 4.36e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.73e+05
+      SSE on others: 4.93e+05 ± 3.91e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.97e+05
+      SSE on others: 4.83e+05 ± 3.20e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 4.89e+05 ± 2.96e+04 (6 scores)
+    CV-FMS: 0.5948 ± 0.0128 (3 scores)
+
+================================================================================
+Combination 48/56: Rank=30, Lambda=5.0
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.22e+05
+      SSE on others: 4.91e+05 ± 5.17e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.72e+05
+      SSE on others: 4.94e+05 ± 3.84e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.95e+05
+      SSE on others: 4.84e+05 ± 3.53e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 4.90e+05 ± 3.05e+04 (6 scores)
+    CV-FMS: 0.6018 ± 0.0170 (3 scores)
+
+================================================================================
+Combination 49/56: Rank=35, Lambda=0.0
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.25e+05
+      SSE on others: 4.90e+05 ± 5.84e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.74e+05
+      SSE on others: 4.93e+05 ± 3.84e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.98e+05
+      SSE on others: 4.82e+05 ± 3.23e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 4.88e+05 ± 2.95e+04 (6 scores)
+    CV-FMS: 0.5606 ± 0.0456 (3 scores)
+
+================================================================================
+Combination 50/56: Rank=35, Lambda=0.01
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.27e+05
+      SSE on others: 4.89e+05 ± 6.55e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.75e+05
+      SSE on others: 4.93e+05 ± 3.88e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.98e+05
+      SSE on others: 4.83e+05 ± 3.21e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 4.88e+05 ± 2.96e+04 (6 scores)
+    CV-FMS: 0.6160 ± 0.0160 (3 scores)
+
+================================================================================
+Combination 51/56: Rank=35, Lambda=0.05
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.27e+05
+      SSE on others: 4.89e+05 ± 6.50e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.74e+05
+      SSE on others: 4.93e+05 ± 3.85e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.98e+05
+      SSE on others: 4.83e+05 ± 3.17e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 4.88e+05 ± 2.93e+04 (6 scores)
+    CV-FMS: 0.5783 ± 0.0135 (3 scores)
+
+================================================================================
+Combination 52/56: Rank=35, Lambda=0.1
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.27e+05
+      SSE on others: 4.89e+05 ± 6.35e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.74e+05
+      SSE on others: 4.93e+05 ± 3.85e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.98e+05
+      SSE on others: 4.83e+05 ± 3.15e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 4.88e+05 ± 2.92e+04 (6 scores)
+    CV-FMS: 0.5874 ± 0.0053 (3 scores)
+
+================================================================================
+Combination 53/56: Rank=35, Lambda=0.5
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.27e+05
+      SSE on others: 4.89e+05 ± 6.52e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.74e+05
+      SSE on others: 4.93e+05 ± 3.86e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.98e+05
+      SSE on others: 4.83e+05 ± 3.15e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 4.88e+05 ± 2.93e+04 (6 scores)
+    CV-FMS: 0.6110 ± 0.0114 (3 scores)
+
+================================================================================
+Combination 54/56: Rank=35, Lambda=1.0
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.27e+05
+      SSE on others: 4.88e+05 ± 7.31e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.74e+05
+      SSE on others: 4.93e+05 ± 3.87e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.98e+05
+      SSE on others: 4.82e+05 ± 3.08e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 4.88e+05 ± 2.92e+04 (6 scores)
+    CV-FMS: 0.6220 ± 0.0088 (3 scores)
+
+================================================================================
+Combination 55/56: Rank=35, Lambda=2.0
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.26e+05
+      SSE on others: 4.89e+05 ± 7.37e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.73e+05
+      SSE on others: 4.93e+05 ± 3.89e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.98e+05
+      SSE on others: 4.82e+05 ± 3.13e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 4.88e+05 ± 2.95e+04 (6 scores)
+    CV-FMS: 0.6236 ± 0.0154 (3 scores)
+
+================================================================================
+Combination 56/56: Rank=35, Lambda=5.0
+================================================================================
+  Fold 1/3: Training without apul
+    ✓ SSE on apul: 6.26e+05
+      SSE on others: 4.89e+05 ± 5.82e+03
+  Fold 2/3: Training without peve
+    ✓ SSE on peve: 5.73e+05
+      SSE on others: 4.93e+05 ± 3.84e+04
+  Fold 3/3: Training without ptua
+    ✓ SSE on ptua: 5.97e+05
+      SSE on others: 4.83e+05 ± 3.31e+04
+
+  Calculating FMS between 3 successful models...
+
+  RESULTS:
+    CV-SSE: 4.88e+05 ± 2.97e+04 (6 scores)
+    CV-FMS: 0.6291 ± 0.0079 (3 scores)
+
+================================================================================
+STAGE 1: RANK SELECTION
+Dissertation: 'Select R at minimum CV-SSE for λ=0.0 models'
+================================================================================
+
+✓ OPTIMAL RANK: 35
+  CV-SSE: 4.88e+05 ± 2.95e+04
+
+All λ=0.0 results:
+ rank  mean_cv_sse  std_cv_sse  n_successful_folds
+   35     4.88e+05    2.95e+04                   3
+   30     4.89e+05    2.90e+04                   3
+   25     4.90e+05    2.99e+04                   3
+   20     4.92e+05    2.91e+04                   3
+   15     4.92e+05    3.04e+04                   3
+   10     4.95e+05    2.99e+04                   3
+    5     5.10e+05    4.19e+04                   3
+
+================================================================================
+STAGE 2: LAMBDA SELECTION
+Dissertation: 'Select maximum λ where CV-FMS ≥ (max_FMS - 1SE)'
+================================================================================
+
+Maximum FMS: 0.6291 ± 0.0046 (at λ=5.0)
+1SE Threshold: 0.6246
+
+✓ OPTIMAL LAMBDA: 5.0
+  CV-FMS: 0.6291
+  CV-SSE: 4.88e+05
+  (Maximum λ where FMS ≥ 0.6246)
+
+All results at rank=35:
+ lambda  mean_cv_fms  se_cv_fms  mean_cv_sse
+ 0.0000       0.5606     0.0263  488328.1202
+ 0.0100       0.6160     0.0092  488000.6664
+ 0.0500       0.5783     0.0078  487899.4275
+ 0.1000       0.5874     0.0031  487920.7548
+ 0.5000       0.6110     0.0066  487980.5383
+ 1.0000       0.6220     0.0051  487835.9215
+ 2.0000       0.6236     0.0089  487951.7320
+ 5.0000       0.6291     0.0046  488151.6329
+
+================================================================================
+FINAL SELECTED PARAMETERS
+================================================================================
+✓ Rank: 35
+✓ Lambda: 5.0
+================================================================================
+
+================================================================================
+GRID SEARCH COMPLETE
+================================================================================
+Total time: 3052.5 minutes
+Time per combination: 3270.5 seconds
+================================================================================
+
+✓ Full grid results saved to: full_grid_results.csv
+✓ Optimal parameters saved to: optimal_parameters.json
+
+================================================================================
+Results saved to directory:
+  ../output/13.00-multiomics-barnacle/dissertation_grid_search
+================================================================================

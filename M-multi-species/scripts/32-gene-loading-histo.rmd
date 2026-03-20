@@ -1,0 +1,220 @@
+---
+title: "32-gene-loading-histo"
+output: html_document
+date: "2025-11-20"
+---
+
+Lets plot histograms of the distibutions of loading scores for all gene wit rank35 - lambda .02
+
+
+~/GitHub/timeseries_molecular/M-multi-species/output/27-rank35-optimization/lambda_gene_0.2/barnacle_factors/gene_factors.csv
+
+
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+
+  # Load data
+  gene_factors <- read_csv("../output/27-rank35-optimization/lambda_gene_0.2/barnacle_factors/gene_factors.csv")
+
+
+#edit so columns names are shifted 1 to the left
+  colnames(gene_factors) <- c("gene", paste0("comp", 1:(ncol(gene_factors)-1)))
+
+#code to create histogram of gene_factors:
+  
+  library(ggplot2)
+  library(tidyr)
+  
+  # Reshape data to long format 
+  gene_factors_long <- gene_factors %>%
+    pivot_longer(cols = -1, names_to = "component", values_to = "loading")
+  
+  # Plot histogram
+  ggplot(gene_factors_long, aes(x = loading)) +
+    geom_histogram(bins = 50, fill = "blue", alpha = 0.7) +
+    facet_wrap(~ component, scales = "free") +
+    theme_minimal() +
+    labs(title = "Distribution of Gene Loadings for Rank 35 Components",
+         x = "Gene Loading",
+         y = "Count")
+
+
+  
+  # Plot histogram of only comp5
+  ggplot(gene_factors_long %>% filter(component == "comp5"), aes(x = loading)) +
+    geom_histogram(bins = 50, fill = "green", alpha = 0.7) +
+    theme_minimal() +
+    labs(title = "Distribution of Gene Loadings for Component 5",
+         x = "Gene Loading",
+         y = "Count")
+  
+  #plot histogram of only comp24 and make pink and draw lines indicating standard deviations
+    ggplot(gene_factors_long %>% filter(component == "comp5"), aes(x = loading)) +
+    geom_histogram(bins = 50, fill = "green", alpha = 0.7) +
+    geom_vline(aes(xintercept = mean(loading)), color = "red", linetype = "dashed", size = 1) +
+    geom_vline(aes(xintercept = mean(loading) + sd(loading)), color = "blue", linetype = "dashed", size = 1) +
+    geom_vline(aes(xintercept = mean(loading) - sd(loading)), color = "blue", linetype = "dashed", size = 1) +
+    theme_minimal() +
+    labs(title = "Distribution of Gene Loadings for Component 5",
+         x = "Gene Loading",
+         y = "Count")
+  
+  
+  ggplot(gene_factors_long %>% filter(component == "comp24"), aes(x = loading)) +
+    geom_histogram(bins = 50, fill = "pink", alpha = 0.7) +
+    geom_vline(aes(xintercept = mean(loading)), color = "red", linetype = "dashed", size = 1) +
+    geom_vline(aes(xintercept = mean(loading) + sd(loading)), color = "blue", linetype = "dashed", size = 1) +
+    geom_vline(aes(xintercept = mean(loading) - sd(loading)), color = "blue", linetype = "dashed", size = 1) +
+    theme_minimal() +
+    labs(title = "Distribution of Gene Loadings for Component 24",
+         x = "Gene Loading",
+         y = "Count")
+
+    ggplot(gene_factors_long %>% filter(component == "comp12"), aes(x = loading)) +
+    geom_histogram(bins = 50, fill = "orange", alpha = 0.7) +
+    geom_vline(aes(xintercept = mean(loading)), color = "red", linetype = "dashed", size = 1) +
+    geom_vline(aes(xintercept = mean(loading) + sd(loading)), color = "blue", linetype = "dashed", size = 1) +
+    geom_vline(aes(xintercept = mean(loading) - sd(loading)), color = "blue", linetype = "dashed", size = 1) +
+    theme_minimal() +
+    labs(title = "Distribution of Gene Loadings for Component 24",
+         x = "Gene Loading",
+         y = "Count")
+
+```
+
+```{r}
+# exract genes from comp5 where loading is greater than mean + 1.96*sd
+  comp5_genes <- gene_factors_long %>%
+    filter(component == "comp5") %>%
+    mutate(mean_loading = mean(loading),
+           sd_loading = sd(loading),
+           upper95 = mean_loading + 1.96 * sd_loading) %>%
+    filter(loading > upper95) %>%
+    arrange(desc(loading))
+```
+
+```{r}
+library(dplyr)
+
+df <- gene_factors_long %>%
+  filter(component == "comp5")
+
+m  <- mean(df$loading, na.rm = TRUE)
+sd <- sd(df$loading, na.rm = TRUE)
+
+genes_above_sd <- df %>%
+  filter(loading > m + sd) %>%
+  pull(gene)   # change column name if your gene column is named differently
+
+genes_above_sd
+```
+
+
+```{r}
+library(dplyr)
+
+df <- gene_factors_long %>%
+  filter(component == "comp5")
+
+m  <- mean(df$loading, na.rm = TRUE)
+sd <- sd(df$loading, na.rm = TRUE)
+
+genes_above_sd <- df %>%
+  filter(loading > m + sd) %>%
+  pull(gene)   # change column name if your gene column is named differently
+
+genes_above_sd
+```
+
+```{r}
+upper95 <- m + 1.96 * sd
+lower95 <- m - 1.96 * sd
+
+genes_outside_95 <- df %>%
+  filter(loading > upper95 | loading < lower95) %>%
+  pull(gene)
+```
+
+# 
+
+```{r}
+library(dplyr)
+library(ggplot2)
+
+df <- gene_factors_long %>%
+  filter(component == "comp12")
+
+m  <- mean(df$loading, na.rm = TRUE)
+sd <- sd(df$loading, na.rm = TRUE)
+
+lower95 <- m - 1.96 * sd
+upper95 <- m + 1.96 * sd
+
+ggplot(df, aes(x = loading)) +
+  geom_histogram(bins = 50, fill = "orange", alpha = 0.7) +
+  geom_vline(xintercept = m, color = "red", linetype = "dashed", size = 1) +
+  geom_vline(xintercept = lower95, color = "blue", linetype = "dashed", size = 1) +
+  geom_vline(xintercept = upper95, color = "blue", linetype = "dashed", size = 1) +
+  theme_minimal() +
+  labs(
+    title = "Distribution of Gene Loadings for Component 12",
+    x = "Gene Loading",
+    y = "Count"
+  )
+
+df <- gene_factors_long %>%
+  filter(component == "comp5")
+
+m  <- mean(df$loading, na.rm = TRUE)
+sd <- sd(df$loading, na.rm = TRUE)
+
+lower95 <- m - 1.96 * sd
+upper95 <- m + 1.96 * sd
+
+ggplot(df, aes(x = loading)) +
+  geom_histogram(bins = 50, fill = "green", alpha = 0.7) +
+  geom_vline(xintercept = m, color = "red", linetype = "dashed", size = 1) +
+  geom_vline(xintercept = lower95, color = "blue", linetype = "dashed", size = 1) +
+  geom_vline(xintercept = upper95, color = "blue", linetype = "dashed", size = 1) +
+  theme_minimal() +
+  labs(
+    title = "Distribution of Gene Loadings for Component 12",
+    x = "Gene Loading",
+    y = "Count"
+  )
+
+
+df <- gene_factors_long %>%
+  filter(component == "comp24")
+
+m  <- mean(df$loading, na.rm = TRUE)
+sd <- sd(df$loading, na.rm = TRUE)
+
+lower95 <- m - 1.96 * sd
+upper95 <- m + 1.96 * sd
+
+ggplot(df, aes(x = loading)) +
+  geom_histogram(bins = 50, fill = "grey", alpha = 0.7) +
+  geom_vline(xintercept = m, color = "red", linetype = "dashed", size = 1) +
+  geom_vline(xintercept = lower95, color = "blue", linetype = "dashed", size = 1) +
+  geom_vline(xintercept = upper95, color = "blue", linetype = "dashed", size = 1) +
+  theme_minimal() +
+  labs(
+    title = "Distribution of Gene Loadings for Component 12",
+    x = "Gene Loading",
+    y = "Count"
+  )
+
+
+
+
+```  
+  
+  
+  
+```{r}
+  # extract data for comp12 genes that are above upper95
+  comp5_genes <- gene_factors_long %>%
+    filter(component == "comp5" & loading > upper95) %>%
+    arrange(desc(loading))
+```
