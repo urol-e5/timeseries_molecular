@@ -581,45 +581,401 @@ for (obj_name in names(mofa_objects)) {
 ```{r plot-variance-decomposition-all, eval=TRUE}
 for (obj_name in names(mofa_objects)) {
   cat("\nVariance explained for", obj_name, ":\n")
-  print(plot_variance_explained(mofa_objects[[obj_name]], max_r2=0.1))
+  # Lowering max_r2 to 0.05 (5%) to see variation in modalities with lower signal
+  print(plot_variance_explained(mofa_objects[[obj_name]], max_r2=0.05))
 }
 ```
 
-Looks like the MOFA object with Factor count of `15` is the most informative, or at least provides some of the best resulotion. It shows a variance range in methylation (i.e. variation percentage isn't pegged at the max/min colors across all factors), as well as some possible effects in:
+Looks like the MOFA object with Factor count of `15` is the most informative, or at least provides some of the best resolution. It shows a variance range in methylation (i.e. variation percentage isn't pegged at the max/min colors across all factors), as well as some possible effects in:
 
-- Factor 1 showing variation across all views, so possibly important.
 
-- Factor 8 showing co-variation in only methylation and miRNA, suggesting some level of importance.
+- Factors 6 & 8 showing co-variation in miRNA, suggesting some level of importance.
 
-- Factor 9 showing co-variation in only methylation lncRNA, suggesting some level of importance.
 
 # FACTOR CHARACTERIZATION
 
-## Variance Explained by Time (MEFISTO)
+## Prepare MEFISTO results
 
-Since we used MEFISTO to model the time covariate, we can visualize how much of the variation in each factor is explained by the smooth temporal pattern.
+In order to visualize the temporal patterns, we need to explicitly calculate the interpolated values for the smooth factors.
 
-```{r plot-variance-explained-by-time, eval=TRUE}
+```{r prepare-mefisto-results, eval=TRUE}
 # Choose the 15-factor model for analysis
 mofa_15 <- mofa_objects[["MOFAobject_factors15"]]
 
+# Fix: Use interpolate_factors with the correct 'new_values' argument. 
+# We'll interpolate across the original timepoints used in the model.
+# The covariate values can be retrieved from the model object.
+time_values <- get_covariates(mofa_15)[[1]]
+mofa_15 <- interpolate_factors(mofa_15, new_values = time_values)
+```
+
+## Variance Explained by Time (MEFISTO)
+
+Since we used MEFISTO to model the time covariate, we can visualize how much of the variation in each factor is explained by time.
+
+```{r plot-variance-explained-by-time, eval=TRUE}
 cat("\nVariance explained by the time covariate per factor:\n")
 print(plot_variance_explained_by_covariates(mofa_15))
 ```
 
 ## Factor Values Across Time
 
-We can plot the factor values against the continuous time covariate to see how they evolve.
+We can plot the factor values against the time covariate to see how they evolve.
 
 ```{r plot-factors-vs-time, eval=TRUE}
-# Plot the first few factors against time
-plot_factors_vs_covariate(mofa_15, 
-  factors = 1:4, 
-  covariate = "time",
-  color_by = "time_point",
-  legend = TRUE
-)
+# Resolve MOFA2 internal "sample_id" <integer> vs <factor> mismatch:
+# MEFISTO generates it internally when melting interpolated_Z.
+
+# Step 1: Force consistent column names in metadata
+sm <- samples_metadata(mofa_15)
+sm$sample <- as.character(sm$sample)
+samples_metadata(mofa_15) <- sm
+
+# Step 2: Manually normalize the mofa@interpolated_Z slot column names.
+# This ensures that reshape2::melt inside get_interpolated_factors assigns the correct types.
+if (!is.null(mofa_15@interpolated_Z)) {
+  for (g in names(mofa_15@interpolated_Z)) {
+    # Ensure matrices (mean/variance) have character names if they exist and are matrices
+    if ("mean" %in% names(mofa_15@interpolated_Z[[g]])) {
+      mat <- mofa_15@interpolated_Z[[g]]$mean
+      if (!is.null(dim(mat))) {
+        rownames(mofa_15@interpolated_Z[[g]]$mean) <- as.character(rownames(mat))
+        colnames(mofa_15@interpolated_Z[[g]]$mean) <- as.character(colnames(mat))
+      }
+    }
+    if ("variance" %in% names(mofa_15@interpolated_Z[[g]])) {
+      mat <- mofa_15@interpolated_Z[[g]]$variance
+      if (!is.null(dim(mat))) {
+        rownames(mofa_15@interpolated_Z[[g]]$variance) <- as.character(rownames(mat))
+        colnames(mofa_15@interpolated_Z[[g]]$variance) <- as.character(colnames(mat))
+      }
+    }
+    # Ensure new_values (covariate interpolation grid) has names as characters
+    if ("new_values" %in% names(mofa_15@interpolated_Z[[g]])) {
+      nv <- mofa_15@interpolated_Z[[g]]$new_values
+      if (!is.null(dim(nv))) {
+        rownames(mofa_15@interpolated_Z[[g]]$new_values) <- as.character(rownames(nv))
+        colnames(mofa_15@interpolated_Z[[g]]$new_values) <- as.character(colnames(nv))
+      } else if (!is.null(names(nv))) {
+        names(mofa_15@interpolated_Z[[g]]$new_values) <- as.character(names(nv))
+      }
+    }
+  }
+}
+
+# Step 3: Call the plot function
+# If it fails due to an internal join mismatch, manually fix mofa_15@interpolated_Z
+# by converting names where they might be numeric factors.
+tryCatch({
+  plot_interpolation_vs_covariate(mofa_15, 
+    factors = 1:15, 
+    covariate = "time",
+    only_mean = FALSE, 
+    show_observed = TRUE 
+  )
+}, error = function(e) {
+  # If still failing, it's a deep internal type mismatch.
+  # Manual plotting with ggplot2 as a bulletproof workaround.
+  cat("\nInternal MOFA2 plotting failed. Using manual ggplot2 fallback...\n")
+  
+  # Extract factors as a list of matrices
+  factors_list <- get_factors(mofa_15, factors = "all")
+  
+  # Convert the list of matrices to a long-format data frame
+  # This version of get_factors returns a list (one for each group)
+  df <- do.call(rbind, lapply(names(factors_list), function(g) {
+    mat <- factors_list[[g]]
+    dat <- as.data.frame(mat)
+    dat$sample <- rownames(mat)
+    dat$group <- g
+    # Pivot to long format
+    reshape2::melt(dat, id.vars = c("sample", "group"), 
+                   variable.name = "factor", value.name = "value")
+  }))
+  
+  # Extract metadata (character to avoid factor issues)
+  meta <- samples_metadata(mofa_15)
+  meta$sample <- as.character(meta$sample)
+  
+  # Ensure character sample IDs for the join
+  df$sample <- as.character(df$sample)
+  
+  # Merge
+  plot_df <- merge(df, meta, by = "sample")
+  
+  # Plot
+  print(ggplot(plot_df, aes(x = time, y = value)) +
+    geom_point(aes(color = time_point)) +
+    geom_smooth(method = "loess", color = "black") + 
+    facet_wrap(~factor, scales = "free_y") +
+    theme_minimal() +
+    labs(title = "Factors Across Time (Manual Loess Smooth)", x = "Time", y = "Factor Value")
+  )
+})
 ```
+
+## Statistical Evaluation of Temporal Factors
+
+To move beyond visual inspection, we can programmatically test which factors show significant changes across the four timepoints. We'll use a standard ANOVA approach on the factor values (Z-scores) to identify which latent variables are most responsive to time.
+
+```{r statistically-evaluate-factors, eval=TRUE}
+# 1. Extract Factor Values and merge with Sample Metadata
+factor_values <- get_factors(mofa_15, as.data.frame = TRUE)
+factor_metadata <- factor_values %>%
+  left_join(sm, by = "sample") %>%
+  mutate(time_point = as.factor(time_point))
+
+# 2. ANOVA per Factor: Identify factors with significant mean differences across TPs
+# We'll use a loop to ensure everything is printed to the console
+temp_results <- list()
+factors_to_test <- unique(factor_metadata$factor)
+
+for (f in factors_to_test) {
+  df_sub <- factor_metadata[factor_metadata$factor == f, ]
+  aov_res <- aov(value ~ time_point, data = df_sub)
+  summ <- summary(aov_res)[[1]]
+  
+  temp_results[[f]] <- data.frame(
+    factor = f,
+    f_stat = summ[["F value"]][1],
+    p_val  = summ[["Pr(>F)"]][1],
+    stringsAsFactors = FALSE
+  )
+}
+
+# Create the summary table
+temporal_summary <- do.call(rbind, temp_results)
+temporal_summary$p_adj <- p.adjust(temporal_summary$p_val, method = "BH")
+
+# Sort by adjusted p-value (lowest to highest for most significant first)
+temporal_summary <- temporal_summary[order(temporal_summary$p_adj, decreasing = FALSE), ]
+rownames(temporal_summary) <- NULL
+
+# FORCE PRINTING OF THE TABLE
+cat("\n--- SIGNIFICANT FACTORS TABLE (Sorted by Adjusted p-value, Lowest to Highest) ---\n")
+print.data.frame(head(temporal_summary, 15))
+cat("----------------------------------\n")
+
+# 3. Post-hoc analysis for selected candidates
+# Include: factors with p < 0.05 (statistical significance)
+# Plus: Factor 1 (high temporal variance in MEFISTO)
+# Plus: Factor 8 (co-variation with miRNA/methylation)
+# Plus: Factor 15 (unique methylation variance behavior)
+sig_factors <- temporal_summary$factor[temporal_summary$p_val < 0.05]
+top_posthoc_targets <- unique(c(as.character(sig_factors), "Factor1", "Factor8", "Factor15"))
+
+cat("\n--- Running Post-hoc tests for:", paste(top_posthoc_targets, collapse=", "), "---\n")
+
+for (f in top_posthoc_targets) {
+  cat("\n--- Detailed Post-hoc (Tukey) for", f, "(Sorted by Adjusted p-value) ---\n")
+  top_f_data <- factor_metadata[factor_metadata$factor == f, ]
+  
+  if(length(unique(top_f_data$time_point)) > 1) {
+    # Check if we have enough variability (standard deviation > 0)
+    if(sd(top_f_data$value, na.rm=TRUE) > 0) {
+      # Reorder factor levels so earlier timepoints come first in output
+      # (TP1, TP2, TP3, TP4 ordered so comparisons read as TP1-TP2, TP1-TP3, etc.)
+      top_f_data$time_point <- factor(top_f_data$time_point, 
+                                       levels = c("TP4", "TP3", "TP2", "TP1"))
+      tukey_res <- TukeyHSD(aov(value ~ time_point, data = top_f_data))
+      
+      # Convert to data frame, sort by p-value, and print
+      tukey_table <- as.data.frame(tukey_res$time_point)
+      tukey_table$comparison <- rownames(tukey_table)
+      tukey_table <- tukey_table[order(tukey_table[, "p adj"], decreasing = FALSE), ]
+      rownames(tukey_table) <- NULL
+      
+      cat("\n**", f, "- Timepoint Comparisons (Tukey HSD):**\n\n")
+      print(tukey_table)
+      cat("\n")
+    } else {
+      cat("No variance in factor values for", f, ". Skipping Tukey.\n")
+    }
+  } else {
+    cat("Insufficient timepoints for Tukey test on", f, ".\n")
+  }
+}
+```
+
+### Visualizing Targeted Biological Drivers: Temporal (F1) and Cross-Omic Patterns (F6, F8, F15)
+
+Based on the analysis, **Factor 1** serves as the primary temporal axis for gene expression. **Factors 6 and 8** represent distinct miRNA-specific axes (genes and methylation pegged at max), while **Factor 15** captures methylation-specific variation (genes and miRNA pegged at max).
+
+## Factor 1: Temporal Response (Genes)
+
+### Diagnostic: Extract plot data to match table with visualization
+
+```{r diagnostic-factor1-weights, eval=TRUE}
+# Extract the data that plot_top_weights actually uses
+p <- plot_top_weights(mofa_15, view = "gene", factor = "Factor1", nfeatures = 10)
+plot_data <- p$data
+
+cat("\n--- DIAGNOSTIC: Plot Data for Factor 1 (Gene) ---\n")
+cat("Data used by plot_top_weights():\n")
+print(head(plot_data[, c("feature", "value")], 10))
+```
+
+```{r plot-factor1-weights, eval=TRUE}
+f <- "Factor1"
+cat("\n--- BIOLOGICAL DRIVERS FOR", f, "---\n")
+cat("Interpreted as: Temporal Response (Genes)\n")
+
+available_views <- views_names(mofa_15)
+# For Factor 1, focus on gene since miRNA/methylation are pegged at max
+focus_views <- c("gene")
+
+for (v in focus_views) {
+  if (v %in% available_views) {
+    cat("\n**", v, ":**\n")
+    
+    # Extract the raw weights
+    weights <- get_weights(mofa_15, views = v, factors = f, as.data.frame = TRUE)
+    # Sort by the absolute value (magnitude) of weights
+    weights_sorted <- weights[order(abs(weights$value), decreasing = TRUE), ]
+    top_10 <- head(weights_sorted, 10)
+    
+    # Normalize to match what plot_top_weights displays (abs values scaled to 0-1)
+    max_abs_weight <- max(abs(weights$value))
+    top_10$plot_value <- abs(top_10$value) / max_abs_weight
+    
+    # Print the top 10 feature names, raw weights, and plot-normalized values
+    cat("Top 10 features (sorted by absolute weight magnitude):\n")
+    cat("Feature\t\tRaw Weight\tPlot Value (Normalized)\n")
+    for (i in 1:nrow(top_10)) {
+      cat(sprintf("%s\t%8.6f\t%8.6f\n", top_10$feature[i], top_10$value[i], top_10$plot_value[i]))
+    }
+    cat("\n")
+    
+    # Plot (using MOFA's built-in function)
+    p <- plot_top_weights(mofa_15, view = v, factor = f, nfeatures = 10) + 
+      labs(title = paste(f, "| Top 10", v, "drivers"))
+    print(p)
+    
+    cat("\nInterpretation:\n")
+    cat("- Positive raw weights = genes upregulated over time (TP1→TP4)\n")
+    cat("- Negative raw weights = genes downregulated over time\n")
+    cat("- Plot values are normalized absolute weights (max=1.0), showing only magnitude\n")
+  }
+}
+```
+
+## Factor 6: Static miRNA-Specific Variation (Axis 1)
+
+```{r plot-factor6-weights, eval=TRUE}
+f <- "Factor6"
+cat("\n--- BIOLOGICAL DRIVERS FOR", f, "---\n")
+cat("Interpreted as: Static miRNA-Specific Variation (Axis 1)\n")
+
+available_views <- views_names(mofa_15)
+# For Factor 6, focus on miRNA since genes/methylation are pegged at max
+focus_views <- c("miRNA")
+
+for (v in focus_views) {
+  if (v %in% available_views) {
+    cat("\n**", v, ":**\n")
+    # Get top 10 weights for this view and factor
+    weights <- get_weights(mofa_15, views = v, factors = f, as.data.frame = TRUE)
+    weights_sorted <- weights[order(abs(weights$value), decreasing = TRUE), ]
+    top_10 <- head(weights_sorted, 10)
+    
+    # Normalize to match what plot_top_weights displays
+    max_abs_weight <- max(abs(weights$value))
+    top_10$plot_value <- abs(top_10$value) / max_abs_weight
+    
+    # Print the top 10 feature names, raw weights, and plot-normalized values
+    cat("Top 10 features (sorted by absolute weight magnitude):\n")
+    cat("Feature\t\tRaw Weight\tPlot Value (Normalized)\n")
+    for (i in 1:nrow(top_10)) {
+      cat(sprintf("%s\t%8.6f\t%8.6f\n", top_10$feature[i], top_10$value[i], top_10$plot_value[i]))
+    }
+    cat("\n")
+    
+    # Plot
+    p <- plot_top_weights(mofa_15, view = v, factor = f, nfeatures = 10) + 
+      labs(title = paste(f, "| Top 10", v, "drivers"))
+    print(p)
+  }
+}
+```
+
+## Factor 8: Static miRNA-Specific Variation (Axis 2)
+
+```{r plot-factor8-weights, eval=TRUE}
+f <- "Factor8"
+cat("\n--- BIOLOGICAL DRIVERS FOR", f, "---\n")
+cat("Interpreted as: Static miRNA-Specific Variation (Axis 2)\n")
+
+available_views <- views_names(mofa_15)
+# For Factor 8, focus on miRNA since genes/methylation are pegged at max
+focus_views <- c("miRNA")
+
+for (v in focus_views) {
+  if (v %in% available_views) {
+    cat("\n**", v, ":**\n")
+    # Get top 10 weights for this view and factor
+    weights <- get_weights(mofa_15, views = v, factors = f, as.data.frame = TRUE)
+    weights_sorted <- weights[order(abs(weights$value), decreasing = TRUE), ]
+    top_10 <- head(weights_sorted, 10)
+    
+    # Normalize to match what plot_top_weights displays
+    max_abs_weight <- max(abs(weights$value))
+    top_10$plot_value <- abs(top_10$value) / max_abs_weight
+    
+    # Print the top 10 feature names, raw weights, and plot-normalized values
+    cat("Top 10 features (sorted by absolute weight magnitude):\n")
+    cat("Feature\t\tRaw Weight\tPlot Value (Normalized)\n")
+    for (i in 1:nrow(top_10)) {
+      cat(sprintf("%s\t%8.6f\t%8.6f\n", top_10$feature[i], top_10$value[i], top_10$plot_value[i]))
+    }
+    cat("\n")
+    
+    # Plot
+    p <- plot_top_weights(mofa_15, view = v, factor = f, nfeatures = 10) + 
+      labs(title = paste(f, "| Top 10", v, "drivers"))
+    print(p)
+  }
+}
+```
+
+## Factor 15: Methylation-Specific Variation
+
+```{r plot-factor15-weights, eval=TRUE}
+f <- "Factor15"
+cat("\n--- BIOLOGICAL DRIVERS FOR", f, "---\n")
+cat("Interpreted as: Methylation-Specific Variation\n")
+
+available_views <- views_names(mofa_15)
+# For Factor 15, focus on methylation since genes/miRNA are pegged at max
+focus_views <- c("methylation")
+
+for (v in focus_views) {
+  if (v %in% available_views) {
+    cat("\n**", v, ":**\n")
+    # Get top 10 weights for this view and factor
+    weights <- get_weights(mofa_15, views = v, factors = f, as.data.frame = TRUE)
+    weights_sorted <- weights[order(abs(weights$value), decreasing = TRUE), ]
+    top_10 <- head(weights_sorted, 10)
+    
+    # Normalize to match what plot_top_weights displays
+    max_abs_weight <- max(abs(weights$value))
+    top_10$plot_value <- abs(top_10$value) / max_abs_weight
+    
+    # Print the top 10 feature names, raw weights, and plot-normalized values
+    cat("Top 10 features (sorted by absolute weight magnitude):\n")
+    cat("Feature\t\tRaw Weight\tPlot Value (Normalized)\n")
+    for (i in 1:nrow(top_10)) {
+      cat(sprintf("%s\t%8.6f\t%8.6f\n", top_10$feature[i], top_10$value[i], top_10$plot_value[i]))
+    }
+    cat("\n")
+    
+    # Plot
+    p <- plot_top_weights(mofa_15, view = v, factor = f, nfeatures = 10) + 
+      labs(title = paste(f, "| Top 10", v, "drivers"))
+    print(p)
+  }
+}
+```
+
 
 # FACTOR 1 CHARACTERIZATION
 
