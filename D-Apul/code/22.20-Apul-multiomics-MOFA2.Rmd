@@ -760,9 +760,8 @@ cat("----------------------------------\n")
 # Include: factors with p < 0.05 (statistical significance)
 # Plus: Factor 1 (high temporal variance in MEFISTO)
 # Plus: Factor 8 (co-variation with miRNA/methylation)
-# Plus: Factor 15 (unique methylation variance behavior)
 sig_factors <- temporal_summary$factor[temporal_summary$p_val < 0.05]
-top_posthoc_targets <- unique(c(as.character(sig_factors), "Factor1", "Factor8", "Factor15"))
+top_posthoc_targets <- unique(c(as.character(sig_factors), "Factor1", "Factor8"))
 
 cat("\n--- Running Post-hoc tests for:", paste(top_posthoc_targets, collapse=", "), "---\n")
 
@@ -925,46 +924,6 @@ for (v in focus_views) {
   }
 }
 ```
-
-## Factor 15: Methylation-Specific Variation
-
-```{r plot-factor15-weights, eval=TRUE}
-f <- "Factor15"
-cat("\n--- BIOLOGICAL DRIVERS FOR", f, "---\n")
-cat("Interpreted as: Methylation-Specific Variation\n")
-
-available_views <- views_names(mofa_15)
-# For Factor 15, focus on methylation since genes/miRNA are pegged at max
-focus_views <- c("methylation")
-
-for (v in focus_views) {
-  if (v %in% available_views) {
-    cat("\n**", v, ":**\n")
-    # Get top 10 weights for this view and factor
-    weights <- get_weights(mofa_15, views = v, factors = f, as.data.frame = TRUE)
-    weights_sorted <- weights[order(abs(weights$value), decreasing = TRUE), ]
-    top_10 <- head(weights_sorted, 10)
-    
-    # Normalize to match what plot_top_weights displays
-    max_abs_weight <- max(abs(weights$value))
-    top_10$plot_value <- abs(top_10$value) / max_abs_weight
-    
-    # Print the top 10 feature names, raw weights, and plot-normalized values
-    cat("Top 10 features (sorted by absolute weight magnitude):\n")
-    cat("Feature\t\tRaw Weight\tPlot Value (Normalized)\n")
-    for (i in 1:nrow(top_10)) {
-      cat(sprintf("%s\t%8.6f\t%8.6f\n", top_10$feature[i], top_10$value[i], top_10$plot_value[i]))
-    }
-    cat("\n")
-    
-    # Plot
-    p <- plot_top_weights(mofa_15, view = v, factor = f, nfeatures = 10) + 
-      labs(title = paste(f, "| Top 10", v, "drivers"))
-    print(p)
-  }
-}
-```
-
 
 # FACTOR 1 CHARACTERIZATION
 
