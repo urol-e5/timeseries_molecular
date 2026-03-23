@@ -803,17 +803,6 @@ Based on the analysis, **Factor 1** serves as the primary temporal axis for gene
 
 ## Factor 1: Temporal Response (Genes)
 
-### Diagnostic: Extract plot data to match table with visualization
-
-```{r diagnostic-factor1-weights, eval=TRUE}
-# Extract the data that plot_top_weights actually uses
-p <- plot_top_weights(mofa_15, view = "gene", factor = "Factor1", nfeatures = 10)
-plot_data <- p$data
-
-cat("\n--- DIAGNOSTIC: Plot Data for Factor 1 (Gene) ---\n")
-cat("Data used by plot_top_weights():\n")
-print(head(plot_data[, c("feature", "value")], 10))
-```
 
 ```{r plot-factor1-weights, eval=TRUE}
 f <- "Factor1"
