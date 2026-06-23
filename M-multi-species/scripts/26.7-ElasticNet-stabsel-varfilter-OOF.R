@@ -13,9 +13,8 @@
 #       across train/test). Per-gene OOF R^2 and per-sample OOF predicted expression 
 #       are saved to CSV.
 #   (3) PERFORMANCE GATING REMOVED. 26.6 used a first bootstrap round to drop
-#       lowly-predicted genes before stability selection; 26.7 runs stability
-#       selection on ALL input genes. => pass a FOCUSED genes_file (e.g. a gene
-#       set)
+#       lowly-predicted genes before stability selection; 26.7 runs OOF + stability
+#       selection on ALL genes in genes_file.
 #   (4) plotting is OPTIONAL, controlled by arg 13 `plot_enabled` (default FALSE).
 #       When off, every table needed to regenerate plots post-run is written to
 #       CSV. When on (pass 1), all 26.6-style PNGs are generated in-line.
@@ -1247,10 +1246,11 @@ if (var_filter_n > 0) {
 }
 
 ### Scale standardization
-vsd_miRNA_scaled <- scale(vsd_miRNA)
-vsd_lncRNA_scaled <- scale(vsd_lncRNA)
-vsd_WGBS_scaled <- scale(vsd_WGBS)
-vsd_genes_scaled <- scale(vsd_genes)
+# per-feature/per-gene standardization (z-score each row across samples)
+vsd_miRNA_scaled  <- t(scale(t(vsd_miRNA)))    # per-feature (each miRNA across samples)
+vsd_lncRNA_scaled <- t(scale(t(vsd_lncRNA)))   # per-feature (each lncRNA across samples)
+vsd_WGBS_scaled   <- t(scale(t(vsd_WGBS)))     # per-feature (each gene-body-methylation feature)
+vsd_genes_scaled  <- t(scale(t(vsd_genes)))    # per-gene    (each response gene across samples)
 
 ### Merge predictor features
 identical(colnames(vsd_lncRNA_scaled), colnames(vsd_miRNA_scaled))
