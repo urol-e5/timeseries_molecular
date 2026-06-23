@@ -157,13 +157,16 @@ print(args)
 # 11 pi_thr (optional; default 0.6) -- selection probability threshold
 # 12 var_filter_n (optional; default 0) -- [26.7] keep top-N most-variable lncRNA & WGBS predictors (0 = off)
 # 13 plot_enabled  (optional; default 0) -- [26.7] generate PNG plots in-line (1 = on, 0 = off)
+# 14 layers        (optional; default "lncRNA,miRNA,WGBS") -- [26.7] comma-separated predictor
+#                   layers to use; a subset enables single-layer runs (e.g. "miRNA", "WGBS").
+#                   Only the requested layers are transformed (VST/logit) and merged.
 
 
 min_expected <- 6
 if (length(args) < min_expected) {
   stop(sprintf(paste0("Usage: Rscript script.R <genes_file> <miRNA_file> ",
                       "<lncRNA_file> <WGBS_file> <metadata_file> <output_dir> ",
-                      "[excluded_samples_raw] [alpha] [n_subsamples] [n_cores] [pi_thr] [var_filter_n] [plot_enabled]\n",
+                      "[excluded_samples_raw] [alpha] [n_subsamples] [n_cores] [pi_thr] [var_filter_n] [plot_enabled] [layers]\n",
                       "You provided %d args."), length(args)))
 }
 
@@ -175,13 +178,19 @@ metadata_file        <- args[5]
 output_dir           <- args[6]
 excluded_samples_raw <- ifelse(length(args) >= 7, args[7], NA)
 alpha_value          <- ifelse(length(args) >= 8, as.numeric(args[8]), 0.5)
-n_subsamples         <- ifelse(length(args) >= 9, as.integer(args[9]), 100)           # [26.7] was arg 12
-n_cores              <- ifelse(length(args) >= 10, as.integer(args[10]), 1)           # [26.7] was arg 13
-pi_thr               <- ifelse(length(args) >= 11, as.numeric(args[11]), 0.6)         # [26.7] was arg 14
-var_filter_n         <- ifelse(length(args) >= 12, as.integer(args[12]), 0L)          # [26.7] was arg 15
-if (is.na(var_filter_n) || var_filter_n < 0) var_filter_n <- 0L                       # [26.7]
-plot_enabled         <- ifelse(length(args) >= 13, as.logical(as.integer(args[13])), FALSE)  # [26.7]
-if (is.na(plot_enabled)) plot_enabled <- FALSE                                        # [26.7]
+n_subsamples         <- ifelse(length(args) >= 9, as.integer(args[9]), 100)
+n_cores              <- ifelse(length(args) >= 10, as.integer(args[10]), 1)
+pi_thr               <- ifelse(length(args) >= 11, as.numeric(args[11]), 0.6)   
+var_filter_n         <- ifelse(length(args) >= 12, as.integer(args[12]), 0L)  
+if (is.na(var_filter_n) || var_filter_n < 0) var_filter_n <- 0L      
+plot_enabled         <- ifelse(length(args) >= 13, as.logical(as.integer(args[13])), FALSE)
+if (is.na(plot_enabled)) plot_enabled <- FALSE
+## which predictor layers to use (default all three). A subset = single-layer run.
+layers_arg <- if (length(args) >= 14 && !is.na(args[14]) && nzchar(args[14])) args[14] else "lncRNA,miRNA,WGBS"
+layers_use <- trimws(strsplit(layers_arg, "[,;[:space:]]+")[[1]])
+layers_use <- layers_use[layers_use != ""]
+if (length(layers_use) == 0 || !all(layers_use %in% c("lncRNA","miRNA","WGBS")))
+  stop(sprintf("layers must be a comma-separated subset of {lncRNA,miRNA,WGBS}; got: '%s'", layers_arg))
 
 # Validate pi_thr
 if (pi_thr <= 0.5 || pi_thr > 1.0) {
@@ -223,6 +232,7 @@ cat(" Max available cores:", max_cores, "\n")
 cat(" Selection threshold:", pi_thr, "\n")
 cat(" Variance filter N:  ", var_filter_n, " (0 = off)\n")   # [26.7]
 cat(" Plotting enabled:  ", plot_enabled, "\n")               # [26.7]
+cat(" Predictor layers:  ", paste(layers_use, collapse = ", "), "\n")   # [26.7]
 
 # Create output directories
 if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
@@ -1205,22 +1215,30 @@ dds_genes <- suppressMessages(DESeqDataSetFromMatrix(countData = genes_filt,
 vsd_genes <- suppressMessages(varianceStabilizingTransformation(dds_genes, blind = TRUE))
 vsd_genes <- assay(vsd_genes)
 
-dds_miRNA <- suppressMessages(DESeqDataSetFromMatrix(countData = miRNA_filt,
-                                                     colData = metadata,
-                                                     design = ~Timepoint+ColonyID))
-vsd_miRNA <- suppressMessages(varianceStabilizingTransformation(dds_miRNA, blind = TRUE))
-vsd_miRNA <- assay(vsd_miRNA)
+# [26.7] Only transform the predictor layers requested via `layers` (default all three). Layers
+#  not requested are skipped entirely -- so e.g. layers="miRNA" gives a miRNA-only run without
+#  touching lncRNA/GbM (no empty-matrix tricks, no wasted VST, no DESeq2 errors on absent layers).
+if ("miRNA" %in% layers_use) {
+  dds_miRNA <- suppressMessages(DESeqDataSetFromMatrix(countData = miRNA_filt,
+                                                       colData = metadata,
+                                                       design = ~Timepoint+ColonyID))
+  vsd_miRNA <- assay(suppressMessages(varianceStabilizingTransformation(dds_miRNA, blind = TRUE)))
+}
 
-lncRNA_filt <- lncRNA_filt %>% mutate(across(where(is.numeric), round))
-dds_lncRNA <- suppressMessages(DESeqDataSetFromMatrix(countData = lncRNA_filt,
-                                                      colData = metadata,
-                                                      design = ~Timepoint+ColonyID))
-vsd_lncRNA <- assay(vst(dds_lncRNA, blind = TRUE))
+if ("lncRNA" %in% layers_use) {
+  lncRNA_filt <- lncRNA_filt %>% mutate(across(where(is.numeric), round))
+  dds_lncRNA <- suppressMessages(DESeqDataSetFromMatrix(countData = lncRNA_filt,
+                                                        colData = metadata,
+                                                        design = ~Timepoint+ColonyID))
+  vsd_lncRNA <- assay(vst(dds_lncRNA, blind = TRUE))
+}
 
-WGBS_prop <- WGBS_filt / 100
-WGBS_prop[WGBS_prop == 0] <- 1e-6
-WGBS_prop[WGBS_prop == 1] <- 1 - 1e-6
-vsd_WGBS <- log2(WGBS_prop / (1 - WGBS_prop))
+if ("WGBS" %in% layers_use) {
+  WGBS_prop <- WGBS_filt / 100
+  WGBS_prop[WGBS_prop == 0] <- 1e-6
+  WGBS_prop[WGBS_prop == 1] <- 1 - 1e-6
+  vsd_WGBS <- log2(WGBS_prop / (1 - WGBS_prop))
+}
 
 ### [26.7] Optional variance pre-filter of the high-dimensional predictor layers.
 # Reduce lncRNA and WGBS to their top-N most-variable features for more tractable
@@ -1238,26 +1256,21 @@ if (var_filter_n > 0) {
   }
   cat(sprintf("[26.7] Variance pre-filter: keeping top %d most-variable lncRNA and WGBS features\n",
               var_filter_n))
-  cat(sprintf("  Before: lncRNA %d, WGBS %d\n", nrow(vsd_lncRNA), nrow(vsd_WGBS)))
-  vsd_lncRNA <- top_var_rows(vsd_lncRNA, var_filter_n)
-  vsd_WGBS   <- top_var_rows(vsd_WGBS,   var_filter_n)
-  cat(sprintf("  After:  lncRNA %d, WGBS %d, miRNA %d (kept whole)\n",
-              nrow(vsd_lncRNA), nrow(vsd_WGBS), nrow(vsd_miRNA)))
+  if ("lncRNA" %in% layers_use) vsd_lncRNA <- top_var_rows(vsd_lncRNA, var_filter_n)
+  if ("WGBS"   %in% layers_use) vsd_WGBS   <- top_var_rows(vsd_WGBS,   var_filter_n)
 }
 
-### Scale standardization
-# per-feature/per-gene standardization (z-score each row across samples)
-vsd_miRNA_scaled  <- t(scale(t(vsd_miRNA)))    # per-feature (each miRNA across samples)
-vsd_lncRNA_scaled <- t(scale(t(vsd_lncRNA)))   # per-feature (each lncRNA across samples)
-vsd_WGBS_scaled   <- t(scale(t(vsd_WGBS)))     # per-feature (each gene-body-methylation feature)
-vsd_genes_scaled  <- t(scale(t(vsd_genes)))    # per-gene    (each response gene across samples)
+### Scale standardization (per-feature predictors; per-gene response)
+# z-score each row across samples. Only the requested predictor layers are scaled & merged.
+pred_parts <- list()
+if ("lncRNA" %in% layers_use) pred_parts$lncRNA <- t(scale(t(vsd_lncRNA)))   # per-feature
+if ("miRNA"  %in% layers_use) pred_parts$miRNA  <- t(scale(t(vsd_miRNA)))    # per-feature
+if ("WGBS"   %in% layers_use) pred_parts$WGBS   <- t(scale(t(vsd_WGBS)))     # per-feature
+vsd_genes_scaled <- t(scale(t(vsd_genes)))                                   # per-gene (response)
 
-### Merge predictor features
-identical(colnames(vsd_lncRNA_scaled), colnames(vsd_miRNA_scaled))
-identical(colnames(vsd_lncRNA_scaled), colnames(vsd_WGBS_scaled))
-
-pred_counts <- rbind(vsd_lncRNA_scaled, vsd_miRNA_scaled, vsd_WGBS_scaled)
-pred_counts <- t(pred_counts)
+### Merge the requested predictor layers (all share identical sample columns/order)
+pred_counts <- t(do.call(rbind, pred_parts))   # samples x features
+cat(sprintf("Predictor layers used: %s\n", paste(names(pred_parts), collapse = ", ")))
 cat("Predictor set dimensions:", dim(pred_counts), "\n")
 
 vsd_genes_t <- t(vsd_genes_scaled)
