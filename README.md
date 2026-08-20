@@ -204,6 +204,29 @@ This research addresses several key biological hypotheses about coral molecular 
 - **Physiological Data**: [E5 Timeseries Repository](https://github.com/urol-e5/timeseries/raw/refs/heads/master/time_series_analysis/Output/master_timeseries.csv)
 - **Sample Information**: Detailed colony IDs, timepoints, and experimental design in metadata files
 
+## Future Research Directions
+
+This repository serves as the foundation for innovative future research. Comprehensive planning documents have been developed to guide the next phase of coral multi-omics research:
+
+### Research Proposal Planning Documents
+
+A complete suite of planning documents is available to guide strategic research development:
+
+- **[PROPOSAL_INDEX.md](PROPOSAL_INDEX.md)** - Start here! Navigation guide and quick reference for all planning documents
+- **[RESEARCH_PROPOSAL_PLAN.md](RESEARCH_PROPOSAL_PLAN.md)** - Comprehensive 60+ page research framework with detailed objectives, methods, budget, and timeline
+- **[PROPOSAL_EXECUTIVE_SUMMARY.md](PROPOSAL_EXECUTIVE_SUMMARY.md)** - 10-page executive summary for quick reference and stakeholder communication
+- **[GRANT_WRITING_ACTION_PLAN.md](GRANT_WRITING_ACTION_PLAN.md)** - Tactical guide for grant submissions with specific aims and writing timelines
+- **[RESEARCH_GAPS_ANALYSIS.md](RESEARCH_GAPS_ANALYSIS.md)** - Detailed analysis of accomplishments, gaps, and prioritized opportunities
+
+These documents outline five major research directions:
+1. **Predictive Biomarker Discovery** - Develop molecular early-warning systems for coral bleaching
+2. **Causal Epigenetic Mechanisms** - Functional validation using genome editing
+3. **Single-Cell Multi-Omics Atlas** - Cell-type-specific stress responses
+4. **AI-Powered Climate Prediction** - Deep learning integration for climate scenario modeling
+5. **Comparative Phylogenomics** - Expand to 10+ species for evolutionary insights
+
+See `PROPOSAL_INDEX.md` for complete overview and navigation.
+
 ## Getting Started
 
 1. **Clone the repository**
@@ -211,5 +234,6 @@ This research addresses several key biological hypotheses about coral molecular 
 3. **Check metadata files** to understand experimental design
 4. **Follow numerical script order** within each species directory
 5. **Ensure computational dependencies** are installed (R, Bioconductor packages, alignment tools)
+6. **Explore research proposal planning documents** for future directions
 
 For questions or contributions, please refer to individual script authors or open an issue in the repository.    
