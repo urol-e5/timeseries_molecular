@@ -1,0 +1,741 @@
+---
+title: "39-Apul Gene-Body Methylation and Expression Modeling"
+author: "GitHub Copilot"
+date: "`r format(Sys.Date(), '%d %B, %Y')`"
+output: 
+  github_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+  html_document:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+editor_options: 
+  markdown: 
+    wrap: sentence
+---
+
+# Overview
+
+This script models the relationship between DNA methylation in distinct genic regions (promoter, 5' UTR, exons, introns, 3' UTR) and gene expression.
+
+**Goal:** Quantify how methylation in specific genomic features influences gene expression using regression and machine learning models.
+
+**Approach:**
+1. Load and inspect methylation and gene expression datasets
+2. Annotate CpG sites to genic regions using genomic annotations
+3. Calculate average methylation levels by genic feature for each gene
+4. Merge methylation metrics with normalized gene expression data
+5. Build predictive models (linear regression, elastic net, random forest)
+6. Visualize relationships and feature importance
+
+**Data Sources:**
+- Gene expression: `../output/02.20-D-Apul-RNAseq-alignment-HiSat2/apul-gene_count_matrix.csv`
+- Methylation (CpG): `../output/22.2-Apul-multiomic-machine-learning/filtered-WGBS-CpG-counts.csv`
+- Genome annotations: `../data/Apulchra-genome.gff`
+- UTR annotations: `../output/05-Apul-annotate-UTRs/`
+- Sample metadata: `../../M-multi-species/data/rna_metadata.csv`
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  fig.width = 10,
+  fig.height = 6,
+  fig.align = "center"
+)
+```
+
+# Load Libraries
+
+```{r load-libraries}
+library(tidyverse)
+library(DESeq2)
+library(rtracklayer)
+library(GenomicRanges)
+library(glmnet)
+library(randomForest)
+library(pheatmap)
+library(caret)
+library(ggplot2)
+library(reshape2)
+library(scales)
+```
+
+Set seed for reproducibility
+```{r set-seed}
+set.seed(42)
+```
+
+# Load and Inspect Data
+
+## Load gene expression data
+
+```{r load-gene-expression}
+# Load raw gene counts
+gene_counts <- read_csv("../output/02.20-D-Apul-RNAseq-alignment-HiSat2/apul-gene_count_matrix.csv")
+
+# Convert to data frame with gene IDs as rownames
+gene_counts <- as.data.frame(gene_counts)
+rownames(gene_counts) <- gene_counts$gene_id
+gene_counts <- gene_counts %>% select(-gene_id)
+
+cat("Gene expression data dimensions:", nrow(gene_counts), "genes x", ncol(gene_counts), "samples\n")
+head(gene_counts[, 1:5])
+```
+
+## Load metadata
+
+```{r load-metadata}
+metadata <- read_csv("../../M-multi-species/data/rna_metadata.csv") %>%
+  select(AzentaSampleName, ColonyID, Timepoint) %>%
+  filter(grepl("ACR", ColonyID))
+
+metadata$Sample <- paste0(metadata$ColonyID, "-", metadata$Timepoint)
+rownames(metadata) <- metadata$Sample
+
+# Rename gene expression columns to match metadata
+colnames(gene_counts) <- metadata$Sample[match(colnames(gene_counts), metadata$AzentaSampleName)]
+
+cat("Sample metadata:\n")
+head(metadata)
+cat("\nTimepoint distribution:\n")
+table(metadata$Timepoint)
+```
+
+## Normalize gene expression with DESeq2
+
+```{r normalize-expression}
+# Filter low-count genes (keep genes with at least 10 reads in at least 25% of samples)
+min_samples <- ceiling(ncol(gene_counts) * 0.25)
+gene_counts_filt <- gene_counts[rowSums(gene_counts >= 10) >= min_samples, ]
+
+cat("Filtered from", nrow(gene_counts), "to", nrow(gene_counts_filt), "genes\n")
+
+# Create DESeq2 object
+dds <- DESeqDataSetFromMatrix(
+  countData = gene_counts_filt,
+  colData = metadata,
+  design = ~ Timepoint
+)
+
+# Variance stabilizing transformation for downstream analysis
+vsd <- vst(dds, blind = FALSE)
+vsd_counts <- assay(vsd)
+
+cat("\nNormalized expression data dimensions:", nrow(vsd_counts), "genes x", ncol(vsd_counts), "samples\n")
+```
+
+## Load methylation data
+
+```{r load-methylation}
+# Load filtered CpG methylation data
+cpg_data <- read_csv("../output/22.2-Apul-multiomic-machine-learning/filtered-WGBS-CpG-counts.csv")
+
+# Format: set CpG IDs as rownames
+cpg_data <- as.data.frame(cpg_data)
+rownames(cpg_data) <- cpg_data$...1
+cpg_data <- cpg_data %>% select(-...1)
+
+cat("CpG methylation data dimensions:", nrow(cpg_data), "CpGs x", ncol(cpg_data), "samples\n")
+
+# Check sample overlap
+common_samples <- intersect(colnames(vsd_counts), colnames(cpg_data))
+cat("\nCommon samples between expression and methylation:", length(common_samples), "\n")
+
+# Subset to common samples
+vsd_counts <- vsd_counts[, common_samples]
+cpg_data <- cpg_data[, common_samples]
+```
+
+# Annotate CpGs to Genic Regions
+
+## Load genomic annotations
+
+```{r load-annotations}
+# Load main genome annotation
+gff <- import("../data/Apulchra-genome.gff")
+
+# Extract genes, exons, and CDS
+genes <- gff[gff$type == "gene"]
+exons <- gff[gff$type == "exon"]
+cds <- gff[gff$type == "CDS"]
+
+cat("Loaded annotations:\n")
+cat("  Genes:", length(genes), "\n")
+cat("  Exons:", length(exons), "\n")
+cat("  CDS regions:", length(cds), "\n")
+```
+
+## Load UTR annotations
+
+```{r load-utr}
+# Load 5' and 3' UTR annotations created in script 05
+utr5 <- import("../output/05-Apul-annotate-UTRs/Apul.GFFannotation.5UTR_1kb_corrected.gff")
+utr3 <- import("../output/05-Apul-annotate-UTRs/Apul.GFFannotation.3UTR_1kb_corrected.gff")
+
+cat("UTR annotations:\n")
+cat("  5' UTRs:", length(utr5), "\n")
+cat("  3' UTRs:", length(utr3), "\n")
+```
+
+## Define promoter regions
+
+```{r define-promoters}
+# Define promoters as 1kb upstream of gene start
+promoters <- promoters(genes, upstream = 1000, downstream = 0)
+
+cat("Created", length(promoters), "promoter regions (1kb upstream of genes)\n")
+```
+
+## Create intron annotations
+
+```{r create-introns}
+# Get all genomic regions for each gene (gene boundaries)
+# Group exons by parent gene/transcript
+exons_by_gene <- split(exons, exons$Parent)
+
+# For each gene, calculate introns as gene regions minus exons
+# Simplified approach: use CDS to define coding regions, assume rest are introns within gene boundaries
+get_introns <- function(gene_id) {
+  # Get gene range
+  gene_range <- genes[genes$ID == gene_id]
+  if (length(gene_range) == 0) return(NULL)
+  
+  # Get all exons for this gene
+  gene_exons <- exons[grep(gene_id, exons$Parent)]
+  if (length(gene_exons) == 0) return(NULL)
+  
+  # Calculate introns as gene region minus exons
+  gene_gr <- GRanges(seqnames = seqnames(gene_range),
+                     ranges = ranges(gene_range),
+                     strand = strand(gene_range))
+  
+  introns <- setdiff(gene_gr, gene_exons)
+  
+  if (length(introns) > 0) {
+    introns$Parent <- gene_id
+  }
+  
+  return(introns)
+}
+
+# Calculate introns for all genes
+all_introns <- lapply(genes$ID, get_introns)
+all_introns <- all_introns[!sapply(all_introns, is.null)]
+introns <- do.call(c, unname(all_introns))
+
+cat("Created", length(introns), "intron regions\n")
+```
+
+## Parse CpG IDs to genomic coordinates
+
+```{r parse-cpg-coords}
+# CpG IDs are in format: CpG_scaffold_position
+# Example: CpG_ntLink_6_3101800
+
+parse_cpg_id <- function(cpg_id) {
+  parts <- strsplit(cpg_id, "_")[[1]]
+  scaffold <- paste(parts[2:(length(parts)-1)], collapse = "_")
+  position <- as.numeric(parts[length(parts)])
+  return(data.frame(scaffold = scaffold, position = position))
+}
+
+cpg_coords <- do.call(rbind, lapply(rownames(cpg_data), parse_cpg_id))
+cpg_coords$cpg_id <- rownames(cpg_data)
+
+# Create GRanges object for CpGs
+cpg_gr <- GRanges(
+  seqnames = cpg_coords$scaffold,
+  ranges = IRanges(start = cpg_coords$position, width = 2),  # CpG is 2bp
+  cpg_id = cpg_coords$cpg_id
+)
+
+cat("Parsed", length(cpg_gr), "CpG genomic coordinates\n")
+```
+
+## Annotate each CpG to genic regions
+
+```{r annotate-cpgs}
+# Find overlaps between CpGs and each genomic feature
+find_cpg_overlaps <- function(cpg_ranges, feature_ranges, feature_name) {
+  overlaps <- findOverlaps(cpg_ranges, feature_ranges)
+  
+  # Get CpG IDs that overlap with features
+  cpg_indices <- queryHits(overlaps)
+  feature_indices <- subjectHits(overlaps)
+  
+  # Extract parent gene information
+  if (feature_name == "promoter") {
+    parent_genes <- feature_ranges$ID[feature_indices]
+  } else if (feature_name %in% c("5utr", "3utr")) {
+    parent_genes <- feature_ranges$Parent[feature_indices]
+  } else {
+    parent_genes <- sub("-T.*", "", feature_ranges$Parent[feature_indices])
+  }
+  
+  df <- data.frame(
+    cpg_id = cpg_ranges$cpg_id[cpg_indices],
+    gene_id = parent_genes,
+    region = feature_name,
+    stringsAsFactors = FALSE
+  )
+  
+  return(df)
+}
+
+# Annotate CpGs to each region type
+cpg_promoter <- find_cpg_overlaps(cpg_gr, promoters, "promoter")
+cpg_5utr <- find_cpg_overlaps(cpg_gr, utr5, "5utr")
+cpg_3utr <- find_cpg_overlaps(cpg_gr, utr3, "3utr")
+cpg_exon <- find_cpg_overlaps(cpg_gr, exons, "exon")
+cpg_intron <- find_cpg_overlaps(cpg_gr, introns, "intron")
+
+# Combine all annotations
+cpg_annotations <- rbind(
+  cpg_promoter,
+  cpg_5utr,
+  cpg_3utr,
+  cpg_exon,
+  cpg_intron
+)
+
+cat("\nCpG annotation summary:\n")
+cat("  Total CpG-region assignments:", nrow(cpg_annotations), "\n")
+table(cpg_annotations$region)
+
+cat("\n  Unique CpGs annotated:", length(unique(cpg_annotations$cpg_id)), "\n")
+cat("  Unique genes with annotated CpGs:", length(unique(cpg_annotations$gene_id)), "\n")
+```
+
+# Calculate Average Methylation by Genic Region
+
+```{r calculate-region-methylation}
+# For each gene and region type, calculate average methylation across CpGs
+calc_region_methylation <- function(gene_id, region_type, cpg_annot, cpg_meth_data) {
+  # Get CpGs for this gene and region
+  cpgs <- cpg_annot %>%
+    filter(gene_id == !!gene_id, region == !!region_type) %>%
+    pull(cpg_id)
+  
+  if (length(cpgs) == 0) return(rep(NA, ncol(cpg_meth_data)))
+  
+  # Get methylation values for these CpGs
+  cpg_subset <- cpg_meth_data[cpgs, , drop = FALSE]
+  
+  # Calculate mean methylation across CpGs
+  mean_meth <- colMeans(cpg_subset, na.rm = TRUE)
+  
+  return(mean_meth)
+}
+
+# Get unique gene-region combinations
+gene_list <- unique(cpg_annotations$gene_id)
+region_types <- c("promoter", "5utr", "exon", "intron", "3utr")
+
+# Calculate methylation for each gene-region combination
+cat("Calculating average methylation by region for", length(gene_list), "genes...\n")
+
+meth_by_region <- list()
+
+for (region in region_types) {
+  cat("  Processing", region, "...\n")
+  
+  region_meth <- t(sapply(gene_list, function(g) {
+    calc_region_methylation(g, region, cpg_annotations, cpg_data)
+  }))
+  
+  rownames(region_meth) <- gene_list
+  colnames(region_meth) <- colnames(cpg_data)
+  
+  meth_by_region[[region]] <- region_meth
+}
+
+cat("\nCreated methylation matrices for", length(region_types), "genomic regions\n")
+
+# Check coverage
+for (region in region_types) {
+  n_genes_with_data <- sum(rowSums(!is.na(meth_by_region[[region]])) > 0)
+  cat("  ", region, ":", n_genes_with_data, "genes with methylation data\n")
+}
+```
+
+# Merge Methylation with Gene Expression
+
+```{r merge-data}
+# Find genes that have both expression and methylation data in at least one region
+genes_with_meth <- unique(gene_list)
+genes_with_expr <- rownames(vsd_counts)
+common_genes <- intersect(genes_with_meth, genes_with_expr)
+
+cat("Genes with both expression and methylation data:", length(common_genes), "\n")
+
+# For each gene, create a feature vector with:
+# - Expression value (response variable)
+# - Methylation in each region (predictor variables)
+
+create_feature_matrix <- function(genes, expr_data, meth_data_list, samples) {
+  feature_list <- list()
+  
+  for (sample in samples) {
+    sample_features <- data.frame(
+      gene_id = genes,
+      expression = expr_data[genes, sample],
+      stringsAsFactors = FALSE
+    )
+    
+    # Add methylation for each region
+    for (region in names(meth_data_list)) {
+      meth_values <- meth_data_list[[region]][genes, sample]
+      sample_features[[paste0("meth_", region)]] <- meth_values
+    }
+    
+    sample_features$sample <- sample
+    feature_list[[sample]] <- sample_features
+  }
+  
+  features <- do.call(rbind, feature_list)
+  return(features)
+}
+
+# Create feature matrix
+features_df <- create_feature_matrix(
+  common_genes, 
+  vsd_counts, 
+  meth_by_region, 
+  common_samples
+)
+
+# Remove rows with missing data
+features_complete <- features_df %>%
+  filter(complete.cases(.))
+
+cat("\nFeature matrix created:\n")
+cat("  Total observations:", nrow(features_df), "\n")
+cat("  Complete observations (no missing data):", nrow(features_complete), "\n")
+cat("  Features per observation:", ncol(features_complete) - 2, "\n")  # -2 for gene_id and sample
+
+head(features_complete)
+```
+
+# Build Predictive Models
+
+## Prepare data for modeling
+
+```{r prepare-modeling-data}
+# Separate predictors and response
+X <- features_complete %>% 
+  select(starts_with("meth_")) %>%
+  as.matrix()
+
+y <- features_complete$expression
+
+cat("Modeling data prepared:\n")
+cat("  Predictors (methylation features):", ncol(X), "\n")
+cat("  Observations:", nrow(X), "\n")
+cat("  Response variable (expression) range:", round(min(y), 2), "to", round(max(y), 2), "\n")
+```
+
+## Linear regression model
+
+```{r linear-model}
+# Fit multiple linear regression
+lm_model <- lm(y ~ X)
+
+# Model summary
+cat("\n=== Linear Regression Model ===\n")
+summary(lm_model)
+
+# Extract coefficients
+lm_coefs <- coef(lm_model)[-1]  # Remove intercept
+names(lm_coefs) <- colnames(X)
+
+# Plot coefficients
+lm_coef_df <- data.frame(
+  region = names(lm_coefs),
+  coefficient = lm_coefs
+)
+
+ggplot(lm_coef_df, aes(x = reorder(region, coefficient), y = coefficient)) +
+  geom_col(fill = "steelblue") +
+  coord_flip() +
+  labs(title = "Linear Model Coefficients",
+       subtitle = "Effect of regional methylation on gene expression",
+       x = "Genomic Region",
+       y = "Coefficient (effect on expression)") +
+  theme_minimal()
+```
+
+## Elastic Net model
+
+```{r elastic-net}
+# Train elastic net with cross-validation
+cat("\n=== Elastic Net Model ===\n")
+
+# Use alpha = 0.5 for balanced L1 and L2 regularization
+set.seed(42)
+cv_elastic <- cv.glmnet(X, y, alpha = 0.5, nfolds = 5)
+
+# Plot cross-validation results
+plot(cv_elastic, main = "Elastic Net Cross-Validation")
+
+# Best lambda
+cat("Best lambda:", cv_elastic$lambda.min, "\n")
+
+# Extract coefficients at best lambda
+elastic_coefs <- coef(cv_elastic, s = "lambda.min")
+elastic_coefs_df <- data.frame(
+  region = rownames(elastic_coefs),
+  coefficient = as.numeric(elastic_coefs)
+) %>%
+  filter(region != "(Intercept)", coefficient != 0)
+
+cat("\nNon-zero coefficients:", nrow(elastic_coefs_df), "\n")
+
+# Plot non-zero coefficients
+if (nrow(elastic_coefs_df) > 0) {
+  ggplot(elastic_coefs_df, aes(x = reorder(region, coefficient), y = coefficient)) +
+    geom_col(fill = "darkgreen") +
+    coord_flip() +
+    labs(title = "Elastic Net Model Coefficients",
+         subtitle = paste("Non-zero coefficients at lambda =", round(cv_elastic$lambda.min, 4)),
+         x = "Genomic Region",
+         y = "Coefficient") +
+    theme_minimal()
+}
+
+# Model performance
+predictions_elastic <- predict(cv_elastic, newx = X, s = "lambda.min")
+r2_elastic <- cor(y, predictions_elastic)^2
+rmse_elastic <- sqrt(mean((y - predictions_elastic)^2))
+
+cat("\nElastic Net Performance:\n")
+cat("  R-squared:", round(r2_elastic, 4), "\n")
+cat("  RMSE:", round(rmse_elastic, 4), "\n")
+```
+
+## Random Forest model
+
+```{r random-forest}
+cat("\n=== Random Forest Model ===\n")
+
+# Prepare data frame for random forest
+rf_data <- data.frame(expression = y, X)
+
+# Train random forest
+set.seed(42)
+rf_model <- randomForest(
+  expression ~ .,
+  data = rf_data,
+  ntree = 500,
+  importance = TRUE,
+  mtry = 3  # Number of variables to try at each split
+)
+
+# Model summary
+print(rf_model)
+
+# Variable importance
+importance_df <- data.frame(
+  region = rownames(importance(rf_model)),
+  importance = importance(rf_model)[, "%IncMSE"]
+)
+
+# Plot variable importance
+ggplot(importance_df, aes(x = reorder(region, importance), y = importance)) +
+  geom_col(fill = "darkorange") +
+  coord_flip() +
+  labs(title = "Random Forest Feature Importance",
+       subtitle = "% Increase in MSE when variable is permuted",
+       x = "Genomic Region",
+       y = "Importance (% Increase MSE)") +
+  theme_minimal()
+
+# Model performance
+predictions_rf <- predict(rf_model, newdata = rf_data)
+r2_rf <- cor(y, predictions_rf)^2
+rmse_rf <- sqrt(mean((y - predictions_rf)^2))
+
+cat("\nRandom Forest Performance:\n")
+cat("  R-squared:", round(r2_rf, 4), "\n")
+cat("  RMSE:", round(rmse_rf, 4), "\n")
+```
+
+# Visualize Relationships
+
+## Scatter plots: Methylation vs Expression
+
+```{r scatter-plots}
+# For each region, plot methylation vs expression
+for (region in region_types) {
+  region_col <- paste0("meth_", region)
+  
+  if (region_col %in% colnames(features_complete)) {
+    p <- ggplot(features_complete, aes_string(x = region_col, y = "expression")) +
+      geom_point(alpha = 0.3, color = "blue") +
+      geom_smooth(method = "lm", color = "red", se = TRUE) +
+      labs(title = paste("Expression vs", region, "Methylation"),
+           x = paste(region, "Methylation (%)"),
+           y = "Expression (VST normalized)") +
+      theme_minimal()
+    
+    print(p)
+  }
+}
+```
+
+## Heatmap: Correlation matrix
+
+```{r correlation-heatmap}
+# Calculate correlation matrix between all methylation features and expression
+cor_data <- features_complete %>%
+  select(expression, starts_with("meth_"))
+
+cor_matrix <- cor(cor_data, use = "pairwise.complete.obs")
+
+# Plot heatmap
+pheatmap(
+  cor_matrix,
+  main = "Correlation: Expression and Regional Methylation",
+  display_numbers = TRUE,
+  number_format = "%.2f",
+  fontsize_number = 8,
+  cluster_rows = TRUE,
+  cluster_cols = TRUE,
+  color = colorRampPalette(c("blue", "white", "red"))(100),
+  breaks = seq(-1, 1, length.out = 101)
+)
+```
+
+## Model comparison
+
+```{r model-comparison}
+# Compare model performance
+model_performance <- data.frame(
+  Model = c("Linear Regression", "Elastic Net", "Random Forest"),
+  R_squared = c(
+    summary(lm_model)$r.squared,
+    r2_elastic,
+    r2_rf
+  ),
+  RMSE = c(
+    sqrt(mean(lm_model$residuals^2)),
+    rmse_elastic,
+    rmse_rf
+  )
+)
+
+print(model_performance)
+
+# Plot comparison
+model_perf_long <- model_performance %>%
+  pivot_longer(cols = c(R_squared, RMSE), names_to = "Metric", values_to = "Value")
+
+ggplot(model_perf_long, aes(x = Model, y = Value, fill = Model)) +
+  geom_col() +
+  facet_wrap(~ Metric, scales = "free_y") +
+  labs(title = "Model Performance Comparison",
+       x = "Model Type",
+       y = "Value") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+# Summary Statistics by Region
+
+```{r region-summary}
+# Calculate summary statistics for methylation by region
+region_stats <- features_complete %>%
+  select(starts_with("meth_")) %>%
+  summarise(across(everything(), list(
+    mean = ~mean(.x, na.rm = TRUE),
+    median = ~median(.x, na.rm = TRUE),
+    sd = ~sd(.x, na.rm = TRUE),
+    min = ~min(.x, na.rm = TRUE),
+    max = ~max(.x, na.rm = TRUE)
+  ))) %>%
+  pivot_longer(everything(), names_to = "stat", values_to = "value") %>%
+  separate(stat, into = c("region", "metric"), sep = "_(?=[^_]+$)") %>%
+  pivot_wider(names_from = metric, values_from = value)
+
+print(region_stats)
+
+# Boxplot of methylation by region
+meth_boxplot_data <- features_complete %>%
+  select(starts_with("meth_")) %>%
+  pivot_longer(everything(), names_to = "region", values_to = "methylation") %>%
+  mutate(region = gsub("meth_", "", region))
+
+ggplot(meth_boxplot_data, aes(x = region, y = methylation, fill = region)) +
+  geom_boxplot() +
+  labs(title = "Methylation Distribution by Genomic Region",
+       x = "Genomic Region",
+       y = "Methylation (%)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+# Save Results
+
+```{r save-results}
+# Create output directory
+output_dir <- "../output/39-Apul-genebody-meth-expr-modeling"
+dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
+
+# Save feature matrix
+write_csv(features_complete, file.path(output_dir, "gene-methylation-expression-features.csv"))
+
+# Save CpG annotations
+write_csv(cpg_annotations, file.path(output_dir, "cpg-genic-annotations.csv"))
+
+# Save model performance
+write_csv(model_performance, file.path(output_dir, "model-performance-comparison.csv"))
+
+# Save region statistics
+write_csv(region_stats, file.path(output_dir, "methylation-by-region-statistics.csv"))
+
+# Save feature importance from random forest
+write_csv(importance_df, file.path(output_dir, "random-forest-feature-importance.csv"))
+
+# Save elastic net coefficients
+if (nrow(elastic_coefs_df) > 0) {
+  write_csv(elastic_coefs_df, file.path(output_dir, "elastic-net-coefficients.csv"))
+}
+
+cat("\nResults saved to:", output_dir, "\n")
+```
+
+# Session Information
+
+```{r session-info}
+sessionInfo()
+```
+
+# Conclusions
+
+This analysis developed models to quantify the relationship between DNA methylation in specific genic regions and gene expression in *Acropora pulchra*.
+
+**Key Findings:**
+
+1. **Data Coverage**: Successfully annotated `r nrow(cpg_annotations)` CpG-region assignments across `r length(unique(cpg_annotations$gene_id))` genes
+
+2. **Regional Methylation Patterns**: Different genomic regions show varying levels of methylation, with distinct distributions across promoters, UTRs, exons, and introns
+
+3. **Model Performance**: Multiple modeling approaches were tested:
+   - Linear regression provides interpretable coefficients for regional effects
+   - Elastic net identifies the most important methylation features through regularization
+   - Random forest captures non-linear relationships and provides feature importance rankings
+
+4. **Methylation-Expression Relationships**: The models reveal which genomic regions show the strongest association with gene expression levels
+
+**Next Steps:**
+
+- Investigate time-point specific effects (seasonal variation in methylation-expression relationships)
+- Examine gene-specific patterns for biologically relevant gene sets
+- Integrate with other regulatory layers (miRNA, lncRNA) for comprehensive multi-omic modeling
+- Validate predictions with independent datasets or experimental perturbations
