@@ -1,0 +1,2401 @@
+---
+title: "Integrated Lipidomics and Metabolomics Analysis"
+author: "Ariana S Huffmyer"
+date: "2026"
+output:
+  html_document:
+    code_folding: hide
+    toc: yes
+    toc_depth: 6
+    toc_float: yes
+editor_options:
+  chunk_output_type: console
+---
+
+This script integrates lipidomic and metabolomic data from the E5 timeseries project to:
+
+1. Test effects of species and timepoint on the combined lipid + metabolite profile
+2. Identify lipids and metabolites that drive separation between species and across time
+3. Identify coordinated (correlated and lag-correlated) changes between the two datasets
+
+# Set Up
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+Load libraries.
+
+```{r}
+library(mixOmics)
+library(tidyverse)
+library(ggplot2)
+library(readxl)
+library(vegan)
+library(ComplexHeatmap)
+library(circlize)
+library(patchwork)
+```
+
+Set consistent color palettes.
+
+```{r}
+species_cols  <- c("Acropora" = "#1b7837", "Pocillopora" = "#762a83", "Porites" = "#d95f02")
+timepoint_cols <- c("TP1" = "#fee090", "TP2" = "#fc8d59", "TP3" = "#d73027", "TP4" = "#4575b4")
+```
+
+---
+
+# 1. Load Data
+
+## 1a. Lipidomics
+
+Load the processed lipid species data saved by `06-lipidomics-analysis.Rmd`. If the `.rds`
+file is not yet present (i.e., the upstream script has not been run), this chunk re-reads and
+re-processes the raw data using the same filtering and normalization pipeline.
+
+```{r load-lipids}
+lipid_rds <- "M-multi-species/data/lipidomics/lipids.rds"
+
+if (file.exists(lipid_rds)) {
+
+  lipids <- readRDS(lipid_rds)
+
+} else {
+
+  # ── Batch 1 ─────────────────────────────────────────────────────────────────
+  lq1 <- read_xlsx(
+    "M-multi-species/data/lipidomics/2025-02-05_Roberts_Test_Coral.xlsx",
+    sheet = "Species Quant"
+  ) %>%
+    rename(sample = `Sample ID`, number_measured = `# of Measured Lipid Species`)
+
+  lq1[lq1 == "."] <- NA
+
+  lq1_wide <- as.data.frame(lapply(names(lq1), function(col) {
+    if (col == "sample") lq1[[col]] else as.numeric(as.character(lq1[[col]]))
+  }))
+  colnames(lq1_wide) <- names(lq1)
+
+  lq1_long <- lq1_wide %>%
+    select(!number_measured) %>%
+    pivot_longer(names_to = "lipid", values_to = "nmol.g_plasma", cols = c(2:1361)) %>%
+    mutate(
+      species   = case_when(sample == "L26" ~ "Acropora",
+                            sample == "L39" ~ "Porites",
+                            sample == "L67" ~ "Acropora",
+                            sample == "L80" ~ "Porites",
+                            sample == "L84" ~ "Pocillopora"),
+      timepoint = case_when(sample == "L26" ~ "TP4", sample == "L39" ~ "TP2",
+                            sample == "L67" ~ "TP1", sample == "L80" ~ "TP2",
+                            sample == "L84" ~ "TP3"),
+      colony    = case_when(sample == "L26" ~ "ACR-229", sample == "L39" ~ "POR-216",
+                            sample == "L67" ~ "ACR-150", sample == "L80" ~ "POR-83",
+                            sample == "L84" ~ "POC-52"),
+      type      = case_when(sample == "prepared_blank_01" ~ "blank",
+                            sample %in% c("QC_01","QC_02") ~ "QC",
+                            TRUE ~ "sample"),
+      protein.ug = case_when(sample == "L26" ~ 340.2, sample == "L39" ~ 139.2,
+                             sample == "L67" ~ 7.3,   sample == "L80" ~ 35.0,
+                             sample == "L84" ~ 185.9)
+    )
+
+  lq1_long <- lq1_long %>% filter(!type %in% c("QC"))
+
+  blanks1 <- lq1_long %>% filter(type == "blank") %>%
+    group_by(lipid) %>% summarise(mean_blank = mean(nmol.g_plasma, na.rm = TRUE)) %>%
+    mutate(across(everything(), ~ replace_na(., 0)))
+
+  lq1_long <- lq1_long %>%
+    filter(!type == "blank") %>%
+    left_join(blanks1) %>%
+    mutate(nmol.g_plasma.corr = pmax(nmol.g_plasma - mean_blank, 0)) %>%
+    group_by(lipid) %>%
+    filter(!any(type == "sample" & is.na(nmol.g_plasma.corr))) %>%
+    ungroup() %>%
+    mutate(nmol.g_plasma.ug_protein = (nmol.g_plasma.corr * 25) / protein.ug) %>%
+    select(sample, lipid, colony, timepoint, species, type, nmol.g_plasma.ug_protein)
+
+  # ── Batch 2 ─────────────────────────────────────────────────────────────────
+  lq2 <- read_xlsx(
+    "M-multi-species/data/lipidomics/2025-02-20_Roberts_QuantLipidData.xlsx",
+    sheet = "Species Quant"
+  ) %>%
+    rename(sample = `Sample ID`, number_measured = `# of Measured Lipids`,
+           tube = `Serial Number`, batch = Batch, protein.ug = `Protein Count, µg`)
+
+  lq2[lq2 == "."] <- NA
+
+  lq2_wide <- as.data.frame(lapply(names(lq2), function(col) {
+    if (col == "sample") lq2[[col]] else as.numeric(as.character(lq2[[col]]))
+  }))
+  colnames(lq2_wide) <- names(lq2)
+
+  lq2_long <- lq2_wide %>%
+    select(!number_measured) %>%
+    pivot_longer(names_to = "lipid", values_to = "nmol.g_plasma",
+                 cols = -c(sample, batch, tube, protein.ug)) %>%
+    mutate(
+      colony    = str_extract(sample, "^[^_]+"),
+      timepoint = str_extract(sample, "(?<=_).*"),
+      species   = case_when(str_detect(sample, "ACR") ~ "Acropora",
+                            str_detect(sample, "POC") ~ "Pocillopora",
+                            str_detect(sample, "POR") ~ "Porites",
+                            TRUE ~ NA_character_),
+      type      = case_when(str_detect(sample, "blank") ~ "blank",
+                            str_detect(sample, "QC_")   ~ "QC",
+                            str_detect(sample, "PBQC")  ~ "PBQC",
+                            TRUE ~ "sample")
+    )
+
+  lq2_long <- lq2_long %>% filter(!type == "QC")
+
+  blanks2 <- lq2_long %>% filter(type == "blank") %>%
+    group_by(lipid, batch) %>% summarise(mean_blank = mean(nmol.g_plasma, na.rm = TRUE)) %>%
+    mutate(across(everything(), ~ replace_na(., 0)))
+
+  lq2_long <- lq2_long %>%
+    filter(!type == "blank") %>%
+    left_join(blanks2) %>%
+    mutate(nmol.g_plasma.corr = pmax(nmol.g_plasma - mean_blank, 0)) %>%
+    group_by(lipid) %>%
+    filter(!any(type == "sample" & is.na(nmol.g_plasma.corr))) %>%
+    ungroup() %>%
+    mutate(nmol.g_plasma.ug_protein = (nmol.g_plasma.corr * 25) / protein.ug) %>%
+    select(sample, lipid, colony, timepoint, species, type, nmol.g_plasma.ug_protein)
+
+  # ── Combine & final filter ───────────────────────────────────────────────────
+  lipids_all <- rbind(lq1_long, lq2_long)
+
+  na_cols <- lipids_all %>%
+    pivot_wider(names_from = lipid, values_from = nmol.g_plasma.ug_protein) %>%
+    summarise(across(everything(), ~ sum(is.na(.)))) %>%
+    pivot_longer(everything()) %>% filter(value > 0) %>% pull(name)
+
+  lipids <- lipids_all %>%
+    filter(!lipid %in% na_cols) %>%
+    filter(!type == "PBQC")
+
+  saveRDS(lipids, lipid_rds)
+}
+
+cat("Lipid data: ", nrow(lipids), "rows,",
+    length(unique(lipids$lipid)), "lipids,",
+    length(unique(lipids$colony)), "colonies\n")
+```
+
+## 1b. Metabolomics
+
+Load the processed metabolite data saved by `07-metabolomics-analysis.Rmd`. If the `.rds`
+file is not yet present this chunk re-reads and re-processes the raw data.
+
+```{r load-metabolites}
+metab_rds <- "M-multi-species/data/metabolomics/metabolites.rds"
+
+standards <- c(
+  "3C13-Glycine","4C13-Alanine","2C13-Choline","4C13-Serine","d3-Creatinine",
+  "6C13-Proline","6C13-Valine","5C13-Threonine","5C13-Aspartic Acid","6C13-Asparagine",
+  "7C13-Leucine","7C13-iso-Leucine","2C13-Glutamic acid","7C13-Glutamine",
+  "6C13-Glutamic acid","8C13-Lysine","6C13-Methionine","9C13-Histidine",
+  "10C13-Phenylalanine","2C13-Tyrosine","10C13-Arginine","10C13-Tyrosine",
+  "13C13-Tryptophan","8C13-Cystine","11C13-Uridine","3C13-Lactate","4C13-3HBA",
+  "2N15-Xanthine","2N15-Urate","1C13-Citrulline","6C13-Glucose","4C13-Pentothenate"
+)
+
+if (file.exists(metab_rds)) {
+
+  metabs <- readRDS(metab_rds)
+
+} else {
+
+  mq <- read_xlsx("M-multi-species/data/metabolomics/2025-04-15_Roberts-98.xlsx",
+                  sheet = "Relative Quant Data") %>%
+    rename(compound = `Current MS Compounds`)
+
+  mq[mq == "N/A"] <- NA
+  mq <- mq %>% select(!any_of(c("HMDB ID", "KEGG ID")))
+
+  mq_wide <- as.data.frame(lapply(names(mq), function(col) {
+    if (col == "compound") mq[[col]] else as.numeric(as.character(mq[[col]]))
+  }))
+  colnames(mq_wide) <- names(mq)
+
+  mq_long <- mq_wide %>%
+    pivot_longer(names_to = "sample", values_to = "rel.quant", cols = -compound) %>%
+    mutate(
+      colony    = str_extract(sample, "^[^_]+"),
+      timepoint = str_extract(sample, "(?<=_).*"),
+      species   = case_when(str_detect(sample, "ACR") ~ "Acropora",
+                            str_detect(sample, "POC") ~ "Pocillopora",
+                            str_detect(sample, "POR") ~ "Porites",
+                            TRUE ~ NA_character_),
+      type      = if_else(str_detect(sample, "PBQC"), "PBQC", "sample")
+    )
+
+  sites <- read_csv("M-multi-species/data/phys_master_timeseries.csv") %>%
+    select(colony_id_corr, site) %>% rename(colony = colony_id_corr)
+  mq_long <- left_join(mq_long, sites) %>% unique()
+
+  protein <- read_xlsx("M-multi-species/data/metabolomics/2025-04-15_Roberts-98.xlsx",
+                       sheet = "Protein")
+  mq_long <- left_join(mq_long, protein)
+
+  # Remove standards
+  mq_long <- mq_long %>% filter(!compound %in% standards)
+
+  # Keep only compounds detected in at least one PBQC
+  not_in_pbqc <- mq_long %>%
+    group_by(compound) %>%
+    filter(type == "PBQC" & is.na(rel.quant)) %>%
+    pull(compound) %>% unique()
+  mq_long <- mq_long %>% filter(!compound %in% not_in_pbqc)
+
+  # Remove compounds with >10% NA across samples
+  keep_compounds <- mq_long %>%
+    group_by(compound) %>%
+    summarise(na_prop = sum(is.na(rel.quant)) / n()) %>%
+    filter(na_prop < 0.1) %>% pull(compound)
+  mq_long <- mq_long %>% filter(compound %in% keep_compounds)
+
+  # Remove PBQCs and normalize
+  mq_long <- mq_long %>%
+    filter(type != "PBQC") %>%
+    select(!type) %>%
+    mutate(rel.quant.ug = rel.quant / protein.ug) %>%
+    select(!c(protein.ug, rel.quant))
+
+  # Impute with group median
+  metabs <- mq_long %>%
+    group_by(compound, species, timepoint, site) %>%
+    mutate(rel.quant.ug = if_else(is.na(rel.quant.ug),
+                                  median(rel.quant.ug, na.rm = TRUE),
+                                  rel.quant.ug)) %>%
+    ungroup()
+
+  saveRDS(metabs, metab_rds)
+}
+
+cat("Metabolite data:", nrow(metabs), "rows,",
+    length(unique(metabs$compound)), "compounds,",
+    length(unique(metabs$colony)), "colonies\n")
+```
+
+## 1c. Merge datasets
+
+Match on `colony` + `timepoint`. Both datasets use the same colonies from the same
+biological samples at each time point.
+
+```{r merge}
+# ── Lipids: mean per colony × timepoint (some colonies appear in both batches)
+lipids_summary <- lipids %>%
+  filter(type == "sample") %>%
+  group_by(colony, species, timepoint, lipid) %>%
+  summarise(value = mean(nmol.g_plasma.ug_protein, na.rm = TRUE), .groups = "drop") %>%
+  mutate(data_type = "lipid", feature = lipid) %>%
+  select(colony, species, timepoint, feature, value, data_type)
+
+# ── Metabolites
+metabs_summary <- metabs %>%
+  group_by(colony, species, timepoint, compound) %>%
+  summarise(value = mean(rel.quant.ug, na.rm = TRUE), .groups = "drop") %>%
+  mutate(data_type = "metabolite", feature = compound) %>%
+  select(colony, species, timepoint, feature, value, data_type)
+
+# ── Combined long-form (keep data_type for heatmaps/plots)
+combined_long <- bind_rows(lipids_summary, metabs_summary)
+
+# ── Identify colonies with BOTH lipid and metabolite data
+colonies_both <- intersect(
+  unique(lipids_summary$colony),
+  unique(metabs_summary$colony)
+)
+cat("Colonies with both datasets:", length(colonies_both), "\n")
+
+combined_long <- combined_long %>%
+  filter(colony %in% colonies_both)
+
+# ── Wide matrix: rows = colony×timepoint, cols = all features
+# Pivot each dataset separately then join — avoids the data_type column
+# causing pivot_wider to keep lipid and metabolite rows on separate lines.
+lip_wide_tmp <- lipids_summary %>%
+  filter(colony %in% colonies_both) %>%
+  select(-data_type) %>%
+  pivot_wider(names_from = feature, values_from = value)
+
+met_wide_tmp <- metabs_summary %>%
+  filter(colony %in% colonies_both) %>%
+  select(-data_type) %>%
+  pivot_wider(names_from = feature, values_from = value)
+
+combined_wide <- inner_join(lip_wide_tmp, met_wide_tmp,
+                            by = c("colony", "species", "timepoint")) %>%
+  filter(complete.cases(.))
+
+cat("Integrated matrix:", nrow(combined_wide), "samples ×",
+    ncol(combined_wide) - 3, "features\n")
+
+# ── Keep ordered timepoint factor
+tp_order <- c("TP1","TP2","TP3","TP4")
+combined_wide <- combined_wide %>%
+  mutate(timepoint = factor(timepoint, levels = tp_order))
+```
+
+---
+
+# 2. Species and Timepoint Effects on Combined Profile
+
+## 2a. PERMANOVA – combined lipid + metabolite matrix
+
+```{r permanova-combined}
+meta_cols  <- c("colony", "species", "timepoint")
+feat_mat   <- combined_wide %>% select(-all_of(meta_cols))
+meta_df    <- combined_wide %>% select(all_of(meta_cols))
+
+feat_scaled <- scale(feat_mat)
+
+set.seed(42)
+perm_combined <- adonis2(feat_scaled ~ species * timepoint,
+                         data = meta_df, method = "eu", permutations = 999)
+print(perm_combined)
+```
+
+adonis2(formula = feat_scaled ~ species * timepoint, data = meta_df, permutations = 999, method = "eu")
+                  Df SumOfSqs      R2       F Pr(>F)    
+species            2    14994 0.30826 22.2191  0.001 ***
+timepoint          3     2135 0.04390  2.1093  0.012 *  
+species:timepoint  4     2494 0.05127  1.8478  0.016 *  
+Residual          86    29017 0.59657                   
+Total             95    48640 1.00000  
+
+## 2b. PCA – joint visualisation
+
+```{r pca-combined, fig.width=14, fig.height=6}
+pca_combined <- prcomp(feat_scaled, center = FALSE, scale. = FALSE)
+
+pca_df <- as.data.frame(pca_combined$x[, 1:4]) %>%
+  bind_cols(meta_df)
+
+var_exp <- round(summary(pca_combined)$importance[2, 1:4] * 100, 1)
+
+p_species <- ggplot(pca_df, aes(PC1, PC2, colour = species, shape = timepoint)) +
+  geom_point(size = 3, alpha = 0.85) +
+  stat_ellipse(aes(group = species), level = 0.75, linetype = "dashed", linewidth = 0.6) +
+  scale_colour_manual(values = species_cols) +
+  labs(title = "Combined lipid + metabolite PCA",
+       subtitle = "Coloured by species",
+       x = paste0("PC1 (", var_exp[1], "%)"),
+       y = paste0("PC2 (", var_exp[2], "%)")) +
+  theme_classic(base_size = 13) +
+  theme(legend.position = "right")
+
+p_time <- ggplot(pca_df, aes(PC1, PC2, colour = timepoint, shape = species)) +
+  geom_point(size = 3, alpha = 0.85) +
+  stat_ellipse(aes(group = timepoint), level = 0.75, linetype = "dashed", linewidth = 0.6) +
+  scale_colour_manual(values = timepoint_cols) +
+  labs(title = "Combined lipid + metabolite PCA",
+       subtitle = "Coloured by timepoint",
+       x = paste0("PC1 (", var_exp[1], "%)"),
+       y = paste0("PC2 (", var_exp[2], "%)")) +
+  theme_classic(base_size = 13) +
+  theme(legend.position = "right")
+
+p_species + p_time
+```
+
+## 2c. Within-species PERMANOVA – timepoint effect
+
+```{r permanova-within-species}
+species_list <- c("Acropora", "Pocillopora", "Porites")
+
+within_sp_results <- lapply(species_list, function(sp) {
+  sub_wide  <- combined_wide %>% filter(species == sp)
+  sub_feat  <- scale(sub_wide %>% select(-all_of(meta_cols)))
+  sub_meta  <- sub_wide %>% select(all_of(meta_cols))
+  res <- adonis2(sub_feat ~ timepoint, data = sub_meta,
+                 method = "eu", permutations = 999)
+  data.frame(species = sp,
+             R2      = round(res$R2[1], 3),
+             F       = round(res$F[1], 2),
+             p       = res$`Pr(>F)`[1])
+})
+
+within_sp_df <- bind_rows(within_sp_results)
+print(within_sp_df)
+```
+
+      species    R2    F     p
+1    Acropora 0.081 1.15 0.292
+2 Pocillopora 0.167 2.60 0.026
+3     Porites 0.105 1.32 0.207
+
+---
+
+# 3. Multi-block Integration with DIABLO (mixOmics)
+
+DIABLO identifies latent components that maximally co-vary across the two omics blocks
+while discriminating groups (here: species). This reveals molecules whose joint variation
+distinguishes species and time.
+
+## 3a. Prepare blocks
+
+```{r diablo-prep}
+# Subset to colonies that have both data types
+lip_wide_blk <- lipids %>%
+  filter(type == "sample", colony %in% colonies_both) %>%
+  group_by(colony, species, timepoint, lipid) %>%
+  summarise(value = mean(nmol.g_plasma.ug_protein, na.rm = TRUE), .groups = "drop") %>%
+  pivot_wider(names_from = lipid, values_from = value) %>%
+  filter(complete.cases(.))
+
+met_wide_blk <- metabs %>%
+  filter(colony %in% colonies_both) %>%
+  group_by(colony, species, timepoint, compound) %>%
+  summarise(value = mean(rel.quant.ug, na.rm = TRUE), .groups = "drop") %>%
+  pivot_wider(names_from = compound, values_from = value) %>%
+  filter(complete.cases(.))
+
+# Align on the same colony × timepoint
+key_lip <- paste(lip_wide_blk$colony, lip_wide_blk$timepoint)
+key_met <- paste(met_wide_blk$colony, met_wide_blk$timepoint)
+common_keys <- intersect(key_lip, key_met)
+
+lip_blk <- lip_wide_blk %>%
+  filter(paste(colony, timepoint) %in% common_keys) %>%
+  arrange(colony, timepoint)
+
+met_blk <- met_wide_blk %>%
+  filter(paste(colony, timepoint) %in% common_keys) %>%
+  arrange(colony, timepoint)
+
+# Matrices
+X_lip <- as.matrix(lip_blk %>% select(where(is.numeric)))
+X_met <- as.matrix(met_blk %>% select(where(is.numeric)))
+
+# Outcome: species (for supervised DIABLO)
+Y_sp  <- factor(lip_blk$species)
+meta_blk <- lip_blk %>% select(colony, species, timepoint)
+
+cat("DIABLO blocks: lipids", nrow(X_lip), "×", ncol(X_lip),
+    "| metabolites", nrow(X_met), "×", ncol(X_met), "\n")
+```
+
+## 3b. Run DIABLO (species discrimination)
+
+```{r diablo-species, fig.width=10, fig.height=8}
+set.seed(42)
+
+# Initial run to get design
+design_mat <- matrix(0.1, nrow = 2, ncol = 2,
+                     dimnames = list(c("lipid","metabolite"),
+                                     c("lipid","metabolite")))
+diag(design_mat) <- 0
+
+diablo_res <- block.splsda(
+  X    = list(lipid = X_lip, metabolite = X_met),
+  Y    = Y_sp,
+  ncomp = 2,
+  keepX = list(lipid = c(20, 20), metabolite = c(20, 20)),
+  design = design_mat
+)
+
+# Individual sample plots per block
+plotIndiv(diablo_res,
+          ind.names = FALSE,
+          legend = TRUE,
+          title  = "DIABLO – species discrimination",
+          ellipse = TRUE,
+          col.per.group = unname(species_cols[levels(Y_sp)]))
+```
+
+## 3c. DIABLO – arrow plot showing co-inertia between blocks
+
+```{r diablo-arrow, fig.width=8, fig.height=7}
+plotArrow(diablo_res,
+          ind.names = FALSE,
+          legend     = TRUE,
+          title      = "DIABLO arrow plot: lipid → metabolite")
+```
+
+## 3d. DIABLO – top loading variables per block
+
+```{r diablo-loadings, fig.width=12, fig.height=6}
+plotLoadings(diablo_res,
+             comp   = 1,
+             contrib = "max",
+             method  = "mean",
+             title   = "DIABLO Comp 1 loadings")
+```
+
+## 3e. Circos plot – cross-block correlations
+
+Displays the strongest positive and negative correlations between top lipids and top
+metabolites on DIABLO component 1.
+
+```{r circos, fig.width=8, fig.height=8}
+circosPlot(diablo_res,
+           cutoff   = 0.6,
+           line     = TRUE,
+           color.blocks = c("#1b7837","#4575b4"),
+           comp     = 1,
+           size.labels = 1,
+           size.variables = 0.7)
+```
+
+---
+
+# 4. Heatmaps – Joint Z-score Profiles
+
+## 4a. Combined z-score heatmap by species
+
+Shows whether the same molecules are elevated or depleted in each species across both
+data modalities simultaneously.
+
+```{r heatmap-species, fig.width=10, fig.height=12}
+# Select top variable features (variance across all samples)
+n_top <- 50
+
+top_features <- combined_long %>%
+  group_by(feature, data_type) %>%
+  summarise(feat_var = var(value, na.rm = TRUE), .groups = "drop") %>%
+  group_by(data_type) %>%
+  slice_max(feat_var, n = n_top) %>%
+  ungroup() %>%
+  pull(feature)
+
+heat_sp <- combined_long %>%
+  filter(feature %in% top_features) %>%
+  group_by(feature) %>%
+  mutate(z = as.numeric(scale(value))) %>%
+  group_by(species, feature, data_type) %>%
+  summarise(z_mean = mean(z, na.rm = TRUE), .groups = "drop") %>%
+  pivot_wider(names_from = species, values_from = z_mean)
+
+heat_mat_sp <- as.matrix(heat_sp %>% select(-feature, -data_type))
+rownames(heat_mat_sp) <- heat_sp$feature
+
+# Annotation: data type (lipid vs metabolite)
+row_ann <- rowAnnotation(
+  `Data type` = heat_sp$data_type,
+  col = list(`Data type` = c(lipid = "#2166ac", metabolite = "#b2182b")),
+  show_annotation_name = TRUE
+)
+
+Heatmap(
+  heat_mat_sp,
+  name           = "Z-score",
+  col            = colorRamp2(c(-2, 0, 2), c("#4575b4","white","#d73027")),
+  left_annotation = row_ann,
+  cluster_rows   = TRUE,
+  cluster_columns = FALSE,
+  show_row_names  = FALSE,
+  row_split       = heat_sp$data_type,
+  row_title       = c("Lipid","Metabolite"),
+  column_names_gp = gpar(fontsize = 12),
+  row_gap         = unit(3, "mm"),
+  border          = TRUE,
+  column_title    = "Top variable features (z-score) by species"
+)
+```
+
+## 4b. Combined z-score heatmap by timepoint within each species
+
+```{r heatmap-timepoint, fig.width=14, fig.height=12}
+plot_tp_heatmap <- function(sp) {
+
+  heat_tp <- combined_long %>%
+    filter(feature %in% top_features, species == sp) %>%
+    group_by(feature) %>%
+    mutate(z = as.numeric(scale(value))) %>%
+    group_by(timepoint, feature, data_type) %>%
+    summarise(z_mean = mean(z, na.rm = TRUE), .groups = "drop") %>%
+    pivot_wider(names_from = timepoint, values_from = z_mean)
+
+  # Reorder columns to timepoint order
+  tp_cols_present <- tp_order[tp_order %in% names(heat_tp)]
+  heat_tp <- heat_tp %>% select(feature, data_type, all_of(tp_cols_present))
+
+  heat_mat_tp <- as.matrix(heat_tp %>% select(-feature, -data_type))
+  rownames(heat_mat_tp) <- heat_tp$feature
+
+  row_ann <- rowAnnotation(
+    `Data type` = heat_tp$data_type,
+    col = list(`Data type` = c(lipid = "#2166ac", metabolite = "#b2182b")),
+    show_legend = FALSE
+  )
+
+  Heatmap(
+    heat_mat_tp,
+    name            = "Z-score",
+    col             = colorRamp2(c(-2, 0, 2), c("#4575b4","white","#d73027")),
+    left_annotation = row_ann,
+    cluster_rows    = TRUE,
+    cluster_columns = FALSE,
+    show_row_names  = FALSE,
+    row_split       = heat_tp$data_type,
+    row_title       = c("Lipid","Metabolite"),
+    column_names_gp = gpar(fontsize = 12),
+    row_gap         = unit(3, "mm"),
+    border          = TRUE,
+    column_title    = paste(sp, "– top features by timepoint")
+  )
+}
+
+draw(plot_tp_heatmap("Acropora"))
+draw(plot_tp_heatmap("Pocillopora"))
+draw(plot_tp_heatmap("Porites"))
+```
+
+---
+
+# 5. Pairwise Correlation Between Lipids and Metabolites
+
+## 5a. Compute correlations (Spearman) within each species
+
+For each species, correlate the colony-level mean of every lipid against every metabolite
+across timepoints. Correlations use **colony-level means** (n = number of colonies ×
+timepoints with both datasets), giving a single correlation per lipid–metabolite pair
+per species.
+
+```{r compute-correlations}
+compute_correlations <- function(sp) {
+
+  lip_sp <- lipids %>%
+    filter(type == "sample", species == sp, colony %in% colonies_both) %>%
+    group_by(colony, timepoint, lipid) %>%
+    summarise(value = mean(nmol.g_plasma.ug_protein, na.rm = TRUE), .groups = "drop")
+
+  met_sp <- metabs %>%
+    filter(species == sp, colony %in% colonies_both) %>%
+    group_by(colony, timepoint, compound) %>%
+    summarise(value = mean(rel.quant.ug, na.rm = TRUE), .groups = "drop")
+
+  # Pivot wide and align
+  lip_w <- lip_sp %>% pivot_wider(names_from = lipid, values_from = value)
+  met_w <- met_sp %>% pivot_wider(names_from = compound, values_from = value)
+
+  key_l <- paste(lip_w$colony, lip_w$timepoint)
+  key_m <- paste(met_w$colony, met_w$timepoint)
+  shared <- intersect(key_l, key_m)
+
+  lip_w <- lip_w %>% filter(paste(colony, timepoint) %in% shared) %>%
+    arrange(colony, timepoint)
+  met_w <- met_w %>% filter(paste(colony, timepoint) %in% shared) %>%
+    arrange(colony, timepoint)
+
+  L <- as.matrix(lip_w %>% select(where(is.numeric)))
+  M <- as.matrix(met_w %>% select(where(is.numeric)))
+
+  # Pairwise Spearman correlations
+  cor_mat  <- cor(L, M, method = "spearman", use = "pairwise.complete.obs")
+
+  # p-values via permutation for large matrices can be slow; use psych::corr.test
+  # approach (approximation)
+  n        <- nrow(L)
+  t_stat   <- cor_mat * sqrt((n - 2) / (1 - cor_mat^2))
+  p_mat    <- 2 * pt(abs(t_stat), df = n - 2, lower.tail = FALSE)
+
+  # Reshape
+  cor_long <- as.data.frame(as.table(cor_mat)) %>%
+    rename(lipid = Var1, compound = Var2, rho = Freq)
+  p_long   <- as.data.frame(as.table(p_mat)) %>%
+    rename(lipid = Var1, compound = Var2, p_val = Freq)
+
+  left_join(cor_long, p_long, by = c("lipid","compound")) %>%
+    mutate(species = sp,
+           p_adj   = p.adjust(p_val, method = "BH"),
+           sig      = p_adj < 0.05)
+}
+
+cor_list <- lapply(species_list, compute_correlations)
+names(cor_list) <- species_list
+
+# Count significant pairs
+lapply(cor_list, function(d) sum(d$sig, na.rm = TRUE))
+```
+
+## 5b. Correlation heatmap – top significant pairs per species
+
+```{r cor-heatmap, fig.width=14, fig.height=10}
+plot_cor_heatmap <- function(sp, n_top_lip = 25, n_top_met = 25) {
+
+  df <- cor_list[[sp]] %>% filter(!is.na(rho))
+
+  # Pick top lipids and metabolites with most significant correlations
+  top_lip <- df %>% filter(sig) %>%
+    count(lipid, sort = TRUE) %>% head(n_top_lip) %>% pull(lipid)
+  top_met <- df %>% filter(sig) %>%
+    count(compound, sort = TRUE) %>% head(n_top_met) %>% pull(compound)
+
+  if (length(top_lip) == 0 | length(top_met) == 0) {
+    # Fallback: use top by absolute rho
+    top_lip <- df %>% group_by(lipid) %>%
+      summarise(max_rho = max(abs(rho), na.rm=TRUE)) %>%
+      slice_max(max_rho, n = n_top_lip) %>% pull(lipid)
+    top_met <- df %>% group_by(compound) %>%
+      summarise(max_rho = max(abs(rho), na.rm=TRUE)) %>%
+      slice_max(max_rho, n = n_top_met) %>% pull(compound)
+  }
+
+  mat <- df %>%
+    filter(lipid %in% top_lip, compound %in% top_met) %>%
+    select(lipid, compound, rho) %>%
+    pivot_wider(names_from = compound, values_from = rho) %>%
+    column_to_rownames("lipid") %>%
+    as.matrix()
+
+  # Significance overlay — keep as logical matrix
+  sig_mat <- df %>%
+    filter(lipid %in% top_lip, compound %in% top_met) %>%
+    select(lipid, compound, sig) %>%
+    mutate(sig = as.integer(sig)) %>%          # integer avoids mixed-type coercion
+    pivot_wider(names_from = compound, values_from = sig) %>%
+    column_to_rownames("lipid") %>%
+    as.matrix()
+
+  # Align sig_mat rows/cols to match mat (clustering may reorder later, but
+  # cell_fun uses pre-clustering indices so this ensures lookup is correct)
+  mat     <- mat[rownames(mat), colnames(mat), drop = FALSE]
+  sig_mat <- sig_mat[rownames(mat), colnames(mat), drop = FALSE]
+
+  Heatmap(
+    mat,
+    name            = "Spearman ρ",
+    col             = colorRamp2(c(-1, 0, 1), c("#4575b4","white","#d73027")),
+    cluster_rows    = TRUE,
+    cluster_columns = TRUE,
+    show_row_names  = TRUE,
+    show_column_names = TRUE,
+    row_names_gp    = gpar(fontsize = 7),
+    column_names_gp = gpar(fontsize = 7),
+    row_names_max_width = unit(6, "cm"),
+    column_names_max_height = unit(6, "cm"),
+    border          = TRUE,
+    cell_fun = function(j, i, x, y, width, height, fill) {
+      if (!is.na(sig_mat[i, j]) && sig_mat[i, j] == 1L) {
+        grid.text("*", x, y, gp = gpar(fontsize = 8, col = "black"))
+      }
+    },
+    column_title = paste(sp, "– lipid × metabolite Spearman ρ (* FDR<0.05)")
+  )
+}
+
+draw(plot_cor_heatmap("Acropora"))
+draw(plot_cor_heatmap("Pocillopora"))
+draw(plot_cor_heatmap("Porites"))
+```
+
+## 5c. Summary: number of significant correlations per species
+
+```{r cor-summary, fig.width=8, fig.height=5}
+sig_counts <- bind_rows(cor_list) %>%
+  filter(sig) %>%
+  group_by(species) %>%
+  summarise(
+    n_pos   = sum(rho > 0),
+    n_neg   = sum(rho < 0),
+    n_total = n()
+  )
+
+sig_counts %>%
+  pivot_longer(-species, names_to = "direction", values_to = "count") %>%
+  filter(direction != "n_total") %>%
+  mutate(direction = recode(direction, n_pos = "Positive", n_neg = "Negative")) %>%
+  ggplot(aes(x = species, y = count, fill = direction)) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c("Positive" = "#d73027", "Negative" = "#4575b4")) +
+  labs(title = "Significant lipid–metabolite correlations (FDR < 0.05)",
+       x = "Species", y = "Number of pairs", fill = "Direction") +
+  theme_classic(base_size = 13)
+```
+
+---
+
+# 6. Lag Correlation Analysis
+
+Lag-correlation tests whether a change in one molecule at time **t** predicts a change
+in another molecule at time **t+1** (or t−1). This reveals potential regulatory or
+metabolic sequences — e.g., lipid catabolism at TP1 driving metabolite changes at TP3.
+
+Timepoints are treated as ordered: TP1 < TP2 < TP3 < TP4. For species without TP2
+(Acropora, Pocillopora), the sequence is TP1→TP3→TP4 (3 ordered steps).
+
+## 6a. Compute cross-correlation at lag 0 and lag 1
+
+```{r lag-cor}
+compute_lag_cors <- function(sp, top_n = 30) {
+
+  # Colony-mean per timepoint
+  lip_sp <- lipids %>%
+    filter(type == "sample", species == sp, colony %in% colonies_both) %>%
+    group_by(colony, timepoint, lipid) %>%
+    summarise(value = mean(nmol.g_plasma.ug_protein, na.rm = TRUE), .groups = "drop")
+
+  met_sp <- metabs %>%
+    filter(species == sp, colony %in% colonies_both) %>%
+    group_by(colony, timepoint, compound) %>%
+    summarise(value = mean(rel.quant.ug, na.rm = TRUE), .groups = "drop")
+
+  # Ordered timepoint sequence for this species
+  tps <- if (sp == "Porites") c("TP1","TP2","TP3","TP4") else c("TP1","TP3","TP4")
+  tps <- tps[tps %in% unique(lip_sp$timepoint)]
+
+  if (length(tps) < 3) {
+    message(sp, ": insufficient timepoints for lag correlation")
+    return(NULL)
+  }
+
+  # Average across colonies at each timepoint → one value per feature × timepoint
+  lip_avg <- lip_sp %>%
+    group_by(timepoint, lipid) %>%
+    summarise(mean_val = mean(value, na.rm = TRUE), .groups = "drop") %>%
+    filter(timepoint %in% tps)
+
+  met_avg <- met_sp %>%
+    group_by(timepoint, compound) %>%
+    summarise(mean_val = mean(value, na.rm = TRUE), .groups = "drop") %>%
+    filter(timepoint %in% tps)
+
+  # Select top variable features to keep computation tractable
+  top_lip_var <- lip_avg %>%
+    group_by(lipid) %>% summarise(v = var(mean_val, na.rm=TRUE)) %>%
+    slice_max(v, n = top_n) %>% pull(lipid)
+
+  top_met_var <- met_avg %>%
+    group_by(compound) %>% summarise(v = var(mean_val, na.rm=TRUE)) %>%
+    slice_max(v, n = top_n) %>% pull(compound)
+
+  lip_avg <- lip_avg %>% filter(lipid %in% top_lip_var)
+  met_avg <- met_avg %>% filter(compound %in% top_met_var)
+
+  # Pivot to timepoint × feature matrices (ordered)
+  L_mat <- lip_avg %>%
+    pivot_wider(names_from = lipid,    values_from = mean_val) %>%
+    arrange(match(timepoint, tps)) %>%
+    select(-timepoint) %>%
+    as.matrix()
+
+  M_mat <- met_avg %>%
+    pivot_wider(names_from = compound, values_from = mean_val) %>%
+    arrange(match(timepoint, tps)) %>%
+    select(-timepoint) %>%
+    as.matrix()
+
+  n_tp <- nrow(L_mat)
+
+  # Lag 0: contemporaneous (all timepoints)
+  r0 <- cor(L_mat, M_mat, method = "spearman", use = "pairwise.complete.obs")
+
+  # Lag +1: lipid at t predicts metabolite at t+1
+  r_lag1_L_lead <- cor(L_mat[-n_tp, ], M_mat[-1, ],
+                        method = "spearman", use = "pairwise.complete.obs")
+
+  # Lag -1: metabolite at t predicts lipid at t+1
+  r_lag1_M_lead <- cor(M_mat[-n_tp, ], L_mat[-1, ],
+                        method = "spearman", use = "pairwise.complete.obs")
+
+  # Long format
+  to_long <- function(mat, lag_label, lip_col, met_col) {
+    as.data.frame(as.table(mat)) %>%
+      rename(!!lip_col := Var1, !!met_col := Var2, rho = Freq) %>%
+      mutate(lag = lag_label, species = sp)
+  }
+
+  r0_long    <- to_long(r0, "lag_0",         "lipid", "compound")
+  rp1_long   <- to_long(r_lag1_L_lead, "lag_+1 (lipid leads)", "lipid", "compound")
+  rm1_long   <- to_long(r_lag1_M_lead, "lag_-1 (metab leads)", "compound", "lipid") %>%
+    rename(lipid = compound, compound = lipid)
+
+  bind_rows(r0_long, rp1_long, rm1_long)
+}
+
+lag_list  <- lapply(species_list, compute_lag_cors, top_n = 40)
+names(lag_list) <- species_list
+lag_all   <- bind_rows(lag_list)
+```
+
+## 6b. Bubble plot – lag correlations
+
+Each panel is one species. Rows = lipid, columns = metabolite. Dot size = |ρ|,
+dot colour = sign and lag direction. Only |ρ| ≥ 0.7 shown for clarity.
+
+```{r lag-bubble, fig.width=18, fig.height=22}
+lag_plot_data <- lag_all %>%
+  filter(abs(rho) >= 0.7) %>%
+  mutate(direction = if_else(rho > 0, "Positive", "Negative"),
+         combo = paste(lag, direction))
+
+ggplot(lag_plot_data, aes(x = compound, y = lipid)) +
+  geom_point(aes(size = abs(rho), colour = combo), alpha = 0.8) +
+  facet_grid(species ~ lag, scales = "free", space = "free") +
+  scale_colour_manual(
+    values = c(
+      "lag_0 Positive"             = "#d73027",
+      "lag_0 Negative"             = "#4575b4",
+      "lag_+1 (lipid leads) Positive" = "#fc8d59",
+      "lag_+1 (lipid leads) Negative" = "#91bfdb",
+      "lag_-1 (metab leads) Positive" = "#fee090",
+      "lag_-1 (metab leads) Negative" = "#e0f3f8"
+    ),
+    name = "Lag & direction"
+  ) +
+  scale_size_continuous(range = c(2, 8), name = "|ρ|") +
+  labs(title = "Lag-correlation between lipids and metabolites (|ρ| ≥ 0.7)",
+       subtitle = "lag_0: contemporaneous; lag_+1: lipid leads metabolite by 1 TP; lag_-1: metabolite leads lipid by 1 TP",
+       x = "Metabolite", y = "Lipid") +
+  theme_classic(base_size = 10) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, size = 7),
+        axis.text.y = element_text(size = 7),
+        strip.text  = element_text(size = 10, face = "bold"),
+        legend.position = "right")
+```
+
+## 6c. Top lag pairs – table
+
+```{r lag-table}
+lag_top <- lag_all %>%
+  filter(abs(rho) >= 0.75) %>%
+  arrange(species, lag, desc(abs(rho))) %>%
+  mutate(rho = round(rho, 3)) %>%
+  select(species, lag, lipid, compound, rho)
+ 
+knitr::kable(lag_top, caption = "Lag-correlated lipid–metabolite pairs (|ρ| ≥ 0.75)")
+```
+
+## 6d. Lag correlation timeline plot
+
+For the most strongly lag-correlated pairs, plot both molecules across timepoints side
+by side to visualise the offset.
+
+
+```{r lag-timeline, fig.width=14, fig.height=10}
+# Select one strong pair per species × lag for illustration
+top_pairs <- lag_all %>%
+  filter(abs(rho) >= 0.75, lag != "lag_0") %>%
+  group_by(species, lag) %>%
+  slice_max(abs(rho), n = 1, with_ties = FALSE) %>%
+  ungroup()
+ 
+plot_pair_timeline <- function(sp, lip_id, met_id, lag_label, rho_val) {
+ 
+  tps <- if (sp == "Porites") c("TP1","TP2","TP3","TP4") else c("TP1","TP3","TP4")
+ 
+  lip_ts <- lipids %>%
+    filter(type == "sample", species == sp, lipid == lip_id) %>%
+    group_by(timepoint) %>%
+    summarise(mean = mean(nmol.g_plasma.ug_protein, na.rm = TRUE),
+              se   = sd(nmol.g_plasma.ug_protein, na.rm = TRUE) / sqrt(n()),
+              .groups = "drop") %>%
+    filter(timepoint %in% tps) %>%
+    mutate(feature = lip_id, data_type = "Lipid (nmol/µg protein)",
+           tp_num = match(timepoint, tps))
+ 
+  met_ts <- metabs %>%
+    filter(species == sp, compound == met_id) %>%
+    group_by(timepoint) %>%
+    summarise(mean = mean(rel.quant.ug, na.rm = TRUE),
+              se   = sd(rel.quant.ug, na.rm = TRUE) / sqrt(n()),
+              .groups = "drop") %>%
+    filter(timepoint %in% tps) %>%
+    mutate(feature = met_id, data_type = "Metabolite (rel/µg protein)",
+           tp_num = match(timepoint, tps))
+ 
+  bind_rows(lip_ts, met_ts) %>%
+    ggplot(aes(x = tp_num, y = mean, colour = data_type, group = data_type)) +
+    geom_ribbon(aes(ymin = mean - se, ymax = mean + se, fill = data_type),
+                alpha = 0.15, colour = NA) +
+    geom_line(linewidth = 1.1) +
+    geom_point(size = 3) +
+    scale_x_continuous(breaks = seq_along(tps), labels = tps) +
+    scale_colour_manual(values = c("Lipid (nmol/µg protein)"        = "#2166ac",
+                                   "Metabolite (rel/µg protein)"    = "#b2182b"),
+                        name = NULL) +
+    scale_fill_manual(values = c("Lipid (nmol/µg protein)"        = "#2166ac",
+                                 "Metabolite (rel/µg protein)"    = "#b2182b"),
+                      name = NULL) +
+    facet_wrap(~ data_type, scales = "free_y", nrow = 2) +
+    labs(title  = paste0(sp, ": ", lag_label),
+         subtitle = paste0(lip_id, " × ", met_id, "  (ρ = ", round(rho_val, 2), ")"),
+         x = "Timepoint", y = "Mean ± SE") +
+    theme_classic(base_size = 11) +
+    theme(legend.position = "none",
+          strip.text = element_text(face = "bold"))
+}
+ 
+if (nrow(top_pairs) > 0) {
+  timeline_plots <- pmap(
+    list(top_pairs$species, top_pairs$lipid, top_pairs$compound,
+         top_pairs$lag, top_pairs$rho),
+    plot_pair_timeline
+  )
+  wrap_plots(timeline_plots, ncol = 2)
+} else {
+  message("No pairs above |ρ| = 0.75 at non-zero lag; lower the threshold to generate plots.")
+}
+```
+ 
+
+---
+
+# 7. Lipid Class × Metabolic Pathway Summary
+
+Group lipids by class (extracted from naming convention, e.g. "TG", "FFA", "PC") and
+metabolites by functional category, then compute mean pairwise correlation within and
+between groups to identify which lipid classes co-vary most with which metabolite groups.
+
+```{r class-pathway, fig.width=14, fig.height=8}
+# Extract lipid class from lipid name (prefix before first space)
+# str_detect with ignore_case catches name variants from different batches/tools.
+# Categories ordered roughly by metabolic module for a coherent x-axis.
+cor_annotated <- bind_rows(cor_list) %>%
+  mutate(
+    lipid_class = sub(" .*", "", lipid),
+
+    metab_category = case_when(
+
+      # ── Glycolysis / TCA / central carbon ───────────────────────────────
+      str_detect(compound, regex(
+        "glucose|fructose|galactose|mannose|ribose|G1P|G6P|F1P|F6P|
+         glycerol.3|DHAP|3-phosphoglycerate|phosphoenolpyruvate|PEP|
+         pyruvate|lactate|acetyl.CoA|citrate|isocitrate|aconitate|
+         alpha.keto|2.oxoglutarate|succinyl|succinate|fumarate|malate|
+         oxaloacetate|phosphogluconate|sedoheptulose",
+        ignore_case = TRUE, comments = TRUE)) ~ "Central carbon / TCA",
+
+      # ── Fatty acid β-oxidation & acylcarnitines ──────────────────────────
+      str_detect(compound, regex(
+        "carnitine|acyl.coa|malonyl|acetoacetate|beta.hydroxy|
+         3.hydroxy|ketone|hydroxybutyrate",
+        ignore_case = TRUE, comments = TRUE)) ~ "Fatty acid metabolism",
+
+      # ── Amino acids — branched chain ─────────────────────────────────────
+      str_detect(compound, regex(
+        "\\bvaline\\b|\\bleucine\\b|\\bisoleucine\\b|
+         \\bBCAA\\b|keto.isovalerate|keto.isocaproate|keto.methylvalerate",
+        ignore_case = TRUE, comments = TRUE)) ~ "AA — branched chain",
+
+      # ── Amino acids — aromatic ───────────────────────────────────────────
+      str_detect(compound, regex(
+        "phenylalanine|tyrosine|tryptophan|kynurenine|
+         indole|anthranilate|phenylpyruvate|hydroxyphenyl",
+        ignore_case = TRUE, comments = TRUE)) ~ "AA — aromatic",
+
+      # ── Amino acids — glucogenic / structural ────────────────────────────
+      str_detect(compound, regex(
+        "\\balanine\\b|\\bglycine\\b|\\bserine\\b|\\bthreonine\\b|
+         \\bproline\\b|hydroxyproline|\\bmethionine\\b|\\bcysteine\\b|
+         \\blysine\\b|\\bhistidine\\b|\\bornithine\\b|\\basparagine\\b",
+        ignore_case = TRUE, comments = TRUE)) ~ "AA — glucogenic / other",
+
+      # ── Nitrogen assimilation, urea cycle & purines ──────────────────────
+      str_detect(compound, regex(
+        "glutamine|glutamic|aspartic|aspartate|arginine|citrulline|
+         urea|urate|xanthine|hypoxanthine|inosine|xanthosine|
+         S.adenosyl|SAM|SAH|carbamoyl",
+        ignore_case = TRUE, comments = TRUE)) ~ "N-assimilation / urea cycle",
+
+      # ── Symbiont exchange & DMSP / sulfur ───────────────────────────────
+      # DMSP is the dominant organic sulfur compound produced by Symbiodiniaceae;
+      # mycosporine-like AAs (MAAs) are UV protectants co-produced with symbiont.
+      str_detect(compound, regex(
+        "DMSP|dimethylsulfoniopropion|dimethylsulfonio|
+         DMS(?!O)|acrylate|mycosporine|shinorine|palythine|porphyra|
+         MAA|\\bectoine\\b|proline.betaine",
+        ignore_case = TRUE, comments = TRUE)) ~ "Symbiont exchange / DMSP",
+
+      # ── Antioxidants & redox ─────────────────────────────────────────────
+      # Coral–symbiont photosynthesis generates ROS; redox buffering is key.
+      str_detect(compound, regex(
+        "glutathione|\\bGSH\\b|\\bGSSG\\b|ascorbate|dehydroascorbate|
+         tocopherol|thioredoxin|cystine|ergothioneine|
+         superoxide|catalase",
+        ignore_case = TRUE, comments = TRUE)) ~ "Antioxidants / redox",
+
+      # ── Energy carriers & nucleotides ────────────────────────────────────
+      str_detect(compound, regex(
+        "\\bATP\\b|\\bADP\\b|\\bAMP\\b|\\bGTP\\b|\\bGDP\\b|\\bGMP\\b|
+         \\bUTP\\b|\\bUDP\\b|\\bCTP\\b|\\bCDP\\b|
+         \\bNAD\\b|NADH|NADP|\\bFAD\\b|FADH|
+         phosphocreatine|\\bcreatine\\b|creatinine|
+         \\bCoA\\b(?!.*carnitine)",
+        ignore_case = TRUE, comments = TRUE)) ~ "Energy carriers / nucleotides",
+
+      # ── Osmolytes & membrane lipid head-groups ───────────────────────────
+      str_detect(compound, regex(
+        "\\btaurine\\b|\\bbetaine\\b|\\bcholine\\b|phosphocholine|
+         glycerophosphocholine|ethanolamine|\\binositol\\b|
+         \\bcAMP\\b|\\bcGMP\\b",
+        ignore_case = TRUE, comments = TRUE)) ~ "Osmolytes / membrane signaling",
+
+      # ── Vitamins & enzyme cofactors ──────────────────────────────────────
+      str_detect(compound, regex(
+        "thiamine|riboflavin|pyridoxal|pyridoxamine|pyridoxine|
+         folate|tetrahydrofolate|cobalamin|pantothenate|pantothenic|
+         biotin|niacin|nicotinamide|lipoate|lipoic",
+        ignore_case = TRUE, comments = TRUE)) ~ "Vitamins / cofactors",
+
+      TRUE ~ "Other / unclassified"
+    )
+  ) %>%
+  filter(!is.na(rho))
+
+# Counts per category so you can see what landed where
+cat_counts <- cor_annotated %>%
+  distinct(compound, metab_category) %>%
+  count(metab_category, sort = TRUE)
+knitr::kable(cat_counts, caption = "Metabolites per category (all species pooled)")
+
+# Mean ρ per lipid class × metabolite category × species
+class_summary <- cor_annotated %>%
+  group_by(species, lipid_class, metab_category) %>%
+  summarise(mean_rho = mean(rho, na.rm = TRUE),
+            n_sig    = sum(sig, na.rm = TRUE),
+            .groups  = "drop")
+
+# Ordered x-axis: biological modules flow from photosynthate → lipid storage → signaling
+cat_order <- c(
+  "Central carbon / TCA",
+  "Fatty acid metabolism",
+  "AA — branched chain",
+  "AA — aromatic",
+  "AA — glucogenic / other",
+  "N-assimilation / urea cycle",
+  "Symbiont exchange / DMSP",
+  "Antioxidants / redox",
+  "Energy carriers / nucleotides",
+  "Osmolytes / membrane signaling",
+  "Vitamins / cofactors",
+  "Other / unclassified"
+)
+
+# Main lipid classes (adjust if your data has others)
+lip_classes <- c("TG","DG","FFA","FA","PC","PE","LPC","LPE",
+                 "CE","Cer","SM","PI","PG","HexCer")
+
+class_plot_df <- class_summary %>%
+  filter(lipid_class %in% lip_classes,
+         metab_category %in% cat_order) %>%
+  mutate(
+    metab_category = factor(metab_category, levels = cat_order),
+    lipid_class    = factor(lipid_class,    levels = rev(lip_classes))
+  )
+
+ggplot(class_plot_df, aes(x = metab_category, y = lipid_class, fill = mean_rho)) +
+  geom_tile(colour = "grey85", linewidth = 0.3) +
+  geom_text(aes(label = ifelse(n_sig > 0, paste0("*", n_sig), "")),
+            size = 3, colour = "black") +
+  facet_wrap(~ species, nrow = 1) +
+  scale_fill_gradient2(low = "#4575b4", mid = "white", high = "#d73027",
+                       midpoint = 0, name = "Mean\nSpearman ρ",
+                       limits = c(-1, 1), na.value = "grey92") +
+  labs(title    = "Lipid class × metabolite pathway correlations",
+       subtitle = "* = number of FDR < 0.05 pairs; x-axis ordered by metabolic module",
+       x = NULL, y = "Lipid class") +
+  theme_classic(base_size = 11) +
+  theme(axis.text.x  = element_text(angle = 45, hjust = 1, size = 9),
+        axis.text.y  = element_text(size = 10),
+        strip.text   = element_text(face = "bold", size = 12),
+        legend.position = "right",
+        panel.spacing = unit(0.8, "lines"))
+```
+
+---
+
+# 8. Temporal Predictability of Metabolic State
+
+Does the combined lipid × metabolite profile at timepoint **T** predict the
+profile at **T+1**? We test this with four complementary approaches:
+
+1. **Within-colony self-similarity** — is a colony more similar to itself
+   across a transition than to other colonies?
+2. **Mantel test** — are pairwise distances among colonies at Tn correlated
+   with pairwise distances at Tn+1?
+3. **PC-score lagged regression** — do PCA axis scores at Tn predict scores
+   at Tn+1 (linear regression, leave-one-out cross-validated R²)?
+4. **Trajectory plots** — ordination arrows visualise each colony's path
+   through multivariate metabolic space.
+
+Consecutive timepoint pairs used:
+* Porites: TP1→TP2, TP2→TP3, TP3→TP4
+* Acropora / Pocillopora: TP1→TP3, TP3→TP4
+
+```{r temporal-setup}
+# Helper: return consecutive TP pairs for each species
+get_tp_pairs <- function(sp) {
+  if (sp == "Porites") {
+    list(c("TP1","TP2"), c("TP2","TP3"), c("TP3","TP4"))
+  } else {
+    list(c("TP1","TP3"), c("TP3","TP4"))
+  }
+}
+
+tp_order <- c("TP1","TP2","TP3","TP4")
+
+# PCA on the full combined feature matrix (already scaled in earlier section)
+feat_all    <- combined_wide %>% select(-all_of(meta_cols))
+feat_scaled_all <- scale(feat_all)
+pca_all     <- prcomp(feat_scaled_all, center = FALSE, scale. = FALSE)
+pct_var     <- round(summary(pca_all)$importance[2, 1:5] * 100, 1)
+
+pca_scores <- combined_wide %>%
+  select(all_of(meta_cols)) %>%
+  bind_cols(as_tibble(pca_all$x[, 1:5])) %>%
+  mutate(tp_num = match(timepoint, tp_order))
+```
+
+## 8a. Within-colony self-similarity vs cross-colony similarity
+
+For each colony and each consecutive transition, compute:
+
+* **Self ρ** — Spearman correlation between that colony's feature vector at Tn
+  and its own feature vector at Tn+1.
+* **Cross ρ** — mean Spearman correlation between that colony's vector at Tn
+  and every *other* colony's vector at Tn+1 (null expectation).
+
+If metabolic state is predictable, self ρ should exceed cross ρ.
+
+```{r self-similarity, fig.width=11, fig.height=5}
+self_sim_list <- purrr::map_dfr(unique(combined_wide$species), function(sp) {
+  pairs  <- get_tp_pairs(sp)
+  df_sp  <- combined_wide %>% filter(species == sp)
+
+  purrr::map_dfr(pairs, function(pair) {
+    t1 <- df_sp %>% filter(timepoint == pair[1]) %>% arrange(colony)
+    t2 <- df_sp %>% filter(timepoint == pair[2]) %>% arrange(colony)
+    shared <- intersect(t1$colony, t2$colony)
+    if (length(shared) < 3) return(NULL)
+
+    t1 <- t1 %>% filter(colony %in% shared) %>% arrange(colony)
+    t2 <- t2 %>% filter(colony %in% shared) %>% arrange(colony)
+
+    feat1 <- as.matrix(t1 %>% select(-all_of(meta_cols)))
+    feat2 <- as.matrix(t2 %>% select(-all_of(meta_cols)))
+    rownames(feat1) <- t1$colony
+    rownames(feat2) <- t2$colony
+
+    purrr::map_dfr(shared, function(col) {
+      self_r  <- cor(feat1[col, ], feat2[col, ], method = "spearman")
+      others  <- setdiff(shared, col)
+      cross_r <- if (length(others) > 0)
+        mean(sapply(others, function(o) cor(feat1[col, ], feat2[o, ], method = "spearman")))
+      else NA_real_
+      tibble(species    = sp,
+             transition = paste0(pair[1], "→", pair[2]),
+             colony     = col,
+             self_rho   = self_r,
+             cross_rho  = cross_r,
+             delta_rho  = self_r - cross_r)
+    })
+  })
+})
+
+# Summary table
+self_sim_summary <- self_sim_list %>%
+  group_by(species, transition) %>%
+  summarise(median_self  = round(median(self_rho,  na.rm = TRUE), 3),
+            median_cross = round(median(cross_rho, na.rm = TRUE), 3),
+            median_delta = round(median(delta_rho, na.rm = TRUE), 3),
+            n_colonies   = n(),
+            .groups = "drop")
+knitr::kable(self_sim_summary,
+             caption = "Median self vs cross-colony Spearman ρ per transition")
+
+# Plot
+p_self <- self_sim_list %>%
+  pivot_longer(c(self_rho, cross_rho), names_to = "type", values_to = "rho") %>%
+  mutate(type = recode(type,
+    self_rho  = "Self (same colony)",
+    cross_rho = "Cross (other colonies)")) %>%
+  ggplot(aes(x = transition, y = rho, fill = type)) +
+  geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+  geom_boxplot(alpha = 0.75, outlier.size = 1.5, width = 0.55,
+               position = position_dodge(0.65)) +
+  facet_wrap(~ species, scales = "free_x") +
+  scale_fill_manual(
+    values = c("Self (same colony)"       = "#2166ac",
+               "Cross (other colonies)"   = "#ef8a62"),
+    name = NULL) +
+  labs(title    = "Temporal self-similarity of the metabolic state",
+       subtitle = "Self ρ > Cross ρ → state at T predicts state at T+1",
+       x = "Timepoint transition", y = "Spearman ρ (feature vectors)") +
+  theme_classic(base_size = 12) +
+  theme(axis.text.x  = element_text(angle = 30, hjust = 1),
+        legend.position = "top",
+        strip.text   = element_text(face = "bold"))
+
+p_delta <- self_sim_list %>%
+  ggplot(aes(x = transition, y = delta_rho, colour = species)) +
+  geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+  geom_jitter(width = 0.12, size = 2.5, alpha = 0.8) +
+  stat_summary(fun = median, geom = "crossbar", width = 0.4,
+               colour = "black", linewidth = 0.6) +
+  facet_wrap(~ species, scales = "free_x") +
+  scale_colour_manual(values = c(Acropora   = "#E69F00",
+                                 Pocillopora = "#56B4E9",
+                                 Porites    = "#009E73"),
+                      guide = "none") +
+  labs(title = "Δρ = Self ρ − Cross ρ (predictability advantage per colony)",
+       x = "Timepoint transition", y = "Δρ") +
+  theme_classic(base_size = 12) +
+  theme(axis.text.x = element_text(angle = 30, hjust = 1),
+        strip.text  = element_text(face = "bold"))
+
+p_self / p_delta + plot_layout(heights = c(2, 1))
+```
+
+## 8b. Mantel test: preservation of pairwise distances across transitions
+
+If metabolic organisation at T predicts T+1, the pairwise Euclidean distance
+matrix among colonies should be correlated across the two timepoints
+(Mantel statistic r ≈ 1 → perfect preservation; r ≈ 0 → no predictability).
+
+```{r mantel-test}
+mantel_results <- purrr::map_dfr(unique(combined_wide$species), function(sp) {
+  pairs  <- get_tp_pairs(sp)
+  df_sp  <- combined_wide %>% filter(species == sp)
+
+  purrr::map_dfr(pairs, function(pair) {
+    t1 <- df_sp %>% filter(timepoint == pair[1]) %>% arrange(colony)
+    t2 <- df_sp %>% filter(timepoint == pair[2]) %>% arrange(colony)
+    shared <- intersect(t1$colony, t2$colony)
+    if (length(shared) < 4) return(NULL)
+
+    t1 <- t1 %>% filter(colony %in% shared) %>% arrange(colony)
+    t2 <- t2 %>% filter(colony %in% shared) %>% arrange(colony)
+
+    d1 <- dist(scale(t1 %>% select(-all_of(meta_cols))))
+    d2 <- dist(scale(t2 %>% select(-all_of(meta_cols))))
+
+    m <- vegan::mantel(d1, d2, method = "spearman", permutations = 999)
+    tibble(species    = sp,
+           transition = paste0(pair[1], "→", pair[2]),
+           n_colonies = length(shared),
+           mantel_r   = round(m$statistic, 3),
+           p_value    = m$signif)
+  })
+})
+
+knitr::kable(mantel_results,
+             caption = "Mantel test: correlation of pairwise distance matrices across transitions (999 permutations)")
+```
+
+```{r mantel-plot, fig.width=8, fig.height=4}
+mantel_results %>%
+  mutate(sig_label = case_when(p_value < 0.001 ~ "***",
+                               p_value < 0.01  ~ "**",
+                               p_value < 0.05  ~ "*",
+                               TRUE            ~ "ns"),
+         transition = factor(transition)) %>%
+  ggplot(aes(x = transition, y = mantel_r, fill = species)) +
+  geom_col(width = 0.6, alpha = 0.85) +
+  geom_text(aes(label = sig_label, y = mantel_r + 0.03), size = 5) +
+  geom_hline(yintercept = 0, colour = "grey40") +
+  facet_wrap(~ species, scales = "free_x") +
+  scale_fill_manual(values = c(Acropora    = "#E69F00",
+                                Pocillopora = "#56B4E9",
+                                Porites     = "#009E73"),
+                    guide = "none") +
+  scale_y_continuous(limits = c(NA, 1.05)) +
+  labs(title = "Mantel r: preservation of pairwise metabolic distances across transitions",
+       subtitle = "Higher r = colony metabolic organisation is maintained; * p < 0.05",
+       x = "Timepoint transition", y = "Mantel r (Spearman)") +
+  theme_classic(base_size = 12) +
+  theme(axis.text.x = element_text(angle = 30, hjust = 1),
+        strip.text  = element_text(face = "bold"))
+```
+
+## 8c. PC-score lagged regression
+
+Project samples into PCA space. For each transition, regress PC1 (and PC2)
+scores at **Tn+1** on scores at **Tn** across colonies. A high R² means the
+position in ordination space at the previous timepoint predicts position at
+the next. Leave-one-out cross-validation (LOO-CV) gives an honest estimate
+of predictive accuracy.
+
+```{r pc-prediction, fig.width=11, fig.height=5}
+loocv_r2 <- function(x, y) {
+  # Leave-one-out cross-validated R² for y ~ x (simple linear)
+  n <- length(x)
+  if (n < 4) return(NA_real_)
+  preds <- sapply(seq_len(n), function(i) {
+    m <- lm(y[-i] ~ x[-i])
+    predict(m, newdata = data.frame(`x[-i]` = x[i]))  # manual predict
+    coef(m)[1] + coef(m)[2] * x[i]
+  })
+  ss_res  <- sum((y - preds)^2)
+  ss_tot  <- sum((y - mean(y))^2)
+  max(0, 1 - ss_res / ss_tot)   # clip at 0 (can be negative)
+}
+
+pc_pred <- purrr::map_dfr(unique(pca_scores$species), function(sp) {
+  pairs  <- get_tp_pairs(sp)
+  df_sp  <- pca_scores %>% filter(species == sp)
+
+  purrr::map_dfr(pairs, function(pair) {
+    t1 <- df_sp %>% filter(timepoint == pair[1]) %>% arrange(colony)
+    t2 <- df_sp %>% filter(timepoint == pair[2]) %>% arrange(colony)
+    shared <- intersect(t1$colony, t2$colony)
+    if (length(shared) < 4) return(NULL)
+    t1 <- t1 %>% filter(colony %in% shared) %>% arrange(colony)
+    t2 <- t2 %>% filter(colony %in% shared) %>% arrange(colony)
+
+    purrr::map_dfr(paste0("PC", 1:3), function(pc) {
+      x <- t1[[pc]];  y <- t2[[pc]]
+      m_full  <- lm(y ~ x)
+      r2_full <- summary(m_full)$r.squared
+      pval    <- summary(m_full)$coefficients[2, 4]
+      r2_loo  <- loocv_r2(x, y)
+      tibble(species    = sp,
+             transition = paste0(pair[1], "→", pair[2]),
+             pc         = pc,
+             r2_full    = round(r2_full, 3),
+             r2_loo     = round(r2_loo,  3),
+             p_value    = round(pval,     4),
+             n          = length(shared))
+    })
+  })
+})
+
+knitr::kable(pc_pred,
+             caption = "Lagged PC-score regression: R² (full) and LOO-CV R² for predicting PC scores at Tn+1 from Tn")
+
+# Dot plot of LOO-CV R² by species × transition × PC
+pc_pred %>%
+  mutate(sig_label = ifelse(p_value < 0.05, "*", ""),
+         transition = factor(transition)) %>%
+  ggplot(aes(x = transition, y = r2_loo, colour = pc, group = pc)) +
+  geom_hline(yintercept = 0, linetype = "dashed", colour = "grey60") +
+  geom_line(linewidth = 0.8, alpha = 0.6) +
+  geom_point(size = 3.5) +
+  geom_text(aes(label = sig_label, y = r2_loo + 0.04), size = 5, colour = "black") +
+  facet_wrap(~ species, scales = "free_x") +
+  scale_colour_manual(values = c(PC1 = "#1b7837", PC2 = "#762a83", PC3 = "#d6604d"),
+                      name = "PC axis") +
+  scale_y_continuous(limits = c(NA, 1)) +
+  labs(title    = "LOO-CV R²: PC scores at Tn → PC scores at Tn+1",
+       subtitle = "* p < 0.05 (full-model F-test); positive R² = predictive",
+       x = "Timepoint transition", y = "LOO-CV R²") +
+  theme_classic(base_size = 12) +
+  theme(axis.text.x  = element_text(angle = 30, hjust = 1),
+        legend.position = "right",
+        strip.text   = element_text(face = "bold"))
+```
+
+## 8d. Colony trajectory plots in PCA space
+
+Arrows connect each colony's consecutive timepoints in PC1 × PC2 space.
+Parallel, same-direction arrows suggest species-level temporal coordination
+(predictable state transitions); criss-crossing arrows suggest idiosyncratic
+or stochastic dynamics.
+
+```{r trajectory-plot, fig.width=14, fig.height=5}
+# Build arrow data: start at Tn, end at Tn+1, per colony
+pca_arrows <- pca_scores %>%
+  arrange(colony, tp_num) %>%
+  group_by(colony, species) %>%
+  mutate(PC1_end = lead(PC1),
+         PC2_end = lead(PC2),
+         tp_end  = lead(timepoint)) %>%
+  filter(!is.na(PC1_end)) %>%
+  ungroup()
+
+# Convex hulls per species × timepoint (optional context layer)
+hull_data <- pca_scores %>%
+  group_by(species, timepoint) %>%
+  slice(chull(PC1, PC2)) %>%
+  ungroup()
+
+ggplot() +
+  # Faint convex hulls per timepoint
+  geom_polygon(data = hull_data,
+               aes(x = PC1, y = PC2, group = timepoint, fill = timepoint),
+               alpha = 0.07, colour = NA) +
+  # Trajectory arrows per colony
+  geom_segment(data = pca_arrows,
+               aes(x = PC1, y = PC2, xend = PC1_end, yend = PC2_end),
+               arrow = arrow(length = unit(0.22, "cm"), type = "closed"),
+               linewidth = 0.7, colour = "grey30", alpha = 0.7) +
+  # Sample points coloured by timepoint
+  geom_point(data = pca_scores,
+             aes(x = PC1, y = PC2, colour = timepoint, shape = timepoint),
+             size = 3.2, alpha = 0.9) +
+  # Colony labels (optional — comment out if crowded)
+  # geom_text(data = pca_scores, aes(x=PC1, y=PC2, label=colony), size=2.5) +
+  facet_wrap(~ species, nrow = 1) +
+  scale_colour_manual(
+    values = c(TP1 = "#2166ac", TP2 = "#74add1",
+               TP3 = "#fdae61", TP4 = "#d73027"),
+    name = "Timepoint") +
+  scale_fill_manual(
+    values = c(TP1 = "#2166ac", TP2 = "#74add1",
+               TP3 = "#fdae61", TP4 = "#d73027"),
+    guide = "none") +
+  scale_shape_manual(values = c(TP1 = 16, TP2 = 17, TP3 = 15, TP4 = 18),
+                     name = "Timepoint") +
+  labs(title    = "Colony trajectories through metabolic state space (PC1 × PC2)",
+       subtitle = "Arrows: Tn → Tn+1 per colony; shading: convex hull per timepoint",
+       x = paste0("PC1 (", pct_var[1], "% variance)"),
+       y = paste0("PC2 (", pct_var[2], "% variance)")) +
+  theme_classic(base_size = 12) +
+  theme(legend.position = "right",
+        strip.text = element_text(face = "bold", size = 13))
+```
+
+```{r trajectory-summary, fig.width=10, fig.height=4}
+# Supplementary: displacement magnitude per transition
+# How far does each colony move in PC1-PC2 space each step?
+displacement <- pca_arrows %>%
+  mutate(dist_moved = sqrt((PC1_end - PC1)^2 + (PC2_end - PC2)^2),
+         transition = paste0(timepoint, "→", tp_end))
+
+displacement %>%
+  ggplot(aes(x = transition, y = dist_moved, colour = species)) +
+  geom_jitter(width = 0.12, size = 2.5, alpha = 0.8) +
+  stat_summary(fun = median, geom = "crossbar", width = 0.4,
+               colour = "black", linewidth = 0.7) +
+  facet_wrap(~ species, scales = "free_x") +
+  scale_colour_manual(values = c(Acropora    = "#E69F00",
+                                  Pocillopora = "#56B4E9",
+                                  Porites     = "#009E73"),
+                      guide = "none") +
+  labs(title    = "Magnitude of metabolic state shift per transition",
+       subtitle = "Euclidean distance moved in PC1-PC2 space; bar = median",
+       x = "Timepoint transition", y = "PC displacement (Euclidean)") +
+  theme_classic(base_size = 12) +
+  theme(axis.text.x = element_text(angle = 30, hjust = 1),
+        strip.text  = element_text(face = "bold"))
+```
+
+---
+
+# 9. Session Info
+
+```{r session-info}
+sessionInfo()
+```
+
+
+# 10. Lipidome Composition Over Time
+
+This section examines how the **overall composition of the lipidome** shifts across timepoints
+within each species, focusing on two complementary axes:
+
+1. **Fatty acid saturation** — the balance of saturated (SFA), monounsaturated (MUFA), and
+   polyunsaturated (PUFA) lipid species, which reflects membrane fluidity, thermal adaptation,
+   and energy storage strategy.
+2. **Symbiosis-associated lipid markers** — lipid classes and high-PUFA species
+   enriched in Symbiodiniaceae membranes or linked to photosynthate carbon translocation,
+   compared with host-specific storage and membrane lipids.
+
+```{r lipidome-composition-setup}
+# ── Parse fatty acid unsaturation from lipid species names ─────────────────
+# Lipid names encode unsaturation as "carbons:double_bonds", e.g.:
+#   "PC 36:4"     → 4 total double bonds
+#   "TG(16:0/18:1/18:2)" → sum = 3 double bonds
+#   "Cer d18:1/24:0"     → sum = 1 double bond
+# Strategy: extract ALL "digits:digits" tokens, sum the right-hand side.
+
+lipid_unsat <- lipids %>%
+  filter(type == "sample") %>%
+  mutate(
+    # Extract lipid class: everything before the first space or opening parenthesis
+    # e.g. "PC 36:4" → "PC", "TG(16:0/18:1/18:2)" → "TG", "Cer d18:1/24:0" → "Cer"
+    lipid_class = sub("[ (].*", "", lipid),
+    db_tokens   = str_extract_all(lipid, "\\d+:(\\d+)"),
+    total_db    = map_dbl(db_tokens, function(x) {
+      if (length(x) == 0) return(NA_real_)
+      sum(as.numeric(str_extract(x, "(?<=:)\\d+")), na.rm = TRUE)
+    }),
+    sat_class = case_when(
+      total_db == 0            ~ "SFA",
+      total_db == 1            ~ "MUFA",
+      total_db %in% 2:3        ~ "PUFA (2-3)",
+      total_db >= 4            ~ "PUFA (4+)",
+      TRUE                     ~ NA_character_
+    ),
+    sat_broad = case_when(
+      total_db == 0  ~ "SFA",
+      total_db == 1  ~ "MUFA",
+      total_db >= 2  ~ "PUFA",
+      TRUE           ~ NA_character_
+    )
+  ) %>%
+  filter(!is.na(total_db))
+
+# Check how many species were parsed vs missed
+cat("Lipid species with parsed unsaturation:",
+    sum(!is.na(lipid_unsat$total_db)), "/",
+    nrow(lipid_unsat), "\n")
+
+# Show lipid class breakdown
+lipid_unsat %>%
+  count(lipid_class, sat_broad) %>%
+  tidyr::pivot_wider(names_from = sat_broad, values_from = n, values_fill = 0) %>%
+  arrange(lipid_class) %>%
+  knitr::kable(caption = "Number of lipid species by class and saturation category")
+```
+
+## 10a. Unsaturation Index Over Time
+
+The abundance-weighted mean number of double bonds per lipid species (Unsaturation Index, UI)
+reflects the overall degree of fatty acid unsaturation in the lipidome. Higher UI = more PUFA-rich.
+
+```{r unsat-index, fig.width=10, fig.height=5}
+# ── Colony-level weighted unsaturation index ───────────────────────────────
+ui_colony <- lipid_unsat %>%
+  group_by(species, timepoint, colony) %>%
+  summarise(
+    UI = weighted.mean(total_db, nmol.g_plasma.ug_protein, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# Species × timepoint summary
+ui_summary <- ui_colony %>%
+  group_by(species, timepoint) %>%
+  summarise(
+    mean_UI = mean(UI, na.rm = TRUE),
+    se_UI   = sd(UI, na.rm = TRUE) / sqrt(n()),
+    .groups = "drop"
+  )
+
+p_ui <- ggplot(ui_summary,
+               aes(x = timepoint, y = mean_UI,
+                   color = species, group = species)) +
+  geom_line(linewidth = 0.9) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = mean_UI - se_UI, ymax = mean_UI + se_UI),
+                width = 0.15, linewidth = 0.7) +
+  geom_jitter(data = ui_colony,
+              aes(y = UI), width = 0.05, alpha = 0.3, size = 1.5) +
+  scale_color_manual(values = species_cols) +
+  labs(x = "Timepoint",
+       y = "Weighted mean double bonds\n(Unsaturation Index)",
+       title = "Lipidome unsaturation index across timepoints",
+       color = "Species") +
+  facet_wrap(~ species, nrow = 1) +
+  theme_bw(base_size = 12) +
+  theme(legend.position = "none",
+        strip.text = element_text(face = "bold"))
+
+print(p_ui)
+
+# ── Kruskal-Wallis test: does UI differ across timepoints within each species?
+cat("\n--- Kruskal-Wallis test: UI ~ timepoint within species ---\n")
+ui_kw <- ui_colony %>%
+  group_by(species) %>%
+  summarise(
+    p_value  = kruskal.test(UI ~ timepoint)$p.value,
+    statistic = kruskal.test(UI ~ timepoint)$statistic,
+    .groups = "drop"
+  ) %>%
+  mutate(sig = case_when(p_value < 0.001 ~ "***",
+                         p_value < 0.01  ~ "**",
+                         p_value < 0.05  ~ "*",
+                         TRUE            ~ "ns"))
+
+knitr::kable(ui_kw, digits = 4,
+             caption = "Kruskal-Wallis test of unsaturation index across timepoints")
+```
+
+## 10b. SFA / MUFA / PUFA Proportions Over Time
+
+```{r sat-proportions, fig.width=12, fig.height=7}
+# ── Colony-level SFA/MUFA/PUFA proportions ─────────────────────────────────
+sat_colony <- lipid_unsat %>%
+  filter(!is.na(sat_broad)) %>%
+  group_by(species, timepoint, colony, sat_broad) %>%
+  summarise(total_nmol = sum(nmol.g_plasma.ug_protein, na.rm = TRUE),
+            .groups = "drop") %>%
+  group_by(species, timepoint, colony) %>%
+  mutate(prop = total_nmol / sum(total_nmol)) %>%
+  ungroup()
+
+sat_summary <- sat_colony %>%
+  group_by(species, timepoint, sat_broad) %>%
+  summarise(
+    mean_prop = mean(prop, na.rm = TRUE),
+    se_prop   = sd(prop, na.rm = TRUE) / sqrt(n()),
+    .groups = "drop"
+  ) %>%
+  mutate(sat_broad = factor(sat_broad, levels = c("SFA", "MUFA", "PUFA")))
+
+sat_cols <- c("SFA" = "#d73027", "MUFA" = "#fee090", "PUFA" = "#4575b4")
+
+p_sat <- ggplot(sat_summary,
+                aes(x = timepoint, y = mean_prop,
+                    color = sat_broad, group = sat_broad)) +
+  geom_line(linewidth = 0.9) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = mean_prop - se_prop,
+                    ymax = mean_prop + se_prop),
+                width = 0.15, linewidth = 0.7) +
+  scale_color_manual(values = sat_cols, name = "Saturation") +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  labs(x = "Timepoint", y = "Proportion of lipidome (nmol)",
+       title = "SFA / MUFA / PUFA proportions across timepoints") +
+  facet_wrap(~ species, nrow = 1) +
+  theme_bw(base_size = 12) +
+  theme(strip.text = element_text(face = "bold"),
+        legend.position = "bottom")
+
+print(p_sat)
+
+# ── Stacked bar version for a cleaner view of shifts ───────────────────────
+p_sat_bar <- ggplot(sat_summary,
+                    aes(x = timepoint, y = mean_prop,
+                        fill = sat_broad)) +
+  geom_col(position = "fill", color = "white", linewidth = 0.3) +
+  #geom_errorbar(
+  #  data = sat_summary %>% filter(sat_broad == "PUFA"),
+  #  aes(ymin = 1 - se_prop, ymax = 1),
+  #  width = 0.15, inherit.aes = FALSE, color = "gray40"
+  #) +
+  scale_fill_manual(values = sat_cols, name = "Saturation") +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  labs(x = "Timepoint", y = "Proportion of lipidome",
+       title = "Lipidome saturation composition (stacked)") +
+  facet_wrap(~ species, nrow = 1) +
+  theme_bw(base_size = 12) +
+  theme(strip.text = element_text(face = "bold"),
+        legend.position = "bottom")
+
+print(p_sat_bar)
+```
+
+## 10c. PUFA Degree Breakdown (High-PUFA Tracking)
+
+Highly polyunsaturated fatty acids (≥4 double bonds) include EPA (20:5), DHA (22:6), and
+arachidonic acid (20:4), which are enriched in Symbiodiniaceae membranes and are key
+photosynthate-linked molecules. Tracking PUFA (4+) separately reveals symbiont-linked
+flux patterns.
+
+```{r pufa-breakdown, fig.width=12, fig.height=5}
+# ── Colony-level PUFA-class proportions ────────────────────────────────────
+pufa_colony <- lipid_unsat %>%
+  filter(!is.na(sat_class)) %>%
+  group_by(species, timepoint, colony, sat_class) %>%
+  summarise(total_nmol = sum(nmol.g_plasma.ug_protein, na.rm = TRUE),
+            .groups = "drop") %>%
+  group_by(species, timepoint, colony) %>%
+  mutate(prop = total_nmol / sum(total_nmol)) %>%
+  ungroup()
+
+pufa_summary <- pufa_colony %>%
+  group_by(species, timepoint, sat_class) %>%
+  summarise(
+    mean_prop = mean(prop, na.rm = TRUE),
+    se_prop   = sd(prop, na.rm = TRUE) / sqrt(n()),
+    .groups = "drop"
+  ) %>%
+  mutate(sat_class = factor(sat_class,
+                            levels = c("SFA","MUFA","PUFA (2-3)","PUFA (4+)")))
+
+pufa_cols <- c("SFA"      = "#d73027",
+               "MUFA"     = "#fee090",
+               "PUFA (2-3)" = "#74add1",
+               "PUFA (4+)"  = "#313695")
+
+p_pufa <- ggplot(pufa_summary,
+                 aes(x = timepoint, y = mean_prop,
+                     fill = sat_class)) +
+  geom_col(position = "fill", color = "white", linewidth = 0.3) +
+  scale_fill_manual(values = pufa_cols, name = "Saturation class") +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  labs(x = "Timepoint",
+       y = "Proportion of lipidome",
+       title = "PUFA breakdown: low-PUFA (2-3 DB) vs high-PUFA (≥4 DB) across timepoints") +
+  facet_wrap(~ species, nrow = 1) +
+  theme_bw(base_size = 12) +
+  theme(strip.text = element_text(face = "bold"),
+        legend.position = "bottom")
+
+print(p_pufa)
+
+# ── High-PUFA (4+) proportion over time, line plot ─────────────────────────
+hpufa_summary <- pufa_colony %>%
+  filter(sat_class == "PUFA (4+)") %>%
+  group_by(species, timepoint) %>%
+  summarise(mean_prop = mean(prop, na.rm = TRUE),
+            se_prop   = sd(prop, na.rm = TRUE) / sqrt(n()),
+            .groups = "drop")
+
+p_hpufa_line <- ggplot(hpufa_summary,
+                        aes(x = timepoint, y = mean_prop,
+                            color = species, group = species)) +
+  geom_line(linewidth = 0.9) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = mean_prop - se_prop,
+                    ymax = mean_prop + se_prop),
+                width = 0.15) +
+  scale_color_manual(values = species_cols) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  labs(x = "Timepoint",
+       y = "Proportion high-PUFA (≥4 DB)",
+       title = "High-PUFA (≥4 double bonds) lipid proportion over time",
+       color = "Species") +
+  theme_bw(base_size = 12) +
+  theme(legend.position = "right")
+
+print(p_hpufa_line)
+```
+
+## 10d. Symbiosis-Associated vs Host Lipid Markers
+
+Coral lipidomes contain lipids whose origin and function differ between the host and the
+symbiont. Here we classify lipid classes into functional groups:
+
+- **Symbiont-enriched**: plastid/algal membrane classes (DGDG, MGDG, SQDG, betaine lipids)
+  and high-PUFA glycerolipids that symbiont photosynthesis drives
+- **Host storage**: triglycerides (TG), diacylglycerols (DG), cholesterol esters (CE) —
+  reflecting energy reserves accumulated from photosynthate
+- **Host membrane / stress signalling**: phosphatidylcholines (PC/LPC), ceramides (Cer),
+  sphingomyelins (SM) — involved in host membrane homeostasis and symbiosis regulation
+
+```{r symbiosis-lipid-markers, fig.width=14, fig.height=10}
+# ── Identify available lipid classes ───────────────────────────────────────
+avail_classes <- sort(unique(lipid_unsat$lipid_class))
+cat("Lipid classes in dataset:\n")
+print(avail_classes)
+
+# ── Define functional groups (use classes present in this dataset) ──────────
+symbiont_classes  <- intersect(avail_classes,
+  c("DGDG","MGDG","SQDG","BL","DGTS","HexCer","Hex2Cer",
+    "PE","PE-O","PE-P"))                           # algal membrane-enriched
+
+host_storage      <- intersect(avail_classes,
+  c("TG","DG","CE","WE","TG-O"))                    # host energy storage
+
+host_membrane_sig <- intersect(avail_classes,
+  c("PC","LPC","SM","Cer","Cer-NDS","Cer-NS",
+    "LPE","PS","PI","PG","PA",
+    "PC-O","PC-P","LPC-O"))                          # host membrane / signalling
+
+# Any class not placed above is flagged
+unclassified <- setdiff(avail_classes,
+                        c(symbiont_classes, host_storage, host_membrane_sig))
+cat("\nFunctional classification:\n")
+cat("  Symbiont-enriched:   ", paste(symbiont_classes, collapse=", "), "\n")
+cat("  Host storage:        ", paste(host_storage, collapse=", "), "\n")
+cat("  Host membrane/sig:   ", paste(host_membrane_sig, collapse=", "), "\n")
+cat("  Unclassified:        ", paste(unclassified, collapse=", "), "\n")
+
+# ── Assign functional group ─────────────────────────────────────────────────
+lipid_func <- lipid_unsat %>%
+  mutate(
+    func_group = case_when(
+      lipid_class %in% symbiont_classes  ~ "Symbiont-enriched",
+      lipid_class %in% host_storage      ~ "Host storage",
+      lipid_class %in% host_membrane_sig ~ "Host membrane / signalling",
+      TRUE                               ~ "Other / unclassified"
+    )
+  )
+
+# ── Colony-level proportions by functional group ────────────────────────────
+func_colony <- lipid_func %>%
+  group_by(species, timepoint, colony, func_group) %>%
+  summarise(total_nmol = sum(nmol.g_plasma.ug_protein, na.rm = TRUE),
+            .groups = "drop") %>%
+  group_by(species, timepoint, colony) %>%
+  mutate(prop = total_nmol / sum(total_nmol)) %>%
+  ungroup()
+
+func_summary <- func_colony %>%
+  group_by(species, timepoint, func_group) %>%
+  summarise(
+    mean_prop = mean(prop, na.rm = TRUE),
+    se_prop   = sd(prop, na.rm = TRUE) / sqrt(n()),
+    .groups = "drop"
+  ) %>%
+  mutate(func_group = factor(func_group,
+    levels = c("Symbiont-enriched",
+               "Host storage",
+               "Host membrane / signalling",
+               "Other / unclassified")))
+
+func_cols <- c(
+  "Symbiont-enriched"          = "#35978f",
+  "Host storage"               = "#bf812d",
+  "Host membrane / signalling" = "#762a83",
+  "Other / unclassified"       = "#bababa"
+)
+
+# Stacked bar: functional composition over time
+p_func_bar <- ggplot(func_summary,
+                     aes(x = timepoint, y = mean_prop, fill = func_group)) +
+  geom_col(position = "fill", color = "white", linewidth = 0.3) +
+  scale_fill_manual(values = func_cols, name = "Functional group") +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  labs(x = "Timepoint", y = "Proportion of lipidome (nmol)",
+       title = "Lipidome functional composition over time") +
+  facet_wrap(~ species, nrow = 1) +
+  theme_bw(base_size = 12) +
+  theme(strip.text   = element_text(face = "bold"),
+        legend.position = "bottom",
+        legend.title = element_text(face = "bold")) +
+  guides(fill = guide_legend(nrow = 2))
+
+print(p_func_bar)
+
+# Line plot for each functional group
+p_func_line <- ggplot(func_summary,
+                      aes(x = timepoint, y = mean_prop,
+                          color = species, group = species)) +
+  geom_line(linewidth = 0.9) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = mean_prop - se_prop,
+                    ymax = mean_prop + se_prop),
+                width = 0.15, linewidth = 0.7) +
+  scale_color_manual(values = species_cols) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  labs(x = "Timepoint", y = "Proportion of lipidome",
+       color  = "Species",
+       title  = "Functional lipid group proportions over time by species") +
+  facet_wrap(~ func_group, scales = "free_y", nrow = 2) +
+  theme_bw(base_size = 12) +
+  theme(strip.text = element_text(face = "bold"),
+        legend.position = "right")
+
+print(p_func_line)
+```
+
+## 10e. Per-Class Abundance Heatmap Over Time
+
+Tracks the mean abundance of each lipid class (z-scored within class) across timepoints,
+separately per species, to highlight which classes rise or fall over the timeseries.
+
+```{r class-time-heatmap, fig.width=14, fig.height=8}
+# ── Mean abundance per class × species × timepoint ─────────────────────────
+class_tp <- lipids %>%
+  filter(type == "sample") %>%
+  mutate(lipid_class = sub("[ (].*", "", lipid)) %>%
+  group_by(species, timepoint, lipid_class, colony) %>%
+  summarise(colony_total = sum(nmol.g_plasma.ug_protein, na.rm = TRUE),
+            .groups = "drop") %>%
+  group_by(species, timepoint, lipid_class) %>%
+  summarise(mean_abund = mean(colony_total, na.rm = TRUE),
+            .groups = "drop")
+
+# Z-score within each species × class combination
+class_tp_z <- class_tp %>%
+  group_by(species, lipid_class) %>%
+  mutate(z = as.numeric(scale(mean_abund))) %>%
+  ungroup()
+
+# Order classes by functional group for readability
+class_order_df <- tibble(
+  lipid_class = avail_classes,
+  func_group = case_when(
+    lipid_class %in% symbiont_classes  ~ "1_Symbiont",
+    lipid_class %in% host_storage      ~ "2_Storage",
+    lipid_class %in% host_membrane_sig ~ "3_Membrane",
+    TRUE                               ~ "4_Other"
+  )
+) %>% arrange(func_group, lipid_class)
+
+class_tp_z <- class_tp_z %>%
+  mutate(lipid_class = factor(lipid_class, levels = class_order_df$lipid_class))
+
+p_class_heat <- ggplot(class_tp_z,
+                        aes(x = timepoint, y = lipid_class, fill = z)) +
+  geom_tile(color = "white", linewidth = 0.3) +
+  scale_fill_gradient2(low = "#4575b4", mid = "white", high = "#d73027",
+                       midpoint = 0, name = "Z-score\n(within class)") +
+  labs(x = "Timepoint", y = "Lipid class",
+       title = "Lipid class abundance over time (z-scored within class)") +
+  facet_wrap(~ species, nrow = 1) +
+  theme_bw(base_size = 11) +
+  theme(axis.text.y  = element_text(size = 8),
+        strip.text   = element_text(face = "bold"),
+        legend.position = "right")
+
+print(p_class_heat)
+```
+
+
+
+
+# 11. Metabolic Integration Network
+
+Visualise the lipid class × metabolite pathway correlation structure as a **bipartite network graph** — one panel per species. Nodes represent lipid classes (squares) or metabolite pathway categories (circles); edges connect pairs with at least one FDR < 0.05 correlation, coloured by mean Spearman ρ and sized by the number of significant pairs. This translates the heatmap in Section 7 into a format where network density and connectivity are immediately apparent.
+
+```{r network-setup}
+# Install igraph / ggraph if needed
+if (!requireNamespace("igraph",  quietly = TRUE)) install.packages("igraph")
+if (!requireNamespace("ggraph",  quietly = TRUE)) install.packages("ggraph")
+if (!requireNamespace("tidygraph", quietly = TRUE)) install.packages("tidygraph")
+library(igraph)
+library(ggraph)
+library(tidygraph)
+```
+
+```{r network-graph, fig.width=18, fig.height=7}
+# ── Build edge table from cor_annotated ──────────────────────────────────────
+# Use only pairs with ≥1 significant correlation
+# Summarise per lipid_class × metab_category × species
+
+network_edges <- cor_annotated %>%
+  group_by(species, lipid_class, metab_category) %>%
+  summarise(
+    mean_rho = mean(rho,       na.rm = TRUE),
+    n_sig    = sum(sig,        na.rm = TRUE),
+    .groups  = "drop"
+  ) %>%
+  filter(n_sig > 0,
+         lipid_class    != "",
+         metab_category != "Other / unclassified") %>%
+  rename(from = lipid_class, to = metab_category)
+
+# Lipid classes to include (same set as heatmap + any that have sig edges)
+lip_classes_net <- unique(network_edges$from)
+met_cats_net    <- unique(network_edges$to)
+
+# Node metadata
+nodes_lip <- tibble(
+  name      = lip_classes_net,
+  node_type = "Lipid class"
+)
+nodes_met <- tibble(
+  name      = met_cats_net,
+  node_type = "Metabolite pathway"
+)
+all_nodes <- bind_rows(nodes_lip, nodes_met)
+
+# ── Plot function ─────────────────────────────────────────────────────────────
+plot_network <- function(sp) {
+
+  edges_sp <- network_edges %>% filter(species == sp)
+
+  if (nrow(edges_sp) == 0) {
+    return(
+      ggplot() +
+        annotate("text", x = 0.5, y = 0.5,
+                 label = paste0(sp, "\n(no significant correlations)"),
+                 size = 5, colour = "grey50") +
+        theme_void() +
+        labs(title = sp)
+    )
+  }
+
+  # Keep only nodes that appear in this species' edges
+  used_nodes <- all_nodes %>%
+    filter(name %in% c(edges_sp$from, edges_sp$to))
+
+  g <- tbl_graph(nodes = used_nodes, edges = edges_sp, directed = FALSE)
+
+  # Edge colour scale: same diverging palette as heatmap
+  ggraph(g, layout = "stress") +
+    geom_edge_link(
+      aes(edge_colour = mean_rho, edge_width = n_sig),
+      alpha = 0.85
+    ) +
+    geom_node_point(
+      aes(shape = node_type, colour = node_type),
+      size = 7
+    ) +
+    geom_node_text(
+      aes(label = name),
+      repel = TRUE,
+      size  = 3.2,
+      max.overlaps = 30,
+      colour = "grey15"
+    ) +
+    scale_edge_colour_gradient2(
+      low      = "#4575b4",
+      mid      = "grey90",
+      high     = "#d73027",
+      midpoint = 0,
+      name     = "Mean ρ",
+      limits   = c(-1, 1)
+    ) +
+    scale_edge_width_continuous(
+      range = c(0.5, 4),
+      name  = "# sig pairs"
+    ) +
+    scale_shape_manual(
+      values = c("Lipid class" = 15, "Metabolite pathway" = 19),
+      name   = NULL
+    ) +
+    scale_colour_manual(
+      values = c("Lipid class" = "#1a6137", "Metabolite pathway" = "#7b3294"),
+      name   = NULL
+    ) +
+    labs(title = sp) +
+    theme_graph(base_size = 11) +
+    theme(
+      legend.position = "right",
+      plot.title      = element_text(face = "bold", size = 13, hjust = 0.5)
+    )
+}
+
+p_net_acr <- plot_network("Acropora")
+p_net_poc <- plot_network("Pocillopora")
+p_net_por <- plot_network("Porites")
+
+p_net_acr | p_net_poc | p_net_por
+```
+
+**Interpretation:** Network density directly reflects the degree of metabolic integration between lipid classes and metabolite pathways. Dense, richly connected networks (many edges, high edge width) indicate that lipid remodelling and metabolic flux co-vary tightly — the hallmark of a boom-and-bust physiological strategy where symbiont dynamics drive whole-system co-fluctuation. Sparse or empty networks indicate that each metabolic pool is independently regulated, consistent with a stable, homeostatic strategy.
+
+---
+
+# 12. Integrated Summary Figures (A–E)
+
+This section assembles the five core figures that together tell the integrative story of species-specific lipid–metabolite co-regulation, temporal dynamics, and symbiosis strategy.
+
+## Fig A — Lipid Class × Metabolite Pathway Heatmap
+
+*Cross-species comparison of lipid class – metabolite pathway correlations. Tile intensity = mean Spearman ρ; asterisk + count = number of FDR < 0.05 pairs.*
+
+```{r fig-A, fig.width=14, fig.height=8}
+# ── Reproduce the heatmap from Section 7 ──────────────────────────────────
+fig_A <- ggplot(class_plot_df,
+                aes(x = metab_category, y = lipid_class, fill = mean_rho)) +
+  geom_tile(colour = "grey85", linewidth = 0.3) +
+  geom_text(aes(label = ifelse(n_sig > 0, paste0("*", n_sig), "")),
+            size = 2.8, colour = "black") +
+  facet_wrap(~ species, nrow = 1) +
+  scale_fill_gradient2(low = "#4575b4", mid = "white", high = "#d73027",
+                       midpoint = 0, name = "Mean\nSpearman ρ",
+                       limits = c(-1, 1), na.value = "grey92") +
+  labs(title    = "Fig A — Lipid class × metabolite pathway correlations",
+       subtitle = "* = number of FDR < 0.05 pairs; x-axis ordered by metabolic module",
+       x = NULL, y = "Lipid class") +
+  theme_classic(base_size = 11) +
+  theme(axis.text.x  = element_text(angle = 45, hjust = 1, size = 9),
+        axis.text.y  = element_text(size = 10),
+        strip.text   = element_text(face = "bold", size = 12),
+        legend.position = "right",
+        panel.spacing = unit(0.8, "lines"))
+fig_A
+```
+
+## Fig B — Metabolic Integration Network
+
+*Bipartite network: lipid class nodes (squares) connected to metabolite pathway nodes (circles) by significant Spearman correlations. Edge colour = mean ρ; edge width = number of significant pairs.*
+
+```{r fig-B, fig.width=18, fig.height=7}
+(p_net_acr | p_net_poc | p_net_por) +
+  patchwork::plot_annotation(
+    title    = "Fig B — Metabolic integration network",
+    subtitle = "Edges = FDR < 0.05 lipid class × metabolite pathway correlations; edge width = # significant pairs"
+  )
+```
+
+## Fig C — Temporal Trajectory in Joint Lipid + Metabolite Space
+
+*Each arrow represents one colony's movement through the first two PCs of combined lipid + metabolite space between consecutive timepoints. Displacement magnitude (inset) quantifies how much each species' metabolic state shifts per transition.*
+
+```{r fig-C, fig.width=14, fig.height=9}
+# Re-use pca_scores, pca_arrows, displacement objects built in Section 8d.
+
+if (exists("pca_scores") && exists("pca_arrows")) {
+
+  hull_data_c <- pca_scores %>%
+    group_by(species, timepoint) %>%
+    slice(chull(PC1, PC2)) %>%
+    ungroup()
+
+  p_traj <- ggplot() +
+    geom_polygon(data = hull_data_c,
+                 aes(x = PC1, y = PC2, group = timepoint, fill = timepoint),
+                 alpha = 0.07, colour = NA) +
+    geom_segment(data = pca_arrows,
+                 aes(x = PC1, y = PC2, xend = PC1_end, yend = PC2_end),
+                 arrow = arrow(length = unit(0.22, "cm"), type = "closed"),
+                 linewidth = 0.7, colour = "grey30", alpha = 0.7) +
+    geom_point(data = pca_scores,
+               aes(x = PC1, y = PC2, colour = timepoint, shape = timepoint),
+               size = 3.2, alpha = 0.9) +
+    facet_wrap(~ species, nrow = 1) +
+    scale_colour_manual(
+      values = c(TP1 = "#2166ac", TP2 = "#74add1",
+                 TP3 = "#fdae61", TP4 = "#d73027"),
+      name = "Timepoint") +
+    scale_fill_manual(
+      values = c(TP1 = "#2166ac", TP2 = "#74add1",
+                 TP3 = "#fdae61", TP4 = "#d73027"),
+      guide = "none") +
+    scale_shape_manual(values = c(TP1 = 16, TP2 = 17, TP3 = 15, TP4 = 18),
+                       name = "Timepoint") +
+    labs(x = paste0("PC1 (", pct_var[1], "% variance)"),
+         y = paste0("PC2 (", pct_var[2], "% variance)")) +
+    theme_classic(base_size = 12) +
+    theme(legend.position = "right",
+          strip.text = element_text(face = "bold", size = 13))
+
+  if (exists("displacement")) {
+    p_disp <- displacement %>%
+      ggplot(aes(x = transition, y = dist_moved, colour = species)) +
+      geom_jitter(width = 0.12, size = 2.5, alpha = 0.8) +
+      stat_summary(fun = median, geom = "crossbar", width = 0.4,
+                   colour = "black", linewidth = 0.7) +
+      facet_wrap(~ species, scales = "free_x") +
+      scale_colour_manual(values = species_cols, guide = "none") +
+      labs(x = "Timepoint transition", y = "PC displacement (Euclidean)") +
+      theme_classic(base_size = 12) +
+      theme(axis.text.x = element_text(angle = 30, hjust = 1),
+            strip.text  = element_text(face = "bold"))
+
+    fig_C <- (p_traj / p_disp) +
+      patchwork::plot_annotation(
+        title    = "Fig C — Temporal trajectory in joint metabolic space",
+        subtitle = "Arrows connect consecutive timepoints per colony; displacement = Euclidean distance in PC1–PC2"
+      )
+  } else {
+    fig_C <- p_traj +
+      patchwork::plot_annotation(title = "Fig C — Temporal trajectory in joint metabolic space")
+  }
+
+  fig_C
+
+} else {
+  message("Fig C: Run Section 8 (pca-scores-combined / trajectory-plot chunks) first to populate pca_scores and pca_arrows.")
+}
+```
+
+## Fig D — Functional Lipid Composition Over Time
+
+*Stacked bar chart showing the proportion of symbiont-enriched, host-storage, and host-membrane lipid classes across timepoints. Reflects how symbiont-linked carbon flux shapes the host lipidome.*
+
+```{r fig-D, fig.width=12, fig.height=6}
+if (exists("lipid_func")) {
+
+  func_tp <- lipid_func %>%
+    group_by(species, timepoint, func_group, colony) %>%
+    summarise(colony_total = sum(nmol.g_plasma.ug_protein, na.rm = TRUE),
+              .groups = "drop") %>%
+    group_by(species, timepoint, func_group) %>%
+    summarise(mean_abund = mean(colony_total, na.rm = TRUE),
+              se_abund   = sd(colony_total,   na.rm = TRUE) / sqrt(n()),
+              .groups    = "drop")
+
+  func_group_cols <- c(
+    "Symbiont-enriched"          = "#1b7837",
+    "Host storage"               = "#fc8d59",
+    "Host membrane / signalling" = "#762a83",
+    "Other / unclassified"       = "grey70"
+  )
+
+  fig_D <- ggplot(func_tp,
+                  aes(x = timepoint, y = mean_abund,
+                      fill = func_group)) +
+    geom_col(position = "fill", colour = "white", linewidth = 0.2) +
+    facet_wrap(~ species, nrow = 1) +
+    scale_fill_manual(values = func_group_cols, name = "Functional group") +
+    scale_y_continuous(labels = scales::percent_format()) +
+    labs(title    = "Fig D — Functional lipid composition over time",
+         subtitle = "Proportion of total lipid abundance (nmol/g protein) per functional group",
+         x = "Timepoint", y = "Proportion of lipidome") +
+    theme_classic(base_size = 12) +
+    theme(strip.text = element_text(face = "bold", size = 12),
+          legend.position = "right",
+          axis.text.x = element_text(size = 11))
+  fig_D
+
+} else {
+  message("Fig D: Run Section 10 (lipidome-composition-setup chunk) first to populate lipid_func.")
+}
+```
+
+## Fig E — Unsaturation Index and High-PUFA Proportion Over Time
+
+*The weighted mean unsaturation index (UI; left) and the proportion of PUFA lipids with ≥4 double bonds (right) across timepoints per species. Tracks membrane remodelling and shifts in photosynthate-derived fatty acid composition.*
+
+```{r fig-E, fig.width=12, fig.height=5}
+if (exists("ui_colony") && exists("lipid_unsat")) {
+
+  # Unsaturation index panel
+  p_ui <- ggplot(ui_colony,
+                 aes(x = timepoint, y = UI, colour = species, group = species)) +
+    stat_summary(fun = mean, geom = "line",  linewidth = 1.1) +
+    stat_summary(fun.data = mean_se, geom = "ribbon",
+                 aes(fill = species), alpha = 0.15, colour = NA) +
+    stat_summary(fun = mean, geom = "point", size = 3) +
+    scale_colour_manual(values = species_cols, name = NULL) +
+    scale_fill_manual(values = species_cols,   name = NULL) +
+    labs(title = "Unsaturation Index",
+         x = "Timepoint", y = "Weighted mean UI\n(double bonds per lipid)") +
+    theme_classic(base_size = 12) +
+    theme(legend.position = "right")
+
+  # High-PUFA (≥4 DB) proportion panel
+  pufa4_prop <- lipid_unsat %>%
+    group_by(species, timepoint, colony) %>%
+    summarise(
+      prop_pufa4 = mean(total_db >= 4, na.rm = TRUE),
+      .groups    = "drop"
+    )
+
+  p_pufa4 <- ggplot(pufa4_prop,
+                    aes(x = timepoint, y = prop_pufa4,
+                        colour = species, group = species)) +
+    stat_summary(fun = mean, geom = "line",  linewidth = 1.1) +
+    stat_summary(fun.data = mean_se, geom = "ribbon",
+                 aes(fill = species), alpha = 0.15, colour = NA) +
+    stat_summary(fun = mean, geom = "point", size = 3) +
+    scale_colour_manual(values = species_cols, name = NULL) +
+    scale_fill_manual(values = species_cols,   name = NULL) +
+    scale_y_continuous(labels = scales::percent_format()) +
+    labs(title = "High-PUFA (≥4 double bonds) proportion",
+         x = "Timepoint", y = "Proportion of lipid species") +
+    theme_classic(base_size = 12) +
+    theme(legend.position = "right")
+
+  fig_E <- (p_ui | p_pufa4) +
+    patchwork::plot_annotation(
+      title    = "Fig E — Unsaturation Index and high-PUFA proportion over time",
+      subtitle = "Line = species mean ± SE; individual points from colony-level means"
+    )
+  fig_E
+
+} else {
+  message("Fig E: Run Section 10 (lipidome-composition-setup chunk) first to populate ui_colony and lipid_unsat.")
+}
+```
+
+---
+
+## Integrated 5-panel summary
+
+A single composite figure combining all five panels for manuscript or presentation use.
+
+```{r integrated-summary, fig.width=18, fig.height=22}
+# This block assembles Figs A–E if all required objects are present.
+# Each figure is defined in its own chunk above; here we stack them with patchwork.
+
+panels_ready <- c(
+  A = exists("fig_A"),
+  B = exists("p_net_acr") && exists("p_net_poc") && exists("p_net_por"),
+  C = exists("fig_C"),
+  D = exists("fig_D"),
+  E = exists("fig_E")
+)
+
+cat("Panels ready:", paste(names(panels_ready)[panels_ready], collapse = ", "), "\n")
+cat("Panels missing:", paste(names(panels_ready)[!panels_ready], collapse = ", "), "\n")
+
+if (all(panels_ready)) {
+
+  fig_B_panel <- (p_net_acr | p_net_poc | p_net_por) +
+    patchwork::plot_annotation(
+      title    = "Fig B — Metabolic integration network",
+      subtitle = "Edges = FDR < 0.05 lipid class × metabolite pathway correlations"
+    )
+
+  (fig_A /
+    fig_B_panel /
+    fig_C /
+    fig_D /
+    fig_E) +
+    patchwork::plot_annotation(
+      title      = "Integrated lipid–metabolite analysis — E5 coral species",
+      tag_levels = "A",
+      theme      = theme(plot.title = element_text(size = 16, face = "bold", hjust = 0.5))
+    ) +
+    patchwork::plot_layout(heights = c(1.1, 1, 1.4, 0.9, 0.9))
+
+} else {
+  message("Run all preceding sections in order before assembling the integrated summary.")
+}
+```
+
+---
