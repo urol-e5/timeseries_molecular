@@ -1,0 +1,421 @@
+---
+title: "55-variance-partitioning"
+author: "Steven Roberts"
+date: "2026-11-23"
+output:
+  github_document:
+    toc: true
+    number_sections: true
+  html_document:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+---
+
+# Goal
+
+For every data layer in every species, estimate how much of each feature's
+variance is attributable to
+
+-   **colony** - stable differences among colonies (genotype plus any fixed
+    micro-habitat effect), nested within site
+-   **timepoint** - change shared by all colonies at both sites (season)
+-   **site** - stable difference between Manava and Mahana
+-   **site:timepoint** - change over time that differs between sites (local
+    environment)
+-   **residual** - colony-specific change over time plus measurement noise
+
+Model fitted to each feature, with all terms as random effects:
+
+`y ~ (1 | colony) + (1 | timepoint) + (1 | site) + (1 | site:timepoint)`
+
+Caveats to keep in mind when reading the results:
+
+-   Site has 2 levels and timepoint has 4, so those two variance components
+    are estimated imprecisely for any single feature. Layer-wide means are far
+    more trustworthy than per-feature values.
+-   The residual mixes real colony-specific plasticity with technical noise.
+    These data have no technical replicates to separate them.
+-   The merged CpG matrices (`_filtered_n20`) keep CpGs called in at least 20
+    samples. The per-CpG layer here uses only CpGs called in *every* sample of
+    the species, a small and non-random subset of the genome.
+-   A single CpG's percent methylation has large sampling error at typical
+    WGBS depth, which inflates its residual. The gene-body layer
+    (`mCpG_gene`) averages at least 10 CpGs per gene and sample to reduce that.
+
+```{r setup, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE,
+                      fig.width = 10, fig.height = 6, dpi = 150)
+library(data.table)
+library(lme4)
+library(DESeq2)
+library(ggplot2)
+library(parallel)
+
+out_dir <- "../output/55-variance-partitioning"
+dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
+n_cores <- max(1, min(8, detectCores() - 2))
+set.seed(55)
+n_cpg_max <- 20000   # CpGs sampled per species for model fitting
+```
+
+# Sample metadata
+
+`master-molecular-metadata.csv` is the source of colony, timepoint and site.
+Every layer's column names are normalised to `XXX-###-TP#`.
+
+```{r metadata}
+meta <- fread("../../master-molecular-metadata.csv")
+meta[, sample := paste(colony, timepoint, sep = "-")]
+meta[, st := paste(site, timepoint, sep = ":")]
+meta <- meta[, .(sample, colony, timepoint, site, st, species)]
+setkey(meta, sample)
+meta[, .N, by = .(species, site)]
+
+# Pull "ACR-139-TP1" out of any of the sample-name styles used in the repo
+canon <- function(x) {
+  m <- regmatches(x, regexpr("(ACR|POR|POC)-[0-9]+[-_]TP[1-4]", x))
+  out <- rep(NA_character_, length(x))
+  out[grepl("(ACR|POR|POC)-[0-9]+[-_]TP[1-4]", x)] <- sub("_", "-", m)
+  out
+}
+
+# features x samples numeric matrix with canonical sample names;
+# duplicated sample columns (technical replicates) are summed
+as_matrix <- function(dt, id_col = 1, drop = NULL) {
+  ids <- dt[[id_col]]
+  keep <- setdiff(names(dt), c(names(dt)[id_col], drop))
+  s <- canon(keep)
+  keep <- keep[!is.na(s)]; s <- s[!is.na(s)]
+  m <- as.matrix(dt[, ..keep]); storage.mode(m) <- "double"
+  if (anyDuplicated(s)) m <- t(rowsum(t(m), s)) else colnames(m) <- s
+  rownames(m) <- ids
+  m[, sort(colnames(m)), drop = FALSE]
+}
+```
+
+# Load and transform each layer
+
+```{r paths}
+sp <- list(
+  Apul = list(prefix = "ACR",
+    gene   = "../../D-Apul/output/02.20-D-Apul-RNAseq-alignment-HiSat2/apul-gene_count_matrix.csv",
+    lncRNA = "../../D-Apul/output/31.5-Apul-lncRNA-discovery/lncRNA_counts.clean.filtered.txt",
+    miRNA  = "../output/10-format-miRNA-counts/Apul_miRNA_counts_formatted.txt",
+    mCpG   = "https://gannet.fish.washington.edu/metacarcinus/E5/20250903_meth_Apul/merged-WGBS-CpG-counts_filtered_n20.csv"),
+  Peve = list(prefix = "POR",
+    gene   = "../../E-Peve/output/02.20-E-Peve-RNAseq-alignment-HiSat2/peve-gene_count_matrix.csv",
+    lncRNA = "../../E-Peve/output/12-Peve-lncRNA-discovery/lncRNA_counts.clean.filtered.txt",
+    miRNA  = "../output/10-format-miRNA-counts/Peve_miRNA_counts_formatted.txt",
+    mCpG   = "https://gannet.fish.washington.edu/metacarcinus/E5/Pevermanni/20250821_meth_Peve/merged-WGBS-CpG-counts_filtered_n20.csv"),
+  Ptua = list(prefix = "POC",
+    gene   = "../../F-Ptua/output/02.20-F-Ptua-RNAseq-alignment-HiSat2/ptua-gene_count_matrix.csv",
+    lncRNA = "../../F-Ptua/output/06-Ptua-lncRNA-discovery/lncRNA_counts.clean.filtered.txt",
+    miRNA  = "../output/10-format-miRNA-counts/Ptuh_miRNA_counts_formatted.txt",
+    mCpG   = "https://gannet.fish.washington.edu/metacarcinus/E5/Ptuahiniensis/20250821_meth_Ptua/merged-WGBS-CpG-counts_filtered_n20.csv")
+)
+```
+
+## Count layers (genes, lncRNA, miRNA)
+
+Features are kept if they have at least `min_count` reads in at least a quarter
+of samples, then variance-stabilised with DESeq2.
+
+```{r counts}
+dropped <- list()
+vst_counts <- function(m, min_count = 10, label = "") {
+  m <- round(m)
+  # samples with almost no reads cannot be normalised; drop and record them
+  low <- colSums(m) < 1000
+  if (any(low)) {
+    dropped[[label]] <<- data.table(layer = label, sample = colnames(m)[low],
+                                    total_counts = colSums(m)[low])
+    m <- m[, !low, drop = FALSE]
+  }
+  m <- m[rowSums(m >= min_count) >= ceiling(ncol(m) / 4), , drop = FALSE]
+  dds <- DESeqDataSetFromMatrix(m, data.frame(row.names = colnames(m)), ~ 1)
+  # "poscounts" tolerates layers (miRNA) where every feature has a zero somewhere
+  dds <- estimateSizeFactors(dds, type = "poscounts")
+  v <- tryCatch(varianceStabilizingTransformation(dds, blind = TRUE),
+                error = function(e)
+                  varianceStabilizingTransformation(dds, blind = TRUE, fitType = "mean"))
+  assay(v)
+}
+
+layers <- list()
+for (s in names(sp)) {
+  layers[[s]] <- list(
+    gene   = vst_counts(as_matrix(fread(sp[[s]]$gene)), label = paste(s, "gene")),
+    lncRNA = vst_counts(as_matrix(fread(sp[[s]]$lncRNA),
+                                  drop = c("Chr", "Start", "End", "Strand", "Length")),
+                        label = paste(s, "lncRNA")),
+    miRNA  = vst_counts(as_matrix(fread(sp[[s]]$miRNA)), min_count = 5,
+                        label = paste(s, "miRNA"))
+  )
+}
+dropped <- rbindlist(dropped)
+fwrite(dropped, file.path(out_dir, "dropped-low-count-samples.csv"))
+knitr::kable(dropped, caption = "Samples dropped for having fewer than 1,000 total counts")
+```
+
+## CpG methylation
+
+The merged matrices are about 1 GB each, so they are streamed once and only
+CpGs with a value in every sample are cached in the output directory.
+
+```{r cpg}
+get_cpg <- function(url, cache) {
+  if (!file.exists(cache)) {
+    awk <- "awk -F, 'NR==1{print;next}{ok=1;for(i=2;i<=NF;i++)if($i==\"\"){ok=0;break};if(ok)print}'"
+    status <- system(sprintf("set -o pipefail; curl -sfL '%s' | %s | gzip > '%s'",
+                             url, awk, cache))
+    if (status != 0) { unlink(cache); stop("download failed: ", url) }
+  }
+  fread(cache)
+}
+
+cpg_counts <- list()
+for (s in names(sp)) {
+  m <- as_matrix(get_cpg(sp[[s]]$mCpG, file.path(out_dir, paste0(s, "-CpG-complete.csv.gz"))))
+  n_complete <- nrow(m)
+  m <- m[matrixStats::rowVars(m) > 0, , drop = FALSE]
+  n_variable <- nrow(m)
+  if (nrow(m) > n_cpg_max) m <- m[sort(sample(nrow(m), n_cpg_max)), ]
+  layers[[s]]$mCpG <- m
+  cpg_counts[[s]] <- data.table(species = s, samples = ncol(m),
+                                complete = n_complete, variable = n_variable,
+                                modelled = nrow(m))
+}
+rbindlist(cpg_counts)
+```
+
+## Gene-body methylation
+
+`55.1-gene-body-methylation.py` streams each merged CpG matrix, assigns CpGs to
+gene bodies from the GFF, and writes the mean percent methylation per gene and
+sample. A value needs at least 10 CpGs called in that sample; otherwise it is
+left missing. Genes are modelled if they have a value in at least 90% of
+samples.
+
+```{bash gene-meth}
+out=../output/55-variance-partitioning
+run() {  # species, CpG matrix URL, GFF
+  if [ ! -s "$out/$1-gene-body-methylation.csv.gz" ]; then
+    uv run python 55.1-gene-body-methylation.py --species "$1" --cpg "$2" --gff "$3" --out-dir "$out"
+  else
+    echo "$1: using cached $out/$1-gene-body-methylation.csv.gz"
+  fi
+}
+run Apul https://gannet.fish.washington.edu/metacarcinus/E5/20250903_meth_Apul/merged-WGBS-CpG-counts_filtered_n20.csv ../../D-Apul/data/Apulchra-genome.gff
+run Peve https://gannet.fish.washington.edu/metacarcinus/E5/Pevermanni/20250821_meth_Peve/merged-WGBS-CpG-counts_filtered_n20.csv ../../E-Peve/data/Porites_evermanni_validated.gff3
+run Ptua https://gannet.fish.washington.edu/metacarcinus/E5/Ptuahiniensis/20250821_meth_Ptua/merged-WGBS-CpG-counts_filtered_n20.csv ../../F-Ptua/data/Pocillopora_meandrina_HIv1.genes-validated.gff3
+```
+
+```{r gene-meth-load}
+gene_meth_counts <- list()
+for (s in names(sp)) {
+  m <- as_matrix(fread(file.path(out_dir, paste0(s, "-gene-body-methylation.csv.gz"))))
+  n_any <- nrow(m)
+  m <- m[rowMeans(!is.na(m)) >= 0.9, , drop = FALSE]
+  m <- m[matrixStats::rowVars(m, na.rm = TRUE) > 0, , drop = FALSE]
+  layers[[s]]$mCpG_gene <- m
+  gene_meth_counts[[s]] <- data.table(species = s, samples = ncol(m),
+                                      genes_with_any_value = n_any, modelled = nrow(m),
+                                      median_pct_methylation = median(m, na.rm = TRUE))
+}
+rbindlist(gene_meth_counts)
+```
+
+## Metabolites and lipids
+
+Log2 transformed after adding half the smallest positive value. Compounds
+missing in more than a quarter of a species' samples are dropped.
+
+```{r metab}
+log_layer <- function(file, prefix) {
+  dt <- fread(file, header = TRUE)
+  m <- as_matrix(dt)
+  m <- m[, startsWith(colnames(m), prefix), drop = FALSE]
+  m <- m[rowMeans(is.na(m)) <= 0.25, , drop = FALSE]
+  log2(m + min(m[m > 0], na.rm = TRUE) / 2)
+}
+for (s in names(sp)) {
+  layers[[s]]$metabolite <- log_layer("../output/metabolomics_count_matrix.csv", sp[[s]]$prefix)
+  layers[[s]]$lipid      <- log_layer("../output/lipid_count_matrix.csv", sp[[s]]$prefix)
+}
+```
+
+## Physiology
+
+Restricted to the colonies and timepoints that were sequenced. Traits that are
+strictly positive are log10 transformed.
+
+```{r phys}
+phys <- fread("../data/phys_master_timeseries.csv")
+phys[, sample := paste(colony_id_corr, sub("timepoint", "TP", timepoint), sep = "-")]
+traits <- c("cre.umol.mgprot", "Host_AFDW.mg.cm2", "Sym_AFDW.mg.cm2", "chla.ug.cm2",
+            "chlc2.ug.cm2", "prot_ug.cm2", "cells.cm2", "Am", "AQY", "Rd", "Ik", "Ic",
+            "calc.umol.cm2.hr")
+phys <- phys[sample %in% meta$sample]
+for (s in names(sp)) {
+  p <- phys[startsWith(sample, sp[[s]]$prefix)]
+  m <- t(as.matrix(p[, ..traits])); storage.mode(m) <- "double"
+  colnames(m) <- p$sample
+  m <- t(apply(m, 1, function(x) if (all(x > 0, na.rm = TRUE)) log10(x) else x))
+  layers[[s]]$physiology <- m[, sort(colnames(m))]
+}
+```
+
+## What goes into the models
+
+```{r inventory}
+inventory <- rbindlist(lapply(names(layers), function(s)
+  rbindlist(lapply(names(layers[[s]]), function(l) {
+    m <- layers[[s]][[l]]
+    md <- meta[colnames(m)]
+    data.table(species = s, layer = l, features = nrow(m), samples = ncol(m),
+               colonies = uniqueN(md$colony),
+               timepoints = paste(sort(unique(md$timepoint)), collapse = ","))
+  }))))
+fwrite(inventory, file.path(out_dir, "layer-inventory.csv"))
+knitr::kable(inventory)
+```
+
+# Fit the variance components
+
+Each feature gets its own `lmer()` fit. Features with missing values are fitted
+on the samples they have.
+
+```{r fit}
+comps <- c("colony", "timepoint", "site", "st", "Residual")
+ctrl <- lmerControl(calc.derivs = FALSE, check.conv.singular = "ignore")
+form <- y ~ (1 | colony) + (1 | timepoint) + (1 | site) + (1 | st)
+
+vc <- function(fit) {
+  v <- as.data.frame(VarCorr(fit))
+  setNames(v$vcov, v$grp)[comps]
+}
+
+fit_layer <- function(m, md) {
+  md <- as.data.frame(md[colnames(m)])
+  # A full lmer() call per feature. Faster shortcuts were tried and rejected:
+  # refit() starts from the previous solution, so a zero variance component in
+  # the template leaves every feature stuck at zero, and a hand-built
+  # optimizeLmer() loop reached worse REML optima than lmer() on ~3% of features.
+  one <- function(i) {
+    y <- m[i, ]
+    tryCatch({
+      d <- md; d$y <- y
+      vc(suppressMessages(lmer(form, d[!is.na(y), ], REML = TRUE, control = ctrl)))
+    }, error = function(e) {
+      fit_errors <<- c(fit_errors, conditionMessage(e))
+      setNames(rep(NA_real_, length(comps)), comps)
+    })
+  }
+  # fit the first feature in this process so any systematic error is visible
+  fit_errors <- character()
+  invisible(one(1))
+  if (length(fit_errors)) message("fit error: ", fit_errors[1])
+  res <- do.call(rbind, mclapply(seq_len(nrow(m)), one, mc.cores = n_cores))
+  frac <- res / rowSums(res)
+  data.table(feature = rownames(m), n_samples = rowSums(!is.na(m)),
+             total_var = rowSums(res), frac)
+}
+
+res <- rbindlist(lapply(names(layers), function(s)
+  rbindlist(lapply(names(layers[[s]]), function(l) {
+    r <- fit_layer(layers[[s]][[l]], meta)
+    cbind(species = s, layer = l, r)
+  }))))
+setnames(res, c("st", "Residual"), c("site_timepoint", "residual"))
+fwrite(res, file.path(out_dir, "variance-fractions-per-feature.csv.gz"))
+res[, .(features = .N, failed = sum(is.na(colony))), by = .(species, layer)]
+```
+
+# Results
+
+## Mean fraction of variance by layer
+
+Each feature counts equally, so this is the share of total standardised
+variance in the layer.
+
+```{r summary}
+frac_cols <- c("colony", "timepoint", "site", "site_timepoint", "residual")
+layer_order <- c("mCpG", "mCpG_gene", "gene", "lncRNA", "miRNA", "metabolite", "lipid", "physiology")
+long <- melt(res[!is.na(colony)], id.vars = c("species", "layer", "feature"),
+             measure.vars = frac_cols, variable.name = "component", value.name = "fraction")
+long[, layer := factor(layer, layer_order)]
+summ <- long[, .(mean = mean(fraction), median = median(fraction),
+                 q25 = quantile(fraction, .25), q75 = quantile(fraction, .75),
+                 features = .N), by = .(species, layer, component)]
+setorder(summ, species, layer, component)
+fwrite(summ, file.path(out_dir, "variance-fractions-summary.csv"))
+knitr::kable(dcast(summ, species + layer + features ~ component, value.var = "mean"),
+             digits = 3)
+```
+
+```{r plot-mean, fig.height=5}
+cols <- c(colony = "#1b6e8a", timepoint = "#e0a100", site = "#7a4fa3",
+          site_timepoint = "#c8553d", residual = "#b8b8b8")
+p1 <- ggplot(summ, aes(layer, mean, fill = component)) +
+  geom_col(width = 0.75) +
+  facet_wrap(~ species) +
+  scale_fill_manual(values = cols) +
+  scale_y_continuous(labels = scales::percent, expand = c(0, 0)) +
+  labs(x = NULL, y = "Mean fraction of variance", fill = NULL,
+       title = "Variance partitioning by data layer") +
+  theme_bw() + theme(axis.text.x = element_text(angle = 40, hjust = 1),
+                     legend.position = "top")
+ggsave(file.path(out_dir, "variance-fractions-mean.png"), p1, width = 10, height = 5, dpi = 200)
+p1
+```
+
+## Distribution across features
+
+```{r plot-dist, fig.height=8}
+p2 <- ggplot(long, aes(layer, fraction, fill = component)) +
+  geom_boxplot(outlier.shape = NA, linewidth = 0.3) +
+  facet_grid(component ~ species) +
+  scale_fill_manual(values = cols, guide = "none") +
+  scale_y_continuous(labels = scales::percent) +
+  labs(x = NULL, y = "Fraction of variance per feature") +
+  theme_bw() + theme(axis.text.x = element_text(angle = 40, hjust = 1))
+ggsave(file.path(out_dir, "variance-fractions-distribution.png"), p2, width = 10, height = 9, dpi = 200)
+p2
+```
+
+## Gene-body methylation by methylation level
+
+Most coral gene bodies are almost unmethylated, and for those genes the
+"variance" is largely sampling noise around zero. Splitting genes by their mean
+methylation shows the partition for genes that carry real methylation.
+
+```{r meth-strata}
+strata <- rbindlist(lapply(names(sp), function(s) {
+  m <- layers[[s]]$mCpG_gene
+  mu <- data.table(feature = rownames(m), mean_meth = rowMeans(m, na.rm = TRUE))
+  x <- merge(res[species == s & layer == "mCpG_gene"], mu, by = "feature")
+  x[, meth_class := cut(mean_meth, c(-Inf, 5, 20, Inf),
+                        labels = c("<5%", "5-20%", ">20%"))]
+  x[, .(genes = .N, colony = mean(colony), timepoint = mean(timepoint),
+        site = mean(site), site_timepoint = mean(site_timepoint),
+        residual = mean(residual)), by = .(species, meth_class)]
+}))
+setorder(strata, species, meth_class)
+fwrite(strata, file.path(out_dir, "gene-methylation-fractions-by-level.csv"))
+knitr::kable(strata, digits = 3)
+```
+
+## Physiology traits individually
+
+```{r phys-table}
+knitr::kable(dcast(long[layer == "physiology"], species + feature ~ component,
+                   value.var = "fraction"), digits = 2)
+```
+
+```{r session}
+sessionInfo()
+```
