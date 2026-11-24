@@ -1,0 +1,323 @@
+---
+title: "59-hidden-factor"
+author: "Steven Roberts"
+date: "2026-11-24"
+output:
+  github_document:
+    toc: true
+    number_sections: true
+  html_document:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+---
+
+# Goal
+
+In `56.1-within-colony-adjusted`, *A. pulchra* had about 300 more genes than
+expected whose methylation and expression co-vary within genotypes. Removing
+one hidden factor per layer took that excess to zero. This script asks what
+that factor is.
+
+-   **Technical**: sequencing depth, alignment rate, bisulfite conversion,
+    nucleic-acid yield, plate. If so, the within-genotype coupling is an
+    artifact.
+-   **Biological**: symbiont content, tissue composition (host and symbiont
+    biomass, protein), physiology, or the tissue-state modules M1 and M2 from
+    `57`.
+
+Thermal history is measured per site and timepoint, so it is absorbed by the
+`site:timepoint` term and cannot explain a factor that lies within it.
+
+The factor scores are residuals on `genotype + site:timepoint`. Every
+candidate is residualised on the same design before correlating, so a match
+means the candidate varies with the factor *within genotype and sampling
+event*, not just between colonies or seasons.
+
+Sample identity follows `58`: the five mismatched samples are excluded and
+clonemates share one genotype.
+
+```{r setup, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE,
+                      fig.width = 10, fig.height = 6, dpi = 150)
+library(data.table)
+library(DESeq2)
+library(ggplot2)
+library(matrixStats)
+
+out_dir  <- "../output/59-hidden-factor"
+meth_dir <- "../output/55-variance-partitioning"
+dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
+n_perm <- 500
+set.seed(59)
+```
+
+# Inputs
+
+Same genes, samples and helpers as `56.1`, Apul only.
+
+```{r inputs}
+meta <- fread("../../master-molecular-metadata.csv")
+meta[, sample := paste(colony, timepoint, sep = "-")]
+meta[, st := paste(site, timepoint, sep = ":")]
+geno <- fread("../output/58-genotype-methylation/sample-genotypes.csv")
+meta <- meta[!sample %in% geno[exclude == TRUE, sample]]
+meta[, colony_label := colony]
+meta[unique(geno[exclude == FALSE, .(colony, genotype_id)]), colony := i.genotype_id, on = "colony"]
+setkey(meta, sample)
+
+canon <- function(x) {
+  hit <- grepl("(ACR|POR|POC)-[0-9]+[-_]TP[1-4]", x)
+  out <- rep(NA_character_, length(x))
+  out[hit] <- sub("_", "-", regmatches(x, regexpr("(ACR|POR|POC)-[0-9]+[-_]TP[1-4]", x)))
+  out
+}
+as_matrix <- function(dt) {
+  keep <- names(dt)[-1]; s <- canon(keep)
+  keep <- keep[!is.na(s)]; s <- s[!is.na(s)]
+  m <- as.matrix(dt[, ..keep]); storage.mode(m) <- "double"
+  if (anyDuplicated(s)) m <- t(rowsum(t(m), s)) else colnames(m) <- s
+  rownames(m) <- dt[[1]]
+  m <- m[, colnames(m) %in% meta$sample, drop = FALSE]
+  m[, sort(colnames(m)), drop = FALSE]
+}
+vst_counts <- function(m, min_count = 10) {
+  m <- round(m)
+  m <- m[rowSums(m >= min_count) >= ceiling(ncol(m) / 4), , drop = FALSE]
+  dds <- DESeqDataSetFromMatrix(m, data.frame(row.names = colnames(m)), ~ 1)
+  dds <- estimateSizeFactors(dds, type = "poscounts")
+  assay(varianceStabilizingTransformation(dds, blind = TRUE))
+}
+resid_rows <- function(Y, X) {
+  q <- qr(X); Q <- qr.Q(q)[, seq_len(q$rank), drop = FALSE]
+  Y - (Y %*% Q) %*% t(Q)
+}
+rowcor <- function(A, B) rowSums(A * B) / sqrt(rowSums(A^2) * rowSums(B^2))
+p_from_r <- function(r, df) 2 * pt(-abs(r * sqrt(df / (1 - r^2))), df)
+shuffle_within <- function(groups) {
+  idx <- seq_along(groups)
+  for (g in split(idx, groups)) if (length(g) > 1) idx[g] <- g[sample.int(length(g))]
+  idx
+}
+top_scores <- function(Y, X, k) if (k == 0) NULL else svd(resid_rows(Y, X), nu = 0, nv = k)$v
+
+counts <- fread("../../D-Apul/output/02.20-D-Apul-RNAseq-alignment-HiSat2/apul-gene_count_matrix.csv")
+raw <- as_matrix(counts)
+E <- vst_counts(raw)
+M <- as_matrix(fread(file.path(meth_dir, "Apul-gene-body-methylation.csv.gz")))
+smp <- intersect(colnames(E), colnames(M))
+M <- M[intersect(rownames(E), rownames(M)), smp, drop = FALSE]
+M <- M[rowSums(is.na(M)) == 0 & rowVars(M) > 0, , drop = FALSE]
+E <- E[rownames(M), smp, drop = FALSE]
+md <- meta[smp]
+X0 <- model.matrix(~ colony + st, md)
+c(genes = nrow(M), samples = length(smp), design_rank = qr(X0)$rank)
+```
+
+# The factors
+
+The first component of each layer's residuals, as used at *k* = 1 in `56.1`.
+
+```{r factors}
+fac <- data.table(sample = smp,
+                  expr_factor = top_scores(E, X0, 1)[, 1],
+                  meth_factor = top_scores(M, X0, 1)[, 1])
+pct <- function(Y) { R <- resid_rows(Y, X0); d <- svd(R, nu = 0, nv = 0)$d; 100 * d[1]^2 / sum(d^2) }
+data.table(layer = c("expression", "methylation"),
+           pct_resid_var = c(pct(E), pct(M)),
+           r_between_layers = cor(fac$expr_factor, fac$meth_factor))
+```
+
+## Which layer's factor removes the excess?
+
+The within-genotype test from `56.1`, with no factor, one layer's factor only,
+or both. The null shuffles methylation samples within genotype and recomputes
+the methylation factor each time.
+
+```{r which-layer}
+run_test <- function(E, M, md, extra = NULL, use_e = FALSE, use_m = FALSE, n_perm = 500) {
+  X0 <- cbind(model.matrix(~ colony + st, md), extra)
+  VE <- if (use_e) top_scores(E, X0, 1)
+  fit <- function(M) {
+    X <- cbind(X0, VE, if (use_m) top_scores(M, X0, 1))
+    df <- nrow(md) - qr(X)$rank - 1
+    sum(p_from_r(rowcor(resid_rows(M, X), resid_rows(E, X)), df) < 0.01)
+  }
+  obs <- fit(M)
+  null <- vapply(seq_len(n_perm), function(b) fit(M[, shuffle_within(md$colony), drop = FALSE]), numeric(1))
+  data.table(samples = nrow(md), n_p01 = obs, null_n_p01 = mean(null),
+             excess = obs - mean(null), perm_p = (1 + sum(null >= obs)) / (n_perm + 1))
+}
+layer_tests <- rbindlist(list(
+  cbind(removed = "none",                 run_test(E, M, md)),
+  cbind(removed = "expression factor",    run_test(E, M, md, use_e = TRUE)),
+  cbind(removed = "methylation factor",   run_test(E, M, md, use_m = TRUE)),
+  cbind(removed = "both",                 run_test(E, M, md, use_e = TRUE, use_m = TRUE))))
+fwrite(layer_tests, file.path(out_dir, "excess-by-layer-factor.csv"))
+knitr::kable(layer_tests, digits = 3)
+```
+
+# Candidate explanations
+
+```{r candidates}
+cand <- data.table(sample = smp)
+add <- function(dt, label, group) {
+  dt <- unique(dt, by = "sample")
+  v <- setdiff(names(dt), "sample")
+  for (x in v) cand[dt, (paste0(group, ": ", x)) := get(paste0("i.", x)), on = "sample"]
+}
+
+# RNA-seq: depth, host alignment rate (unaligned reads are largely symbiont), counted reads
+hs <- fread("../../D-Apul/output/02.20-D-Apul-RNAseq-alignment-HiSat2/multiqc_data/multiqc_bowtie2.txt")
+hs[, sample := sub("_hisat2", "", Sample)]
+add(hs[, .(sample, `read pairs (log10)` = log10(total_reads),
+           `host alignment rate` = overall_alignment_rate,
+           `multi-mapping share` = paired_aligned_multi / total_reads)], "RNA", "RNA")
+add(data.table(sample = colnames(raw), `counted reads (log10)` = log10(colSums(raw))), "RNA", "RNA")
+
+# RNA extraction: yield, plate
+rm_ <- fread("../data/rna_metadata.csv")
+rm_[, sample := paste(ColonyID, Timepoint, sep = "-")]
+add(rm_[, .(sample, `RNA conc (log10)` = log10(`Conc-ng.uL`), `RNA plate 2` = as.numeric(Plate == 2))], "RNA", "RNA")
+
+# WGBS: depth, alignment, CpG level, non-CpG methylation (conversion), DNA yield
+bm <- fread("../../D-Apul/output/02.20-D-Apul-WGBS-alignment-SLURM_array-bismark/multiqc_data/multiqc_bismark_alignment.txt")
+bm[, well := regmatches(Sample, regexpr("[0-9][A-H][0-9]+(?=_R1)", Sample, perl = TRUE))]
+dm <- fread("../data/e5_DNA_Azenta_metadata.csv")
+dm <- dm[`Species/Strain*` == "Acropora pulchra",
+         .(well = `Azenta sample name`, sample = paste(`Colony ID`, Timepoint, sep = "-"),
+           dna_conc = `Conc (ng/µL)`, plate = Plate)]
+bm <- merge(bm, dm, by = "well")
+add(bm[, .(sample, `read pairs (log10)` = log10(total_reads),
+           `alignment rate` = percent_aligned,
+           `CpG methylation (bismark)` = 100 * meth_cpg / (meth_cpg + unmeth_cpg),
+           `CHH methylation (conversion)` = 100 * meth_chh / (meth_chh + unmeth_chh),
+           `CHG methylation` = 100 * meth_chg / (meth_chg + unmeth_chg),
+           `DNA conc (log10)` = log10(dna_conc), `DNA plate 2` = as.numeric(plate == 2))], "WGBS", "WGBS")
+add(data.table(sample = smp, `mean gene-body methylation` = colMeans(M)), "WGBS", "WGBS")
+
+# Physiology: the 13 traits from 57, log10 where positive
+traits <- c(cre.umol.mgprot = "Antioxidant capacity", Host_AFDW.mg.cm2 = "Host biomass",
+            Sym_AFDW.mg.cm2 = "Symbiont biomass", chla.ug.cm2 = "Chlorophyll a",
+            chlc2.ug.cm2 = "Chlorophyll c2", prot_ug.cm2 = "Protein",
+            cells.cm2 = "Symbiont density", Am = "Max photosynthesis (Am)",
+            AQY = "Quantum yield (AQY)", Rd = "Dark respiration (Rd)",
+            Ik = "Saturating irradiance (Ik)", Ic = "Compensation irradiance (Ic)",
+            calc.umol.cm2.hr = "Calcification", Ratio_AFDW.mg.cm2 = "Symbiont:host biomass")
+phys <- fread("../data/phys_master_timeseries.csv")
+phys[, sample := paste(colony_id_corr, sub("timepoint", "TP", timepoint), sep = "-")]
+phys <- unique(phys, by = "sample")
+for (tr in names(traits))
+  if (all(phys[[tr]] > 0, na.rm = TRUE)) set(phys, j = tr, value = log10(phys[[tr]]))
+pt_ <- phys[, c("sample", names(traits)), with = FALSE]; setnames(pt_, names(traits), traits)
+add(pt_, "Physiology", "Physiology")
+
+# Symbiont community (ITS2): share of the dominant profile, Shannon diversity
+its <- fread("../data/ITS2_rel_abund_matrix.csv")
+its <- its[grepl("^ACR", colony_id_corr)]
+its[, sample := paste(colony_id_corr, sub("timepoint", "TP", timepoint), sep = "-")]
+pc <- setdiff(names(its)[11:ncol(its)], "sample")
+A <- as.matrix(its[, ..pc]); A <- A / rowSums(A)
+add(data.table(sample = its$sample, `dominant profile share` = apply(A, 1, max),
+               `Shannon diversity` = -rowSums(ifelse(A > 0, A * log(A), 0))), "ITS2", "ITS2")
+
+# Tissue-state modules from 57 (eigengene = PC1 of the module's scaled genes)
+mods <- fread("../output/57-expression-physiology-thermal/gene-module-assignments.csv.gz")[species == "Apul"]
+Efull <- vst_counts(raw)[, smp]
+eig <- function(g) { Z <- t(scale(t(Efull[intersect(g, rownames(Efull)), ]))); v <- svd(Z, nu = 0, nv = 1)$v[, 1]
+  v * sign(cor(v, colMeans(Z))) }
+top_mods <- mods[module != "M0", .N, by = module][order(-N)][1:5, module]
+add(as.data.table(c(list(sample = smp), setNames(lapply(top_mods, function(m) eig(mods[module == m, gene])),
+                                              paste("module", top_mods)))), "57", "57")
+
+data.table(candidate = names(cand)[-1], n = sapply(cand[, -1], function(x) sum(!is.na(x))))
+```
+
+## Correlation with the factors
+
+Each candidate is residualised on `genotype + site:timepoint` within the
+samples that have it. *P* values use the residual degrees of freedom; FDR is
+over all candidates and both factors.
+
+```{r correlate}
+cand <- cand[match(smp, sample)]
+assoc <- rbindlist(lapply(names(cand)[-1], function(v) {
+  x <- cand[[v]]; ok <- !is.na(x)
+  if (sum(ok) < 15 || var(x[ok]) == 0) return(NULL)
+  X <- model.matrix(~ colony + st, md[ok])
+  xr <- drop(resid_rows(matrix(x[ok], 1), X))
+  if (sd(xr) < 1e-10) return(NULL)
+  df <- sum(ok) - qr(X)$rank - 1
+  rbindlist(lapply(c("expr_factor", "meth_factor"), function(f) {
+    fr <- drop(resid_rows(matrix(fac[[f]][ok], 1), X))
+    r <- cor(xr, fr)
+    data.table(candidate = v, factor = f, n = sum(ok), df = df, r = r, p = p_from_r(r, df))
+  }))
+}))
+assoc[, fdr := p.adjust(p, "BH")]
+assoc[, group := sub(":.*", "", candidate)]
+fwrite(assoc[order(p)], file.path(out_dir, "factor-candidate-correlations.csv"))
+knitr::kable(dcast(assoc, group + candidate ~ factor, value.var = c("r", "fdr"))[order(-abs(r_meth_factor))],
+             digits = 3)
+```
+
+```{r plot-assoc, fig.height=8}
+assoc[, label := factor(candidate, levels = assoc[factor == "meth_factor"][order(abs(r)), candidate])]
+p <- ggplot(assoc, aes(r, label, colour = factor, shape = fdr < 0.1)) +
+  geom_vline(xintercept = 0, colour = "grey60") +
+  geom_point(size = 2.5) +
+  scale_colour_manual(values = c(expr_factor = "#c0392b", meth_factor = "#1b6e8a"),
+                      labels = c("expression factor", "methylation factor")) +
+  scale_shape_manual(values = c(`FALSE` = 1, `TRUE` = 16), name = "FDR < 0.1") +
+  labs(x = "Correlation within genotype and sampling event", y = NULL, colour = NULL,
+       title = "What tracks the hidden factor in A. pulchra?") +
+  theme_bw()
+ggsave(file.path(out_dir, "factor-candidates.png"), p, width = 9, height = 8, dpi = 200)
+p
+```
+
+## Does a measured candidate reproduce the factor's effect?
+
+Correlation alone doesn't say whether a candidate accounts for the coupling.
+For each candidate with FDR < 0.1 against either factor, the within-genotype
+test is rerun with that candidate as a covariate, against a baseline on the
+same samples.
+
+```{r replace}
+hits <- assoc[fdr < 0.1, unique(candidate)]
+replace_tests <- rbindlist(lapply(hits, function(v) {
+  x <- cand[[v]]; ok <- !is.na(x)
+  rbind(cbind(candidate = v, covariate = "none (same samples)",
+              run_test(E[, ok], M[, ok], md[ok], n_perm = n_perm)),
+        cbind(candidate = v, covariate = v,
+              run_test(E[, ok], M[, ok], md[ok], extra = matrix(x[ok]), n_perm = n_perm)))
+}))
+if (nrow(replace_tests)) {
+  fwrite(replace_tests, file.path(out_dir, "excess-with-candidate.csv"))
+  knitr::kable(replace_tests, digits = 3)
+} else cat("No candidate reached FDR < 0.1.\n")
+```
+
+# Which genes carry the factor?
+
+Gene loadings on each factor, and whether they concentrate in particular
+`57` modules.
+
+```{r loadings}
+load_e <- drop(resid_rows(E, X0) %*% fac$expr_factor)
+load_m <- drop(resid_rows(M, X0) %*% fac$meth_factor)
+ld <- data.table(gene = rownames(M), load_e, load_m)
+ld[mods, module := i.module, on = "gene"]
+ld[is.na(module), module := "not in network"]
+mod_sum <- ld[, .(genes = .N, mean_load_e = mean(load_e), mean_load_m = mean(load_m)), by = module][order(-genes)]
+fwrite(ld, file.path(out_dir, "gene-loadings.csv.gz"))
+knitr::kable(mod_sum[genes >= 50], digits = 3)
+c(r_loadings_across_genes = cor(load_e, load_m, method = "spearman"))
+```
+
+```{r session}
+sessionInfo()
+```
