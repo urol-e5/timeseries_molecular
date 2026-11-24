@@ -268,6 +268,32 @@ knitr::kable(group_check[colony %in% colony[flagged] |
 
 Colonies and genotypes involved in a mismatch
 
+For `55`-`57`: each sample’s genotype, named by the colonies that carry
+it (clonemates share one name, such as `ACR-145+ACR-265`), and whether
+the sample is excluded as a mismatch.
+
+``` r
+geno_names <- group_check[flagged == FALSE,
+                          .(genotype_id = paste(sort(unique(colony)), collapse = "+")),
+                          by = genotype]
+sample_geno <- merge(group_check[, .(species, sample, colony, genotype, exclude = flagged)],
+                     geno_names, by = "genotype", all.x = TRUE)
+sample_geno[, genotype := NULL]
+fwrite(sample_geno[order(sample)], file.path(out_dir, "sample-genotypes.csv"))
+knitr::kable(unique(sample_geno[exclude == FALSE & grepl("\\+", genotype_id),
+                                .(species, colony, genotype_id)]),
+             caption = "Colonies that share a genotype")
+```
+
+| species | colony  | genotype_id     |
+|:--------|:--------|:----------------|
+| Apul    | ACR-145 | ACR-145+ACR-265 |
+| Apul    | ACR-265 | ACR-145+ACR-265 |
+| Apul    | ACR-150 | ACR-150+ACR-237 |
+| Apul    | ACR-237 | ACR-150+ACR-237 |
+
+Colonies that share a genotype
+
 ``` r
 p_id <- ggplot(pairs_all, aes(dist, fill = same_colony)) +
   geom_histogram(bins = 60, position = "identity", alpha = 0.7) +
@@ -574,12 +600,12 @@ knitr::kable(cpg_snp, digits = 3,
 
 | snp   | species | cpgs | colony | timepoint | residual |
 |:------|:--------|-----:|-------:|----------:|---------:|
-| FALSE | Apul    | 1220 |  0.237 |     0.025 |    0.691 |
-| TRUE  | Apul    |    5 |  0.189 |     0.019 |    0.783 |
-| FALSE | Peve    |  801 |  0.269 |     0.018 |    0.652 |
-| TRUE  | Peve    |    2 |  0.416 |     0.049 |    0.535 |
-| FALSE | Ptua    | 2229 |  0.102 |     0.021 |    0.820 |
-| TRUE  | Ptua    |    3 |  0.174 |     0.045 |    0.766 |
+| FALSE | Apul    | 1257 |  0.245 |     0.022 |    0.682 |
+| TRUE  | Apul    |    3 |  0.497 |     0.009 |    0.481 |
+| FALSE | Peve    |  796 |  0.285 |     0.020 |    0.638 |
+| TRUE  | Peve    |    1 |  0.799 |     0.000 |    0.201 |
+| FALSE | Ptua    | 2168 |  0.107 |     0.020 |    0.816 |
+| TRUE  | Ptua    |    2 |  0.000 |     0.045 |    0.852 |
 
 Modelled CpGs inside genotyped genes, by overlap with a C-\>T / G-\>A
 SNP

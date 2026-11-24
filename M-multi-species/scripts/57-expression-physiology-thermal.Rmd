@@ -139,6 +139,12 @@ samples) if none does. Networks are cached in the output folder.
 meta <- fread("../../master-molecular-metadata.csv")
 meta[, sample := paste(colony, timepoint, sep = "-")]
 meta[, st := paste(site, timepoint, sep = ":")]
+# Sample identity from 58-genotype-methylation: drop samples whose genotype
+# does not match their colony label, and give clonemates one shared genotype,
+# which is used as "colony" in every model below.
+geno <- fread("../output/58-genotype-methylation/sample-genotypes.csv")
+meta <- meta[!sample %in% geno[exclude == TRUE, sample]]
+meta[unique(geno[exclude == FALSE, .(colony, genotype_id)]), colony := i.genotype_id, on = "colony"]
 setkey(meta, sample)
 
 canon <- function(x) {
@@ -153,6 +159,7 @@ as_matrix <- function(dt) {
   m <- as.matrix(dt[, ..keep]); storage.mode(m) <- "double"
   if (anyDuplicated(s)) m <- t(rowsum(t(m), s)) else colnames(m) <- s
   rownames(m) <- dt[[1]]
+  m <- m[, colnames(m) %in% meta$sample, drop = FALSE]   # excluded samples (see 58)
   m[, sort(colnames(m)), drop = FALSE]
 }
 vst_counts <- function(m, min_count = 10) {

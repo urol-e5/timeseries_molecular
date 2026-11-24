@@ -176,6 +176,23 @@ knitr::kable(group_check[colony %in% colony[flagged] |
              caption = "Colonies and genotypes involved in a mismatch")
 ```
 
+For `55`-`57`: each sample's genotype, named by the colonies that carry it
+(clonemates share one name, such as `ACR-145+ACR-265`), and whether the sample
+is excluded as a mismatch.
+
+```{r sample-genotypes}
+geno_names <- group_check[flagged == FALSE,
+                          .(genotype_id = paste(sort(unique(colony)), collapse = "+")),
+                          by = genotype]
+sample_geno <- merge(group_check[, .(species, sample, colony, genotype, exclude = flagged)],
+                     geno_names, by = "genotype", all.x = TRUE)
+sample_geno[, genotype := NULL]
+fwrite(sample_geno[order(sample)], file.path(out_dir, "sample-genotypes.csv"))
+knitr::kable(unique(sample_geno[exclude == FALSE & grepl("\\+", genotype_id),
+                                .(species, colony, genotype_id)]),
+             caption = "Colonies that share a genotype")
+```
+
 ```{r identity-plot, fig.height=4}
 p_id <- ggplot(pairs_all, aes(dist, fill = same_colony)) +
   geom_histogram(bins = 60, position = "identity", alpha = 0.7) +
