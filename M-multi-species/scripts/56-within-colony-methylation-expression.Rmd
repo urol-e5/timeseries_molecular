@@ -1,0 +1,291 @@
+---
+title: "56-within-colony-methylation-expression"
+author: "Steven Roberts"
+date: "2026-11-23"
+output:
+  github_document:
+    toc: true
+    number_sections: true
+  html_document:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+---
+
+# Goal
+
+`55-variance-partitioning` showed that gene-body methylation varies mostly
+among colonies and very little with shared time, while expression tracks time
+much more. That leaves open whether methylation and expression **change
+together within a colony** over time. This script tests that directly for
+every gene that has both gene-body methylation and expression.
+
+Three levels are examined:
+
+1.  **Across genes** - are more methylated genes more highly expressed, and
+    less variable over time? (the classic gene-body methylation pattern)
+2.  **Between colonies** - for a given gene, do colonies with higher
+    methylation have higher expression? (10 colonies per gene, so low power
+    per gene; the distribution across genes is what matters)
+3.  **Within colonies** - when a colony's methylation of a gene goes up from
+    one timepoint to another, does its expression of that gene move with it?
+    Tested two ways:
+    -   **within colony**: both layers centred on each colony's mean, so this
+        includes change shared by all colonies (season)
+    -   **within colony, net of shared time**: site-by-timepoint means also
+        removed, leaving only colony-specific change. This is the stricter
+        test of gene-specific coupling.
+
+The null for the within-colony tests comes from shuffling methylation samples
+among timepoints within each colony, the same shuffle for every gene, which
+keeps the correlation among genes intact.
+
+```{r setup, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE,
+                      fig.width = 10, fig.height = 6, dpi = 150)
+library(data.table)
+library(DESeq2)
+library(ggplot2)
+library(matrixStats)
+
+out_dir  <- "../output/56-within-colony-methylation-expression"
+meth_dir <- "../output/55-variance-partitioning"   # gene-body methylation from 55.1
+dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
+n_perm <- 1000
+set.seed(56)
+```
+
+# Inputs
+
+Gene-body methylation (mean % over at least 10 CpGs per gene and sample) comes
+from `55.1-gene-body-methylation.py`, run by `55-variance-partitioning.Rmd`.
+Only genes with a methylation value in every sample shared by both layers are
+used, so every gene is tested on the same samples.
+
+```{r inputs}
+meta <- fread("../../master-molecular-metadata.csv")
+meta[, sample := paste(colony, timepoint, sep = "-")]
+meta[, st := paste(site, timepoint, sep = ":")]
+setkey(meta, sample)
+
+canon <- function(x) {
+  hit <- grepl("(ACR|POR|POC)-[0-9]+[-_]TP[1-4]", x)
+  out <- rep(NA_character_, length(x))
+  out[hit] <- sub("_", "-", regmatches(x, regexpr("(ACR|POR|POC)-[0-9]+[-_]TP[1-4]", x)))
+  out
+}
+as_matrix <- function(dt) {
+  keep <- names(dt)[-1]; s <- canon(keep)
+  keep <- keep[!is.na(s)]; s <- s[!is.na(s)]
+  m <- as.matrix(dt[, ..keep]); storage.mode(m) <- "double"
+  if (anyDuplicated(s)) m <- t(rowsum(t(m), s)) else colnames(m) <- s
+  rownames(m) <- dt[[1]]
+  m[, sort(colnames(m)), drop = FALSE]
+}
+vst_counts <- function(m, min_count = 10) {
+  m <- round(m)
+  m <- m[rowSums(m >= min_count) >= ceiling(ncol(m) / 4), , drop = FALSE]
+  dds <- DESeqDataSetFromMatrix(m, data.frame(row.names = colnames(m)), ~ 1)
+  dds <- estimateSizeFactors(dds, type = "poscounts")
+  assay(varianceStabilizingTransformation(dds, blind = TRUE))
+}
+
+sp <- list(
+  Apul = "../../D-Apul/output/02.20-D-Apul-RNAseq-alignment-HiSat2/apul-gene_count_matrix.csv",
+  Peve = "../../E-Peve/output/02.20-E-Peve-RNAseq-alignment-HiSat2/peve-gene_count_matrix.csv",
+  Ptua = "../../F-Ptua/output/02.20-F-Ptua-RNAseq-alignment-HiSat2/ptua-gene_count_matrix.csv"
+)
+```
+
+# Analysis
+
+```{r functions}
+# residuals of every row of Y after regressing on design X (rank-safe)
+resid_rows <- function(Y, X) {
+  q <- qr(X); Q <- qr.Q(q)[, seq_len(q$rank), drop = FALSE]
+  Y - (Y %*% Q) %*% t(Q)
+}
+rowcor <- function(A, B) rowSums(A * B) / sqrt(rowSums(A^2) * rowSums(B^2))
+p_from_r <- function(r, df) 2 * pt(-abs(r * sqrt(df / (1 - r^2))), df)
+shuffle_within <- function(groups) {
+  idx <- seq_along(groups)
+  for (g in split(idx, groups)) if (length(g) > 1) idx[g] <- g[sample.int(length(g))]
+  idx
+}
+meth_classes <- function(x) cut(x, c(-Inf, 5, 20, Inf), labels = c("<5%", "5-20%", ">20%"))
+```
+
+```{r run}
+per_gene <- list(); perm_stats <- list(); inputs <- list()
+
+for (s in names(sp)) {
+  E <- vst_counts(as_matrix(fread(sp[[s]])))
+  M <- as_matrix(fread(file.path(meth_dir, paste0(s, "-gene-body-methylation.csv.gz"))))
+  smp <- intersect(colnames(E), colnames(M))
+  genes <- intersect(rownames(E), rownames(M))
+  M <- M[genes, smp, drop = FALSE]
+  M <- M[rowSums(is.na(M)) == 0 & rowVars(M) > 0, , drop = FALSE]
+  E <- E[rownames(M), smp, drop = FALSE]
+  md <- meta[smp]
+  colony <- factor(md$colony)
+  n <- length(smp)
+  inputs[[s]] <- data.table(species = s, samples = n, colonies = nlevels(colony),
+                            genes = nrow(M), genes_methylated_5pct = sum(rowMeans(M) >= 5))
+
+  designs <- list(within_colony          = model.matrix(~ colony),
+                  within_colony_net_time = model.matrix(~ colony + st, md))
+  cls <- meth_classes(rowMeans(M))
+  res <- data.table(species = s, gene = rownames(M), mean_meth = rowMeans(M),
+                    meth_class = cls, mean_expr = rowMeans(E))
+
+  # 1. within-colony variability of expression (plasticity)
+  Ewc <- resid_rows(E, designs$within_colony)
+  res[, expr_within_colony_sd := sqrt(rowSums(Ewc^2) / (n - nlevels(colony)))]
+
+  # 2. between colonies: correlation of colony means
+  cm <- function(Y) t(rowsum(t(Y), colony) / as.vector(table(colony)))
+  res[, r_between := rowcor(cm(M) - rowMeans(cm(M)), cm(E) - rowMeans(cm(E)))]
+
+  # 3. within colonies, with permutation null
+  for (d in names(designs)) {
+    X <- designs[[d]]
+    df <- n - qr(X)$rank - 1
+    Er <- resid_rows(E, X)
+    r <- rowcor(resid_rows(M, X), Er)
+    res[, (paste0("r_", d)) := r]
+    res[, (paste0("p_", d)) := p_from_r(r, df)]
+
+    perm <- rbindlist(lapply(seq_len(n_perm), function(b) {
+      rp <- rowcor(resid_rows(M[, shuffle_within(colony), drop = FALSE], X), Er)
+      pp <- p_from_r(rp, df)
+      rbind(data.table(meth_class = "all", mean_r = mean(rp), n_p01 = sum(pp < 0.01)),
+            data.table(meth_class = as.character(cls), rp, pp)[
+              , .(mean_r = mean(rp), n_p01 = sum(pp < 0.01)), by = meth_class])
+    }), idcol = "perm")
+    perm_stats[[paste(s, d)]] <- cbind(species = s, test = d, perm)
+  }
+  per_gene[[s]] <- res
+}
+
+per_gene <- rbindlist(per_gene)
+for (d in c("within_colony", "within_colony_net_time"))
+  per_gene[, (paste0("fdr_", d)) := p.adjust(get(paste0("p_", d)), "BH"), by = species]
+perm_stats <- rbindlist(perm_stats)
+fwrite(per_gene, file.path(out_dir, "per-gene-methylation-expression.csv.gz"))
+knitr::kable(rbindlist(inputs), caption = "Genes and samples analysed")
+```
+
+## 1. Across genes
+
+Spearman correlations across genes between mean gene-body methylation and
+(a) mean expression, (b) within-colony standard deviation of expression.
+
+```{r across-genes}
+across <- per_gene[, .(
+  genes = .N,
+  rho_meth_vs_mean_expr = cor(mean_meth, mean_expr, method = "spearman"),
+  rho_meth_vs_expr_sd = cor(mean_meth, expr_within_colony_sd, method = "spearman"),
+  rho_meth_vs_expr_sd_given_mean = {
+    # partial: expression variability adjusted for expression level
+    a <- resid(lm(rank(expr_within_colony_sd) ~ rank(mean_expr)))
+    b <- resid(lm(rank(mean_meth) ~ rank(mean_expr)))
+    cor(a, b)
+  }), by = species]
+fwrite(across, file.path(out_dir, "across-genes.csv"))
+knitr::kable(across, digits = 3)
+```
+
+```{r across-plot, fig.height=4.5}
+per_gene[, bin := cut(frank(mean_meth) / .N, seq(0, 1, 0.05)), by = species]
+binned <- per_gene[, .(mean_expr = mean(mean_expr), expr_sd = mean(expr_within_colony_sd),
+                       mean_meth = mean(mean_meth), genes = .N), by = .(species, bin)]
+per_gene[, bin := NULL]
+bl <- melt(binned, id.vars = c("species", "bin", "mean_meth", "genes"),
+           measure.vars = c("mean_expr", "expr_sd"))
+bl[, variable := factor(variable, c("mean_expr", "expr_sd"),
+                        c("Mean expression (VST)", "Within-colony SD of expression"))]
+p1 <- ggplot(bl, aes(mean_meth, value, colour = species)) +
+  geom_line() + geom_point(size = 1.5) +
+  facet_wrap(~ variable, scales = "free_y") +
+  labs(x = "Gene-body methylation (%), 5% bins of genes", y = NULL, colour = NULL) +
+  theme_bw()
+ggsave(file.path(out_dir, "across-genes.png"), p1, width = 10, height = 4.5, dpi = 200)
+p1
+```
+
+## 2. Between colonies
+
+```{r between}
+between <- per_gene[, .(genes = .N, mean_r = mean(r_between),
+                        frac_positive = mean(r_between > 0)), by = .(species, meth_class)]
+setorder(between, species, meth_class)
+knitr::kable(between, digits = 3)
+```
+
+## 3. Within colonies
+
+For each test: the mean within-colony correlation across genes, the number of
+genes with nominal p \< 0.01, the number expected under the permutation null,
+and permutation p-values for both statistics.
+
+```{r within}
+obs <- rbindlist(lapply(c("within_colony", "within_colony_net_time"), function(d) {
+  x <- per_gene[, .(species, meth_class = as.character(meth_class),
+                    r = get(paste0("r_", d)), p = get(paste0("p_", d)),
+                    fdr = get(paste0("fdr_", d)))]
+  rbind(x[, .(meth_class = "all", genes = .N, mean_r = mean(r), n_p01 = sum(p < 0.01),
+              n_fdr10 = sum(fdr < 0.1)), by = species],
+        x[, .(genes = .N, mean_r = mean(r), n_p01 = sum(p < 0.01),
+              n_fdr10 = sum(fdr < 0.1)), by = .(species, meth_class)])[, test := d]
+}))
+keys <- c("species", "test", "meth_class")
+pp <- merge(perm_stats, obs[, .(species, test, meth_class, obs_r = mean_r, obs_n = n_p01)],
+            by = keys)
+null <- pp[, .(null_mean_r = mean(mean_r),
+               null_n_p01 = mean(n_p01),
+               # two-sided for the mean correlation, one-sided (excess) for the count
+               perm_p_mean_r = (1 + sum(abs(mean_r - mean(mean_r)) >=
+                                          abs(obs_r[1] - mean(mean_r)))) / (n_perm + 1),
+               perm_p_n_p01 = (1 + sum(n_p01 >= obs_n[1])) / (n_perm + 1)), by = keys]
+within <- merge(obs, null, by = keys)
+within[, meth_class := factor(meth_class, c("all", "<5%", "5-20%", ">20%"))]
+setorder(within, test, species, meth_class)
+fwrite(within, file.path(out_dir, "within-colony-summary.csv"))
+knitr::kable(within[, .(test, species, meth_class, genes, mean_r, null_mean_r, perm_p_mean_r,
+                        n_p01, null_n_p01, perm_p_n_p01, n_fdr10)], digits = 3)
+```
+
+```{r within-plot, fig.height=6}
+hl <- melt(per_gene, id.vars = c("species", "gene", "meth_class"),
+           measure.vars = c("r_within_colony", "r_within_colony_net_time"),
+           variable.name = "test", value.name = "r")
+hl[, test := sub("^r_", "", test)]
+p2 <- ggplot(hl[meth_class != "<5%"], aes(r, fill = species)) +
+  geom_histogram(binwidth = 0.05, boundary = 0, alpha = 0.8) +
+  geom_vline(xintercept = 0, linetype = 2) +
+  facet_grid(test ~ species, scales = "free_y") +
+  labs(x = "Within-colony correlation of methylation and expression (genes >= 5% methylated)",
+       y = "Genes") +
+  theme_bw() + theme(legend.position = "none")
+ggsave(file.path(out_dir, "within-colony-r.png"), p2, width = 10, height = 6, dpi = 200)
+p2
+```
+
+## Strongest coupled genes
+
+Genes at 10% FDR in the stricter test (colony-specific change), if any.
+
+```{r top}
+top <- per_gene[fdr_within_colony_net_time < 0.1][order(species, p_within_colony_net_time)]
+fwrite(top, file.path(out_dir, "coupled-genes-fdr10.csv"))
+if (nrow(top)) knitr::kable(top[, .(species, gene, mean_meth, r_within_colony_net_time,
+                                    p_within_colony_net_time, fdr_within_colony_net_time)],
+                            digits = 4) else cat("No genes at FDR < 0.1.\n")
+```
+
+```{r session}
+sessionInfo()
+```

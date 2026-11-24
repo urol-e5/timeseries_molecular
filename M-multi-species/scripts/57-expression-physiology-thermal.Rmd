@@ -1,0 +1,489 @@
+---
+title: "57-expression-physiology-thermal"
+author: "Steven Roberts"
+date: "2026-11-23"
+output:
+  github_document:
+    toc: true
+    number_sections: true
+  html_document:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+---
+
+# Goal
+
+`55`-`56.1` showed that gene-body methylation is a stable colony trait,
+while expression and physiology change through time. This script asks which
+expression programmes track which physiological changes, and how both relate
+to the thermal history before each sampling.
+
+1.  **Thermal history** at Manava and Mahana (the two sites with sequenced
+    colonies) over the 7, 30 and 90 days before each sampling visit.
+2.  **Expression modules** per species (signed WGCNA on VST expression).
+3.  **Modules vs physiology** with repeated-measures mixed models, splitting
+    each module into a between-colony and a within-colony part.
+4.  **Thermal history vs modules and physiology** across the 8
+    site-by-timepoint units.
+5.  **Cross-species concordance**: do one-to-one orthologs relate to the
+    same physiological trait in the same direction in all three species?
+
+## Caveats that apply throughout
+
+-   **Only 8 environmental states** (2 sites x 4 timepoints). Thermal metrics
+    cannot be separated from anything else that changes with season (light,
+    nutrients, reproduction). Section 4 identifies which seasonal axis a
+    module follows, consistent with temperature; it does not establish that
+    temperature causes it.
+-   **Sampling dates are approximate.** The sample sheets record month only.
+    Each window ends on the last logger reading before the field-visit gap in
+    the temperature record (`visit_end` below). The 90-day TP1 window is
+    partly before logger deployment (61 of 90 days covered).
+-   **Within-colony associations include shared seasonal change.** The
+    "net of time" models remove site-by-timepoint means and test only
+    colony-specific co-variation.
+
+```{r setup, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE,
+                      fig.width = 10, fig.height = 6, dpi = 150)
+library(data.table)
+library(DESeq2)
+library(lme4)
+library(lmerTest)
+library(ggplot2)
+library(matrixStats)
+# WGCNA is used through WGCNA:: only; attaching it masks stats::cor()
+
+out_dir <- "../output/57-expression-physiology-thermal"
+dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
+set.seed(57)
+WGCNA::enableWGCNAThreads(nThreads = 8)
+n_perm <- 1000
+n_net_genes <- 10000   # most variable genes per species used to build networks
+
+temp_url <- "https://raw.githubusercontent.com/urol-e5/MOSAiC/main/data/temperature_timeseries.csv"
+visit_end <- as.Date(c(TP1 = "2019-12-30", TP2 = "2020-02-29",
+                       TP3 = "2020-09-18", TP4 = "2020-11-07"))
+windows <- c(7, 30, 90)
+heat_threshold <- 29   # degrees C, for accumulated heat above threshold
+```
+
+# Thermal history
+
+Daily summaries use local time (UTC-10). For each site, timepoint and window:
+
+-   `mean`: mean of daily mean temperature
+-   `max`: highest single reading
+-   `range`: mean daily range (max - min)
+-   `heat`: accumulated degree-days above `r heat_threshold` C, scaled to the
+    full window length when coverage is incomplete
+-   `slope`: trend in daily mean (C per week)
+
+```{r thermal}
+temp <- fread(temp_url)
+temp[, t := as.POSIXct(date.time, format = "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")]
+temp <- temp[site %in% c("Manava", "Mahana") & between(temp.C, 10, 40)]
+temp[, day := as.Date(t - 10 * 3600)]
+daily <- temp[, .(tmean = mean(temp.C), tmax = max(temp.C), tmin = min(temp.C)),
+              by = .(site, day)]
+
+thermal_long <- rbindlist(lapply(c("Manava", "Mahana"), function(s)
+  rbindlist(lapply(names(visit_end), function(tp)
+    rbindlist(lapply(windows, function(w) {
+      d <- daily[site == s & day <= visit_end[tp] & day > visit_end[tp] - w]
+      data.table(site = s, timepoint = tp, window = w, days_covered = nrow(d),
+                 mean = mean(d$tmean), max = max(d$tmax),
+                 range = mean(d$tmax - d$tmin),
+                 heat = mean(pmax(d$tmean - heat_threshold, 0)) * w,
+                 slope = 7 * coef(lm(tmean ~ as.numeric(day), d))[[2]])
+    }))))))
+fwrite(thermal_long, file.path(out_dir, "thermal-history.csv"))
+
+thermal <- dcast(melt(thermal_long, id.vars = c("site", "timepoint", "window", "days_covered"),
+                      variable.name = "metric"),
+                 site + timepoint ~ metric + window, value.var = "value", sep = "_")
+thermal[, st := paste(site, timepoint, sep = ":")]
+metric_cols <- setdiff(names(thermal), c("site", "timepoint", "st"))
+knitr::kable(thermal[, c("st", metric_cols), with = FALSE], digits = 2)
+```
+
+How much independent information do the metrics carry? Correlations across
+the 8 site-by-timepoint units:
+
+```{r thermal-cor, fig.height=7}
+tc <- cor(thermal[, ..metric_cols])
+tcl <- as.data.table(as.table(tc))
+p_tc <- ggplot(tcl, aes(V1, V2, fill = N)) + geom_tile() +
+  scale_fill_gradient2(low = "#2166ac", high = "#b2182b", limits = c(-1, 1)) +
+  labs(x = NULL, y = NULL, fill = "r") + theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+ggsave(file.path(out_dir, "thermal-metric-correlation.png"), p_tc, width = 8, height = 7, dpi = 200)
+p_tc
+pc <- prcomp(thermal[, ..metric_cols], scale. = TRUE)
+round(summary(pc)$importance[2, 1:4], 3)
+```
+
+# Expression modules
+
+Signed WGCNA per species on VST expression of the `r n_net_genes` most
+variable genes (among genes with at least 10 reads in a quarter of samples).
+The soft-threshold power is the smallest giving a
+signed scale-free fit of at least 0.8, or 14 (the WGCNA FAQ value for 30-40
+samples) if none does. Networks are cached in the output folder.
+
+```{r inputs}
+meta <- fread("../../master-molecular-metadata.csv")
+meta[, sample := paste(colony, timepoint, sep = "-")]
+meta[, st := paste(site, timepoint, sep = ":")]
+setkey(meta, sample)
+
+canon <- function(x) {
+  hit <- grepl("(ACR|POR|POC)-[0-9]+[-_]TP[1-4]", x)
+  out <- rep(NA_character_, length(x))
+  out[hit] <- sub("_", "-", regmatches(x, regexpr("(ACR|POR|POC)-[0-9]+[-_]TP[1-4]", x)))
+  out
+}
+as_matrix <- function(dt) {
+  keep <- names(dt)[-1]; s <- canon(keep)
+  keep <- keep[!is.na(s)]; s <- s[!is.na(s)]
+  m <- as.matrix(dt[, ..keep]); storage.mode(m) <- "double"
+  if (anyDuplicated(s)) m <- t(rowsum(t(m), s)) else colnames(m) <- s
+  rownames(m) <- dt[[1]]
+  m[, sort(colnames(m)), drop = FALSE]
+}
+vst_counts <- function(m, min_count = 10) {
+  m <- round(m)
+  m <- m[rowSums(m >= min_count) >= ceiling(ncol(m) / 4), , drop = FALSE]
+  dds <- DESeqDataSetFromMatrix(m, data.frame(row.names = colnames(m)), ~ 1)
+  dds <- estimateSizeFactors(dds, type = "poscounts")
+  assay(varianceStabilizingTransformation(dds, blind = TRUE))
+}
+
+sp <- list(
+  Apul = "../../D-Apul/output/02.20-D-Apul-RNAseq-alignment-HiSat2/apul-gene_count_matrix.csv",
+  Peve = "../../E-Peve/output/02.20-E-Peve-RNAseq-alignment-HiSat2/peve-gene_count_matrix.csv",
+  Ptua = "../../F-Ptua/output/02.20-F-Ptua-RNAseq-alignment-HiSat2/ptua-gene_count_matrix.csv"
+)
+expr <- lapply(sp, function(f) vst_counts(as_matrix(fread(f))))
+```
+
+```{r wgcna}
+# WGCNA calls cor() by name; another attached package (Bioconductor) provides
+# an incompatible cor() generic, so WGCNA's must be found first while it runs.
+cor <- WGCNA::cor
+nets <- list()
+for (s in names(expr)) {
+  cache <- file.path(out_dir, paste0(s, "-wgcna.rds"))
+  if (file.exists(cache)) { nets[[s]] <- readRDS(cache); next }
+  e <- expr[[s]]
+  e <- e[order(rowVars(e), decreasing = TRUE)[seq_len(min(n_net_genes, nrow(e)))], ]
+  datExpr <- t(e)
+  sft <- WGCNA::pickSoftThreshold(datExpr, powerVector = c(1:10, seq(12, 20, 2)),
+                                  networkType = "signed", verbose = 0)$fitIndices
+  fit <- -sign(sft$slope) * sft$SFT.R.sq
+  power <- if (any(fit >= 0.8)) sft$Power[which(fit >= 0.8)[1]] else 14
+  net <- WGCNA::blockwiseModules(datExpr, power = power, networkType = "signed",
+                                 TOMType = "signed", corType = "pearson",
+                                 minModuleSize = 50, mergeCutHeight = 0.25,
+                                 maxBlockSize = 30000, numericLabels = TRUE,
+                                 pamRespectsDendro = FALSE, saveTOMs = FALSE,
+                                 nThreads = 8, verbose = 0)
+  nets[[s]] <- list(power = power, max_fit = max(fit), colors = net$colors,
+                    MEs = net$MEs, genes = colnames(datExpr), samples = rownames(datExpr))
+  saveRDS(nets[[s]], cache)
+}
+rm(cor)
+
+module_tables <- rbindlist(lapply(names(nets), function(s) {
+  n <- nets[[s]]
+  data.table(species = s, gene = n$genes, module = paste0("M", n$colors))
+}))
+fwrite(module_tables, file.path(out_dir, "gene-module-assignments.csv.gz"))
+
+knitr::kable(rbindlist(lapply(names(nets), function(s) {
+  n <- nets[[s]]
+  data.table(species = s, genes = length(n$genes), samples = length(n$samples),
+             power = n$power, best_scale_free_fit = round(n$max_fit, 2),
+             modules = length(setdiff(unique(n$colors), 0)),
+             genes_unassigned = sum(n$colors == 0))
+})), caption = "Networks")
+```
+
+Module eigengenes (first principal component of each module, grey module 0
+excluded) are the module scores used below. Hub genes are those with the
+highest correlation to their module's eigengene.
+
+```{r eigengenes}
+ME <- list()
+for (s in names(nets)) {
+  m <- as.matrix(nets[[s]]$MEs)
+  rownames(m) <- nets[[s]]$samples
+  m <- m[, colnames(m) != "ME0", drop = FALSE]
+  colnames(m) <- sub("^ME", "M", colnames(m))
+  ME[[s]] <- m
+}
+hubs <- rbindlist(lapply(names(nets), function(s) {
+  e <- expr[[s]][nets[[s]]$genes, nets[[s]]$samples]
+  rbindlist(lapply(colnames(ME[[s]]), function(mod) {
+    g <- nets[[s]]$genes[paste0("M", nets[[s]]$colors) == mod]
+    k <- stats::cor(t(e[g, , drop = FALSE]), ME[[s]][, mod])[, 1]
+    data.table(species = s, module = mod, size = length(g),
+               hub_genes = paste(head(names(sort(k, decreasing = TRUE)), 5), collapse = "; "))
+  }))
+}))
+fwrite(hubs, file.path(out_dir, "module-hub-genes.csv"))
+```
+
+# Modules vs physiology
+
+Physiology traits measured on the same fragments as the RNA. Strictly
+positive traits are log10 transformed; all traits and eigengenes are
+standardised within species.
+
+For each module and trait the eigengene is split into the colony mean
+(**between**) and the deviation from it (**within**):
+
+-   model A: `trait ~ within + between + (1 | colony)`
+-   model B: `trait ~ within + between + site:timepoint + (1 | colony)`, so
+    the within effect is net of change shared by all colonies
+
+p-values are Satterthwaite (lmerTest); FDR is within species and model.
+
+```{r phys}
+traits <- c(cre.umol.mgprot = "Antioxidant capacity", Host_AFDW.mg.cm2 = "Host biomass",
+            Sym_AFDW.mg.cm2 = "Symbiont biomass", chla.ug.cm2 = "Chlorophyll a",
+            chlc2.ug.cm2 = "Chlorophyll c2", prot_ug.cm2 = "Protein",
+            cells.cm2 = "Symbiont density", Am = "Max photosynthesis (Am)",
+            AQY = "Quantum yield (AQY)", Rd = "Dark respiration (Rd)",
+            Ik = "Saturating irradiance (Ik)", Ic = "Compensation irradiance (Ic)",
+            calc.umol.cm2.hr = "Calcification")
+phys <- fread("../data/phys_master_timeseries.csv")
+phys[, sample := paste(colony_id_corr, sub("timepoint", "TP", timepoint), sep = "-")]
+phys <- unique(phys, by = "sample")
+for (tr in names(traits))
+  if (all(phys[[tr]] > 0, na.rm = TRUE)) set(phys, j = tr, value = log10(phys[[tr]]))
+setkey(phys, sample)
+```
+
+```{r module-trait}
+z <- function(x) (x - mean(x, na.rm = TRUE)) / sd(x, na.rm = TRUE)
+fit_mt <- function(d, net_time) {
+  f <- if (net_time) y ~ x_w + x_b + st + (1 | colony) else y ~ x_w + x_b + (1 | colony)
+  m <- suppressMessages(lmer(f, d, REML = TRUE))
+  co <- coef(summary(m))
+  data.table(beta_within = co["x_w", "Estimate"], p_within = co["x_w", "Pr(>|t|)"],
+             beta_between = co["x_b", "Estimate"], p_between = co["x_b", "Pr(>|t|)"])
+}
+mt <- rbindlist(lapply(names(ME), function(s) {
+  smp <- intersect(rownames(ME[[s]]), phys$sample)
+  md <- meta[smp]
+  rbindlist(lapply(colnames(ME[[s]]), function(mod) {
+    x <- z(ME[[s]][smp, mod])
+    x_b <- ave(x, md$colony)
+    rbindlist(lapply(names(traits), function(tr) {
+      d <- data.table(y = z(phys[smp][[tr]]), x_w = x - x_b, x_b = x_b,
+                      colony = md$colony, st = md$st)[!is.na(y)]
+      rbind(cbind(model = "within colony", fit_mt(d, FALSE)),
+            cbind(model = "net of shared time", fit_mt(d, TRUE)))[
+        , `:=`(species = s, module = mod, trait = traits[[tr]], n = nrow(d))]
+    }))
+  }))
+}))
+mt[, fdr_within := p.adjust(p_within, "BH"), by = .(species, model)]
+mt[, fdr_between := p.adjust(p_between, "BH"), by = .(species, model)]
+fwrite(mt, file.path(out_dir, "module-trait-models.csv"))
+
+knitr::kable(mt[, .(tests = .N, within_fdr10 = sum(fdr_within < 0.1),
+                    between_fdr10 = sum(fdr_between < 0.1)), by = .(species, model)],
+             caption = "Module-trait associations at FDR < 0.1")
+```
+
+```{r module-trait-plot, fig.height=9}
+pd <- copy(mt)
+pd[, label := fifelse(fdr_within < 0.1, "*", "")]
+pd[, module := factor(module, unique(module[order(as.integer(sub("M", "", module)))]))]
+p_mt <- ggplot(pd, aes(module, trait, fill = beta_within)) +
+  geom_tile() + geom_text(aes(label = label), size = 4) +
+  facet_grid(model ~ species, scales = "free_x", space = "free_x") +
+  scale_fill_gradient2(low = "#2166ac", high = "#b2182b", limits = c(-1, 1),
+                       oob = scales::squish) +
+  labs(x = NULL, y = NULL, fill = "Within-colony\nstandardised slope",
+       caption = "* FDR < 0.1") +
+  theme_minimal() + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, size = 7))
+ggsave(file.path(out_dir, "module-trait-within.png"), p_mt, width = 12, height = 9, dpi = 200)
+p_mt
+```
+
+Strongest within-colony associations (model A, FDR < 0.1), with whether they
+survive removal of shared time (model B):
+
+```{r top-mt}
+top <- merge(mt[model == "within colony" & fdr_within < 0.1,
+                .(species, module, trait, n, beta_within, fdr_within)],
+             mt[model == "net of shared time",
+                .(species, module, trait, beta_net_time = beta_within, fdr_net_time = fdr_within)],
+             by = c("species", "module", "trait"))
+top <- merge(top, hubs[, .(species, module, size)], by = c("species", "module"))
+setorder(top, species, fdr_within)
+fwrite(top, file.path(out_dir, "top-module-trait.csv"))
+knitr::kable(top, digits = 3)
+```
+
+# Thermal history vs modules and physiology
+
+Each module eigengene and trait is centred on its colony mean, then averaged
+within the 8 site-by-timepoint units and correlated with every thermal
+metric. With 8 points, p-values have 6 degrees of freedom and the metrics are
+strongly collinear, so this ranks which window and metric fits best rather
+than testing them against each other.
+
+```{r thermal-assoc}
+unit_means <- function(v, md) {
+  w <- v - ave(v, md$colony, FUN = function(x) mean(x, na.rm = TRUE))
+  data.table(st = md$st, w = w)[!is.na(w), .(value = mean(w)), by = st]
+}
+assoc <- rbindlist(lapply(names(ME), function(s) {
+  smp <- intersect(rownames(ME[[s]]), phys$sample)
+  md <- meta[smp]
+  vars <- c(setNames(lapply(colnames(ME[[s]]), function(mod) ME[[s]][smp, mod]),
+                     paste("module", colnames(ME[[s]]))),
+            setNames(lapply(names(traits), function(tr) phys[smp][[tr]]),
+                     paste("trait", traits)))
+  rbindlist(lapply(names(vars), function(v) {
+    u <- merge(unit_means(vars[[v]], md), thermal, by = "st")
+    rbindlist(lapply(metric_cols, function(mc) {
+      r <- stats::cor(u$value, u[[mc]])
+      data.table(species = s, variable = v, metric = mc, units = nrow(u), r = r,
+                 p = 2 * pt(-abs(r * sqrt((nrow(u) - 2) / (1 - r^2))), nrow(u) - 2))
+    }))
+  }))
+}))
+fwrite(assoc, file.path(out_dir, "thermal-associations.csv"))
+
+best <- assoc[, .SD[which.max(abs(r))], by = .(species, variable)]
+best[, kind := sub(" .*", "", variable)]
+```
+
+The p-value of the best of 15 collinear metrics is optimistic. `perm_p`
+corrects for that choice: the 8 unit values of a variable are shuffled among
+units 5,000 times, and each time the best |r| over all metrics is recorded.
+`perm_p` is the share of shuffles whose best |r| matches or beats the observed
+one, so it accounts for both picking the best metric and their collinearity.
+
+```{r thermal-perm}
+thermal_mat <- as.matrix(thermal[, ..metric_cols]); rownames(thermal_mat) <- thermal$st
+perm_orders <- replicate(5000, sample.int(nrow(thermal_mat)))
+best_perm <- rbindlist(lapply(names(ME), function(s) {
+  smp <- intersect(rownames(ME[[s]]), phys$sample)
+  md <- meta[smp]
+  vars <- c(setNames(lapply(colnames(ME[[s]]), function(mod) ME[[s]][smp, mod]),
+                     paste("module", colnames(ME[[s]]))),
+            setNames(lapply(names(traits), function(tr) phys[smp][[tr]]),
+                     paste("trait", traits)))
+  rbindlist(lapply(names(vars), function(v) {
+    u <- unit_means(vars[[v]], md)
+    tm <- thermal_mat[u$st, , drop = FALSE]
+    obs <- max(abs(stats::cor(u$value, tm)))
+    null <- apply(perm_orders[seq_len(nrow(u)), , drop = FALSE], 2, function(o)
+      if (nrow(u) == nrow(thermal_mat)) max(abs(stats::cor(u$value[o], tm))) else NA_real_)
+    data.table(species = s, variable = v, perm_p = (1 + sum(null >= obs, na.rm = TRUE)) /
+                 (1 + sum(!is.na(null))))
+  }))
+}))
+best <- merge(best, best_perm, by = c("species", "variable"))
+best[, perm_fdr := p.adjust(perm_p, "BH"), by = species]
+setorder(best, species, kind, perm_p)
+fwrite(best, file.path(out_dir, "thermal-best-metric.csv"))
+knitr::kable(best[perm_p < 0.05, .(species, variable, best_metric = metric, r, p, perm_p, perm_fdr)],
+             digits = 3, caption = "Variables whose thermal association survives the best-metric permutation (perm_p < 0.05)")
+```
+
+Which window lengths and metrics come out on top most often:
+
+```{r thermal-summary}
+best[, c("metric_type", "window") := tstrsplit(metric, "_")]
+knitr::kable(dcast(best[perm_p < 0.05], species + kind ~ window, fun.aggregate = length,
+                   value.var = "metric"), caption = "Best window among perm_p < 0.05 variables")
+knitr::kable(dcast(best[perm_p < 0.05], species + kind ~ metric_type, fun.aggregate = length,
+                   value.var = "metric"), caption = "Best metric type among perm_p < 0.05 variables")
+```
+
+# Cross-species concordance through orthologs
+
+For each one-to-one three-way ortholog and each trait, the within-colony
+correlation between gene expression and the trait is computed in each
+species. If the same genes track the same trait in the same direction across
+species, those correlations should agree across orthologs.
+
+Concordance is the Spearman correlation of the per-ortholog values between
+two species. The null shuffles the trait among timepoints within colony in
+one species of the pair. As in section 3, the "within colony" version
+includes shared seasonal change, so concordance there can reflect a conserved
+seasonal programme; the "net of shared time" version cannot.
+
+```{r orthologs}
+orth <- fread("../output/12-ortho-annot/ortholog_groups_annotated.csv")[type == "three_way"]
+orth[, `:=`(Apul = sub("-T[0-9]+$", "", apul), Peve = paste0("gene-", peve),
+            Ptua = paste0("gene-", ptua))]
+orth <- orth[!duplicated(Apul) & !duplicated(Peve) & !duplicated(Ptua)]
+orth <- orth[Apul %in% rownames(expr$Apul) & Peve %in% rownames(expr$Peve) &
+               Ptua %in% rownames(expr$Ptua)]
+cat(nrow(orth), "one-to-one three-way orthologs expressed in all three species\n")
+
+resid_rows <- function(Y, X) {
+  q <- qr(X); Q <- qr.Q(q)[, seq_len(q$rank), drop = FALSE]
+  Y - (Y %*% Q) %*% t(Q)
+}
+gene_trait_r <- function(s, tr, net_time, shuffle = FALSE) {
+  smp <- intersect(colnames(expr[[s]]), phys$sample)
+  y <- phys[smp][[tr]]; keep <- !is.na(y); smp <- smp[keep]; y <- y[keep]
+  md <- meta[smp]
+  if (shuffle) {
+    idx <- seq_along(y)
+    for (g in split(idx, md$colony)) if (length(g) > 1) idx[g] <- g[sample.int(length(g))]
+    y <- y[idx]
+  }
+  X <- if (net_time) model.matrix(~ colony + st, md) else model.matrix(~ colony, md)
+  E <- resid_rows(expr[[s]][orth[[s]], smp], X)
+  yr <- resid_rows(matrix(y, 1), X)[1, ]
+  as.vector(E %*% yr) / sqrt(rowSums(E^2) * sum(yr^2))
+}
+pairs <- list(c("Apul", "Peve"), c("Apul", "Ptua"), c("Peve", "Ptua"))
+conc <- rbindlist(lapply(names(traits), function(tr)
+  rbindlist(lapply(c(FALSE, TRUE), function(nt) {
+    r <- lapply(setNames(names(sp), names(sp)), gene_trait_r, tr = tr, net_time = nt)
+    rbindlist(lapply(pairs, function(pr) {
+      obs <- stats::cor(r[[pr[1]]], r[[pr[2]]], method = "spearman")
+      null <- vapply(seq_len(n_perm), function(b)
+        stats::cor(r[[pr[1]]], gene_trait_r(pr[2], tr, nt, shuffle = TRUE),
+                   method = "spearman"), numeric(1))
+      data.table(trait = traits[[tr]], model = if (nt) "net of shared time" else "within colony",
+                 pair = paste(pr, collapse = "-"), concordance = obs,
+                 null_sd = sd(null), perm_p = (1 + sum(abs(null) >= abs(obs))) / (n_perm + 1))
+    }))
+  }))))
+conc[, fdr := p.adjust(perm_p, "BH"), by = model]
+fwrite(conc, file.path(out_dir, "ortholog-concordance.csv"))
+knitr::kable(dcast(conc, trait ~ model + pair, value.var = "concordance"), digits = 2,
+             caption = "Concordance (Spearman r across orthologs)")
+knitr::kable(conc[fdr < 0.1], digits = 3, caption = "Concordance at FDR < 0.1")
+```
+
+```{r conc-plot, fig.height=6}
+p_c <- ggplot(conc, aes(pair, trait, fill = concordance)) + geom_tile() +
+  geom_text(aes(label = ifelse(fdr < 0.1, "*", "")), size = 5) +
+  facet_wrap(~ model) +
+  scale_fill_gradient2(low = "#2166ac", high = "#b2182b") +
+  labs(x = NULL, y = NULL, fill = "Concordance", caption = "* FDR < 0.1") +
+  theme_minimal()
+ggsave(file.path(out_dir, "ortholog-concordance.png"), p_c, width = 9, height = 6, dpi = 200)
+p_c
+```
+
+```{r session}
+sessionInfo()
+```
