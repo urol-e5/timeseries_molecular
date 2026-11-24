@@ -166,6 +166,12 @@ does. Networks are cached in the output folder.
 meta <- fread("../../master-molecular-metadata.csv")
 meta[, sample := paste(colony, timepoint, sep = "-")]
 meta[, st := paste(site, timepoint, sep = ":")]
+# Sample identity from 58-genotype-methylation: drop samples whose genotype
+# does not match their colony label, and give clonemates one shared genotype,
+# which is used as "colony" in every model below.
+geno <- fread("../output/58-genotype-methylation/sample-genotypes.csv")
+meta <- meta[!sample %in% geno[exclude == TRUE, sample]]
+meta[unique(geno[exclude == FALSE, .(colony, genotype_id)]), colony := i.genotype_id, on = "colony"]
 setkey(meta, sample)
 
 canon <- function(x) {
@@ -180,6 +186,7 @@ as_matrix <- function(dt) {
   m <- as.matrix(dt[, ..keep]); storage.mode(m) <- "double"
   if (anyDuplicated(s)) m <- t(rowsum(t(m), s)) else colnames(m) <- s
   rownames(m) <- dt[[1]]
+  m <- m[, colnames(m) %in% meta$sample, drop = FALSE]   # excluded samples (see 58)
   m[, sort(colnames(m)), drop = FALSE]
 }
 vst_counts <- function(m, min_count = 10) {
@@ -223,6 +230,58 @@ for (s in names(expr)) {
                     MEs = net$MEs, genes = colnames(datExpr), samples = rownames(datExpr))
   saveRDS(nets[[s]], cache)
 }
+```
+
+    ##    Power SFT.R.sq  slope truncated.R.sq mean.k. median.k. max.k.
+    ## 1      1  0.00127  0.754          0.798  5070.0   5090.00   5480
+    ## 2      2  0.01030  1.260          0.916  2840.0   2810.00   3460
+    ## 3      3  0.04660 -1.300          0.893  1710.0   1670.00   2430
+    ## 4      4  0.21100 -1.780          0.799  1090.0   1030.00   1810
+    ## 5      5  0.28400 -1.130          0.691   731.0    658.00   1390
+    ## 6      6  0.56900 -1.210          0.775   510.0    435.00   1150
+    ## 7      7  0.83100 -1.420          0.917   369.0    296.00   1010
+    ## 8      8  0.93600 -1.510          0.972   275.0    205.00    902
+    ## 9      9  0.97400 -1.540          0.988   211.0    145.00    819
+    ## 10    10  0.98400 -1.530          0.988   165.0    104.00    751
+    ## 11    12  0.98700 -1.480          0.984   108.0     55.20    647
+    ## 12    14  0.98700 -1.430          0.983    74.9     30.90    569
+    ## 13    16  0.98900 -1.370          0.987    54.8     18.10    508
+    ## 14    18  0.98200 -1.330          0.979    41.7     11.10    458
+    ## 15    20  0.98300 -1.300          0.980    32.8      7.02    417
+    ##    Power SFT.R.sq slope truncated.R.sq mean.k. median.k. max.k.
+    ## 1      1   0.0181 -4.17          0.873 5060.00   5070.00   5460
+    ## 2      2   0.0101 -1.23          0.944 2740.00   2730.00   3200
+    ## 3      3   0.0942 -2.34          0.915 1570.00   1540.00   2070
+    ## 4      4   0.2080 -2.47          0.879  940.00    909.00   1420
+    ## 5      5   0.3120 -2.31          0.843  589.00    554.00   1030
+    ## 6      6   0.4020 -1.94          0.832  382.00    349.00    769
+    ## 7      7   0.5450 -1.83          0.857  257.00    226.00    602
+    ## 8      8   0.6890 -1.99          0.912  177.00    150.00    497
+    ## 9      9   0.7930 -2.09          0.944  126.00    101.00    420
+    ## 10    10   0.8610 -2.13          0.967   91.60     70.10    361
+    ## 11    12   0.9120 -2.14          0.977   51.60     35.10    276
+    ## 12    14   0.9280 -2.06          0.977   31.20     18.80    218
+    ## 13    16   0.9390 -1.97          0.981   20.00     10.60    176
+    ## 14    18   0.9350 -1.91          0.977   13.50      6.31    145
+    ## 15    20   0.9200 -1.86          0.966    9.43      3.88    121
+    ##    Power SFT.R.sq  slope truncated.R.sq mean.k. median.k. max.k.
+    ## 1      1  0.44100  5.110          0.782  5340.0    5380.0   6250
+    ## 2      2  0.11800  1.340          0.858  3070.0    3070.0   4170
+    ## 3      3  0.00144 -0.113          0.900  1870.0    1840.0   2930
+    ## 4      4  0.09170 -0.778          0.916  1190.0    1160.0   2140
+    ## 5      5  0.25200 -1.190          0.920   790.0     751.0   1610
+    ## 6      6  0.38000 -1.360          0.932   541.0     502.0   1240
+    ## 7      7  0.48700 -1.510          0.936   381.0     343.0    977
+    ## 8      8  0.56400 -1.600          0.947   276.0     241.0    785
+    ## 9      9  0.62800 -1.640          0.957   204.0     172.0    641
+    ## 10    10  0.66600 -1.710          0.958   154.0     128.0    531
+    ## 11    12  0.71900 -1.780          0.961    91.8      72.1    376
+    ## 12    14  0.74500 -1.810          0.964    58.0      42.1    277
+    ## 13    16  0.75800 -1.830          0.962    38.4      25.8    210
+    ## 14    18  0.76400 -1.840          0.960    26.3      16.1    162
+    ## 15    20  0.77700 -1.840          0.961    18.7      10.3    128
+
+``` r
 rm(cor)
 
 module_tables <- rbindlist(lapply(names(nets), function(s) {
@@ -242,9 +301,9 @@ knitr::kable(rbindlist(lapply(names(nets), function(s) {
 
 | species | genes | samples | power | best_scale_free_fit | modules | genes_unassigned |
 |:--------|------:|--------:|------:|--------------------:|--------:|-----------------:|
-| Apul    | 10000 |      40 |     7 |                0.99 |       5 |             2435 |
-| Peve    | 10000 |      38 |    10 |                0.92 |      17 |             1787 |
-| Ptua    | 10000 |      39 |    20 |                0.82 |      17 |             1172 |
+| Apul    | 10000 |      38 |     7 |                0.99 |       5 |             2831 |
+| Peve    | 10000 |      36 |    10 |                0.94 |      19 |             1341 |
+| Ptua    | 10000 |      38 |    14 |                0.78 |      19 |              665 |
 
 Networks
 
@@ -340,11 +399,11 @@ knitr::kable(mt[, .(tests = .N, within_fdr10 = sum(fdr_within < 0.1),
 | species | model              | tests | within_fdr10 | between_fdr10 |
 |:--------|:-------------------|------:|-------------:|--------------:|
 | Apul    | within colony      |    65 |            2 |             0 |
-| Apul    | net of shared time |    65 |            7 |             0 |
-| Peve    | within colony      |   221 |            2 |             1 |
-| Peve    | net of shared time |   221 |            0 |             0 |
-| Ptua    | within colony      |   221 |            0 |             0 |
-| Ptua    | net of shared time |   221 |            0 |             0 |
+| Apul    | net of shared time |    65 |            8 |             1 |
+| Peve    | within colony      |   247 |            1 |             0 |
+| Peve    | net of shared time |   247 |            0 |             0 |
+| Ptua    | within colony      |   247 |            0 |             0 |
+| Ptua    | net of shared time |   247 |            0 |             0 |
 
 Module-trait associations at FDR \< 0.1
 
@@ -383,10 +442,9 @@ knitr::kable(top, digits = 3)
 
 | species | module | trait | n | beta_within | fdr_within | beta_net_time | fdr_net_time | size |
 |:---|:---|:---|---:|---:|---:|---:|---:|---:|
-| Apul | M2 | Calcification | 38 | -0.556 | 0.029 | 0.066 | 0.905 | 2687 |
-| Apul | M1 | Calcification | 38 | 0.521 | 0.041 | -0.068 | 0.895 | 3682 |
-| Peve | M2 | Calcification | 38 | -0.901 | 0.044 | 0.246 | 0.978 | 1222 |
-| Peve | M17 | Calcification | 38 | 0.772 | 0.069 | 0.173 | 0.978 | 78 |
+| Apul | M1 | Calcification | 36 | 0.567 | 0.017 | 0.023 | 0.990 | 3653 |
+| Apul | M2 | Calcification | 36 | -0.581 | 0.017 | -0.002 | 0.993 | 2671 |
+| Peve | M2 | Calcification | 36 | -0.887 | 0.082 | 0.262 | 0.985 | 1261 |
 
 # 5 Thermal history vs modules and physiology
 
@@ -460,13 +518,11 @@ knitr::kable(best[perm_p < 0.05, .(species, variable, best_metric = metric, r, p
 
 | species | variable | best_metric | r | p | perm_p | perm_fdr |
 |:---|:---|:---|---:|---:|---:|---:|
-| Apul | trait Saturating irradiance (Ik) | mean_30 | 0.971 | 0.000 | 0.004 | 0.079 |
-| Apul | trait Calcification | range_7 | 0.891 | 0.003 | 0.031 | 0.234 |
-| Apul | trait Antioxidant capacity | mean_90 | -0.880 | 0.004 | 0.039 | 0.234 |
-| Ptua | module M17 | slope_7 | -0.961 | 0.000 | 0.026 | 0.196 |
-| Ptua | trait Saturating irradiance (Ik) | mean_90 | 0.952 | 0.000 | 0.003 | 0.090 |
-| Ptua | trait Symbiont biomass | slope_90 | -0.902 | 0.002 | 0.025 | 0.196 |
-| Ptua | trait Chlorophyll c2 | max_7 | -0.901 | 0.002 | 0.026 | 0.196 |
+| Apul | trait Calcification | range_7 | 0.892 | 0.003 | 0.030 | 0.340 |
+| Apul | trait Saturating irradiance (Ik) | mean_30 | 0.891 | 0.003 | 0.038 | 0.340 |
+| Ptua | trait Saturating irradiance (Ik) | mean_90 | 0.977 | 0.000 | 0.002 | 0.070 |
+| Ptua | trait Chlorophyll c2 | max_7 | -0.892 | 0.003 | 0.032 | 0.375 |
+| Ptua | trait Symbiont biomass | slope_90 | -0.889 | 0.003 | 0.035 | 0.375 |
 
 Variables whose thermal association survives the best-metric permutation
 (perm_p \< 0.05)
@@ -479,11 +535,10 @@ knitr::kable(dcast(best[perm_p < 0.05], species + kind ~ window, fun.aggregate =
                    value.var = "metric"), caption = "Best window among perm_p < 0.05 variables")
 ```
 
-| species | kind   |  30 |   7 |  90 |
-|:--------|:-------|----:|----:|----:|
-| Apul    | trait  |   1 |   1 |   1 |
-| Ptua    | module |   0 |   1 |   0 |
-| Ptua    | trait  |   0 |   1 |   2 |
+| species | kind  |  30 |   7 |  90 |
+|:--------|:------|----:|----:|----:|
+| Apul    | trait |   1 |   1 |   0 |
+| Ptua    | trait |   0 |   1 |   2 |
 
 Best window among perm_p \< 0.05 variables
 
@@ -492,11 +547,10 @@ knitr::kable(dcast(best[perm_p < 0.05], species + kind ~ metric_type, fun.aggreg
                    value.var = "metric"), caption = "Best metric type among perm_p < 0.05 variables")
 ```
 
-| species | kind   | max | mean | range | slope |
-|:--------|:-------|----:|-----:|------:|------:|
-| Apul    | trait  |   0 |    2 |     1 |     0 |
-| Ptua    | module |   0 |    0 |     0 |     1 |
-| Ptua    | trait  |   1 |    1 |     0 |     1 |
+| species | kind  | max | mean | range | slope |
+|:--------|:------|----:|-----:|------:|------:|
+| Apul    | trait |   0 |    1 |     1 |     0 |
+| Ptua    | trait |   1 |    1 |     0 |     1 |
 
 Best metric type among perm_p \< 0.05 variables
 
@@ -524,7 +578,7 @@ orth <- orth[Apul %in% rownames(expr$Apul) & Peve %in% rownames(expr$Peve) &
 cat(nrow(orth), "one-to-one three-way orthologs expressed in all three species\n")
 ```
 
-    ## 9017 one-to-one three-way orthologs expressed in all three species
+    ## 9024 one-to-one three-way orthologs expressed in all three species
 
 ``` r
 resid_rows <- function(Y, X) {
@@ -567,19 +621,19 @@ knitr::kable(dcast(conc, trait ~ model + pair, value.var = "concordance"), digit
 
 | trait | net of shared time_Apul-Peve | net of shared time_Apul-Ptua | net of shared time_Peve-Ptua | within colony_Apul-Peve | within colony_Apul-Ptua | within colony_Peve-Ptua |
 |:---|---:|---:|---:|---:|---:|---:|
-| Antioxidant capacity | -0.02 | -0.19 | 0.05 | 0.03 | 0.13 | 0.15 |
-| Calcification | 0.04 | 0.05 | 0.07 | 0.18 | 0.07 | -0.10 |
-| Chlorophyll a | 0.00 | -0.12 | 0.08 | 0.10 | 0.03 | -0.11 |
-| Chlorophyll c2 | 0.05 | 0.04 | 0.05 | -0.12 | 0.00 | 0.03 |
-| Compensation irradiance (Ic) | -0.15 | 0.01 | -0.01 | 0.10 | 0.23 | 0.21 |
-| Dark respiration (Rd) | -0.05 | 0.02 | -0.08 | 0.08 | 0.02 | 0.10 |
-| Host biomass | -0.02 | -0.08 | 0.13 | -0.14 | 0.07 | 0.10 |
-| Max photosynthesis (Am) | -0.07 | 0.02 | -0.03 | -0.04 | 0.05 | -0.20 |
-| Protein | -0.02 | -0.15 | 0.05 | 0.20 | 0.14 | 0.08 |
-| Quantum yield (AQY) | 0.02 | 0.08 | -0.16 | 0.03 | 0.14 | -0.06 |
-| Saturating irradiance (Ik) | -0.01 | -0.02 | 0.02 | -0.09 | 0.17 | -0.06 |
-| Symbiont biomass | -0.04 | -0.19 | 0.07 | 0.01 | -0.10 | 0.19 |
-| Symbiont density | 0.02 | -0.04 | 0.06 | 0.00 | 0.08 | -0.11 |
+| Antioxidant capacity | -0.06 | -0.08 | 0.02 | 0.00 | 0.07 | 0.15 |
+| Calcification | 0.07 | 0.08 | 0.05 | 0.18 | 0.07 | -0.12 |
+| Chlorophyll a | 0.02 | -0.13 | 0.09 | 0.08 | 0.07 | -0.10 |
+| Chlorophyll c2 | 0.01 | 0.04 | 0.03 | -0.08 | -0.01 | 0.06 |
+| Compensation irradiance (Ic) | -0.14 | 0.00 | -0.01 | 0.04 | 0.22 | 0.13 |
+| Dark respiration (Rd) | -0.04 | 0.01 | -0.08 | 0.10 | -0.03 | 0.08 |
+| Host biomass | 0.04 | -0.13 | 0.11 | -0.17 | 0.03 | 0.09 |
+| Max photosynthesis (Am) | -0.05 | 0.01 | -0.02 | -0.01 | 0.03 | -0.23 |
+| Protein | 0.05 | -0.19 | 0.00 | 0.21 | 0.16 | 0.06 |
+| Quantum yield (AQY) | 0.02 | 0.07 | -0.17 | 0.00 | 0.15 | -0.10 |
+| Saturating irradiance (Ik) | 0.00 | -0.05 | 0.04 | -0.09 | 0.18 | -0.05 |
+| Symbiont biomass | 0.00 | -0.17 | 0.05 | -0.01 | -0.16 | 0.19 |
+| Symbiont density | 0.09 | -0.07 | 0.02 | -0.03 | 0.07 | -0.13 |
 
 Concordance (Spearman r across orthologs)
 

@@ -81,17 +81,23 @@ meta <- fread("../../master-molecular-metadata.csv")
 meta[, sample := paste(colony, timepoint, sep = "-")]
 meta[, st := paste(site, timepoint, sep = ":")]
 meta <- meta[, .(sample, colony, timepoint, site, st, species)]
+# Sample identity from 58-genotype-methylation: drop samples whose genotype
+# does not match their colony label, and give clonemates one shared genotype,
+# which is used as "colony" in every model below.
+geno <- fread("../output/58-genotype-methylation/sample-genotypes.csv")
+meta <- meta[!sample %in% geno[exclude == TRUE, sample]]
+meta[unique(geno[exclude == FALSE, .(colony, genotype_id)]), colony := i.genotype_id, on = "colony"]
 setkey(meta, sample)
 meta[, .N, by = .(species, site)]
 ```
 
     ##                     species   site     N
     ##                      <char> <char> <int>
-    ## 1:         Acropora pulchra Manava    20
+    ## 1:         Acropora pulchra Manava    18
     ## 2:         Acropora pulchra Mahana    20
     ## 3: Pocillopora tuahiniensis Mahana    19
-    ## 4: Pocillopora tuahiniensis Manava    20
-    ## 5:        Porites evermanni Mahana    18
+    ## 4: Pocillopora tuahiniensis Manava    19
+    ## 5:        Porites evermanni Mahana    16
     ## 6:        Porites evermanni Manava    20
 
 ``` r
@@ -113,6 +119,7 @@ as_matrix <- function(dt, id_col = 1, drop = NULL) {
   m <- as.matrix(dt[, ..keep]); storage.mode(m) <- "double"
   if (anyDuplicated(s)) m <- t(rowsum(t(m), s)) else colnames(m) <- s
   rownames(m) <- ids
+  m <- m[, colnames(m) %in% meta$sample, drop = FALSE]   # excluded samples (see 58)
   m[, sort(colnames(m)), drop = FALSE]
 }
 ```
@@ -229,9 +236,9 @@ rbindlist(cpg_counts)
 
     ##    species samples complete variable modelled
     ##     <char>   <int>    <int>    <int>    <int>
-    ## 1:    Apul      39   124486   121595    20000
-    ## 2:    Peve      37   242100   238957    20000
-    ## 3:    Ptua      32  1991606  1797003    20000
+    ## 1:    Apul      37   124486   121247    20000
+    ## 2:    Peve      35   242100   238506    20000
+    ## 3:    Ptua      31  1991606  1784109    20000
 
 ## 3.3 Gene-body methylation
 
@@ -276,9 +283,9 @@ rbindlist(gene_meth_counts)
 
     ##    species samples genes_with_any_value modelled median_pct_methylation
     ##     <char>   <int>                <int>    <int>                  <num>
-    ## 1:    Apul      39                24763    19065                2.97405
-    ## 2:    Peve      37                22544    14224                1.65030
-    ## 3:    Ptua      32                24014    22312                1.10020
+    ## 1:    Apul      37                24763    19135                2.94810
+    ## 2:    Peve      35                22544    14258                1.65015
+    ## 3:    Ptua      31                24014    22325                1.09720
 
 ## 3.4 Metabolites and lipids
 
@@ -338,30 +345,30 @@ knitr::kable(inventory)
 
 | species | layer      | features | samples | colonies | timepoints      |
 |:--------|:-----------|---------:|--------:|---------:|:----------------|
-| Apul    | gene       |    21108 |      40 |       10 | TP1,TP2,TP3,TP4 |
-| Apul    | lncRNA     |    15559 |      40 |       10 | TP1,TP2,TP3,TP4 |
-| Apul    | miRNA      |       44 |      40 |       10 | TP1,TP2,TP3,TP4 |
-| Apul    | mCpG       |    20000 |      39 |       10 | TP1,TP2,TP3,TP4 |
-| Apul    | mCpG_gene  |    19065 |      39 |       10 | TP1,TP2,TP3,TP4 |
-| Apul    | metabolite |      140 |      29 |       10 | TP1,TP3,TP4     |
-| Apul    | lipid      |      371 |      29 |       10 | TP1,TP3,TP4     |
-| Apul    | physiology |       13 |      39 |       10 | TP1,TP2,TP3,TP4 |
-| Peve    | gene       |    20841 |      38 |       10 | TP1,TP2,TP3,TP4 |
-| Peve    | lncRNA     |     8319 |      38 |       10 | TP1,TP2,TP3,TP4 |
-| Peve    | miRNA      |       48 |      29 |       10 | TP1,TP2,TP3,TP4 |
-| Peve    | mCpG       |    20000 |      37 |       10 | TP1,TP2,TP3,TP4 |
-| Peve    | mCpG_gene  |    14224 |      37 |       10 | TP1,TP2,TP3,TP4 |
-| Peve    | metabolite |      141 |      38 |       10 | TP1,TP2,TP3,TP4 |
-| Peve    | lipid      |      371 |      38 |       10 | TP1,TP2,TP3,TP4 |
-| Peve    | physiology |       13 |      38 |       10 | TP1,TP2,TP3,TP4 |
-| Ptua    | gene       |    20796 |      39 |       10 | TP1,TP2,TP3,TP4 |
-| Ptua    | lncRNA     |    11236 |      39 |       10 | TP1,TP2,TP3,TP4 |
-| Ptua    | miRNA      |       40 |      38 |       10 | TP1,TP2,TP3,TP4 |
-| Ptua    | mCpG       |    20000 |      32 |       10 | TP1,TP2,TP3,TP4 |
-| Ptua    | mCpG_gene  |    22312 |      32 |       10 | TP1,TP2,TP3,TP4 |
-| Ptua    | metabolite |      141 |      29 |       10 | TP1,TP3,TP4     |
-| Ptua    | lipid      |      371 |      29 |       10 | TP1,TP3,TP4     |
-| Ptua    | physiology |       13 |      39 |       10 | TP1,TP2,TP3,TP4 |
+| Apul    | gene       |    20953 |      38 |        8 | TP1,TP2,TP3,TP4 |
+| Apul    | lncRNA     |    15559 |      38 |        8 | TP1,TP2,TP3,TP4 |
+| Apul    | miRNA      |       44 |      38 |        8 | TP1,TP2,TP3,TP4 |
+| Apul    | mCpG       |    20000 |      37 |        8 | TP1,TP2,TP3,TP4 |
+| Apul    | mCpG_gene  |    19135 |      37 |        8 | TP1,TP2,TP3,TP4 |
+| Apul    | metabolite |      140 |      29 |        8 | TP1,TP3,TP4     |
+| Apul    | lipid      |      371 |      29 |        8 | TP1,TP3,TP4     |
+| Apul    | physiology |       13 |      37 |        8 | TP1,TP2,TP3,TP4 |
+| Peve    | gene       |    21075 |      36 |       10 | TP1,TP2,TP3,TP4 |
+| Peve    | lncRNA     |     8319 |      36 |       10 | TP1,TP2,TP3,TP4 |
+| Peve    | miRNA      |       48 |      27 |       10 | TP1,TP2,TP3,TP4 |
+| Peve    | mCpG       |    20000 |      35 |       10 | TP1,TP2,TP3,TP4 |
+| Peve    | mCpG_gene  |    14258 |      35 |       10 | TP1,TP2,TP3,TP4 |
+| Peve    | metabolite |      141 |      36 |       10 | TP1,TP2,TP3,TP4 |
+| Peve    | lipid      |      371 |      36 |       10 | TP1,TP2,TP3,TP4 |
+| Peve    | physiology |       13 |      36 |       10 | TP1,TP2,TP3,TP4 |
+| Ptua    | gene       |    20725 |      38 |       10 | TP1,TP2,TP3,TP4 |
+| Ptua    | lncRNA     |    11236 |      38 |       10 | TP1,TP2,TP3,TP4 |
+| Ptua    | miRNA      |       40 |      37 |       10 | TP1,TP2,TP3,TP4 |
+| Ptua    | mCpG       |    20000 |      31 |       10 | TP1,TP2,TP3,TP4 |
+| Ptua    | mCpG_gene  |    22325 |      31 |       10 | TP1,TP2,TP3,TP4 |
+| Ptua    | metabolite |      141 |      28 |       10 | TP1,TP3,TP4     |
+| Ptua    | lipid      |      371 |      28 |       10 | TP1,TP3,TP4     |
+| Ptua    | physiology |       13 |      38 |       10 | TP1,TP2,TP3,TP4 |
 
 # 4 Fit the variance components
 
@@ -416,27 +423,27 @@ res[, .(features = .N, failed = sum(is.na(colony))), by = .(species, layer)]
 
     ##     species      layer features failed
     ##      <char>     <char>    <int>  <int>
-    ##  1:    Apul       gene    21108      0
+    ##  1:    Apul       gene    20953      0
     ##  2:    Apul     lncRNA    15559      0
     ##  3:    Apul      miRNA       44      0
     ##  4:    Apul       mCpG    20000      0
-    ##  5:    Apul  mCpG_gene    19065      0
+    ##  5:    Apul  mCpG_gene    19135      0
     ##  6:    Apul metabolite      140      0
     ##  7:    Apul      lipid      371      0
     ##  8:    Apul physiology       13      0
-    ##  9:    Peve       gene    20841      0
+    ##  9:    Peve       gene    21075      0
     ## 10:    Peve     lncRNA     8319      0
     ## 11:    Peve      miRNA       48      0
     ## 12:    Peve       mCpG    20000      0
-    ## 13:    Peve  mCpG_gene    14224      0
+    ## 13:    Peve  mCpG_gene    14258      0
     ## 14:    Peve metabolite      141      0
     ## 15:    Peve      lipid      371      0
     ## 16:    Peve physiology       13      0
-    ## 17:    Ptua       gene    20796      0
+    ## 17:    Ptua       gene    20725      0
     ## 18:    Ptua     lncRNA    11236      0
     ## 19:    Ptua      miRNA       40      0
-    ## 20:    Ptua       mCpG    20000      0
-    ## 21:    Ptua  mCpG_gene    22312      0
+    ## 20:    Ptua       mCpG    20000      1
+    ## 21:    Ptua  mCpG_gene    22325      0
     ## 22:    Ptua metabolite      141      0
     ## 23:    Ptua      lipid      371      0
     ## 24:    Ptua physiology       13      0
@@ -466,30 +473,30 @@ knitr::kable(dcast(summ, species + layer + features ~ component, value.var = "me
 
 | species | layer      | features | colony | timepoint |  site | site_timepoint | residual |
 |:--------|:-----------|---------:|-------:|----------:|------:|---------------:|---------:|
-| Apul    | mCpG       |    20000 |  0.267 |     0.019 | 0.028 |          0.019 |    0.667 |
-| Apul    | mCpG_gene  |    19065 |  0.246 |     0.041 | 0.040 |          0.027 |    0.646 |
-| Apul    | gene       |    21108 |  0.184 |     0.152 | 0.038 |          0.111 |    0.515 |
-| Apul    | lncRNA     |    15559 |  0.295 |     0.104 | 0.039 |          0.109 |    0.453 |
-| Apul    | miRNA      |       44 |  0.251 |     0.152 | 0.025 |          0.046 |    0.525 |
-| Apul    | metabolite |      140 |  0.171 |     0.105 | 0.028 |          0.108 |    0.588 |
-| Apul    | lipid      |      371 |  0.305 |     0.016 | 0.019 |          0.074 |    0.586 |
-| Apul    | physiology |       13 |  0.094 |     0.300 | 0.009 |          0.080 |    0.516 |
-| Peve    | mCpG       |    20000 |  0.206 |     0.019 | 0.034 |          0.022 |    0.720 |
-| Peve    | mCpG_gene  |    14224 |  0.188 |     0.025 | 0.031 |          0.022 |    0.733 |
-| Peve    | gene       |    20841 |  0.222 |     0.035 | 0.104 |          0.049 |    0.589 |
-| Peve    | lncRNA     |     8319 |  0.277 |     0.036 | 0.101 |          0.047 |    0.539 |
-| Peve    | miRNA      |       48 |  0.186 |     0.022 | 0.027 |          0.040 |    0.725 |
-| Peve    | metabolite |      141 |  0.219 |     0.057 | 0.023 |          0.047 |    0.653 |
-| Peve    | lipid      |      371 |  0.051 |     0.111 | 0.009 |          0.006 |    0.823 |
-| Peve    | physiology |       13 |  0.062 |     0.147 | 0.098 |          0.077 |    0.616 |
-| Ptua    | mCpG       |    20000 |  0.082 |     0.021 | 0.021 |          0.036 |    0.840 |
-| Ptua    | mCpG_gene  |    22312 |  0.225 |     0.033 | 0.042 |          0.029 |    0.671 |
-| Ptua    | gene       |    20796 |  0.176 |     0.049 | 0.062 |          0.055 |    0.657 |
-| Ptua    | lncRNA     |    11236 |  0.282 |     0.038 | 0.072 |          0.046 |    0.562 |
-| Ptua    | miRNA      |       40 |  0.170 |     0.118 | 0.015 |          0.059 |    0.638 |
-| Ptua    | metabolite |      141 |  0.122 |     0.114 | 0.045 |          0.047 |    0.672 |
-| Ptua    | lipid      |      371 |  0.058 |     0.182 | 0.068 |          0.012 |    0.680 |
-| Ptua    | physiology |       13 |  0.093 |     0.193 | 0.054 |          0.060 |    0.600 |
+| Apul    | mCpG       |    20000 |  0.279 |     0.019 | 0.026 |          0.020 |    0.656 |
+| Apul    | mCpG_gene  |    19135 |  0.256 |     0.036 | 0.042 |          0.026 |    0.639 |
+| Apul    | gene       |    20953 |  0.221 |     0.147 | 0.029 |          0.113 |    0.491 |
+| Apul    | lncRNA     |    15559 |  0.350 |     0.101 | 0.024 |          0.112 |    0.414 |
+| Apul    | miRNA      |       44 |  0.283 |     0.132 | 0.032 |          0.060 |    0.493 |
+| Apul    | metabolite |      140 |  0.194 |     0.106 | 0.024 |          0.109 |    0.566 |
+| Apul    | lipid      |      371 |  0.299 |     0.016 | 0.027 |          0.083 |    0.576 |
+| Apul    | physiology |       13 |  0.098 |     0.289 | 0.019 |          0.096 |    0.498 |
+| Peve    | mCpG       |    20000 |  0.224 |     0.020 | 0.033 |          0.024 |    0.700 |
+| Peve    | mCpG_gene  |    14258 |  0.215 |     0.025 | 0.031 |          0.023 |    0.706 |
+| Peve    | gene       |    21075 |  0.248 |     0.037 | 0.112 |          0.046 |    0.557 |
+| Peve    | lncRNA     |     8319 |  0.311 |     0.040 | 0.108 |          0.045 |    0.496 |
+| Peve    | miRNA      |       48 |  0.212 |     0.024 | 0.032 |          0.034 |    0.698 |
+| Peve    | metabolite |      141 |  0.235 |     0.063 | 0.025 |          0.072 |    0.605 |
+| Peve    | lipid      |      371 |  0.048 |     0.146 | 0.007 |          0.005 |    0.794 |
+| Peve    | physiology |       13 |  0.059 |     0.149 | 0.097 |          0.088 |    0.608 |
+| Ptua    | mCpG       |    19999 |  0.089 |     0.021 | 0.021 |          0.035 |    0.833 |
+| Ptua    | mCpG_gene  |    22325 |  0.242 |     0.033 | 0.042 |          0.031 |    0.653 |
+| Ptua    | gene       |    20725 |  0.183 |     0.048 | 0.059 |          0.056 |    0.653 |
+| Ptua    | lncRNA     |    11236 |  0.297 |     0.038 | 0.069 |          0.047 |    0.549 |
+| Ptua    | miRNA      |       40 |  0.176 |     0.118 | 0.014 |          0.060 |    0.633 |
+| Ptua    | metabolite |      141 |  0.120 |     0.125 | 0.041 |          0.044 |    0.671 |
+| Ptua    | lipid      |      371 |  0.053 |     0.163 | 0.056 |          0.003 |    0.724 |
+| Ptua    | physiology |       13 |  0.093 |     0.192 | 0.054 |          0.061 |    0.600 |
 
 ``` r
 cols <- c(colony = "#1b6e8a", timepoint = "#e0a100", site = "#7a4fa3",
@@ -550,15 +557,15 @@ knitr::kable(strata, digits = 3)
 
 | species | meth_class | genes | colony | timepoint |  site | site_timepoint | residual |
 |:--------|:-----------|------:|-------:|----------:|------:|---------------:|---------:|
-| Apul    | \<5%       | 10047 |  0.163 |     0.026 | 0.024 |          0.024 |    0.762 |
-| Apul    | 5-20%      |  3513 |  0.357 |     0.055 | 0.056 |          0.024 |    0.508 |
-| Apul    | \>20%      |  5505 |  0.325 |     0.059 | 0.061 |          0.032 |    0.523 |
-| Peve    | \<5%       |  8438 |  0.124 |     0.025 | 0.027 |          0.025 |    0.799 |
-| Peve    | 5-20%      |  2055 |  0.326 |     0.024 | 0.040 |          0.019 |    0.591 |
-| Peve    | \>20%      |  3731 |  0.255 |     0.026 | 0.037 |          0.018 |    0.664 |
-| Ptua    | \<5%       | 14450 |  0.131 |     0.036 | 0.035 |          0.032 |    0.766 |
-| Ptua    | 5-20%      |  4856 |  0.399 |     0.025 | 0.057 |          0.023 |    0.496 |
-| Ptua    | \>20%      |  3006 |  0.400 |     0.027 | 0.055 |          0.021 |    0.496 |
+| Apul    | \<5%       | 10098 |  0.171 |     0.027 | 0.024 |          0.025 |    0.752 |
+| Apul    | 5-20%      |  3536 |  0.370 |     0.047 | 0.057 |          0.023 |    0.503 |
+| Apul    | \>20%      |  5501 |  0.338 |     0.048 | 0.066 |          0.029 |    0.519 |
+| Peve    | \<5%       |  8469 |  0.143 |     0.026 | 0.026 |          0.027 |    0.777 |
+| Peve    | 5-20%      |  2072 |  0.357 |     0.024 | 0.039 |          0.018 |    0.562 |
+| Peve    | \>20%      |  3717 |  0.298 |     0.025 | 0.037 |          0.018 |    0.623 |
+| Ptua    | \<5%       | 14471 |  0.140 |     0.037 | 0.036 |          0.034 |    0.753 |
+| Ptua    | 5-20%      |  4853 |  0.429 |     0.024 | 0.054 |          0.026 |    0.466 |
+| Ptua    | \>20%      |  3001 |  0.426 |     0.028 | 0.053 |          0.024 |    0.470 |
 
 ## 5.4 Physiology traits individually
 
@@ -569,44 +576,44 @@ knitr::kable(dcast(long[layer == "physiology"], species + feature ~ component,
 
 | species | feature          | colony | timepoint | site | site_timepoint | residual |
 |:--------|:-----------------|-------:|----------:|-----:|---------------:|---------:|
-| Apul    | AQY              |   0.24 |      0.10 | 0.00 |           0.00 |     0.66 |
-| Apul    | Am               |   0.18 |      0.28 | 0.05 |           0.03 |     0.45 |
-| Apul    | Host_AFDW.mg.cm2 |   0.00 |      0.29 | 0.00 |           0.02 |     0.68 |
-| Apul    | Ic               |   0.20 |      0.16 | 0.00 |           0.10 |     0.54 |
-| Apul    | Ik               |   0.19 |      0.03 | 0.00 |           0.00 |     0.77 |
-| Apul    | Rd               |   0.02 |      0.33 | 0.07 |           0.09 |     0.50 |
-| Apul    | Sym_AFDW.mg.cm2  |   0.04 |      0.00 | 0.00 |           0.10 |     0.86 |
-| Apul    | calc.umol.cm2.hr |   0.00 |      0.62 | 0.00 |           0.05 |     0.34 |
-| Apul    | cells.cm2        |   0.08 |      0.69 | 0.01 |           0.07 |     0.16 |
-| Apul    | chla.ug.cm2      |   0.12 |      0.30 | 0.00 |           0.08 |     0.50 |
-| Apul    | chlc2.ug.cm2     |   0.03 |      0.35 | 0.00 |           0.18 |     0.43 |
-| Apul    | cre.umol.mgprot  |   0.08 |      0.54 | 0.00 |           0.14 |     0.24 |
-| Apul    | prot_ug.cm2      |   0.05 |      0.20 | 0.00 |           0.18 |     0.57 |
-| Peve    | AQY              |   0.00 |      0.00 | 0.08 |           0.00 |     0.92 |
-| Peve    | Am               |   0.00 |      0.00 | 0.09 |           0.00 |     0.91 |
-| Peve    | Host_AFDW.mg.cm2 |   0.08 |      0.00 | 0.05 |           0.27 |     0.61 |
-| Peve    | Ic               |   0.00 |      0.05 | 0.04 |           0.17 |     0.74 |
-| Peve    | Ik               |   0.08 |      0.00 | 0.00 |           0.07 |     0.84 |
-| Peve    | Rd               |   0.00 |      0.10 | 0.00 |           0.08 |     0.82 |
-| Peve    | Sym_AFDW.mg.cm2  |   0.17 |      0.00 | 0.07 |           0.08 |     0.68 |
-| Peve    | calc.umol.cm2.hr |   0.00 |      0.75 | 0.00 |           0.07 |     0.19 |
-| Peve    | cells.cm2        |   0.01 |      0.27 | 0.25 |           0.17 |     0.29 |
-| Peve    | chla.ug.cm2      |   0.12 |      0.03 | 0.36 |           0.03 |     0.46 |
-| Peve    | chlc2.ug.cm2     |   0.02 |      0.34 | 0.04 |           0.00 |     0.60 |
-| Peve    | cre.umol.mgprot  |   0.15 |      0.37 | 0.11 |           0.00 |     0.38 |
-| Peve    | prot_ug.cm2      |   0.18 |      0.00 | 0.19 |           0.07 |     0.57 |
+| Apul    | AQY              |   0.20 |      0.11 | 0.05 |           0.00 |     0.64 |
+| Apul    | Am               |   0.17 |      0.28 | 0.11 |           0.00 |     0.44 |
+| Apul    | Host_AFDW.mg.cm2 |   0.00 |      0.31 | 0.00 |           0.00 |     0.69 |
+| Apul    | Ic               |   0.20 |      0.16 | 0.00 |           0.09 |     0.55 |
+| Apul    | Ik               |   0.18 |      0.00 | 0.00 |           0.00 |     0.82 |
+| Apul    | Rd               |   0.08 |      0.32 | 0.07 |           0.09 |     0.43 |
+| Apul    | Sym_AFDW.mg.cm2  |   0.10 |      0.00 | 0.00 |           0.14 |     0.76 |
+| Apul    | calc.umol.cm2.hr |   0.03 |      0.63 | 0.00 |           0.07 |     0.27 |
+| Apul    | cells.cm2        |   0.05 |      0.69 | 0.02 |           0.07 |     0.17 |
+| Apul    | chla.ug.cm2      |   0.11 |      0.29 | 0.00 |           0.08 |     0.53 |
+| Apul    | chlc2.ug.cm2     |   0.03 |      0.38 | 0.00 |           0.17 |     0.43 |
+| Apul    | cre.umol.mgprot  |   0.10 |      0.35 | 0.00 |           0.34 |     0.21 |
+| Apul    | prot_ug.cm2      |   0.04 |      0.23 | 0.00 |           0.20 |     0.53 |
+| Peve    | AQY              |   0.00 |      0.00 | 0.06 |           0.00 |     0.94 |
+| Peve    | Am               |   0.00 |      0.00 | 0.08 |           0.00 |     0.92 |
+| Peve    | Host_AFDW.mg.cm2 |   0.09 |      0.00 | 0.08 |           0.30 |     0.53 |
+| Peve    | Ic               |   0.00 |      0.05 | 0.01 |           0.21 |     0.73 |
+| Peve    | Ik               |   0.07 |      0.00 | 0.00 |           0.10 |     0.84 |
+| Peve    | Rd               |   0.00 |      0.11 | 0.00 |           0.05 |     0.84 |
+| Peve    | Sym_AFDW.mg.cm2  |   0.16 |      0.00 | 0.08 |           0.07 |     0.69 |
+| Peve    | calc.umol.cm2.hr |   0.00 |      0.73 | 0.00 |           0.07 |     0.20 |
+| Peve    | cells.cm2        |   0.02 |      0.29 | 0.27 |           0.20 |     0.22 |
+| Peve    | chla.ug.cm2      |   0.10 |      0.02 | 0.37 |           0.05 |     0.46 |
+| Peve    | chlc2.ug.cm2     |   0.00 |      0.30 | 0.07 |           0.00 |     0.63 |
+| Peve    | cre.umol.mgprot  |   0.14 |      0.43 | 0.06 |           0.00 |     0.37 |
+| Peve    | prot_ug.cm2      |   0.18 |      0.01 | 0.19 |           0.09 |     0.53 |
 | Ptua    | AQY              |   0.00 |      0.02 | 0.21 |           0.00 |     0.77 |
-| Ptua    | Am               |   0.02 |      0.21 | 0.03 |           0.02 |     0.73 |
-| Ptua    | Host_AFDW.mg.cm2 |   0.27 |      0.05 | 0.02 |           0.25 |     0.40 |
-| Ptua    | Ic               |   0.10 |      0.06 | 0.00 |           0.20 |     0.63 |
-| Ptua    | Ik               |   0.00 |      0.31 | 0.07 |           0.00 |     0.62 |
-| Ptua    | Rd               |   0.26 |      0.12 | 0.00 |           0.06 |     0.56 |
-| Ptua    | Sym_AFDW.mg.cm2  |   0.05 |      0.00 | 0.00 |           0.00 |     0.95 |
-| Ptua    | calc.umol.cm2.hr |   0.03 |      0.09 | 0.00 |           0.06 |     0.82 |
-| Ptua    | cells.cm2        |   0.23 |      0.53 | 0.00 |           0.00 |     0.24 |
-| Ptua    | chla.ug.cm2      |   0.06 |      0.27 | 0.28 |           0.00 |     0.39 |
-| Ptua    | chlc2.ug.cm2     |   0.04 |      0.46 | 0.08 |           0.04 |     0.38 |
-| Ptua    | cre.umol.mgprot  |   0.00 |      0.38 | 0.00 |           0.12 |     0.49 |
+| Ptua    | Am               |   0.03 |      0.21 | 0.02 |           0.01 |     0.72 |
+| Ptua    | Host_AFDW.mg.cm2 |   0.28 |      0.05 | 0.02 |           0.24 |     0.41 |
+| Ptua    | Ic               |   0.10 |      0.06 | 0.00 |           0.20 |     0.64 |
+| Ptua    | Ik               |   0.00 |      0.31 | 0.08 |           0.00 |     0.60 |
+| Ptua    | Rd               |   0.25 |      0.12 | 0.01 |           0.05 |     0.57 |
+| Ptua    | Sym_AFDW.mg.cm2  |   0.04 |      0.00 | 0.00 |           0.00 |     0.96 |
+| Ptua    | calc.umol.cm2.hr |   0.02 |      0.09 | 0.00 |           0.06 |     0.83 |
+| Ptua    | cells.cm2        |   0.22 |      0.52 | 0.01 |           0.00 |     0.25 |
+| Ptua    | chla.ug.cm2      |   0.06 |      0.27 | 0.27 |           0.00 |     0.40 |
+| Ptua    | chlc2.ug.cm2     |   0.04 |      0.45 | 0.08 |           0.04 |     0.38 |
+| Ptua    | cre.umol.mgprot  |   0.00 |      0.37 | 0.00 |           0.18 |     0.44 |
 | Ptua    | prot_ug.cm2      |   0.16 |      0.01 | 0.00 |           0.02 |     0.82 |
 
 ``` r

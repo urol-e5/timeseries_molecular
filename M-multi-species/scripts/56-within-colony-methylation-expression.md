@@ -68,6 +68,12 @@ the same samples.
 meta <- fread("../../master-molecular-metadata.csv")
 meta[, sample := paste(colony, timepoint, sep = "-")]
 meta[, st := paste(site, timepoint, sep = ":")]
+# Sample identity from 58-genotype-methylation: drop samples whose genotype
+# does not match their colony label, and give clonemates one shared genotype,
+# which is used as "colony" in every model below.
+geno <- fread("../output/58-genotype-methylation/sample-genotypes.csv")
+meta <- meta[!sample %in% geno[exclude == TRUE, sample]]
+meta[unique(geno[exclude == FALSE, .(colony, genotype_id)]), colony := i.genotype_id, on = "colony"]
 setkey(meta, sample)
 
 canon <- function(x) {
@@ -82,6 +88,7 @@ as_matrix <- function(dt) {
   m <- as.matrix(dt[, ..keep]); storage.mode(m) <- "double"
   if (anyDuplicated(s)) m <- t(rowsum(t(m), s)) else colnames(m) <- s
   rownames(m) <- dt[[1]]
+  m <- m[, colnames(m) %in% meta$sample, drop = FALSE]   # excluded samples (see 58)
   m[, sort(colnames(m)), drop = FALSE]
 }
 vst_counts <- function(m, min_count = 10) {
@@ -179,9 +186,9 @@ knitr::kable(rbindlist(inputs), caption = "Genes and samples analysed")
 
 | species | samples | colonies | genes | genes_methylated_5pct |
 |:--------|--------:|---------:|------:|----------------------:|
-| Apul    |      39 |       10 | 13193 |                  6954 |
-| Peve    |      37 |       10 |  7414 |                  3579 |
-| Ptua    |      32 |       10 | 17173 |                  6946 |
+| Apul    |      37 |        8 | 13180 |                  6945 |
+| Peve    |      35 |       10 |  7446 |                  3576 |
+| Ptua    |      31 |       10 | 17144 |                  6936 |
 
 Genes and samples analysed
 
@@ -208,9 +215,9 @@ knitr::kable(across, digits = 3)
 
 | species | genes | rho_meth_vs_mean_expr | rho_meth_vs_expr_sd | rho_meth_vs_expr_sd_given_mean |
 |:---|---:|---:|---:|---:|
-| Apul | 13193 | 0.457 | -0.167 | -0.189 |
-| Peve | 7414 | 0.398 | -0.412 | -0.358 |
-| Ptua | 17173 | 0.388 | -0.146 | -0.190 |
+| Apul | 13180 | 0.453 | -0.177 | -0.198 |
+| Peve | 7446 | 0.399 | -0.407 | -0.356 |
+| Ptua | 17144 | 0.386 | -0.143 | -0.186 |
 
 ``` r
 per_gene[, bin := cut(frank(mean_meth) / .N, seq(0, 1, 0.05)), by = species]
@@ -243,15 +250,15 @@ knitr::kable(between, digits = 3)
 
 | species | meth_class | genes | mean_r | frac_positive |
 |:--------|:-----------|------:|-------:|--------------:|
-| Apul    | \<5%       |  6239 |  0.011 |         0.506 |
-| Apul    | 5-20%      |  2890 |  0.072 |         0.578 |
-| Apul    | \>20%      |  4064 |  0.050 |         0.544 |
-| Peve    | \<5%       |  3835 |  0.015 |         0.515 |
-| Peve    | 5-20%      |  1364 |  0.053 |         0.557 |
-| Peve    | \>20%      |  2215 |  0.027 |         0.532 |
-| Ptua    | \<5%       | 10227 |  0.010 |         0.510 |
-| Ptua    | 5-20%      |  4324 |  0.020 |         0.518 |
-| Ptua    | \>20%      |  2622 |  0.009 |         0.503 |
+| Apul    | \<5%       |  6235 |  0.006 |         0.509 |
+| Apul    | 5-20%      |  2895 |  0.076 |         0.575 |
+| Apul    | \>20%      |  4050 |  0.055 |         0.552 |
+| Peve    | \<5%       |  3870 |  0.013 |         0.513 |
+| Peve    | 5-20%      |  1374 |  0.059 |         0.541 |
+| Peve    | \>20%      |  2202 |  0.033 |         0.538 |
+| Ptua    | \<5%       | 10208 |  0.008 |         0.511 |
+| Ptua    | 5-20%      |  4325 |  0.019 |         0.516 |
+| Ptua    | \>20%      |  2611 |  0.012 |         0.503 |
 
 ## 3.3 3. Within colonies
 
@@ -288,30 +295,30 @@ knitr::kable(within[, .(test, species, meth_class, genes, mean_r, null_mean_r, p
 
 | test | species | meth_class | genes | mean_r | null_mean_r | perm_p_mean_r | n_p01 | null_n_p01 | perm_p_n_p01 | n_fdr10 |
 |:---|:---|:---|---:|---:|---:|---:|---:|---:|---:|---:|
-| within_colony | Apul | all | 13193 | 0.007 | 0.000 | 0.395 | 1174 | 140.081 | 0.001 | 1039 |
-| within_colony | Apul | \<5% | 6239 | -0.012 | 0.000 | 0.367 | 137 | 65.377 | 0.001 | 112 |
-| within_colony | Apul | 5-20% | 2890 | 0.014 | 0.000 | 0.430 | 359 | 29.162 | 0.001 | 317 |
-| within_colony | Apul | \>20% | 4064 | 0.032 | 0.001 | 0.116 | 678 | 45.542 | 0.001 | 610 |
-| within_colony | Peve | all | 7414 | 0.017 | 0.000 | 0.013 | 118 | 79.425 | 0.010 | 4 |
-| within_colony | Peve | \<5% | 3835 | 0.000 | 0.000 | 0.952 | 43 | 41.094 | 0.423 | 2 |
-| within_colony | Peve | 5-20% | 1364 | 0.051 | 0.000 | 0.001 | 23 | 15.112 | 0.093 | 1 |
-| within_colony | Peve | \>20% | 2215 | 0.026 | 0.000 | 0.034 | 52 | 23.219 | 0.002 | 1 |
-| within_colony | Ptua | all | 17173 | 0.016 | 0.000 | 0.111 | 357 | 223.154 | 0.005 | 23 |
-| within_colony | Ptua | \<5% | 10227 | 0.026 | 0.000 | 0.010 | 174 | 121.128 | 0.004 | 11 |
-| within_colony | Ptua | 5-20% | 4324 | 0.002 | 0.001 | 0.965 | 110 | 62.308 | 0.023 | 4 |
-| within_colony | Ptua | \>20% | 2622 | 0.001 | 0.001 | 1.000 | 73 | 39.718 | 0.023 | 8 |
-| within_colony_net_time | Apul | all | 13193 | -0.005 | 0.000 | 0.474 | 422 | 142.589 | 0.005 | 26 |
-| within_colony_net_time | Apul | \<5% | 6239 | -0.010 | 0.000 | 0.434 | 93 | 64.987 | 0.018 | 0 |
-| within_colony_net_time | Apul | 5-20% | 2890 | 0.006 | 0.000 | 0.724 | 101 | 29.989 | 0.008 | 4 |
-| within_colony_net_time | Apul | \>20% | 4064 | -0.006 | 0.000 | 0.748 | 228 | 47.613 | 0.005 | 22 |
-| within_colony_net_time | Peve | all | 7414 | 0.006 | 0.000 | 0.423 | 85 | 76.071 | 0.250 | 4 |
-| within_colony_net_time | Peve | \<5% | 3835 | -0.006 | 0.000 | 0.496 | 47 | 40.566 | 0.219 | 1 |
-| within_colony_net_time | Peve | 5-20% | 1364 | 0.033 | 0.001 | 0.013 | 15 | 13.654 | 0.412 | 1 |
-| within_colony_net_time | Peve | \>20% | 2215 | 0.008 | -0.001 | 0.381 | 23 | 21.851 | 0.420 | 2 |
-| within_colony_net_time | Ptua | all | 17173 | 0.011 | 0.000 | 0.346 | 266 | 206.175 | 0.052 | 7 |
-| within_colony_net_time | Ptua | \<5% | 10227 | 0.027 | 0.000 | 0.045 | 129 | 113.856 | 0.154 | 2 |
-| within_colony_net_time | Ptua | 5-20% | 4324 | -0.013 | 0.000 | 0.602 | 86 | 56.302 | 0.046 | 2 |
-| within_colony_net_time | Ptua | \>20% | 2622 | -0.012 | 0.000 | 0.717 | 51 | 36.017 | 0.114 | 3 |
+| within_colony | Apul | all | 13180 | 0.005 | 0.000 | 0.571 | 924 | 139.752 | 0.001 | 580 |
+| within_colony | Apul | \<5% | 6235 | -0.012 | 0.000 | 0.373 | 120 | 66.498 | 0.004 | 59 |
+| within_colony | Apul | 5-20% | 2895 | 0.014 | 0.001 | 0.405 | 284 | 29.003 | 0.001 | 179 |
+| within_colony | Apul | \>20% | 4050 | 0.024 | 0.001 | 0.246 | 520 | 44.251 | 0.001 | 342 |
+| within_colony | Peve | all | 7446 | 0.015 | -0.001 | 0.022 | 83 | 68.864 | 0.105 | 0 |
+| within_colony | Peve | \<5% | 3870 | 0.000 | -0.001 | 0.975 | 30 | 37.896 | 0.912 | 0 |
+| within_colony | Peve | 5-20% | 1374 | 0.044 | -0.001 | 0.004 | 18 | 11.476 | 0.080 | 0 |
+| within_colony | Peve | \>20% | 2202 | 0.025 | -0.001 | 0.028 | 35 | 19.492 | 0.028 | 0 |
+| within_colony | Ptua | all | 17144 | 0.012 | 0.001 | 0.256 | 352 | 227.402 | 0.011 | 5 |
+| within_colony | Ptua | \<5% | 10208 | 0.024 | 0.001 | 0.019 | 171 | 121.827 | 0.004 | 0 |
+| within_colony | Ptua | 5-20% | 4325 | -0.007 | 0.000 | 0.728 | 115 | 65.034 | 0.025 | 1 |
+| within_colony | Ptua | \>20% | 2611 | -0.007 | 0.001 | 0.767 | 66 | 40.541 | 0.053 | 4 |
+| within_colony_net_time | Apul | all | 13180 | -0.006 | 0.000 | 0.421 | 443 | 133.094 | 0.001 | 23 |
+| within_colony_net_time | Apul | \<5% | 6235 | -0.012 | 0.000 | 0.444 | 99 | 64.547 | 0.005 | 0 |
+| within_colony_net_time | Apul | 5-20% | 2895 | 0.008 | 0.000 | 0.665 | 103 | 26.902 | 0.003 | 3 |
+| within_colony_net_time | Apul | \>20% | 4050 | -0.007 | 0.001 | 0.702 | 241 | 41.645 | 0.001 | 20 |
+| within_colony_net_time | Peve | all | 7446 | 0.005 | 0.000 | 0.479 | 83 | 68.416 | 0.092 | 0 |
+| within_colony_net_time | Peve | \<5% | 3870 | -0.005 | 0.000 | 0.512 | 42 | 38.030 | 0.279 | 0 |
+| within_colony_net_time | Peve | 5-20% | 1374 | 0.030 | 0.000 | 0.025 | 15 | 11.626 | 0.211 | 0 |
+| within_colony_net_time | Peve | \>20% | 2202 | 0.008 | 0.000 | 0.435 | 26 | 18.760 | 0.118 | 0 |
+| within_colony_net_time | Ptua | all | 17144 | 0.006 | 0.000 | 0.655 | 276 | 208.574 | 0.031 | 10 |
+| within_colony_net_time | Ptua | \<5% | 10208 | 0.025 | 0.000 | 0.072 | 128 | 113.529 | 0.169 | 3 |
+| within_colony_net_time | Ptua | 5-20% | 4325 | -0.022 | 0.001 | 0.361 | 97 | 58.273 | 0.015 | 2 |
+| within_colony_net_time | Ptua | \>20% | 2611 | -0.024 | 0.001 | 0.414 | 51 | 36.772 | 0.111 | 5 |
 
 ``` r
 hl <- melt(per_gene, id.vars = c("species", "gene", "meth_class"),
@@ -345,43 +352,39 @@ if (nrow(top)) knitr::kable(top[, .(species, gene, mean_meth, r_within_colony_ne
 
 | species | gene | mean_meth | r_within_colony_net_time | p_within_colony_net_time | fdr_within_colony_net_time |
 |:---|:---|---:|---:|---:|---:|
-| Apul | FUN_000537 | 23.1149 | 0.7981 | 0e+00 | 0.0209 |
-| Apul | FUN_000352 | 29.4800 | -0.7961 | 0e+00 | 0.0209 |
-| Apul | FUN_026369 | 14.8308 | -0.7863 | 0e+00 | 0.0209 |
-| Apul | FUN_041965 | 56.7120 | 0.7821 | 0e+00 | 0.0209 |
-| Apul | FUN_038439 | 9.8883 | -0.7708 | 0e+00 | 0.0276 |
-| Apul | FUN_009661 | 74.8637 | -0.7647 | 0e+00 | 0.0298 |
-| Apul | FUN_004400 | 22.9832 | 0.7566 | 0e+00 | 0.0335 |
-| Apul | FUN_016780 | 68.2891 | 0.7547 | 0e+00 | 0.0335 |
-| Apul | FUN_023795 | 48.0181 | -0.7327 | 0e+00 | 0.0583 |
-| Apul | FUN_022869 | 8.2658 | 0.7320 | 0e+00 | 0.0583 |
-| Apul | FUN_008936 | 64.7663 | 0.7316 | 0e+00 | 0.0583 |
-| Apul | FUN_035276 | 65.5111 | -0.7269 | 1e-04 | 0.0632 |
-| Apul | FUN_005725 | 67.1937 | 0.7213 | 1e-04 | 0.0687 |
-| Apul | FUN_007759 | 63.1600 | -0.7200 | 1e-04 | 0.0687 |
-| Apul | FUN_031709 | 65.2075 | -0.7114 | 1e-04 | 0.0818 |
-| Apul | FUN_015256 | 51.4770 | -0.7104 | 1e-04 | 0.0818 |
-| Apul | FUN_038220 | 25.1344 | -0.7074 | 1e-04 | 0.0818 |
-| Apul | FUN_023189 | 42.4361 | 0.7066 | 1e-04 | 0.0818 |
-| Apul | FUN_037461 | 34.7056 | -0.7052 | 1e-04 | 0.0818 |
-| Apul | FUN_032288 | 71.8579 | 0.7027 | 1e-04 | 0.0818 |
-| Apul | FUN_006778 | 24.2319 | 0.7019 | 1e-04 | 0.0818 |
-| Apul | FUN_009304 | 54.5193 | -0.7009 | 1e-04 | 0.0818 |
-| Apul | FUN_037208 | 32.2610 | -0.6930 | 2e-04 | 0.0958 |
-| Apul | FUN_040402 | 14.9296 | 0.6927 | 2e-04 | 0.0958 |
-| Apul | FUN_024778 | 57.8506 | -0.6916 | 2e-04 | 0.0958 |
-| Apul | FUN_015293 | 74.1174 | 0.6890 | 2e-04 | 0.0999 |
-| Peve | gene-Peve_00043373 | 61.8427 | -0.7992 | 0e+00 | 0.0604 |
-| Peve | gene-Peve_00027826 | 0.3835 | -0.7699 | 0e+00 | 0.0755 |
-| Peve | gene-Peve_00004045 | 35.5701 | 0.7676 | 0e+00 | 0.0755 |
-| Peve | gene-Peve_00031737 | 19.8930 | -0.7566 | 0e+00 | 0.0855 |
-| Ptua | gene-Pocillopora_meandrina_HIv1\_\_\_RNAseq.g1587.t1 | 30.3281 | -0.9049 | 0e+00 | 0.0103 |
-| Ptua | gene-Pocillopora_meandrina_HIv1\_\_\_RNAseq.g3784.t1 | 0.8249 | 0.8938 | 0e+00 | 0.0115 |
-| Ptua | gene-Pocillopora_meandrina_HIv1\_\_\_RNAseq.g17956.t1 | 21.3060 | -0.8787 | 0e+00 | 0.0197 |
-| Ptua | gene-Pocillopora_meandrina_HIv1\_\_\_RNAseq.g10783.t1a | 16.0926 | -0.8553 | 0e+00 | 0.0428 |
-| Ptua | gene-Pocillopora_meandrina_HIv1\_\_\_RNAseq.3753_t | 0.6029 | 0.8547 | 0e+00 | 0.0428 |
-| Ptua | gene-Pocillopora_meandrina_HIv1\_\_\_RNAseq.g3991.t1a | 7.6566 | 0.8376 | 0e+00 | 0.0703 |
-| Ptua | gene-Pocillopora_meandrina_HIv1\_\_\_RNAseq.g1582.t1 | 25.6533 | -0.8364 | 0e+00 | 0.0703 |
+| Apul | FUN_000537 | 22.9757 | 0.8191 | 0e+00 | 0.0232 |
+| Apul | FUN_000352 | 29.1887 | -0.8050 | 0e+00 | 0.0238 |
+| Apul | FUN_009661 | 74.7798 | -0.7917 | 0e+00 | 0.0299 |
+| Apul | FUN_016780 | 67.9855 | 0.7723 | 0e+00 | 0.0519 |
+| Apul | FUN_041965 | 56.5852 | 0.7625 | 0e+00 | 0.0616 |
+| Apul | FUN_014770 | 71.4328 | 0.7516 | 0e+00 | 0.0731 |
+| Apul | FUN_004400 | 22.8270 | 0.7468 | 0e+00 | 0.0731 |
+| Apul | FUN_024778 | 57.5769 | -0.7403 | 1e-04 | 0.0731 |
+| Apul | FUN_007759 | 63.0071 | -0.7397 | 1e-04 | 0.0731 |
+| Apul | FUN_023795 | 47.7644 | -0.7394 | 1e-04 | 0.0731 |
+| Apul | FUN_005725 | 67.2549 | 0.7320 | 1e-04 | 0.0732 |
+| Apul | FUN_042656 | 38.4020 | 0.7292 | 1e-04 | 0.0732 |
+| Apul | FUN_038220 | 24.7750 | -0.7287 | 1e-04 | 0.0732 |
+| Apul | FUN_009304 | 53.6574 | -0.7276 | 1e-04 | 0.0732 |
+| Apul | FUN_035276 | 65.2144 | -0.7272 | 1e-04 | 0.0732 |
+| Apul | FUN_034363 | 5.6770 | -0.7238 | 1e-04 | 0.0732 |
+| Apul | FUN_008936 | 64.5546 | 0.7207 | 1e-04 | 0.0732 |
+| Apul | FUN_031709 | 64.9131 | -0.7201 | 1e-04 | 0.0732 |
+| Apul | FUN_026369 | 14.5564 | -0.7190 | 1e-04 | 0.0732 |
+| Apul | FUN_022869 | 8.2471 | 0.7189 | 1e-04 | 0.0732 |
+| Apul | FUN_015256 | 51.0756 | -0.7127 | 1e-04 | 0.0850 |
+| Apul | FUN_023189 | 42.0989 | 0.7103 | 1e-04 | 0.0875 |
+| Apul | FUN_033691 | 60.4542 | -0.7059 | 2e-04 | 0.0961 |
+| Ptua | gene-Pocillopora_meandrina_HIv1\_\_\_RNAseq.g1587.t1 | 30.2660 | -0.9021 | 0e+00 | 0.0304 |
+| Ptua | gene-Pocillopora_meandrina_HIv1\_\_\_RNAseq.g17956.t1 | 21.3344 | -0.8857 | 0e+00 | 0.0391 |
+| Ptua | gene-Pocillopora_meandrina_HIv1\_\_\_RNAseq.g28040.t1 | 21.8238 | 0.8803 | 0e+00 | 0.0391 |
+| Ptua | gene-Pocillopora_meandrina_HIv1\_\_\_RNAseq.g1814.t1 | 37.8020 | -0.8638 | 0e+00 | 0.0693 |
+| Ptua | gene-Pocillopora_meandrina_HIv1\_\_\_RNAseq.g10783.t1a | 16.1290 | -0.8501 | 0e+00 | 0.0827 |
+| Ptua | gene-Pocillopora_meandrina_HIv1\_\_\_RNAseq.g25681.t1 | 2.2689 | 0.8481 | 0e+00 | 0.0827 |
+| Ptua | gene-Pocillopora_meandrina_HIv1\_\_\_RNAseq.3753_t | 0.6178 | 0.8472 | 0e+00 | 0.0827 |
+| Ptua | gene-Pocillopora_meandrina_HIv1\_\_\_RNAseq.g4541.t1 | 6.9553 | -0.8419 | 0e+00 | 0.0827 |
+| Ptua | gene-Pocillopora_meandrina_HIv1\_\_\_RNAseq.g3784.t1 | 0.7511 | 0.8408 | 0e+00 | 0.0827 |
+| Ptua | gene-Pocillopora_meandrina_HIv1\_\_\_RNAseq.g1582.t1 | 25.6670 | -0.8392 | 0e+00 | 0.0827 |
 
 ``` r
 sessionInfo()
